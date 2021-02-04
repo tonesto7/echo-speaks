@@ -44,7 +44,10 @@ import groovy.transform.Field
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
+@Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
+@Field static final String sCLRGRN        = 'green'
+@Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
@@ -178,7 +181,7 @@ def mainPage() {
                         String rd = remDevs.sort().collect { spanWrap(" ${sBULLET} ${it}") }.join("<br>")
                         href "devCleanupPage", title: inTS("Removable Devices:"), description: divWrap(rd, sCLRRED, "small"), required: true, state: sNULL
                     }
-                    String devDesc = getDeviceList()?.collect { "${spanWrap(it?.value?.name)}${it?.value?.online ? spanWrap(" (Online)", "#43d843") : sBLANK}${it?.value?.supported == false ? spanWrap(" ${sFRNFACE}", "#cc2d3b") : sBLANK}" }?.sort().join("<br>").toString()
+                    String devDesc = getDeviceList()?.collect { "${spanWrap(it?.value?.name)}${it?.value?.online ? spanWrap(" (Online)", sCLRGRN2) : sBLANK}${it?.value?.supported == false ? spanWrap(" ${sFRNFACE}", sCLRRED2) : sBLANK}" }?.sort().join("<br>").toString()
                     String dd = devDesc ? "${divWrap(devDesc, sCLR4D9, "small")}${inputFooter(sTTM)}" : "${inputFooter(sTTC, sCLRGRY)}"
                     href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd, state: sCOMPLT
                 } else { paragraph pTS("Device Management will be displayed after install is complete", sNull, true, "orange") }
@@ -193,40 +196,40 @@ def mainPage() {
 
             section(sTS("Alexa Login Service:")) {
                 String ls = getLoginStatusDesc()
-                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}${inputFooter(sTTM)}" : sTTC), state: (ls ? sCOMPLT : sNULL)
+                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true)), state: (ls ? sCOMPLT : sNULL)
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
         }
         section(sTS("Notifications:")) {
             String t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC)), state: (t0 ? sCOMPLT : sNULL)
+            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true)), state: (t0 ? sCOMPLT : sNULL)
         }
         section(sTS("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
-            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: "${sTTM}"
+            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inputFooter(sTTP, sCLRGRY, true)
+            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: inputFooter(sTTM, sCLRGRY, true)
         }
 
 //        if((Boolean)state.isInstalled) {
 //        } else {
 //            paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getHEAppImg("info"), false, sCLR4D9), state: sCOMPLT
 //        }
-
+        // getCustomerHistoryRecords(10, true)
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: "Test Speech, Announcements, and Sequences Builder\n\n${sTTP}"
-                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: "Test music queries\n\n${sTTP}"
+                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanWrap("Test Speech, Announcements, and Sequences Builder", sCLR4D9, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
+                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanWrap("Test music queries", sCLR4D9, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
             }
             section(sTS("Donations:")) {
-                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: "Tap to open browser"
+                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
             }
             section(sTS("Remove Everything:")) {
-                href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: "Tap to Remove..."
+                href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
             }
             section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
                 def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
                 def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
-                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser"
-                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser"
+                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
+                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
             }
         } else {
             showDevSharePrefs()
@@ -369,7 +372,7 @@ def deviceManagePage() {
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs?.size()) {
                     String devDesc = devs?.collect { "<span>${it?.value?.name}</span>${it?.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it?.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
-                    String dd = "<div style='font-size: small; color: #1A77C9;'>${devDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>"
+                    String dd = "<div style='font-size: small; color: ${sCLR4D9};'>${devDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>"
                     href "deviceListPage", title: inTS("Installed Devices:"), description: dd, state: sCOMPLT
                 } else { paragraph pTS("Discovered Devices:\nNo Devices Available", sNULL, false, "red"), state: sCOMPLT }
                 List remDevs = getRemovableDevs()
@@ -811,7 +814,7 @@ private String devicePrefsDesc() {
     }
     str += (Boolean) settings.autoRenameDevices ? "<br><span> ${sBULLET} Auto Rename</span>" : sBLANK
     str += (Boolean) settings.bypassDeviceBlocks ? "<br><span> ${sBULLET} Block Bypass: (Active)</span>" : sBLANK
-    str = paraTS(null, str, null, [:], [s: 'small', c: '#1A77C9'])
+    str = paraTS(null, str, null, [:], [s: 'small', c: sCLR4D9])
     return str != sBLANK ? str : sNULL
 }
 
@@ -849,7 +852,7 @@ def deviceListPage() {
                 str += v.supported != true ? "<br><span>Unsupported Device: (True)</span>" : sBLANK
                 str += (v.mediaPlayer == true && v.musicProviders) ? "<br><span>Music Providers: [${v.musicProviders}]</span>" : sBLANK
                 String a = (String)v.style?.image
-                paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
+                paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
             }
         }
     }
@@ -872,7 +875,7 @@ def unrecogDevicesPage() {
                     str += "<br><span>Text-to-Speech: (${v?.tts?.toString()?.capitalize()})</span>"
                     str += "<br><span>Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})</span>"
                     str += "<br><span>Reason Ignored: (${v?.reason})</span>"
-                    paragraph paraTS((String)v.name, str, (String)v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? '#1A77C9' : 'gray')])
+                    paragraph paraTS((String)v.name, str, (String)v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
                 }
                 input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
@@ -1193,7 +1196,7 @@ Map executeTuneInSearch(String query) {
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
         query: [ query: query, mediaOwnerCustomerId: state.deviceOwnerCustomerId ],
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         requestContentType: sAPPJSON,
         contentType: sAPPJSON,
         timeout: 20
@@ -1539,14 +1542,14 @@ public Map getZones() {
     return a
 }
 
-Map getActiveZones() {
-    Map zones = getZones()
-    return zones.size() ? zones.findAll { it?.value?.active == true && !it?.value?.paused } : [:]
+List getActiveZones() {
+    List zones = getZoneApps()
+    return zones.size() ? zones.findAll { (Boolean) it?.isActive() == true && (Boolean) !it?.isPaused() } : []
 }
 
-Map getInActiveZones() {
-    Map zones = getZones()
-    return zones.size() ? zones.findAll { it?.value?.active != true  || it?.value?.paused } : [:]
+List getInActiveZones() {
+    List zones = getZoneApps()
+    return zones.size() ? zones.findAll { (Boolean) it?.isActive() != true || (Boolean) it?.isPaused() } : []
 }
 
 static List getMyZNames(Map zones) {
@@ -1555,11 +1558,13 @@ static List getMyZNames(Map zones) {
 }
 
 List getActiveZoneNames() {
-    return getMyZNames(getActiveZones())
+    return getActiveZones()?.collect { it.getLabel() }
+    // return getMyZNames(getActiveZones())
 }
 
 List getInActiveZoneNames() {
-    return getMyZNames(getInActiveZones())
+    return getInActiveZones()?.collect { it.getLabel() }
+    // return getMyZNames(getInActiveZones())
 }
 
 List getZoneApps() {
@@ -1775,6 +1780,18 @@ def getCookieData() {
 
 Map getCookieMap() {
     return [cookie: getCookieVal(), csrf: getCsrfVal()]
+}
+
+Map getReqHeaderMap() {
+    return [
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
+        Referer: "https://alexa.${state.cookieData?.amazonPage}/spa/index.html",
+        Origin: "https://alexa.${state.cookieData?.amazonPage}",
+        cookie: getCookieVal(), 
+        csrf: getCsrfVal(),
+        //'Content-Type': 'application/json',
+        //'Connection': 'keep-alive', // new
+    ]
 }
 
 String getCookieVal() {
@@ -2078,7 +2095,7 @@ Boolean validateCookie(Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
             query: ["version": 0],
-            headers: getCookieMap(),
+            headers: getReqHeaderMap(),//getCookieMap(),
             contentType: sAPPJSON,
             timeout: 20,
         ]
@@ -2134,7 +2151,7 @@ private getCustomerData(Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/get-customer-pfm",
             query: ["_": execDt],
-            headers: getCookieMap(),
+            headers: getReqHeaderMap(),//getCookieMap(),
             contentType: sAPPJSON,
             timeout: 20,
         ]
@@ -2157,6 +2174,132 @@ private getCustomerData(Boolean frc=false) {
         updTsVal("lastCustDataUpdDt")
     }
 }
+
+private getAllDeviceVolumes(Boolean frc=false) {
+    if(!isAuthValid("getAllDeviceVolumes")) { return [:] }
+    if(!frc && (Map)state.deviceVolumes && getLastTsValSecs("deviceVolumeUpdDt") < 3600) { return (Map)state.deviceVolumes }
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/devices/deviceType/dsn/audio/v1/allDeviceVolumes",
+        headers: getReqHeaderMap(), //getCookieMap(),
+        contentType: sAPPJSON,
+        timeout: 20
+    ]
+    List volumes = []
+    try {
+        logTrace("getAllDeviceVolumes")
+        httpGet(params) { response ->
+            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
+            Map rData = response?.data ?: [:]
+            log.debug "Device Volumes: ${rData.volumes}"
+            state.deviceVolumes = rData && rData.volumes ? rData.volumes : []
+            volumes = rData && rData.volumes ? rData.volumes : []
+            updTsVal("deviceVolumeUpdDt")
+        }
+    } catch (ex) {
+        respExceptionHandler(ex, "getAllDeviceVolumes", true)
+    }
+    return volumes
+}
+
+// private getCustomerHistoryRecords(Integer maxRecordSize = 1, Boolean frc) {
+//     if(!isAuthValid("getCustomerHistoryRecords")) { return [:] }
+//     if(!frc && (Map)state.deviceVolumes && getLastTsValSecs("customerHistoryRecUpdDt") < 3600) { return (Map)state.deviceVolumes }
+//     Map params = [
+//         uri: getAmazonUrl(),
+//         path: "/alexa-privacy/apd/rvh/customer-history-records",
+//         query: [
+//             startTime: (now() - 24 * 60 * 60 * 1000),
+//             endTime: now(),
+//             recordType: 'VOICE_HISTORY',
+//             maxRecordSize: maxRecordSize
+//         ],
+//         headers: getReqHeaderMap(), //getCookieMap(),
+//         contentType: sAPPJSON,
+//         timeout: 20
+//     ]
+//     Map items = [:]
+//     try {
+//         logTrace("getCustomerHistoryRecords")
+//         httpGet(params) { response ->
+//             if(response?.status != 200) logWarn("${response?.status} $params")
+//             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
+//             def result = response?.data
+//             log.debug "result: $result"
+
+//             List ret = [];
+//             if (result.customerHistoryRecords) {
+//                 for (List r = 0; r < result.customerHistoryRecords.size(); r++) {
+//                     def res = result.customerHistoryRecords[r];
+//                     def o = [
+//                         data: res
+//                     ];
+//                     Map convParts = [:];
+//                     if (res.voiceHistoryRecordItems && Array.isArray(res.voiceHistoryRecordItems)) {
+//                         res.voiceHistoryRecordItems.each { item ->
+//                             convParts[item.recordItemType] = convParts[item.recordItemType] || [];
+//                             convParts[item.recordItemType].push(item);
+//                         };
+//                     }
+
+//                     def recordKey = res.recordKey.split('#'); // A3NSX4MMJVG96V#1612297041815#A1RABVCI4QCIKC#G0911W0793360TLG
+
+//                     o.deviceType = recordKey[2] || null;
+//                     //o.deviceAccountId = res.sourceDeviceIds[i].deviceAccountId || null;
+//                     o.creationTimestamp = res.timestamp || null;
+//                     //o.activityStatus = res.activityStatus || null; // DISCARDED_NON_DEVICE_DIRECTED_INTENT, SUCCESS, FAIL, SYSTEM_ABANDONED
+
+//                     o.deviceSerialNumber = recordKey[3];
+//                     // if (!this.serialNumbers[o.deviceSerialNumber]) continue;
+//                     // o.name = this.serialNumbers[o.deviceSerialNumber].accountName;
+//                     // const dev = this.find(o.deviceSerialNumber);
+//                     // let wakeWord = (dev && dev.wakeWord) ? dev.wakeWord : null;
+
+//                     // if (convParts.CUSTOMER_TRANSCRIPT) {
+//                     //     o.description = {'summary': ''};
+//                     //     convParts.CUSTOMER_TRANSCRIPT.forEach(trans => {
+//                     //         let text = trans.transcriptText;
+//                     //         if (wakeWord && text.startsWith(wakeWord)) {
+//                     //             text = text.substr(wakeWord.length).trim();
+//                     //         }
+//                     //         o.description.summary += text + ', ';
+//                     //     });
+//                     //     o.description.summary = o.description.summary.substring(0, -2).trim();
+//                     // }
+//                     // if (convParts.ALEXA_RESPONSE) {
+//                     //     o.alexaResponse = '';
+//                     //     convParts.ALEXA_RESPONSE.forEach(trans => o.alexaResponse += trans.transcriptText + ', ');
+//                     //     o.alexaResponse = o.alexaResponse.substring(0, -2).trim();
+//                     // }
+//                     // if (!o.description || !o.description.summary.length) continue;
+//                     // if (options.filter) {
+//                     //     if (res.utteranceType === 'WAKE_WORD_ONLY') {
+//                     //         continue;
+//                     //     }
+
+//                     //     switch (o.description.summary) {
+//                     //         case 'stopp':
+//                     //         case 'alexa':
+//                     //         case 'echo':
+//                     //         case 'computer':
+//                     //         case 'amazon':
+//                     //         case ',':
+//                     //         case '':
+//                     //             continue;
+//                     //     }
+//                     // }
+
+//                     // if (o.description.summary || !options.filter) ret.push(o);
+//                 }
+//             }
+//         }
+//     } catch (ex) {
+//         respExceptionHandler(ex, "getCustomerHistoryRecords", true)
+//     }
+//     return items
+// }
+
 /*
 private userCommIds() {
     if(!isAuthValid("userCommIds")) { return }
@@ -2212,7 +2355,7 @@ Map getMusicProviders(Boolean frc=false) {
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
-        headers: [Connection: "keep-alive", DNT: "1", "Routines-Version": "1.1.210292" ] + getCookieMap(),
+        headers: [Connection: "keep-alive", DNT: "1", "Routines-Version": "1.1.210292" ] + getReqHeaderMap(), //getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2262,7 +2405,7 @@ void getBluetoothDevices(Boolean frc=false) {
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
         query: [cached: true, _: new Date()?.getTime()],
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2340,7 +2483,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/activities",
             query: [ size: 5, offset: 1 ],
-            headers: getCookieMap(),
+            headers: getReqHeaderMap(),//getCookieMap(),
             contentType: sAPPJSON,
             timeout: 20
         ]
@@ -2394,7 +2537,7 @@ void getDoNotDisturb() {
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         query: [_: now()],
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2453,7 +2596,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
         uri: getAmazonUrl(),
         path: "/api/behaviors/v2/automations${autoId ? "/${autoId}" : sBLANK}",
         query: [ limit: 100 ],
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2529,7 +2672,7 @@ void checkGuardSupport() {
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -2634,7 +2777,7 @@ void getGuardState() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
         body: [ stateRequests: [ [entityId: state.alexaGuardData?.applianceId, entityType: "APPLIANCE" ] ] ]
@@ -2675,7 +2818,7 @@ void setGuardState(String guardState) {
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/phoenix/state",
-            headers: getCookieMap(),
+            headers: getReqHeaderMap(),//getCookieMap(),
             contentType: sAPPJSON,
             timeout: 20,
             body: body
@@ -2706,7 +2849,8 @@ private getAlexaSkills() {
         path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
         headers: [
             Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
-            Origin: getAmazonUrl()] + getCookieMap(),
+            Origin: getAmazonUrl()
+        ] + getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -2841,7 +2985,7 @@ void getEchoDevices(Boolean lazy=false) {
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -3319,7 +3463,7 @@ void sendSequenceCommand(String type, Map command, value) {
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: getCookieMap(),
+        headers: getReqHeaderMap(),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
         body: new groovy.json.JsonOutput().toJson(seqObj)
@@ -3539,37 +3683,12 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
         String flatMsg = newMsg.replaceAll("\n", " ")
         if(!getOk2Notify()) {
             logInfo("sendMsg: Message Skipped Notification not configured or During Quiet Time ($flatMsg)")
-//            if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
-            // if(push || (Boolean)settings.usePush) {
-            //     sentstr = "Push Message"
-            //     if(showEvt) {
-            //         sendPush(newMsg)	// sends push and notification feed
-            //     } else {
-            //         sendPushMessage(newMsg)	// sends push
-            //     }
-            //     sent = true
-            // }
             if(settings.notif_devs) {
                 sentstr = "Notification Devices"
                 settings.notif_devs?.each { it?.deviceNotification(newMsg) }
                 sent = true
             }
-/*
-            String smsPhones = sms ? sms.toString() : (settings.smsNumbers?.toString() ?: null)
-            if(smsPhones) {
-                List phones = smsPhones?.toString()?.split("\\,")
-                for (phone in phones) {
-                    String t0 = newMsg.take(140)
-                    if(showEvt) {
-                        sendSms(phone?.trim(), t0)	// send SMS and notification feed
-                    } else {
-                        sendSmsMessage(phone?.trim(), t0)	// send SMS
-                    }
-                }
-                sentstr = "Text Message to Phone [${phones}]"
-                sent = true
-            } */
             if(sent) {
                 state.lastMsg = flatMsg
                 updTsVal("lastMsgDt")
@@ -3594,12 +3713,12 @@ static String getPublicImg(String imgName, Boolean frc=false) { return (frc) ? "
 String sTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 /* """ */
 
-String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
+String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
 /* """ */
 
 static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 
-static String sectH3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
+static String sectH3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
 
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 
@@ -3611,20 +3730,20 @@ public String paraTS(String title = sNULL, String body = sNULL, String img = sNU
 }
 /* """ */
 
-static String inputFooter(str, color="#1A77C9") {
-    return "<br><div style='color: ${color}; font-size: small;font-weight: bold;'>${str}</div>"
+static String inputFooter(str, color=sCLR4D9, noBr=false) {
+    return "${noBr ? sBLANK : "<br>"}<div style='color: ${color}; font-size: small;font-weight: bold;'>${str}</div>"
 }
 
 static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
 static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} ${under ? "<u>" : sBLANK}${t?.replaceAll("\\n", " ")}${under ? "</u>" : sBLANK}${color ? "</div>" : sBLANK}""" }
 /* """ */
 
-static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 
 def appFooter() {
     section() {
         paragraph htmlLine()
-        paragraph """<div style='color:#1A77C9;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+        paragraph """<div style='color:${sCLR4D9};text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
     }       
 }
 
@@ -3641,8 +3760,7 @@ String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${a
 /******************************************
 |       Changelog Logic
 ******************************************/
-Boolean showDonationOk() { return ((Boolean)state.isInstalled && !(Boolean)getInstData('shownDonation') && getDaysSinceUpdated() >= 30)
-}
+Boolean showDonationOk() { return ((Boolean)state.isInstalled && !(Boolean)getInstData('shownDonation') && getDaysSinceUpdated() >= 30) }
 
 Integer getDaysSinceUpdated() {
     String updDt = getInstData('updatedDt')
@@ -3662,7 +3780,7 @@ String changeLogData() {
     String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
     txt = txt?.toString()?.replaceAll(/(\#\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h5 style="font-size: 1.0em; font-weight: bold;">')?.replaceAll(/(\*\*\_)/, "</h5>") // Replaces header format
     txt = txt?.toString()?.replaceAll(/(\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h3 style="color: red; font-size: 1.3em; font-weight: bolder;">')?.replaceAll(/(\*\*\_)/, "</h3>") // Replaces header format
-    // txt = txt?.toString()?.replaceAll("#", sBLANK)?.replaceAll(/(_\*\*)/, "<p style='font-size: 1.5em; font-weight: bolder; color:#1A77C9;'>")?.replaceAll(/(\*\*\_)/, "</p>") // Replaces header format
+    // txt = txt?.toString()?.replaceAll("#", sBLANK)?.replaceAll(/(_\*\*)/, "<p style='font-size: 1.5em; font-weight: bolder; color:${sCLR4D9};'>")?.replaceAll(/(\*\*\_)/, "</p>") // Replaces header format
     txt = txt?.toString()?.replaceAll(/(- )/, "   ${sBULLET} ")
     txt = txt?.toString()?.replaceAll(/(\[NEW\])/, "<u>[NEW]</u>")
     txt = txt?.toString()?.replaceAll(/(\[UPDATE\])/, "<u>[FIX]</u>")
@@ -3693,7 +3811,7 @@ Boolean removeInstallData() { return removeFirebaseData("/clients/${(String)stat
 Boolean sendFirebaseData(String url, String path, String data, String cmdType=null, String type=null) { logTrace("sendFirebaseData(${path}, ${data}, $cmdType, $type"); return queueFirebaseData(url, path, data, cmdType, type) }
 
 Boolean queueFirebaseData(String url, String path, String data, String cmdType=sNULL, String type=sNULL) {
-    logTrace("queueFirebaseData(${path}, ${data}, $cmdType, $type")
+    // logTrace("queueFirebaseData(${path}, ${data}, $cmdType, $type")
     Boolean result = false
     String json = new groovy.json.JsonOutput().prettyPrint(data)
     Map params = [uri: url, path: path, requestContentType: sAPPJSON, contentType: sAPPJSON, timeout: 20, body: json]
@@ -4546,14 +4664,14 @@ String getAppNotifConfDesc() {
     Integer notifDevs = settings.notif_devs?.size()
     if(notifDevs) {
         Boolean ok = getOk2Notify()
-        str += "<span style='font-weight: bold;'>Send Notifications Allowed:</span> ${getOkOrNotSymHTML(ok)}"
+        str += spanWrap("Send Notifications Allowed:", sNULL, sNULL, true) + getOkOrNotSymHTML(ok)
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += notifDevs ? "<br><span style=''> ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})</span><br>" : sBLANK
-        str += (ap) ? "${str != sBLANK ? "<br>" : sBLANK}<span style='font-weight: bold;'>Enabled Alerts:</span><br>${ap}" : sBLANK
-        str += (ap && nd) ? "${str != sBLANK ? "<br>" : sBLANK}<br>${nd}" : sBLANK
+        str += notifDevs ? addLineBr() + spanWrap(" ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})", sNULL, sNULL, false, true) : sBLANK
+        str += (ap) ? addLineBr(str != sBLANK) + spanWrap("Enabled Alerts:", sNULL, sNULL, true, true) + ap : sBLANK
+        str += (ap && nd) ? addLineBr(str != sBLANK) + addLineBr() + nd : sBLANK
     }
-    return str != sBLANK ? "<div style='color: #1A77C9; font-size: small;'>${str}</div>" : sNULL
+    return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sNULL
 }
 
 List getQuietDays() {
@@ -4601,7 +4719,7 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? "${addLineBr(startLbl || stopLbl)}${spanWrap("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanWrap(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
     str += modeInput ? "${addLineBr(startLbl || stopLbl || qDays)}${spanWrap("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanWrap(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
     str = str ? "${spanWrap("Restrictions:", sNULL, sNULL, true)} ${getOkOrNotSymHTML(rest)}${addLineBr()}${str}" : sBLANK
-    return (str != sBLANK) ? divWrap(str, "#1A77C9", "small") : sNULL
+    return (str != sBLANK) ? divWrap(str, sCLR4D9, "small") : sNULL
 }
 
 String addLineBr(Boolean show=true) {
@@ -4626,14 +4744,14 @@ String getServiceConfDesc() {
     str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanWrap("Local Server:", sNULL, sNULL, true)} ${spanWrap("(Configured)", sNULL, sNULL, false, true)}" : sBLANK
     str += "${spanWrap("Server:", sNULL, sNULL, true)} ${spanWrap("(${getServerHostURL()})", sNULL, sNULL, false, true)}"
     str += (settings.amazonDomain) ? "${spanWrap("Domain:", sNULL, sNULL, true)} ${spanWrap("(${settings?.amazonDomain})")}" : sBLANK
-    return str != sBLANK ? divWrap(str, "#1A77C9", "small") : sNULL
+    return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sNULL
 }
 
 String getLoginStatusDesc() {
     String str = sBLANK
     str += "${spanWrap("Login Status:")} ${getOkOrNotSymHTML((Boolean)state.authValid)}"
     str += (getTsVal("lastCookieRrshDt")) ? "${addLineBr()}${spanWrap("Cookie Updated:")} ${spanWrap("(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})")}" : sBLANK
-    return divWrap(str, "#1A77C9", "small")
+    return divWrap(str, sCLR4D9, "small")
 }
 
 String getAppNotifDesc() {
@@ -4651,20 +4769,20 @@ String getActionsDesc() {
     List<String> acts = (actActs + inactActs).sort()
     Integer a = acts?.size()
     String str = sBLANK
-    str += a ? divWrap("${spanWrap("Action Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(acts?.join("<br>"))}", "#1A77C9", "small") : sBLANK
+    str += a ? divWrap("${spanWrap("Action Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(acts?.join("<br>"))}", sCLR4D9, "small") : sBLANK
     str += a ? inputFooter(sTTM) : inputFooter("Tap to create actions using device/location events to perform advanced actions using your Alexa devices.", sCLRGRY)
     return str
 }
 
 String getZoneDesc() {
     List<String> actZones = getActiveZoneNames()?.sort()?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanWrap(" (Active)", "#43d843") }
-    List<String> inactZones = getInActiveZoneNames()?.sort().findAll { it.contains(" (Z)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanWrap(" (Inactive)", sCLRGRY) }
-    List<String> pauseZones = getInActiveZoneNames()?.sort().findAll { it.contains(" (Z ❚❚)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z ❚❚)', sBLANK)}") + spanWrap(" (Paused)", sCLRORG) }
-    log.debug "pauseZones: $pauseZones"
-    List<String> zones = (actZones + inactZones + pauseZones).sort()
+    List<String> inActZones = getInActiveZoneNames()?.sort()
+    List<String> iZones = inActZones.findAll { it.contains(" (Z)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanWrap(" (Inactive)", sCLRGRY) }
+    List<String> pZones = inActZones.findAll { it.contains(" (Z ❚❚)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z ❚❚)', sBLANK)}") + spanWrap(" (Paused)", sCLRORG) }
+    List<String> zones = (actZones + iZones + pZones).sort()
     String str = sBLANK
     Integer a = zones?.size()
-    str += a ? divWrap("${spanWrap("Zone Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(zones?.join("<br>"))}", "#1A77C9", "small") : sBLANK
+    str += a ? divWrap("${spanWrap("Zone Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(zones?.join("<br>"))}", sCLR4D9, "small") : sBLANK
     str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", sCLRGRY)
     return str
 }

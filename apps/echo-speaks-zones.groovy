@@ -1805,6 +1805,10 @@ Boolean minVersionFailed() {
     }
 }
 
+Boolean isActive() { 
+    Boolean st = (Boolean)state.zoneConditionsOk
+    return st != null ? st : (Boolean)conditionStatus().ok 
+}
 Boolean isPaused() { return (Boolean)settings.zonePause }
 
 static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
