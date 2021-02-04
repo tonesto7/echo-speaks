@@ -1,6 +1,6 @@
 ## _**(February 4th, 2021)**_
 ### _**Echo Speaks App (v4.0.5.0)**_
-- [UPDATE] Restructing HTML Interface logic.
+- [UPDATE] Restructuring HTML Interface logic.
 - [FIX] bug fixes.
 
 ### _**Echo Speaks Actions (v4.0.5.0)**_
