@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.4.0"
-@Field static final String appModifiedFLD = "2021-02-02"
+@Field static final String appVersionFLD  = "4.0.5.0"
+@Field static final String appModifiedFLD = "2021-02-04"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -29,6 +29,7 @@ import groovy.transform.Field
 @Field static final String sBULLET        = '\u2022'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
+@Field static final String sPAUSESymFLD   = "\u275A\u275A"
 @Field static final String sFALSE         = 'false'
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
@@ -543,7 +544,7 @@ def uninstalled() {
 String getZoneName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : sBLANK})"?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (Z${isPaused() ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) } //ERS send event for add/rename a zone
 }
 /*
@@ -2011,7 +2012,7 @@ public Map getSettingsAndStateMap() {
     }
     Map data = [:]
     //String newLbl = settings.appLbl?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
-    String newlbl = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
+    String newlbl = app?.getLabel()?.toString()?.replace(" (Z ${sPAUSESymFLD})", sBLANK)
     data.label = newlbl?.replace(" (Z)", sBLANK)
     data.settings = setObjs
 

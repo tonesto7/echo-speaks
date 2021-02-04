@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.4.0"
-@Field static final String appModifiedFLD = "2021-02-02"
+@Field static final String appVersionFLD  = "4.0.5.0"
+@Field static final String appModifiedFLD = "2021-02-04"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4040, wsDevice: 4040, actionApp: 4040, zoneApp: 4040, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4050, zoneApp: 4050, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -30,6 +30,8 @@ import groovy.transform.Field
 @Field static final String sFRNFACE       = '\u2639'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
+@Field static final String sPAUSESymFLD   = "\u275A\u275A"
+@Field static final String sLINEBR        = '<br>'
 @Field static final String sFALSE         = 'false'
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
@@ -43,6 +45,7 @@ import groovy.transform.Field
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
 @Field static final String sCLRGRY        = 'gray'
+@Field static final String sCLRORG        = 'orange'
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
 @Field static final String sTTP           = 'Tap to proceed...'
@@ -163,23 +166,20 @@ def mainPage() {
                     String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     String ad = "<p>Current Status: ${gState}</p>"
                     ad += guardAutoConfigured() ? "<br><p>Automation: Enabled</p>" : sBLANK
-                    ad += "<br><br><p>${sTTM}</p>"
+                    ad += "<br>${inputFooter(sTTM)}"
                     href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), state: (guardAutoConfigured() ? sCOMPLT : sNULL), description: ad
                 } else { paragraph pTS("<div style='font-size: small;'>Alexa Guard is not enabled or supported by any of your Echo Devices</div>", sNULL, true, sCLRGRY) }
             }
 
             section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
-                    //Map skDevs = state.skippedDevices?.findAll { (it?.value?.reason != sIN_IGNORE) }
-                    //Map ignDevs = state.skippedDevices?.findAll { (it?.value?.reason == sIN_IGNORE) }
                     List remDevs = getRemovableDevs()
                     if(remDevs?.size()) {
-                        String rd = remDevs.sort().collect { """<span> ${sBULLET} ${it}</span>""" }.join("<br>")
-                        href "devCleanupPage", title: inTS("Removable Devices:"), description: "<div style='color: red; font-size: small;'>${rd}</div>", required: true, state: sNULL
+                        String rd = remDevs.sort().collect { spanWrap(" ${sBULLET} ${it}") }.join("<br>")
+                        href "devCleanupPage", title: inTS("Removable Devices:"), description: divWrap(rd, sCLRRED, "small"), required: true, state: sNULL
                     }
-                    String devDesc = getDeviceList()?.collect { """<span>${it?.value?.name}</span>${it?.value?.online ? """<span style='color: green;'> (Online)</span>""" : sBLANK}${it?.value?.supported == false ? """<span style='color: red;'> ${sFRNFACE}</span>""" : sBLANK}""" }?.sort().join("<br>").toString()
-/* """ */
-                    String dd = devDesc ? """<div style='font-size: small; color: #1A77C9;'>${devDesc}</div><div style='font-weight: bold;font-size: small;'><br>${sTTM}</div>""" : """<div style='font-weight: bold; font-size: small;'>${sTTC}</div"""
+                    String devDesc = getDeviceList()?.collect { "${spanWrap(it?.value?.name)}${it?.value?.online ? spanWrap(" (Online)", "#43d843") : sBLANK}${it?.value?.supported == false ? spanWrap(" ${sFRNFACE}", "#cc2d3b") : sBLANK}" }?.sort().join("<br>").toString()
+                    String dd = devDesc ? "${divWrap(devDesc, sCLR4D9, "small")}${inputFooter(sTTM)}" : "${inputFooter(sTTC, sCLRGRY)}"
                     href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd, state: sCOMPLT
                 } else { paragraph pTS("Device Management will be displayed after install is complete", sNull, true, "orange") }
             }
@@ -253,12 +253,14 @@ def authStatusPage() {
                 Boolean chk3 = (lastChkSec < 432000)
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
-                String stat = "Auth Status: (${(chk1 && chk2 && cookieValid) ? "OK": "Invalid"})"
-                stat += "\n ${sBULLET} Cookie: (${chk1 ? okSymFLD : notOkSymFLD})"
-                stat += "\n \u2022 CSRF Value: (${chk2 ? okSymFLD : notOkSymFLD})"
-                paragraph pTS(stat, sNULL, false, (chk1 && chk2) ? sCLR4D9 : sCLRRED), state: ((chk1 && chk2) ? sCOMPLT : sNULL), required: true
-                paragraph pTS("Last Refresh: (${chk3 ? "OK" : "Issue"})\n(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", sNULL, false, chk3 ? sCLR4D9 : sCLRRED), state: (chk3 ? sCOMPLT : sNULL), required: true
-                paragraph pTS("Next Refresh:\n(${nextCookieRefreshDur()})", sNULL, false, sCLR4D9), state: sCOMPLT, required: true
+                String stat = spanWrap("Auth Status:", sNULL, sNULL, true) + getOkOrNotSymHTML(chk1 && chk2 && cookieValid)
+                stat += addLineBr() + spanWrap(" ${sBULLET} Cookie:") + getOkOrNotSymHTML(chk1)
+                stat += addLineBr() + spanWrap(" ${sBULLET} CSRF Value:") + getOkOrNotSymHTML(chk2)
+                stat += addLineBr()
+                stat += addLineBr() + spanWrap("Cookie Refresh:", sNULL, sNULL, true) + getOkOrNotSymHTML(chk3)
+                stat += addLineBr() + spanWrap(" ${sBULLET} Last Refresh:") + spanWrap(" (${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", (!chk3 ? sCLRRED : sNULL))
+                stat += addLineBr() + spanWrap(" ${sBULLET} Next Refresh:") + spanWrap(" (${nextCookieRefreshDur()})")
+                paragraph divWrap(stat, sCLR4D9, 'small')
             }
 
             section(sTS("Cookie Tools: (Tap to show)", getHEAppImg("cookie")), hideable: true, hidden: true) {
@@ -321,7 +323,7 @@ def servPrefPage() {
             } else {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
                     section(sTS("Server Management:")) {
-                        if(oH && (String)state.herokuName) { paragraph pTS("Heroku Name:\n \u2022 ${(String)state.herokuName}", sNULL, true, sCLR4D9), state: sCOMPLT }
+                        if(oH && (String)state.herokuName) { paragraph pTS("Heroku Name:\n ${sBULLET} ${(String)state.herokuName}", sNULL, true, sCLR4D9), state: sCOMPLT }
                         href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP
                         if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, required: false, title: inTS1("Heroku App Settings", sHEROKU), description: sTTP
                         if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, required: false, title: inTS1("Heroku App Logs", sHEROKU), description: sTTP
@@ -452,12 +454,12 @@ String guardAutoDesc() {
     String str = sBLANK
     if(guardAutoConfigured()) {
         str += "Guard Triggers:"
-        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? "\n \u2022 Using ${getAlarmSystemName()}" : sBLANK
-        str += settings.guardHomeModes ? "\n \u2022 Home Modes: (${settings.guardHomeModes?.size()})" : sBLANK
-        str += settings.guardAwayModes ? "\n \u2022 Away Modes: (${settings.guardAwayModes?.size()})" : sBLANK
-        str += settings.guardHomeSwitch ? "\n \u2022 Home Switches: (${settings.guardHomeSwitch?.size()})" : sBLANK
-        str += settings.guardAwaySwitch ? "\n \u2022 Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
-        str += settings.guardAwayPresence ? "\n \u2022 Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
+        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? "\n ${sBULLET} Using ${getAlarmSystemName()}" : sBLANK
+        str += settings.guardHomeModes ? "\n ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})" : sBLANK
+        str += settings.guardAwayModes ? "\n ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})" : sBLANK
+        str += settings.guardHomeSwitch ? "\n ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})" : sBLANK
+        str += settings.guardAwaySwitch ? "\n ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
+        str += settings.guardAwayPresence ? "\n ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
     }
     return str == sBLANK ? sTTC : "${str}\n\n${sTTM}"
 }
@@ -929,7 +931,7 @@ Map getAllDevices(Boolean isInputEnum=false) {
 def notifPrefPage() {
     dynamicPage(name: "notifPrefPage", install: false) {
         section(sBLANK) {
-            paragraph title: "Notice:", pTS("The settings configure here are used by both the App and the Devices.", getAppImg("info", true), true, sCLR4D9), state: sCOMPLT
+            paragraph title: "Notice:", pTS("The settings configured here are used by both the App and the Devices.", getAppImg("info", true), true, sCLR4D9), state: sCOMPLT
         }
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
@@ -954,7 +956,7 @@ def notifPrefPage() {
             }
             section(sTS("Notification Restrictions:")) {
                 String t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? "${t1}\n\n${sTTM}" : sTTC), state: (t1 ? sCOMPLT : sNULL)
+                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? t1 + inputFooter(sTTM) : inputFooter(sTTC, sCLRGRY)), state: (t1 ? sCOMPLT : sNULL)
             }
             section(sTS("Missed Poll Alerts:")) {
                 input (name: "sendMissedPollMsg", type: sBOOL, title: inTS1("Send Missed Checkin Alerts?", "late"), defaultValue: true, submitOnChange: true)
@@ -983,7 +985,7 @@ def setNotificationTimePage() {
          if(a) {
              section() {
                  paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9), state: sCOMPLT
-                 paragraph pTS("Notice:\nAll selected restrictions  must be inactive for notifications to be sent.", sNULL, false, sCLR4D9), state: sCOMPLT
+                 paragraph pTS("Notice:\nAll selected restrictions must be inactive for notifications to be sent.", sNULL, false, sCLR4D9), state: sCOMPLT
              }
          }
         Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
@@ -3476,10 +3478,6 @@ private List codeUpdateItems(Boolean shrt=false) {
     return updItems
 }
 
-//TODO REMOVE
-//Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? "Push Enabled" : "Enabled") : null }
-//Boolean pushStatus() { return (settings.smsNumbers?.toString()?.length()>=10 || (Boolean)settings.usePush || (Boolean)settings.pushoverEnabled) ? (((Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) ? true : true ) : false }
-
 Boolean getOk2Notify() {
     Boolean smsOk // (settings.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk // (Boolean)settings.usePush
@@ -4546,13 +4544,13 @@ String getRandAppName() {
 String getAppNotifConfDesc() {
     String str = sBLANK
     Integer notifDevs = settings.notif_devs?.size()
-    if(notifDevs) { //pushStatus()) {
+    if(notifDevs) {
         Boolean ok = getOk2Notify()
-        str += "<span style='font-weight: bold;'>Send Notifications Allowed:</span> ${ok ? "<span style='color: green;'>(${okSymFLD})</span>" : "<span style='color: orange;'>(${notOkSymFLD})</span>"}"
+        str += "<span style='font-weight: bold;'>Send Notifications Allowed:</span> ${getOkOrNotSymHTML(ok)}"
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
         str += notifDevs ? "<br><span style=''> ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})</span><br>" : sBLANK
-        str += (ap) ? "${str != sBLANK ? "<br>" : sBLANK}<span style='font-weight: bold;'>Enabled Alerts:</span><br>${ap}<br>" : sBLANK
+        str += (ap) ? "${str != sBLANK ? "<br>" : sBLANK}<span style='font-weight: bold;'>Enabled Alerts:</span><br>${ap}" : sBLANK
         str += (ap && nd) ? "${str != sBLANK ? "<br>" : sBLANK}<br>${nd}" : sBLANK
     }
     return str != sBLANK ? "<div style='color: #1A77C9; font-size: small;'>${str}</div>" : sNULL
@@ -4598,31 +4596,44 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!timeOk ? okSymFLD : notOkSymFLD})" : sBLANK
+    str += (startLbl && stopLbl) ? "${spanWrap("   ${sBULLET} Restricted Times:")} ${spanWrap("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(!timeOk)}" : sBLANK
     List qDays = getQuietDays()
-    String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
-    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
-    a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? "<span style='font-weight: bold;'>Restrictions:</span> ${rest ? "<span style='color: green;'>(${okSymFLD})</span>" : "<span style='color: orange;'>(${notOkSymFLD})</span>"}<br>${str}" : sBLANK
-    return (str != sBLANK) ? "<div style='color: #1A77C9; font-size: small;'>${str}</div>" : sNULL
+    str += dayInput && qDays ? "${addLineBr(startLbl || stopLbl)}${spanWrap("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanWrap(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
+    str += modeInput ? "${addLineBr(startLbl || stopLbl || qDays)}${spanWrap("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanWrap(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
+    str = str ? "${spanWrap("Restrictions:", sNULL, sNULL, true)} ${getOkOrNotSymHTML(rest)}${addLineBr()}${str}" : sBLANK
+    return (str != sBLANK) ? divWrap(str, "#1A77C9", "small") : sNULL
+}
+
+String addLineBr(Boolean show=true) {
+    return (String) show ? sLINEBR : sBLANK
+}
+
+String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String getOkOrNotSymHTML(Boolean ok) {
+    return (String) ok ? "<span style='color: #43d843;'>(${okSymFLD})</span>" : "<span style='color: #cc2d3b;'>(${notOkSymFLD})</span>"
 }
 
 String getServiceConfDesc() {
     String str = sBLANK
-    str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "Heroku: (Configured)\n" : sBLANK
-    str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "Local Server: (Configured)\n" : sBLANK
-    str += "Server: (${getServerHostURL()})\n"
-    str += (settings.amazonDomain) ? "Domain: (${settings?.amazonDomain})" : sBLANK
-    return str != sBLANK ? str : sNULL
+    str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "${spanWrap("Heroku:", sNULL, sNULL, true)} ${spanWrap("(Configured)", sNULL, sNULL, false, true)}" : sBLANK
+    str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanWrap("Local Server:", sNULL, sNULL, true)} ${spanWrap("(Configured)", sNULL, sNULL, false, true)}" : sBLANK
+    str += "${spanWrap("Server:", sNULL, sNULL, true)} ${spanWrap("(${getServerHostURL()})", sNULL, sNULL, false, true)}"
+    str += (settings.amazonDomain) ? "${spanWrap("Domain:", sNULL, sNULL, true)} ${spanWrap("(${settings?.amazonDomain})")}" : sBLANK
+    return str != sBLANK ? divWrap(str, "#1A77C9", "small") : sNULL
 }
 
 String getLoginStatusDesc() {
-    String s = sBLANK
-    s += "<span style='font-weight: bold;'>Login Status:</span>"
-    s += (Boolean) state.authValid ? "<span style='color: green;'> (Valid)</span>" : "<span style='color: red;'> (Invalid)</span>"
-    s += (getTsVal("lastCookieRrshDt")) ? "<br><span style='font-weight: bold;'>Cookie Updated:</span> <span style='color: gray;'>(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})</span>" : sBLANK
-    return "<div style='font-size: small;color: #1A77C9;'>${s}<br></div>"
+    String str = sBLANK
+    str += "${spanWrap("Login Status:")} ${getOkOrNotSymHTML((Boolean)state.authValid)}"
+    str += (getTsVal("lastCookieRrshDt")) ? "${addLineBr()}${spanWrap("Cookie Updated:")} ${spanWrap("(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})")}" : sBLANK
+    return divWrap(str, "#1A77C9", "small")
 }
 
 String getAppNotifDesc() {
@@ -4635,24 +4646,26 @@ String getAppNotifDesc() {
 }
 
 String getActionsDesc() {
-    List<String> actActs = getActiveActionNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (A)', sBLANK)}</span>" + "<span style='color: green;'> (Active)</span>" }
-    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (A ❚❚)', sBLANK)}</span>" + "<span style='color: orange;'> (Paused)</span>" }
+    List<String> actActs = getActiveActionNames()?.sort()?.collect { spanWrap(" ${sBULLET} ${it.replace(' (A)', sBLANK)}") + spanWrap(" (Active)", "#43d843") }
+    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { spanWrap(" ${sBULLET} ${it.replace(' (A ❚❚)', sBLANK)}") + spanWrap(" (Paused)", sCLRORG) }
     List<String> acts = (actActs + inactActs).sort()
     Integer a = acts?.size()
     String str = sBLANK
-    str += a ? "<div style='color: #1A77C9; font-size: small;'><span style='font-weight: bold;'>Action Status:</span><br><span>${acts?.join("<br>")}</span></div>" : sBLANK
-    str += a ? inputFooter(sTTM) : inputFooter("Tap to create actions using device/location events to perform advanced actions using your Alexa devices.")
+    str += a ? divWrap("${spanWrap("Action Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(acts?.join("<br>"))}", "#1A77C9", "small") : sBLANK
+    str += a ? inputFooter(sTTM) : inputFooter("Tap to create actions using device/location events to perform advanced actions using your Alexa devices.", sCLRGRY)
     return str
 }
 
 String getZoneDesc() {
-    List<String> actZones = getActiveZoneNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (Z)', sBLANK)}</span>" + "<span style='color: green;'> (Active)</span>" }
-    List<String> inactZones = getInActiveZoneNames()?.sort()?.collect { "<span style=''> ${sBULLET} ${it.replace(' (Z)', sBLANK)}</span>" + "<span style='color: gray;'> (Inactive)</span>" }
-    List<String> zones = (actZones + inactZones).sort()
+    List<String> actZones = getActiveZoneNames()?.sort()?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanWrap(" (Active)", "#43d843") }
+    List<String> inactZones = getInActiveZoneNames()?.sort().findAll { it.contains(" (Z)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanWrap(" (Inactive)", sCLRGRY) }
+    List<String> pauseZones = getInActiveZoneNames()?.sort().findAll { it.contains(" (Z ❚❚)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z ❚❚)', sBLANK)}") + spanWrap(" (Paused)", sCLRORG) }
+    log.debug "pauseZones: $pauseZones"
+    List<String> zones = (actZones + inactZones + pauseZones).sort()
     String str = sBLANK
     Integer a = zones?.size()
-    str += a ? "<div style='color: #1A77C9; font-size: small;'><span style='font-weight: bold;'>Zone Status:</span><br><span>${zones?.join("<br>")}</span></div>" : sBLANK
-    str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", 'gray')
+    str += a ? divWrap("${spanWrap("Zone Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(zones?.join("<br>"))}", "#1A77C9", "small") : sBLANK
+    str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", sCLRGRY)
     return str
 }
 

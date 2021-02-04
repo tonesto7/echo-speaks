@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.4.0"
-@Field static final String appModifiedFLD = "2021-02-02"
+@Field static final String appVersionFLD  = "4.0.5.0"
+@Field static final String appModifiedFLD = "2021-02-04"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -4866,7 +4866,7 @@ static String getInputToStringDesc(inpt, addSpace = null) {
 }
 
 String randomString(Integer len) {
-    def pool = ["a".."z",0..9].flatten()
+    def pool = ["a".."z", 0..9].flatten()
     Random rand = new Random(new Date().getTime())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
     // logDebug("randomString: ${randChars?.join()}")
