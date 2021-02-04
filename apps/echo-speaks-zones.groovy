@@ -463,12 +463,12 @@ def zoneNotifTimePage() {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
-    if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
+    if((Boolean)settings.duplicateFlag && !(Boolean)state.dupPendingSetup) {
+        Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
+        if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
         runIn(2, "processDuplication")
     } else {
-        if(!state.dupPendingSetup) initialize()
+        if(!(Boolean)state.dupPendingSetup) initialize()
     }
 }
 
@@ -476,9 +476,17 @@ def updated() {
     logInfo("Updated Event Received...")
     Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
     if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
-    if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
-    if(!state.dupPendingSetup || state.dupOpenedByUser) initialize()
-    else logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
+    if((Boolean)settings.duplicateFlag) {
+        if((Boolean)state.dupOpenedByUser) { state.dupPendingSetup = false }
+        if((Boolean)state.dupPendingSetup){
+            logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
+            return
+        }
+        logInfo("removing duplicate status")
+        settingRemove('duplicateFlag'); settingRemove('duplicateSrcId')
+        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup')
+    }
+    initialize()
 }
 
 def initialize() {
@@ -515,6 +523,7 @@ private void processDuplication() {
             settingUpdate(k, v.value, (String)v.type)
         }
    }
+    parent.childAppDuplicationFinished("zones", dupSrcId)
     sendZoneStatus()
     subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
     logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
