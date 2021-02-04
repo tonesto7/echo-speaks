@@ -1,3 +1,20 @@
+## _**(February 4th, 2021)**_
+### _**Echo Speaks App (v4.0.5.0)**_
+- [UPDATE] Restructing HTML Interface logic.
+- [FIX] bug fixes.
+
+### _**Echo Speaks Actions (v4.0.5.0)**_
+- [FIX] bug fixes.
+
+### _**Echo Speaks Zones (v4.0.5.0)**_
+- [FIX] bug fixes.
+
+### _**Echo Speaks Device (v4.0.5.0)**_
+- [FIX] bug fixes.
+
+### _**Echo Speaks WebSocket (v4.0.5.0)**_
+- [FIX] bug fixes.
+
 ## _**(February 2nd, 2021)**_
 ### _**Echo Speaks App (v4.0.4.0)**_
 - [FIX] fixed alexa routines not working after amazon changed the endpoint url.

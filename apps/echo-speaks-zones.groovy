@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.4.0"
-@Field static final String appModifiedFLD = "2021-02-02"
+@Field static final String appVersionFLD  = "4.0.5.0"
+@Field static final String appModifiedFLD = "2021-02-04"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -29,6 +29,7 @@ import groovy.transform.Field
 @Field static final String sBULLET        = '\u2022'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
+@Field static final String sPAUSESymFLD   = "\u275A\u275A"
 @Field static final String sFALSE         = 'false'
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
@@ -122,7 +123,7 @@ def mainPage() {
         Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup)
         if(dup) {
             state.dupOpenedByUser = true
-            section() { paragraph pTS("This Zone was just created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
+            section() { paragraph pTS("This Zone was created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
         }
         appInfoSect()
         Boolean paused = isPaused()
@@ -379,38 +380,43 @@ def condTimePage() {
 def zoneNotifPage() {
     return dynamicPage(name: "zoneNotifPage", title: "Zone Notifications", install: false, uninstall: false) {
         String a = getAppNotifDesc()
-        if(a) {
-            section() {
-                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
-            }
-        }
-        section (sTS("Message Customization:")) {
-            input "notif_active_message", sTEXT, title: inTS1("Active Message?", sTEXT), required: false, submitOnChange: true
-            input "notif_inactive_message", sTEXT, title: inTS1("Inactive Message?", sTEXT), required: false, submitOnChange: true
-        }
-        if(settings.notif_active_message || settings.notif_inactive_message) {
-            section (sTS("Notification Devices:")) {
-                input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
-            }
-            section (sTS("Alexa Mobile Notification:")) {
-                paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
-                input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
-            }
+         if(!a) a= "Notifications not enabled"
+         section() {
+             paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
+         }
 
-            if(isZoneNotifConfigured()) {
-                section(sTS("Notification Restrictions:")) {
-                    String nsd = getNotifSchedDesc()
-                    href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : sNULL)
-                }
-                if(!state.notif_message_tested) {
-                    List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
-                    def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
-                    if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state?.notif_message_tested = true }
-                }
-            } else { state.notif_message_tested = false }
-        } else {
-            section() { paragraph pTS("Configure either an Active or Inactive message to configure remaining notification options.", sNULL, false, sCLR4D9), state: sCOMPLT }
+        section (sTS("Notification Devices:")) {
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
         }
+        section (sTS("Alexa Mobile Notification:")) {
+            paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
+            input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
+        }
+
+        Boolean active = (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
+        if(active) {
+            section (sTS("Message Customization:")) {
+                paragraph pTS("Configure either an Active or Inactive message to complete notification configuration.", sNULL, false, sCLR4D9), state: sCOMPLT
+                Boolean req = !(settings.notif_active_message || settings.notif_inactive_message)
+                input "notif_active_message", sTEXT, title: inTS1("Active Message?", sTEXT), required: req, submitOnChange: true
+                input "notif_inactive_message", sTEXT, title: inTS1("Inactive Message?", sTEXT), required: req, submitOnChange: true
+            }
+        } else {
+            List sets = settings.findAll { it?.key?.startsWith("notif_") }?.collect { it?.key as String }
+            sets?.each { String sI-> settingRemove(sI) }
+        }
+
+        if(isZoneNotifConfigured()) {
+            section(sTS("Notification Restrictions:")) {
+                String nsd = getNotifSchedDesc()
+                href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : sNULL)
+            }
+            if(!(Boolean)state.notif_message_tested) {
+                List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
+                def aMsgDev = actDevices?.size() && settings.notif_alexa_mobile ? actDevices[0] : null
+                if(sendNotifMsg("Info", "Zone Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state.notif_message_tested = true }
+            }
+        } else { state.remove("notif_message_tested") }
     }
 }
 
@@ -458,26 +464,41 @@ def zoneNotifTimePage() {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
-    if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
+    if((Boolean)settings.duplicateFlag && !(Boolean)state.dupPendingSetup) {
+        Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
+        state.dupPendingSetup = true
         runIn(2, "processDuplication")
+        if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
     } else {
-        if(!state.dupPendingSetup) initialize()
+        if(!(Boolean)state.dupPendingSetup) initialize()
     }
 }
+
+@Field static final String dupMSGFLD = "This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup..."
 
 def updated() {
     logInfo("Updated Event Received...")
     Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
     if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
-    if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
-    if(!state.dupPendingSetup || state.dupOpenedByUser) initialize()
-    else logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
+    if((Boolean)settings.duplicateFlag) {
+        if((Boolean)state.dupOpenedByUser) { state.dupPendingSetup = false }
+        if((Boolean)state.dupPendingSetup){
+            logInfo(dupMSGFLD)
+            return
+        }
+        logInfo("removing duplicate status")
+        settingRemove('duplicateFlag'); settingRemove('duplicateSrcId')
+        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup')
+    }
+    initialize()
 }
 
 def initialize() {
     logInfo("Initialize Event Received...")
+    if((Boolean)settings.duplicateFlag && (Boolean)state.dupPendingSetup){
+        logInfo(dupMSGFLD)
+        return
+    }
     unsubscribe()
     unschedule()
     state.isInstalled = true
@@ -510,6 +531,7 @@ private void processDuplication() {
             settingUpdate(k, v.value, (String)v.type)
         }
    }
+    parent.childAppDuplicationFinished("zones", dupSrcId)
     sendZoneStatus()
     subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
     logInfo("Duplicated Zone has been created... Please open zone and configure to complete setup...")
@@ -522,7 +544,7 @@ def uninstalled() {
 String getZoneName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (Z${isPaused() ? " \u275A\u275A" : sBLANK})"?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (Z${isPaused() ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) } //ERS send event for add/rename a zone
 }
 /*
@@ -1990,7 +2012,7 @@ public Map getSettingsAndStateMap() {
     }
     Map data = [:]
     //String newLbl = settings.appLbl?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
-    String newlbl = app?.getLabel()?.toString()?.replace(" (Z \u275A\u275A)", sBLANK)
+    String newlbl = app?.getLabel()?.toString()?.replace(" (Z ${sPAUSESymFLD})", sBLANK)
     data.label = newlbl?.replace(" (Z)", sBLANK)
     data.settings = setObjs
 

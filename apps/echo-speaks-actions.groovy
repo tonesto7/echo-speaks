@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.4.0"
-@Field static final String appModifiedFLD = "2021-02-02"
+@Field static final String appVersionFLD  = "4.0.5.0"
+@Field static final String appModifiedFLD = "2021-02-04"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -176,7 +176,7 @@ def mainPage() {
         Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup == true)
         if(dup) {
             state.dupOpenedByUser = true
-            section() { paragraph pTS("This Action was just created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
+            section() { paragraph pTS("This Action was created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
         }
 
         if(settings.enableWebCoRE) {
@@ -345,7 +345,7 @@ def triggersPage() {
         Integer trigEvtCnt = settings.triggerEvents?.size()
         if (trigEvtCnt) {
             Integer trigItemCnt = 0
-            if(!(settings.triggerEvents in ["Scheduled", "Weather"])) { showSpeakEvtVars = true }
+            if((settings.triggerEvents in ["speak", "announcement"])) { showSpeakEvtVars = true }
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
                     List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
@@ -1723,21 +1723,12 @@ Boolean customMsgConfigured() { return (settings.notif_use_custom && settings.no
 
 def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
+                        //href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null)
         String a = getAppNotifDesc()
-         if(a) {
-             section() {
-                 paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
-             }
+         if(!a) a= "Notifications not enabled"
+         section() {
+             paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
          }
-        section (sTS("Message Customization:")) {
-            Boolean custMsgReq = customMsgRequired()
-            // if(custMsgReq && !settings.notif_use_custom) { settingUpdate("notif_use_custom", sTRUE, sBOOL) }
-            paragraph pTS("When using speak and announcements you can leave this off and a notification will be sent with speech text.  For other action types a custom message is required", sNULL, false, sCLRGRY)
-            input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true
-            if(settings.notif_use_custom || custMsgReq) {
-                input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true
-            }
-        }
 
         section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
@@ -1747,17 +1738,36 @@ def actNotifPage() {
             input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
         }
 
+        if(settings.notif_devs || (Boolean)settings.notif_alexa_mobile) {
+            section (sTS("Message Customization:")) {
+                Boolean custMsgReq = customMsgRequired()
+                if(custMsgReq) {
+                    paragraph pTS("The selected action (${settings.actionType}) requires a custom notification message if notifications are enabled.", sNULL, false, sCLRGRY)
+                    if(!settings.notif_use_custom) { settingUpdate("notif_use_custom", sTRUE, sBOOL) }
+                } else {
+                    paragraph pTS("When using speak or announcement actions custom notification is optional and a notification will be sent with speech text.", sNULL, false, sCLRGRY)
+                }
+                input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true
+                if(settings.notif_use_custom || custMsgReq) {
+                    input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true
+                }
+            }
+        } else {
+            List sets = settings.findAll { it?.key?.startsWith("notif_") }?.collect { it?.key as String }
+            sets?.each { String sI-> settingRemove(sI) }
+        }
+
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
                 href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : null)
             }
-            if(!state.notif_message_tested) {
+            if(!(Boolean)state.notif_message_tested) {
                 def actDevices = (Boolean)settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
                 def aMsgDev = actDevices?.size() && (Boolean)settings.notif_alexa_mobile ? actDevices[0] : null
                 if(sendNotifMsg("Info", "Action Notification Test Successful. Notifications Enabled for ${app?.getLabel()}", aMsgDev, true)) { state.notif_message_tested = true }
             }
-        } else { state.notif_message_tested = false }
+        } else state.remove("notif_message_tested")
     }
 }
 
@@ -1949,30 +1959,44 @@ static Boolean wordInString(String findStr, String fullStr) {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
-    if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
-        runIn(3, "processDuplication")
+    if((Boolean)settings.duplicateFlag && !(Boolean)state.dupPendingSetup) {
+        Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
+        state.dupPendingSetup = true
+        runIn(2, "processDuplication")
+        if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
     } else {
-        if(!maybeDup && !state.dupPendingSetup) initialize()
+        if(!(Boolean)state.dupPendingSetup) initialize()
     }
 }
+
+@Field static final String dupMSGFLD = "This action is duplicated and has not had configuration completed... Please open action and configure to complete setup..."
 
 def updated() {
     logInfo("Updated Event Received...")
     Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
-    if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
-    if(!state.dupPendingSetup) initialize()
-    else logInfo("This action is duplicated and has not had configuration completed... Please open action and configure to complete setup...")
+    if((Boolean)settings.duplicateFlag) {
+        if((Boolean)state.dupOpenedByUser) { state.dupPendingSetup = false }
+        if((Boolean)state.dupPendingSetup){
+            logInfo(dupMSGFLD)
+            return
+        }
+        logInfo("removing duplicate status")
+        settingRemove('duplicateFlag'); settingRemove('duplicateSrcId')
+        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup')
+    }
+    initialize()
 }
 
 def initialize() {
     logInfo("Initialize Event Received...")
+    if((Boolean)settings.duplicateFlag && (Boolean)state.dupPendingSetup){
+        logInfo(dupMSGFLD)
+        return
+    }
     unsubscribe()
     unschedule()
-    state.afterEvtCheckWatcherSched = false
     state.isInstalled = true
+    state.afterEvtCheckWatcherSched = false
     atomicState.tierSchedActive = false
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
@@ -3365,7 +3389,7 @@ private executeActTest() {
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true) // evt was null
     } else {
-        if((String)settings.actionType in ["speak", "announcement"]) {
+        if((String)settings.actionType in ["speak", "announcement", "weather", "builtin", "calendar"]) {
             Map aevt = getRandomTrigEvt()
             if(!aevt) log.warn "no random event"
             else evt = aevt
@@ -3381,16 +3405,16 @@ private executeActTest() {
 @Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
 
 Map getRandomTrigEvt() {
-    String trig = getRandomItem(settings.triggerEvents?.collect { it as String })
+    String trig = getRandomItem((List)settings.triggerEvents)
     List trigItems = settings."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
             (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
+    if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
     Map attVal = [
         sSWITCH: getRandomItem(lONOFF),
         door: getRandomItem(lOPNCLS+["opening", "closing"]),
-        contact: getRandomItem(lOPENCLS),
+        contact: getRandomItem(lOPNCLS),
         acceleration: getRandomItem(lACTINACT),
         lock: getRandomItem(["locked", "unlocked", "unlocked with timeout", "unknown"]),
         securityKeypad: getRandomItem(["disarmed", "armed home", "armed away", "unknown"]),
@@ -3413,12 +3437,12 @@ Map getRandomTrigEvt() {
         thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
-        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        pistonExecuted: getRandomItem(getLocationPistons())
+        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"])
     ]
+    if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
     Map evt = [:]
-    if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
-    // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
+    if(attVal.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
+    if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 
@@ -4842,7 +4866,7 @@ static String getInputToStringDesc(inpt, addSpace = null) {
 }
 
 String randomString(Integer len) {
-    def pool = ["a".."z",0..9].flatten()
+    def pool = ["a".."z", 0..9].flatten()
     Random rand = new Random(new Date().getTime())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
     // logDebug("randomString: ${randChars?.join()}")
