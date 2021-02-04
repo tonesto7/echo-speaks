@@ -345,7 +345,7 @@ def triggersPage() {
         Integer trigEvtCnt = settings.triggerEvents?.size()
         if (trigEvtCnt) {
             Integer trigItemCnt = 0
-            if(!(settings.triggerEvents in ["Scheduled", "Weather"])) { showSpeakEvtVars = true }
+            if((settings.triggerEvents in ["speak", "announcement"])) { showSpeakEvtVars = true }
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
                     List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
@@ -3375,7 +3375,7 @@ private executeActTest() {
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true) // evt was null
     } else {
-        if((String)settings.actionType in ["speak", "announcement"]) {
+        if((String)settings.actionType in ["speak", "announcement", "weather", "builtin", "calendar"]) {
             Map aevt = getRandomTrigEvt()
             if(!aevt) log.warn "no random event"
             else evt = aevt
@@ -3391,16 +3391,16 @@ private executeActTest() {
 @Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
 
 Map getRandomTrigEvt() {
-    String trig = getRandomItem(settings.triggerEvents?.collect { it as String })
+    String trig = getRandomItem((List)settings.triggerEvents)
     List trigItems = settings."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
             (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
+    if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
     Map attVal = [
         sSWITCH: getRandomItem(lONOFF),
         door: getRandomItem(lOPNCLS+["opening", "closing"]),
-        contact: getRandomItem(lOPENCLS),
+        contact: getRandomItem(lOPNCLS),
         acceleration: getRandomItem(lACTINACT),
         lock: getRandomItem(["locked", "unlocked", "unlocked with timeout", "unknown"]),
         securityKeypad: getRandomItem(["disarmed", "armed home", "armed away", "unknown"]),
@@ -3423,12 +3423,12 @@ Map getRandomTrigEvt() {
         thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
-        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        pistonExecuted: getRandomItem(getLocationPistons())
+        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"])
     ]
+    if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
     Map evt = [:]
-    if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
-    // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
+    if(attVal.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
+    if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 
