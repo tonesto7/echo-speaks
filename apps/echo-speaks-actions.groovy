@@ -345,7 +345,7 @@ def triggersPage() {
         Integer trigEvtCnt = settings.triggerEvents?.size()
         if (trigEvtCnt) {
             Integer trigItemCnt = 0
-            if(!(settings.triggerEvents in ["Scheduled", "Weather"])) { showSpeakEvtVars = true }
+            if((settings.triggerEvents in ["speak", "announcement"])) { showSpeakEvtVars = true }
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
                     List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
@@ -1959,30 +1959,37 @@ static Boolean wordInString(String findStr, String fullStr) {
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
-    Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
-    if(settings.duplicateFlag == true && state.dupPendingSetup != false) {
-        runIn(3, "processDuplication")
+    if((Boolean)settings.duplicateFlag && !(Boolean)state.dupPendingSetup) {
+        Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
+        if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
+        runIn(2, "processDuplication")
     } else {
-        if(!maybeDup && !state.dupPendingSetup) initialize()
+        if(!(Boolean)state.dupPendingSetup) initialize()
     }
 }
 
 def updated() {
     logInfo("Updated Event Received...")
     Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-    if(maybeDup) logInfo("updated found maybe a dup... ${settings.duplicateFlag}")
-    if(state.dupOpenedByUser == true) { state.dupPendingSetup = false }
-    if(!state.dupPendingSetup) initialize()
-    else logInfo("This action is duplicated and has not had configuration completed... Please open action and configure to complete setup...")
+    if((Boolean)settings.duplicateFlag) {
+        if((Boolean)state.dupOpenedByUser) { state.dupPendingSetup = false }
+        if((Boolean)state.dupPendingSetup){
+            logInfo("This action is duplicated and has not had configuration completed... Please open action and configure to complete setup...")
+            return
+        }
+        logInfo("removing duplicate status")
+        settingRemove('duplicateFlag'); settingRemove('duplicateSrcId')
+        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup')
+    }
+    initialize()
 }
 
 def initialize() {
     logInfo("Initialize Event Received...")
     unsubscribe()
     unschedule()
-    state.afterEvtCheckWatcherSched = false
     state.isInstalled = true
+    state.afterEvtCheckWatcherSched = false
     atomicState.tierSchedActive = false
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
@@ -3375,7 +3382,7 @@ private executeActTest() {
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true) // evt was null
     } else {
-        if((String)settings.actionType in ["speak", "announcement"]) {
+        if((String)settings.actionType in ["speak", "announcement", "weather", "builtin", "calendar"]) {
             Map aevt = getRandomTrigEvt()
             if(!aevt) log.warn "no random event"
             else evt = aevt
@@ -3391,16 +3398,16 @@ private executeActTest() {
 @Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
 
 Map getRandomTrigEvt() {
-    String trig = getRandomItem(settings.triggerEvents?.collect { it as String })
+    String trig = getRandomItem((List)settings.triggerEvents)
     List trigItems = settings."trig_${trig}" ?: null
     def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
             (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    // log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
+    if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
     Map attVal = [
         sSWITCH: getRandomItem(lONOFF),
         door: getRandomItem(lOPNCLS+["opening", "closing"]),
-        contact: getRandomItem(lOPENCLS),
+        contact: getRandomItem(lOPNCLS),
         acceleration: getRandomItem(lACTINACT),
         lock: getRandomItem(["locked", "unlocked", "unlocked with timeout", "unknown"]),
         securityKeypad: getRandomItem(["disarmed", "armed home", "armed away", "unknown"]),
@@ -3423,12 +3430,12 @@ Map getRandomTrigEvt() {
         thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
-        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        pistonExecuted: getRandomItem(getLocationPistons())
+        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"])
     ]
+    if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
     Map evt = [:]
-    if(attVal?.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
-    // log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
+    if(attVal.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
+    if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 
