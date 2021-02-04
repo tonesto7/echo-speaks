@@ -1075,66 +1075,73 @@ public zoneCmdHandler(evt) {
     String cmd = evt?.value
     Map data = evt?.jsonData
     String appId = app?.getId() as String
-    if(cmd && data && appId && data?.zones && data?.zones?.contains(appId) && data?.cmd) {
+    if(cmd && data && appId && data.zones && data.zones.contains(appId) && data.cmd) {
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
         Map zoneDevMap = getZoneDevices()
         List zoneDevs = (List)zoneDevMap.devices
-        Integer delay = data?.delay ?: null
+        Integer delay = data.delay ?: null
         if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" }
         switch(cmd) {
             case "speak":
-                if(!data?.message) { logWarning("Zone Command Message is missing", true); return }
-                logDebug("Sending Speak Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                if(data?.changeVol || data?.restoreVol) {
+                if(!data.message) { logWarning("Zone Command Message is missing", true); return }
+                logDebug("Sending Speak Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                if(data.changeVol!=null || data.restoreVol!=null) {
                     zoneDevs?.each { dev->
-                        dev?.setVolumeSpeakAndRestore(data?.changeVol, data?.message, data?.restoreVol)
+                        dev?.setVolumeSpeakAndRestore(data.changeVol, data.message, data.restoreVol)
                     }
                 } else {
                     zoneDevs?.each { dev->
-                        dev?.speak(data?.message)
+                        dev?.speak(data.message)
                     }
                 }
                 break
             case "announcement":
                 if(zoneDevs?.size() > 0 && (List)zoneDevMap.devObj) {
-                    logDebug("Sending Announcement Command: (${data?.message}) to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                    logDebug("Sending Announcement Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs[0]?.sendAnnouncementToDevices(data?.message, (data?.title ?: getZoneName()), (List)zoneDevMap.devObj, data?.changeVol, data?.restoreVol)
+                    zoneDevs[0]?.sendAnnouncementToDevices(data.message, (data.title ?: getZoneName()), (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
                 }
                 break
 
             case "voicecmd":
-                logDebug("Sending VoiceCmdAsText Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
+                logDebug("Sending VoiceCmdAsText Command: (${data.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.each { dev->
-                    dev?.voiceCmdAsText(data?.message as String)
+                    dev?.voiceCmdAsText((String)data.message)
                 }
                 break
             case "sequence":
-                logDebug("Sending Sequence Command: (${data?.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
+                logDebug("Sending Sequence Command: (${data.message}) to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.each { dev->
-                    dev?.executeSequenceCommand(data?.message as String)
+                    dev?.executeSequenceCommand((String)data.message)
                 }
                 break
+            case "playback":
+            case "dnd":
+                logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                zoneDevs?.each { dev->
+                    if(data.cmd != "volume") { dev?."${data.cmd}"() }
+                    if(data.cmd == "volume" && data.changeVol != null) { dev?.setVolume(data.changeVol) }
+                }
+                break
+
             case "builtin":
             case "calendar":
             case "weather":
-            case "playback":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.each { dev->
-                    if(data?.cmd != "volume") { dev?."${data?.cmd}"(data?.changeVol ?: null, data?.restoreVol ?: null) }
-                    if(data?.cmd == "volume" && data?.changeVol) { dev?.setVolume(data?.changeVol) }
+                    if(data.cmd) { dev?."${data.cmd}"(data.changeVol, data.restoreVol) }
                 }
                 break
             case "sounds":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} | Name: ${data?.message} Command to Zone (${getZoneName()})${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                logDebug("Sending ${data.cmd?.capitalize()} | Name: ${data.message} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.each { dev->
-                    dev?."${data?.cmd}"(data?.message, data?.changeVol ?: null, data?.restoreVol ?: null)
+                    dev?."${data.cmd}"(data.message, data.changeVol, data.restoreVol)
                 }
                 break
             case "music":
-                logDebug("Sending ${data?.cmd?.toString()?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data?.provider} | Search: ${data?.search}${delay ? " | Delay: (${delay})" : sBLANK}${data?.changeVol ? " | Volume: ${data?.changeVol}" : sBLANK}${data?.restoreVol ? " | Restore Volume: ${data?.restoreVol}" : sBLANK}")
+                logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data.provider} | Search: ${data.search}${delay ? " | Delay: (${delay})" : sBLANK}${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}")
                 zoneDevs?.each { dev ->
-                    dev?."${data?.cmd}"(data?.search, data?.provider, data?.changeVol, data?.restoreVol)
+                    dev?."${data.cmd}"(data.search, data.provider, data.changeVol, data.restoreVol)
                 }
                 break
         }
@@ -1441,8 +1448,8 @@ private void remAppFlag(key) {
     Map data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            ((List)key).each { String k-> if(data?.containsKey(k)) { data?.remove(k) } }
-        } else { if(data?.containsKey(key)) { data?.remove(key) } }
+            ((List)key).each { String k-> if(data.containsKey(k)) { data.remove(k) } }
+        } else { if(data.containsKey(key)) { data.remove(key) } }
         atomicState.appFlagsMap = data
     }
 }
