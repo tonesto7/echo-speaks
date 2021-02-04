@@ -122,7 +122,7 @@ def mainPage() {
         Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup)
         if(dup) {
             state.dupOpenedByUser = true
-            section() { paragraph pTS("This Zone was just created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
+            section() { paragraph pTS("This Zone was created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
         }
         appInfoSect()
         Boolean paused = isPaused()
@@ -465,12 +465,15 @@ def installed() {
     state.dateInstalled = getDtNow()
     if((Boolean)settings.duplicateFlag && !(Boolean)state.dupPendingSetup) {
         Boolean maybeDup = app?.getLabel()?.toString()?.contains(" (Dup)")
-        if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
+        state.dupPendingSetup = true
         runIn(2, "processDuplication")
+        if(maybeDup) logInfo("installed found maybe a dup... ${settings.duplicateFlag}")
     } else {
         if(!(Boolean)state.dupPendingSetup) initialize()
     }
 }
+
+@Field static final String dupMSGFLD = "This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup..."
 
 def updated() {
     logInfo("Updated Event Received...")
@@ -479,7 +482,7 @@ def updated() {
     if((Boolean)settings.duplicateFlag) {
         if((Boolean)state.dupOpenedByUser) { state.dupPendingSetup = false }
         if((Boolean)state.dupPendingSetup){
-            logInfo("This zone is duplicated and has not had configuration completed... Please open zone and configure to complete setup...")
+            logInfo(dupMSGFLD)
             return
         }
         logInfo("removing duplicate status")
@@ -491,6 +494,10 @@ def updated() {
 
 def initialize() {
     logInfo("Initialize Event Received...")
+    if((Boolean)settings.duplicateFlag && (Boolean)state.dupPendingSetup){
+        logInfo(dupMSGFLD)
+        return
+    }
     unsubscribe()
     unschedule()
     state.isInstalled = true
