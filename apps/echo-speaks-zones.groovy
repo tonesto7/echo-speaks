@@ -990,9 +990,7 @@ void checkZoneStatus(evt) {
 }
 
 void sendZoneStatus() {
-    Boolean st = (Boolean)state.zoneConditionsOk
-    st = st != null ? st : (Boolean)conditionStatus().ok
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: isActive(), paused: isPaused()], isStateChange: true, display: false, displayed: false)
 }
 
 void sendZoneRemoved() {
@@ -1810,6 +1808,11 @@ Boolean minVersionFailed() {
     } catch (e) {
         return false
     }
+}
+
+Boolean isActive() {
+    Boolean st = (Boolean)state.zoneConditionsOk
+    st = st != null ? st : (Boolean)conditionStatus().ok
 }
 
 Boolean isPaused() { return (Boolean)settings.zonePause }
