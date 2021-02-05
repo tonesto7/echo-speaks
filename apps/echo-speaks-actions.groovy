@@ -3689,19 +3689,22 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
+
                     if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType.replaceAll("_tiered", sBLANK), data:[ zones: activeZones.collect { it?.key as String }, cmd: actType?.replaceAll("_tiered", sBLANK), title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending Speech Text: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        String mCmd = actType.replaceAll("_tiered", sBLANK)
+                        sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        logDebug("Sending Speech Text: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+
                     } else {
                         if(actType in ["speak", "speak_tiered"]) {
                             //Speak Command Logic
                             if(actDevSiz) {
-                                if(changeVol || restoreVol) {
+                                if(changeVol!=null || restoreVol!=null) {
                                     actDevices.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
                                 } else {
                                     actDevices.each { dev-> dev?.speak(txt) }
                                 }
-                                logDebug("Sending Speech Text: (${txt}) to ${actDevices}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                                logDebug("Sending Speech Text: (${txt}) to ${actDevices}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                             }
                         } else if (actType in ["announcement", "announcement_tiered"]) {
                             //Announcement Command Logic
@@ -3716,25 +3719,33 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                                     dev?.playAnnouncement(txt, bn, changeVol, restoreVol)
                                 }
                             }
-                            logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                            logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                         }
                     }
                 }
                 break
             case "voicecmd":
-                if(actConf[actType] && actConf[actType].text) {
+            case "sequence":
+                String mAct="VoiceCmdasText"
+                String mMeth="voiceCmdAsText"
+                if(actType == "sequence") {
+                    mAct="Sequence"
+                    mMeth="executeSequenceCommand"
+                }
+                String mText= actConf[actType] ? (String)actConf[actType].text : sNULL
+                if(mText != sNULL) {
                     if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        log.debug("Sending VoiceCmdAsText Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, message: mText, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        logDebug("Sending ${mAct} Command: (${mText}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            dev?.voiceCmdAsText(actConf[actType].text as String)
+                            dev?."${mMeth}"(mText)
                         }
-                        logDebug("Sending VoiceCmdAsText Command to Zones: (${actConf[actType].text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        logDebug("Sending ${mAct} Command: (${mText}) to devices (${actDevices})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     }
                 }
                 break
-
+/*
             case "sequence":
                 if(actConf[actType] && actConf[actType].text) {
                     if(actZonesSiz) {
@@ -3748,20 +3759,20 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     }
                 }
                 break
-
+*/
             case "playback":
             case "dnd":
-                if(actConf[actType] && actConf[actType]?.cmd) {
-                    if(actType == "playback" && actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones.collect { it?.key as String }, cmd: actConf[actType]?.cmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sbLANK}")
+                String mCmd= actConf[actType] ? (String)actConf[actType].cmd : sNULL
+                if(mCmd != sNULL) {
+                    if(actZonesSiz) {
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones.collect { it?.key as String }, cmd: mCmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            if(actConf[actType]?.cmd != "volume") { dev?."${actConf[actType]?.cmd}"() }
-                            else if(actConf[actType]?.cmd == "volume") { dev?.setVolume(changeVol) }
-                            if(changeVol) { dev?.volume(changeVol) }
+                            if(mCmd != "volume") dev?."${mCmd}"()
+                            else if(mCmd == "volume" && changeVol != null) dev?.setVolume(changeVol)
                         }
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol != null  ? " | Volume: ${changeVol}" : sBLANK}")
                     }
                 }
                 break
@@ -3772,12 +3783,12 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
                             dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
@@ -3786,12 +3797,12 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.name) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name, changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
@@ -3812,12 +3823,12 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     log.debug "musicProvider: ${actConf[actType]?.provider} | ${convMusicProvider(actConf[actType]?.provider)}"
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
-                        logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType?.toString()?.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol ? " | Volume: ${changeVol}" : sBLANK}${restoreVol ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
@@ -4804,8 +4815,8 @@ String getActionDesc(Boolean addE=true) {
         str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? sBLANK : "\n"}" : sBLANK
         str += tierStart ? tierStart+"\n" : sBLANK
         str += tierStop ? tierStop+"\n" : sBLANK
-        str += settings.act_volume_change ? "New Volume: (${settings.act_volume_change})\n" : sBLANK
-        str += settings.act_volume_restore ? "Restore Volume: (${settings.act_volume_restore})\n" : sBLANK
+        str += settings.act_volume_change != null ? "New Volume: (${settings.act_volume_change})\n" : sBLANK
+        str += settings.act_volume_restore != null ? "Restore Volume: (${settings.act_volume_restore})\n" : sBLANK
         str += settings.act_delay ? "Delay: (${settings.act_delay})\n" : sBLANK
         str += (String)settings.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings."act_${(String)settings.actionType}_txt" ? "Using Default Response: (True)\n" : sBLANK
         String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
