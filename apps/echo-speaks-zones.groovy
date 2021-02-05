@@ -545,7 +545,7 @@ String getZoneName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
     String newLbl = "${settings.appLbl} (Z${isPaused() ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
-    if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl) } //ERS send event for add/rename a zone
+    if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl); sendZoneStatus() } 
 }
 /*
 public guardEventHandler(guardState) {
@@ -733,7 +733,7 @@ Boolean timeCondOk() {
             Boolean not = startTime.getTime() > stopTime.getTime()
             Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
             isBtwn = not ? !isBtwn : isBtwn
-            state.startTime =  formatDt(startTime) //ERS
+            state.startTime =  formatDt(startTime)
             state.stopTime =  formatDt(stopTime)
             logTrace("TimeCheck ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
             return isBtwn
@@ -990,9 +990,7 @@ void checkZoneStatus(evt) {
 }
 
 void sendZoneStatus() {
-    Boolean st = (Boolean)state.zoneConditionsOk
-    st = st != null ? st : (Boolean)conditionStatus().ok
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: st, paused: isPaused()], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: isActive(), paused: isPaused()], isStateChange: true, display: false, displayed: false)
 }
 
 void sendZoneRemoved() {
@@ -1812,10 +1810,11 @@ Boolean minVersionFailed() {
     }
 }
 
-Boolean isActive() { 
+Boolean isActive() {
     Boolean st = (Boolean)state.zoneConditionsOk
-    return st != null ? st : (Boolean)conditionStatus().ok 
+    return st != null ? st : (Boolean)conditionStatus().ok
 }
+
 Boolean isPaused() { return (Boolean)settings.zonePause }
 
 static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
