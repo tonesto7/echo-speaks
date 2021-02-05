@@ -2594,32 +2594,29 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
     if(!isAuthValid("getAlexaRoutines")) { return [:]}
     Map params = [
         uri: getAmazonUrl(),
-        path: "/api/behaviors/v2/automations${autoId ? "/${autoId}" : sBLANK}",
+        path: "/api/behaviors/v2/automations",
         query: [ limit: 100 ],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(), // getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
-
     Map rtResp = [:]
     try {
         logTrace("getAlexaRoutines($autoId, $utterOnly)")
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            def listOrMap = response?.data
+            List rtList = response?.data ?: []
             // log.debug "alexaRoutines: $listOrMap"
-            if(listOrMap instanceof Map) {
-		rtResp = listOrMap ?: [:]
+            Map items = [:]
+            Integer cnt = 1
+            if(rtList.size()) {
                 if(autoId) {
+                    rtResp = rtList.find { it?.automationId.toString() == autoId } ?: [:]
+                    // log.debug "rtResp: ${rtResp}"
                     return rtResp
-                }
-            } else if(listOrMap instanceof List) {
-                List myList = listOrMap ?: []
-                Map items = [:]
-                Integer cnt = 1
-                if(myList.size()) {
-                    myList.findAll { it?.status == "ENABLED" }?.each { Map item->
+                } else {
+                    rtList.findAll { it?.status == "ENABLED" }?.each { Map item ->
                         String myK = item.automationId.toString()
                         if(item.name != null) {
                             items[myK] = item.name
@@ -2647,12 +2644,24 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
     return rtResp
 }
 
+public getAlexaRoutineByNameOrID(String nameOrId) {
+    // TODO: This doesn't work yet...
+
+    Map routines = getAlexaRoutines()
+    if(routines.size()) {
+        Map match = routines.find { it.name == nameOrId || it.automationId == nameOrId }
+        if(match) return match
+    }
+}
+
 Boolean executeRoutineById(String routineId) {
     Long execDt = now()
     Map routineData = getAlexaRoutines(routineId)
-    if(routineData && routineData?.sequence) {
+    // log.debug "routineData: ${routineData.sequence}"
+    if(routineData && routineData.sequence) {
         sendSequenceCommand("ExecuteRoutine", routineData, null)
-        logDebug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | RoutineId: ${routineId}")
+        String rtName = routineData && routineData.name ? routineData.name : sBLANK
+        log.debug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | Label: ${rtName} | RoutineId: ${routineId}")
         return true
     } else {
         logError("No Routine Data Returned for ID: (${routineId})")
