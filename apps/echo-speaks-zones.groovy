@@ -1812,7 +1812,7 @@ Boolean minVersionFailed() {
 
 Boolean isActive() {
     Boolean st = (Boolean)state.zoneConditionsOk
-    st = st != null ? st : (Boolean)conditionStatus().ok
+    return st != null ? st : (Boolean)conditionStatus().ok
 }
 
 Boolean isPaused() { return (Boolean)settings.zonePause }
