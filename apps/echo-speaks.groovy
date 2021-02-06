@@ -1067,14 +1067,15 @@ def alexaRoutinesTestPage() {
     return dynamicPage(name: "alexaRoutinesTestPage", uninstall: false, install: false) {
         String t1 = sNULL
         Map rts = getAlexaRoutines()
-        section(sectTS("Available Routines:")) {
+        section("Available Routines") {
             if(rts.size()) {
                 rts.each { String rk, String rv->
                     String str = sBLANK
-                    str += spanWrap("Name: ", sNULL, sNULL, true) + spanWrap(rv, sNULL, sNULL, false, true)
-                    str += spanWrap("ID: ", sNULL, sNULL, true) + spanWrap(rk, sNULL, sNULL, false, true)
+                    str += spanWrap(rv, "black", "medium", true, true)
+                    str += spanWrap("Routine ID: ", sNULL, sNULL, true) + spanWrap(rk, sNULL, sNULL, false, true)
                     paragraph divWrap(str, sCLR4D9, "small")
                     input "executeRoutine::${rk}", "button", title: spanWrap("<b>Run Routine:</b> (${rv})", sCLRGRY, "small"), width: 4
+                    paragraph htmlLine()
                 }
             } else {
                 paragraph divWrap("No Routine Data Found...", sCLRGRY, "small")
