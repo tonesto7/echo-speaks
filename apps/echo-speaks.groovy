@@ -1092,7 +1092,7 @@ def returnHomeBtn() {
 }
 
 def appButtonHandler(btn) {
-    // log.debug "appButton: $btn"
+    log.debug "appButton: $btn"
 	switch (btn) {
 		case "btnMainMenu":
 			state.mainMenu = true
