@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.5.0"
-@Field static final String appModifiedFLD = "2021-02-04"
+@Field static final String appVersionFLD  = "4.0.6.0"
+@Field static final String appModifiedFLD = "2021-02-06"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -34,6 +34,7 @@ import groovy.transform.Field
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
 @Field static final String sENUM          = 'enum'
+@Field static final String sMODE          = 'mode'
 @Field static final String sNUMBER        = 'number'
 @Field static final String sTEXT          = 'text'
 @Field static final String sTIME          = 'time'
@@ -123,7 +124,7 @@ def mainPage() {
         Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup)
         if(dup) {
             state.dupOpenedByUser = true
-            section() { paragraph pTS("This Zone was created from an existing zone.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
+            section() { paragraph pTS("This Zone was created from an existing zone.\n\nPlease review the settings and save to activate...\n${state.badMode ?: sBLANK}", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
         }
         appInfoSect()
         Boolean paused = isPaused()
@@ -263,7 +264,7 @@ def conditionsPage() {
         }
 
         section (sTS("Mode Conditions")) {
-            input "cond_mode", "mode", title: inTS1("Location Modes...", "mode"), multiple: true, required: false, submitOnChange: true
+            input "cond_mode", sMODE, title: inTS1("Location Modes...", sMODE), multiple: true, required: false, submitOnChange: true
             if(settings.cond_mode) {
                 input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true
                 if(cond_mode && cond_mode_cmd) {
@@ -451,7 +452,7 @@ def zoneNotifTimePage() {
             input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
         }
         section(sTS("Allowed Modes:")) {
-            input "${pre}_modes", "mode", title: inTS1("Only in these Modes", "mode"), multiple: true, submitOnChange: true, required: false
+            input "${pre}_modes", sMODE, title: inTS1("Only in these Modes", sMODE), multiple: true, submitOnChange: true, required: false
         }
     }
 }
@@ -488,7 +489,7 @@ def updated() {
         }
         logInfo("removing duplicate status")
         settingRemove('duplicateFlag'); settingRemove('duplicateSrcId')
-        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup')
+        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup'); state.remove('badMode')
     }
     initialize()
 }
@@ -527,10 +528,24 @@ private void processDuplication() {
 
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
-            if((String)v.type == sENUM) settingRemove(k)
-            settingUpdate(k, v.value, (String)v.type)
+           if((String)v.type in [sENUM]) settingRemove(k)
+
+           if((String)v.type in [sMODE]){
+              String msg = "Found mode settings $k is type $v.type value is ${v.value}, this setting needs to be updated to work properly"
+              logWarn(msg)
+              state.badMode=msg
+
+              settingRemove(k)
+              List modeIt= v.value?.collect { String vit ->
+                  location.getModes()?.find { (String)it.name == vit ? it.toString() : null }
+              }
+//              log.warn "new settings $k is $modeIt"
+              if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
+
+           } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
-   }
+    }
+
     parent.childAppDuplicationFinished("zones", dupSrcId)
     sendZoneStatus()
     subscribe(location, "es3ZoneRefresh", zoneRefreshHandler)
@@ -659,7 +674,7 @@ void subscribeToEvts() {
 //    state.handleGuardEvents = false
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
     if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
-    List subItems = ["mode", "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "securityKeypad", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
+    List subItems = [sMODE, "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "securityKeypad", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
 
     //SCHEDULING
     if(timeCondConfigured() || dateCondConfigured()) {
@@ -677,7 +692,7 @@ void subscribeToEvts() {
                 case "alarm":
                     subscribe(location, "hsmStatus", zoneEvtHandler)
                     break
-                case "mode":
+                case sMODE:
                     if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
                     subscribe(location, si, zoneEvtHandler)
                     break
@@ -829,7 +844,7 @@ private Boolean isConditionOk(String evt) {
     } else if(["temperature", "humidity", "illuminance", "level", "power", "battery"].contains(evt)) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceNumCondOk(evt)
-    } else if (evt == "mode") {
+    } else if (evt == sMODE) {
         return ((List)settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
     } else if (["hsmStatus", "alarmSystemStatus"].contains(evt)) {
         return (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : true
@@ -1181,7 +1196,11 @@ List getLocationModes(Boolean sorted=false) {
     return (sorted) ? modes?.sort() : modes
 }
 
-Boolean isInMode(List modes, Boolean not=false) {
+Boolean isInMode(modes, Boolean not=false) {
+     if(modes instanceof String){
+        modes = modes.toList()
+        log.warn("Found bad mode settings $modes, this setting needs to be updated to work properly")
+    }
     return (modes) ? (not ? (!(getCurrentMode() in modes)) : (getCurrentMode() in modes)) : false
 }
 
