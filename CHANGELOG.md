@@ -1,3 +1,11 @@
+## _**(February 5th, 2021)**_
+### _**Echo Speaks App (v4.0.6.0)**_
+- [NEW] Alexa Routines page for viewing name/ID + Execute the routine right on the page
+- [FIX] Lot's of UI layout fixes.
+
+### _**Echo Speaks Actions (v4.0.6.0)**_
+- [FIX] Fixed getAlexaRoutines Command.
+
 ## _**(February 4th, 2021)**_
 ### _**Echo Speaks App (v4.0.5.0)**_
 - [UPDATE] Restructuring HTML Interface logic.

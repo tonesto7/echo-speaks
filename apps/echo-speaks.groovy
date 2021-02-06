@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.5.0"
-@Field static final String appModifiedFLD = "2021-02-04"
+@Field static final String appVersionFLD  = "4.0.6.0"
+@Field static final String appModifiedFLD = "2021-02-05"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4050, zoneApp: 4050, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4060, zoneApp: 4050, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -55,6 +55,8 @@ import groovy.transform.Field
 @Field static final String sTTVD          = 'Tap to view details...'
 @Field static final String sTTS           = 'Tap to select...'
 @Field static final String sSETTINGS      = 'settings'
+@Field static final String sUnknown       = 'Unknown'
+@Field static final String sUNKNOWN       = 'unknown'
 @Field static final String sRESET         = 'reset'
 @Field static final String sHEROKU        = 'heroku'
 @Field static final String sEXTNRL        = 'external'
@@ -62,6 +64,8 @@ import groovy.transform.Field
 @Field static final String sAMAZONORNG    = 'amazon_orange'
 @Field static final String sDEVICES       = 'devices'
 @Field static final String sSWITCH        = 'switch'
+@Field static final String sASTR          = 'a'
+@Field static final String sTSTR          = 't'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String, Map> historyMapFLD    = [:]
@@ -106,6 +110,7 @@ preferences {
     page(name: "alexaGuardAutoPage")
     page(name: "servPrefPage")
     page(name: "musicSearchTestPage")
+    page(name: "alexaRoutinesTestPage")
     page(name: "searchTuneInResultsPage")
     page(name: "deviceTestPage")
     page(name: "donationPage")
@@ -165,13 +170,13 @@ def mainPage() {
         } else {
             section(sTS("Alexa Guard:")) {
                 if((Boolean) state.alexaGuardSupported) {
-                    String gState = (String) state.alexaGuardState ? ((String) state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
-                    String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-                    String ad = "<p>Current Status: ${gState}</p>"
-                    ad += guardAutoConfigured() ? "<br><p>Automation: Enabled</p>" : sBLANK
-                    ad += "<br>${inputFooter(sTTM)}"
-                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), state: (guardAutoConfigured() ? sCOMPLT : sNULL), description: ad
-                } else { paragraph pTS("<div style='font-size: small;'>Alexa Guard is not enabled or supported by any of your Echo Devices</div>", sNULL, true, sCLRGRY) }
+                    String gState = (String) state.alexaGuardState ? ((String) state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : sUnknown
+                    String gStateIcon = gState == sUnknown ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
+                    String ad = spanWrap("Alarm System Mode:", sCLR4D9, "small", true) + spanWrap(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)), "small")
+                    ad += guardAutoConfigured() ? addLineBr() + addLineBr() + guardAutoDesc() : sBLANK
+                    ad += inputFooter(sTTM)
+                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), description: ad
+                } else { paragraph divWrap("Alexa Guard is not enabled or supported by any of your Echo Devices", sCLRGRY, "small") }
             }
 
             section(sTS("Alexa Devices:")) {
@@ -216,8 +221,9 @@ def mainPage() {
         // getCustomerHistoryRecords(10, true)
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanWrap("Test Speech, Announcements, and Sequences Builder", sCLR4D9, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
-                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanWrap("Test music queries", sCLR4D9, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
+                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanWrap("Test Speech, Announcements, and Sequences Builder", sCLRGRY, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
+                href "alexaRoutinesTestPage", title: inTS1("Alexa Routine Testing", "routine"), description: spanWrap("View Routine Info and Test", sCLRGRY, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
+                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanWrap("Test music queries", sCLRGRY, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
             }
             section(sTS("Donations:")) {
                 href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
@@ -234,7 +240,7 @@ def mainPage() {
         } else {
             showDevSharePrefs()
             section(sTS("Important Step:")) {
-                paragraph title: "Notice:", pTS("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sNULL, true, sCLRRED), required: true, state: sNULL
+                paragraph spanWrap("Notice", sCLRRED, "small", true) + spanWrap("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sCLRRED, "small", false, true)
                 state.resumeConfig = true
             }
         }
@@ -372,13 +378,13 @@ def deviceManagePage() {
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs?.size()) {
                     String devDesc = devs?.collect { "<span>${it?.value?.name}</span>${it?.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it?.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
-                    String dd = "<div style='font-size: small; color: ${sCLR4D9};'>${devDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>"
-                    href "deviceListPage", title: inTS("Installed Devices:"), description: dd, state: sCOMPLT
+                    String dd = spanWrap(devDesc) + addLineBr() + inputFooter(sTTVD)
+                    href "deviceListPage", title: inTS("Installed Devices:"), description: divWrap(dd, sCLR4D9, "small")
                 } else { paragraph pTS("Discovered Devices:\nNo Devices Available", sNULL, false, "red"), state: sCOMPLT }
                 List remDevs = getRemovableDevs()
                 if(remDevs?.size()) {
-                    String rd = remDevs.sort().collect { """<span> ${sBULLET} ${it}</span>""" }.join("<br>")
-                    href "devCleanupPage", title: inTS("Removable Devices:"), description: "<div style='color: red; font-size: small;'>${rd}</div>", required: true, state: sNULL
+                    String rd = spanWrap(remDevs.sort().collect { " ${sBULLET} ${it}" }.join("<br>"))
+                    href "devCleanupPage", title: inTS("Removable Devices:"), description: divWrap(rd, sCLRGRY, "small"), required: true, state: sNULL
                 }
                 if(skDevs?.size()) {
                     String uDesc = "Unsupported: (${skDevs?.size()})"
@@ -395,11 +401,12 @@ def deviceManagePage() {
 
 def alexaGuardPage() {
     return dynamicPage(name: "alexaGuardPage", uninstall: false, install: false) {
-        String gState = (String)state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : "Unknown"
-        String gStateIcon = gState == "Unknown" ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-        String gStateTitle = (gState == "Unknown" || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
+        String gState = (String)state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : sUnknown
+        String gStateIcon = gState == sUnknown ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
+        String gStateTitle = (gState == sUnknown || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
         section(sTS("Alexa Guard Control")) {
-            input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), description: "Current Status: ${gState}", defaultValue: false, submitOnChange: true
+            paragraph spanWrap("Current Status:", sCLR4D9, "small") + spanWrap(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)), "small")
+            input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), defaultValue: false, submitOnChange: true
         }
         if(settings.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
             setGuardState(settings.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
@@ -407,7 +414,7 @@ def alexaGuardPage() {
         state.alexaGuardAwayToggle = settings.alexaGuardAwayToggle
         section(sTS("Automate Guard Control")) {
             String t0 = guardAutoDesc()
-            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: t0, state: (t0==sTTC ? sNULL : sCOMPLT)
+            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: (t0 ? t0 + inputFooter(sTTM) : spanWrap("Automate the control of Alexa using modes, HSM, and more.", sCLRGRY, "small") + inputFooter(sTTC, sCLRGRY, true))
         }
     }
 }
@@ -456,15 +463,15 @@ Boolean guardAutoConfigured() {
 String guardAutoDesc() {
     String str = sBLANK
     if(guardAutoConfigured()) {
-        str += "Guard Triggers:"
-        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? "\n ${sBULLET} Using ${getAlarmSystemName()}" : sBLANK
-        str += settings.guardHomeModes ? "\n ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})" : sBLANK
-        str += settings.guardAwayModes ? "\n ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})" : sBLANK
-        str += settings.guardHomeSwitch ? "\n ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})" : sBLANK
-        str += settings.guardAwaySwitch ? "\n ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
-        str += settings.guardAwayPresence ? "\n ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
+        str += spanWrap("Guard Triggers:", sNULL, sNULL, true)
+        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? addLineBr() + " ${sBULLET} Using ${getAlarmSystemName()}" : sBLANK
+        str += settings.guardHomeModes ? addLineBr() + " ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})" : sBLANK
+        str += settings.guardAwayModes ? addLineBr() + " ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})" : sBLANK
+        str += settings.guardHomeSwitch ? addLineBr() + " ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})" : sBLANK
+        str += settings.guardAwaySwitch ? addLineBr() + " ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
+        str += settings.guardAwayPresence ? addLineBr() + " ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
     }
-    return str == sBLANK ? sTTC : "${str}\n\n${sTTM}"
+    return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sBLANK
 }
 
 def guardTriggerEvtHandler(evt) {
@@ -743,8 +750,9 @@ def devicePrefsPage() {
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
         deviceDetectOpts()
         section(sTS("Detection Override:")) {
-            paragraph pTS("Device not detected?  Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.  This is useful for testing the device.", getAppImg("info", true), false)
-            input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
+            paragraph spanWrap("Device not detected?", sCLRORG, "small", true, true) + spanWrap("Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.<br>This is useful for testing if a device supports certain features.", sCLRORG, "small")
+            input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), required: false, defaultValue: false, submitOnChange: true
+            paragraph spanWrap("WARNING:", sCLRRED, "small", true) + spanWrap(" This will create devices for all remaining ignored devices", sCLRRED, "small")
         }
         devCleanupSect()
 //        if(!newInstall && !resumeConf) { state.refreshDeviceData = true }
@@ -764,7 +772,7 @@ private deviceDetectOpts() {
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            paragraph title:"Notice:", pTS("To prevent unwanted devices from reinstalling after removal make sure to add it to the Don't use these devices input above before removing.", getAppImg("info", true), false)
+            paragraph spanWrap("Notice:", sCLR4D9, "small", true, true) + spanWrap("To prevent unwanted devices from reappearing after removal make sure to add the device to the Don't Use these Devices input above before removing.", sCLR4D9, "small")
         }
     }
 }
@@ -778,9 +786,13 @@ private devCleanupPage() {
 private devCleanupSect() {
     if(state.isInstalled && !(Boolean)state.resumeConfig) {
         section(sTS("Device Cleanup Options:")) {
+            Map devs = getAllDevices(true)
+            if(devs?.size()) {
+                input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            }
             List remDevs = getRemovableDevs()
-            if(remDevs.size()) { paragraph "Removable Devices:\n${remDevs.sort()?.join("\n")}", required: true, state: sNULL }
-            paragraph title:"Notice:", pTS("Remember to add device to filter above to prevent recreation.  Also the cleanup process will fail if the devices are used in external apps/automations", getAppImg("info", true), true, sCLR4D9)
+            if(remDevs.size()) { paragraph spanWrap("Removable Devices:", sCLRRED, "small", true, true) + spanWrap(remDevs.sort().collect { " ${sBULLET} ${it}" } ?.join("<br>"), sCLRGRY, "small"), required: true }
+            paragraph spanWrap("Notice:", sCLR4D9, sNULL, true, true) + spanWrap("Remember to add device to filter above to prevent recreation.<br>Also the cleanup process will fail if the devices are used in external apps/automations", sCLR4D9, "small")
             input "cleanUpDevices", sBOOL, title: inTS("Cleanup Unused Devices?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
             if((Boolean)settings.cleanUpDevices) { removeDevices() }
         }
@@ -866,7 +878,7 @@ def unrecogDevicesPage() {
         section(sTS("Unrecognized/Unsupported Devices:")) {
             if(unDevs?.size()) {
                 unDevs.sort { it?.value?.name }?.each { String k, Map v->
-                    log.debug "v: $v"
+                    // log.debug "v: $v"
                     String str = "<span>Status: (${(Boolean)v.online ? "Online" : "Offline"})</span>"
                     str += "<br><span>Style: ${(String) v.desc}</span>"
                     str += "<br><span>Family: ${(String)v.family}</span>"
@@ -1020,21 +1032,22 @@ def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
         String t1 = sNULL
         section(sBLANK) {
-            href "speechPage", title: inTS1("Speech Test", "broadcast"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
-            href "announcePage", title: inTS1("Announcement Test","announcement"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
-            href "sequencePage", title: inTS1("Sequence Creator Test", "sequence"), description: (t1 ? "${t1}\n\n${sTTM}": sTTC), state: (t1 ? sCOMPLT : sNULL)
+            href "speechPage", title: inTS1("Speech Test", "broadcast"), description: inputFooter(sTTC, sCLRGRY, true)
+            href "announcePage", title: inTS1("Announcement Test","announcement"), description: inputFooter(sTTC, sCLRGRY, true)
+            href "sequencePage", title: inTS1("Sequence Creator Test", "sequence"), description: inputFooter(sTTC, sCLRGRY, true)
         }
     }
 }
 
 def speechPage() {
     return dynamicPage(name: "speechPage", uninstall: false, install: false) {
+        // if(state.mainMenu) return mainPage()
         section(sBLANK) {
             paragraph pTS("This feature has been known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             Map<String,String> devs = getDeviceList(true, [tts])
             input "test_speechDevices", sENUM, title: inTS("Select Devices to Test the Speech"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            if(((List) settings.test_speechDevices)?.size() >= 3) { 
-                paragraph pTS("<b>NOTICE</b>:<br>Amazon will Rate Limit more than 3 device commands at a time.<br>There will be a delay in the other devices but they should play the test after a few seconds", null, false, "red"), state: sNULL
+            if(((List) settings.test_speechDevices)?.size() >= 3) {
+                paragraph spanWrap("NOTICE:", sCLRRED, "small", true, true) + spanWrap("Amazon often rate limits when 3 or more device commands are sent at a time.<br>There may be a delay in the other devices but they should play the test after a few seconds", sCLRRED, "small")
             }
             input "test_speechVolume", "number", title: inTS("Speak at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
             input "test_speechRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
@@ -1046,6 +1059,63 @@ def speechPage() {
                 if((Boolean)settings.test_speechRun) { executeSpeechTest() }
             }
         }
+        // returnHomeBtn()
+    }
+}
+
+def alexaRoutinesTestPage() {
+    return dynamicPage(name: "alexaRoutinesTestPage", uninstall: false, install: false) {
+        String t1 = sNULL
+        Map rts = getAlexaRoutines()
+        section(sectTS("Available Routines:")) {
+            if(rts.size()) {
+                rts.each { String rk, String rv->
+                    String str = sBLANK
+                    str += spanWrap("Name: ", sNULL, sNULL, true) + spanWrap(rv, sNULL, sNULL, false, true)
+                    str += spanWrap("ID: ", sNULL, sNULL, true) + spanWrap(rk, sNULL, sNULL, false, true)
+                    paragraph divWrap(str, sCLR4D9, "small")
+                    input "executeRoutine::${rk}", "button", title: spanWrap("<b>Run Routine:</b> (${rv})", sCLRGRY, "small"), width: 4
+                }
+            } else {
+                paragraph divWrap("No Routine Data Found...", sCLRGRY, "small")
+            }
+        }
+    }
+}
+
+def returnHomeBtn() {
+    section {
+	    paragraph htmlLine()
+		input "btnMainMenu", "button", title: "Home Page", width: 3
+	}
+}
+
+def appButtonHandler(btn) {
+    // log.debug "appButton: $btn"
+	switch (btn) {
+		case "btnMainMenu":
+			state.mainMenu = true
+			break
+        case ~/^executeRoutine(\d+)/:
+			// executeRoutineTest(Matcher.lastMatcher[0][1].toInteger())
+			break
+        default:
+            if(btn.startsWith("executeRoutine::")) {
+                List rt = btn.tokenize("::")
+                // log.debug "routine: ${rt[1]}"
+                if(rt && rt.size() > 1 && rt[1]) {
+                    executeRoutineTest(rt[1].toString())
+                }
+            }
+			break
+	}
+}
+
+void executeRoutineTest(String rtId) {
+    if(rtId) {
+        executeRoutineById(rtId)
+    } else {
+        logError("Valid Routine ID not received for Routine Test!!!")
     }
 }
 
@@ -2590,7 +2660,7 @@ Boolean getDndEnabled(String serialNumber) {
     return (dndData && dndData.enabled == true)
 }
 
-public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
+public Map getAlexaRoutines(String autoId=sNULL) {
     if(!isAuthValid("getAlexaRoutines")) { return [:]}
     Map params = [
         uri: getAmazonUrl(),
@@ -2602,7 +2672,7 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
     ]
     Map rtResp = [:]
     try {
-        logTrace("getAlexaRoutines($autoId, $utterOnly)")
+        logTrace("getAlexaRoutines($autoId)")
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
@@ -2619,13 +2689,24 @@ public Map getAlexaRoutines(String autoId=sNULL, Boolean utterOnly=false) {
                     rtList.findAll { it?.status == "ENABLED" }?.each { Map item ->
                         String myK = item.automationId.toString()
                         if(item.name != null) {
-                            items[myK] = item.name
+                            items[myK] = item.name.toString()
                         } else {
                             if(item.triggers?.size()) {
                                 item.triggers.each { trg->
                                     if(trg.payload?.containsKey("utterance") && trg.payload?.utterance != null) {
                                         items[myK] = (String)trg.payload.utterance
-                                    } else {
+                                    } else if(trg.type != null) {
+                                        // log.debug "trg: $trg"
+                                        String pt = trg.type.toString()
+                                        if(pt?.toLowerCase().contains('guard')) {
+                                            items[myK] = "Unlabeled Guard Routine ($cnt)"    
+                                            cnt++
+                                        } else {
+                                            items[myK] = "Unlabeled Routine ($cnt)"
+                                            cnt++
+                                        }
+                                    }
+                                     else {
                                         items[myK] = "Unlabeled Routine ($cnt)"
                                         cnt++
                                     }
@@ -2697,30 +2778,30 @@ void checkGuardSupportResponse(response, data) {
         if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
         Integer respLen = response?.data?.toString()?.length() ?: null
         // log.trace("GuardSupport Response Length: ${respLen}")
-        if(response?.data && respLen && respLen > 485000) {
-            Map minUpdMap = getMinVerUpdsRequired()
-            if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
-                wakeupServer(false, false, "checkGuardSupport")
-                logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
-            } else {
-                logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
-            }
-            state.alexaGuardDataOverMaxSize = true
-            return
-        }
+        // if(response?.data && respLen && respLen > 485000) {
+        //     Map minUpdMap = getMinVerUpdsRequired()
+        //     if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
+        //         wakeupServer(false, false, "checkGuardSupport")
+        //         logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
+        //     } else {
+        //         logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
+        //     }
+        //     state.alexaGuardDataOverMaxSize = true
+        //     return
+        // }
         Map resp = response?.data ? parseJson(response?.data?.toString()) : null
         if(resp && resp.networkDetail) {
             Map details = parseJson(resp.networkDetail as String)
             Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
             if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
                 def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-// could there be multiple Guards?
+                // could there be multiple Guards?
                 def guardKeys = locDetails?.applianceDetails?.applianceDetails?.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
                 if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
                 def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
                 if(devModeFLD) logTrace("Guard: ${guardData}")
                 if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
-//TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
+                //TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
                     state.alexaGuardData = [
                         entityId: guardData?.entityId,
                         applianceId: guardData?.applianceId,
@@ -3102,7 +3183,7 @@ void receiveEventData(Map evtData, String src) {
                     // log.debug "deviceStyle: ${deviceStyleData}"
                     Boolean isBlocked = (deviceStyleData?.blocked || familyAllowed?.reason == "Family Blocked")
                     Boolean isInIgnoreInput = (echoValue?.serialNumber in settings.echoDeviceFilter)
-                    Boolean allowTTS = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("t"))
+                    Boolean allowTTS = (deviceStyleData?.caps && deviceStyleData?.caps?.contains(sTSTR))
                     Boolean isMediaPlayer = (echoValue?.capabilities?.contains("AUDIO_PLAYER") || echoValue?.capabilities?.contains("AMAZON_MUSIC") || echoValue?.capabilities?.contains("TUNE_IN") || echoValue?.capabilities?.contains("PANDORA") || echoValue?.capabilities?.contains("I_HEART_RADIO") || echoValue?.capabilities?.contains("SPOTIFY"))
                     Boolean volumeSupport = (echoValue?.capabilities?.contains("VOLUME_SETTING"))
                     Boolean unsupportedDevice = ((!familyAllowed?.ok && familyAllowed?.reason == "Unknown Reason") || isBlocked)
@@ -3146,7 +3227,7 @@ void receiveEventData(Map evtData, String src) {
 
                     Map<String, Object> permissions = [:]
                     permissions["TTS"] = allowTTS
-                    permissions["announce"] = (deviceStyleData?.caps && deviceStyleData?.caps?.contains("a"))
+                    permissions["announce"] = (deviceStyleData?.caps && deviceStyleData?.caps?.contains(sASTR))
                     permissions["volumeControl"] = volumeSupport
                     permissions["mediaPlayer"] = isMediaPlayer
                     permissions["amazonMusic"] = (echoValue.capabilities?.contains("AMAZON_MUSIC"))
@@ -3170,12 +3251,12 @@ void receiveEventData(Map evtData, String src) {
                     permissions["bluetoothControl"] = (echoValue.capabilities?.contains("PAIR_BT_SOURCE") || echoValue.capabilities?.contains("PAIR_BT_SINK"))
                     permissions["guardSupported"] = (echoValue.capabilities?.contains("TUPLE"))
                     permissions["isEchoDevice"] = (echoValue.deviceFamily in (List)deviceSupportMapFLD.families.echo)
-                    echoValue["guardStatus"] = ((Boolean)state.alexaGuardSupported && (String)state.alexaGuardState) ? (String)state.alexaGuardState : ((Boolean)permissions.guardSupported ? "Unknown" : "Not Supported")
+                    echoValue["guardStatus"] = ((Boolean)state.alexaGuardSupported && (String)state.alexaGuardState) ? (String)state.alexaGuardState : ((Boolean)permissions.guardSupported ? sUnknown : "Not Supported")
                     echoValue["musicProviders"] = (Map)evtData.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue.clusterMembers && echoValue.clusterMembers?.size() > 0) ?: false
 
-                    if(deviceStyleData?.name?.toString()?.toLowerCase()?.contains("unknown")) {
+                    if(deviceStyleData?.name?.toString()?.toLowerCase()?.contains(sUNKNOWN)) {
                         unknownDevices.push([
                             name: echoValue.accountName,
                             family: echoValue.deviceFamily,
@@ -3289,7 +3370,7 @@ static Map getDeviceStyle(String family, String type) {
     Map typeData = deviceSupportMapFLD.types[type] ?: [:]
     if(typeData) {
         return typeData
-    } else { return [name: "Echo Unknown $type", image: "unknown", allowTTS: false] }
+    } else { return [name: "Echo Unknown $type", image: sUNKNOWN, allowTTS: false] }
 }
 
 public Map getDeviceFamilyMap() {
@@ -4849,7 +4930,7 @@ def appInfoSect() {
             if(!(Boolean) state.authValid && !(Boolean) state.resumeConfig) { 
                 isNote = true; 
                 String str4 = """<small style="color: orange;"><b>Login Issue:</b></small>"""
-                str4 += """<br><br><small style="color: orange;">You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!</small>"""
+                str4 += addLineBr() + addLineBr() + spanWrap("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", sCLRORG, "small")
                 paragraph str4 
             }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
@@ -5602,7 +5683,7 @@ String getObjType(obj) {
     else if(obj instanceof Float) {return "Float"}
     else if(obj instanceof Byte) {return "Byte"}
     else if(obj instanceof Date) {return "Date"}
-    else { return "unknown"}
+    else { return sUNKNOWN}
 }
 
 Boolean isContactOpen(sensors) {
@@ -6093,6 +6174,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2WN1FJ2HG09UN" : [ caps: [ "a", "t" ], image: "unknown", name: "Ultimate Alexa App" ],
         "A2BRQDVMSZD13S" : [ caps: [ "a", "t" ], image: "unknown", name: "SURE Universal Remote" ],
         "A3TCJ8RTT3NVI7" : [ caps: [ "a", "t" ], image: "unknown", name: "Alexa Listens" ],
+        "A2VAXZ7UNGY4ZH" : [ caps: [ "a", "t" ], image: "unknown", name: "Wyze Headphones"],
     ],
     families: [
         block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],

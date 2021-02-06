@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.5.0"
-@Field static final String appModifiedFLD = "2021-02-04"
+@Field static final String appVersionFLD  = "4.0.6.0"
+@Field static final String appModifiedFLD = "2021-02-05"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -1391,7 +1391,7 @@ def actionsPage() {
                     echoDevicesInputByPerm("wakeWord")
                     if(settings.act_EchoDevices) {
                         section(sTS("Action Description:")) { paragraph pTS(actTypeDesc, getAppImg("info", true), false, sCLR4D9), state: sCOMPLT }
-                        Map t0 = parent?.getAlexaRoutines(null, true)
+                        Map t0 = parent?.getAlexaRoutines()
                         Map routinesAvail = t0 ?: [:]
                         // logDebug("routinesAvail: $routinesAvail")
                         section(sTS("Action Type Config:")) {
