@@ -39,6 +39,7 @@ import groovy.transform.Field
 @Field static final String sNUMBER        = 'number'
 @Field static final String sTEXT          = 'text'
 @Field static final String sTIME          = 'time'
+@Field static final String sMODE          = 'mode'
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
@@ -149,7 +150,7 @@ private buildTriggerEnum() {
     List enumOpts = []
     Map<String,Map> buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
-    buildItems["Location"] = ["mode":"Modes", "pistonExecuted":"Pistons"]?.sort{ it?.key }
+    buildItems["Location"] = [(sMODE):"Modes", "pistonExecuted":"Pistons"]?.sort{ it?.key }
     if(!settings.enableWebCoRE) {
         buildItems.Location.remove("pistonExecuted")
     }
@@ -180,7 +181,7 @@ def mainPage() {
         Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup == true)
         if(dup) {
             state.dupOpenedByUser = true
-            section() { paragraph pTS("This Action was created from an existing action.\n\nPlease review the settings and save to activate...", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
+            section() { paragraph pTS("This Action was created from an existing action.\n\nPlease review the settings and save to activate...\n${state.badMode ?: sBLANK}", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
         }
 
         if(settings.enableWebCoRE) {
@@ -430,13 +431,13 @@ def triggersPage() {
                 }
             }
 
-            if (valTrigEvt("mode")) {
+            if (valTrigEvt(sMODE)) {
                 section (sTS("Mode Events"), hideable: true) {
-                    input "trig_mode", "mode", title: inTS1("Location Modes", "mode"), multiple: true, required: true, submitOnChange: true
+                    input "trig_mode", sMODE, title: inTS1("Location Modes", sMODE), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_mode) {
                         input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
                         input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
-                        triggerVariableDesc("mode", false, trigItemCnt++)
+                        triggerVariableDesc(sMODE, false, trigItemCnt++)
                     }
                 }
             }
@@ -611,7 +612,7 @@ def triggersPage() {
                 section (sTS("Thermostat Events"), hideable: true) {
                     input "trig_thermostat", "capability.thermostat", title: inTS1("Thermostat", "thermostat"), multiple: true, required: true, submitOnChange: true
                     if (settings.trig_thermostat) {
-                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", "mode":"Mode Change", "operatingstate":"Operating State Change"], required: true, multiple: false, submitOnChange: true
+                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", (sMODE):"Mode Change", "operatingstate":"Operating State Change"], required: true, multiple: false, submitOnChange: true
                         if (settings.trig_thermostat_cmd) {
                             if (settings.trig_thermostat_cmd == "setpoint") {
                                 input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true
@@ -644,7 +645,7 @@ def triggersPage() {
                                     }
                                 }
                             }
-                            if (settings.trig_thermostat_cmd == "mode") {
+                            if (settings.trig_thermostat_cmd == sMODE) {
                                 input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true
                             }
                             if (settings.trig_thermostat_cmd == "operatingstate") {
@@ -659,8 +660,7 @@ def triggersPage() {
             }
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS(spanWrap("Step Complete", sNULL, "medium", true), getAppImg("done", true))
-                    paragraph spanWrap("Press <b>Next</b> to Return to Main Page", sNULL, "small")
+                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
                 }
             }
         }
@@ -758,7 +758,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
 
 Boolean locationTriggers() {
     return (
-        (valTrigEvt("mode") && settings.trig_mode) || (valTrigEvt("alarm") && settings.trig_alarm) ||
+        (valTrigEvt(sMODE) && settings.trig_mode) || (valTrigEvt("alarm") && settings.trig_alarm) ||
         (valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) ||
 //        (valTrigEvt("routineExecuted") && settings.trig_routineExecuted) ||
 //        (valTrigEvt("scene") && settings.trig_scene) ||
@@ -784,7 +784,7 @@ Boolean thermostatTriggers() {
         switch(settings.trig_thermostat_cmd) {
             case "setpoint":
                 return (settings.trig_thermostat_setpoint_cmd && (trig_thermostat_setpoint_low || trig_thermostat_setpoint_high || trig_thermostat_setpoint_equal))
-            case "mode":
+            case sMODE:
                 return (settings.trig_thermostat_mode_cmd)
             case "operatingstate":
                 return (settings.trig_thermostat_state_cmd)
@@ -839,7 +839,7 @@ def conditionsPage() {
             input "cond_months", sENUM, title: inTS1("Months of the year", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: monthEnum()
         }
         section (sTS("Mode Conditions")) {
-            input "cond_mode", "mode", title: inTS1("Location Modes...", "mode"), multiple: true, required: false, submitOnChange: true
+            input "cond_mode", sMODE, title: inTS1("Location Modes...", sMODE), multiple: true, required: false, submitOnChange: true
             if(settings.cond_mode) {
                 input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"Not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true
             }
@@ -1578,7 +1578,7 @@ def actTrigTasksPage(params) {
             }
         }
         section(sTS("Location Actions:")) {
-            input "${t}mode_run", sENUM, title: inTS1("Set Location Mode${dMap?.def}\n(Optional)", "mode"), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true
+            input "${t}mode_run", sENUM, title: inTS1("Set Location Mode${dMap?.def}\n(Optional)", sMODE), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true
             input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", "alarm_home"), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true
 
             if(settings.enableWebCoRE) {
@@ -1807,7 +1807,7 @@ def actNotifTimePage() {
             input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
         }
         section(sTS("Allowed Modes:")) {
-            input "${pre}_modes", "mode", title: inTS1("Only in these Modes", "mode"), multiple: true, submitOnChange: true, required: false
+            input "${pre}_modes", sMODE, title: inTS1("Only in these Modes", sMODE), multiple: true, submitOnChange: true, required: false
         }
     }
 }
@@ -1987,7 +1987,7 @@ def updated() {
         }
         logInfo("removing duplicate status")
         settingRemove('duplicateFlag'); settingRemove('duplicateSrcId')
-        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup')
+        state.remove('dupOpenedByUser'); state.remove('dupPendingSetup'); state.remove('badMode')
     }
     initialize()
 }
@@ -2032,13 +2032,44 @@ private void processDuplication() {
 
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
-           if((String)v.type == sENUM) settingRemove(k)
-            settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
+           if((String)v.type in [sENUM]) settingRemove(k)
+
+           if((String)v.type in [sMODE]){
+              String msg = "Found mode settings $k is type $v.type value is ${v.value}, this setting needs to be updated to work properly"
+              logWarn(msg)
+              state.badMode=msg
+
+              settingRemove(k)
+              List modeIt= v.value?.collect { String vit ->
+                  location.getModes()?.find { (String)it.name == vit ? it.toString() : null }
+              }
+//              log.warn "new settings $k is $modeIt"
+              if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
+
+           } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
     }
     parent.childAppDuplicationFinished("actions", dupSrcId)
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
+
+String getObjType(obj) {
+    if(obj instanceof String) {return "String"}
+    else if(obj instanceof GString) {return "GString"}
+    else if(obj instanceof Map) {return "Map"}
+    else if(obj instanceof List) {return "List"}
+    else if(obj instanceof ArrayList) {return "ArrayList"}
+    else if(obj instanceof Integer) {return "Integer"}
+    else if(obj instanceof BigInteger) {return "BigInteger"}
+    else if(obj instanceof Long) {return "Long"}
+    else if(obj instanceof Boolean) {return "Boolean"}
+    else if(obj instanceof BigDecimal) {return "BigDecimal"}
+    else if(obj instanceof Float) {return "Float"}
+    else if(obj instanceof Byte) {return "Byte"}
+    else if(obj instanceof Date) {return "Date"}
+    else { return "unknown"}
+}
+
 /*
 private void updateZoneSubscriptions() {
     if(settings.act_EchoZones) {
@@ -2298,10 +2329,10 @@ void subscribeToEvts() {
     // ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
                     if("alerts" in settings.trig_alarm) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                     break
-                case "mode":
+                case sMODE:
                     // Location Mode Events
                     if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
-                    subscribe(location, "mode", modeEvtHandler)
+                    subscribe(location, sMODE, modeEvtHandler)
                     break
                 case "pistonExecuted":
                     break
@@ -2529,8 +2560,8 @@ def modeEvtHandler(evt) {
     if(evt?.value in settings.trig_mode) {
         Boolean dco = (settings.trig_mode_once == true)
         Integer dcw = settings.trig_mode_wait ?: null
-        eventCompletion(evt, "mode", dco, dcw, "modeEvtHandler", evt?.value, (String)evt?.displayName)
-/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "mode", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
+        eventCompletion(evt, sMODE, dco, dcw, "modeEvtHandler", evt?.value, (String)evt?.displayName)
+/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: sMODE, value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
         if(!evtWaitOk) { return }
         if(getConfStatusItem("tiers")) {
             processTierTrigEvt(evt, true)
@@ -3028,7 +3059,7 @@ def thermostatEvtHandler(evt) {
                 }
                 break
 
-            case "mode":
+            case sMODE:
             case "operatingstate":
             case "fanmode":
                 if(evt?.name == "thermostatMode") {
@@ -3538,7 +3569,7 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                 case "coolSetpoint":
                 case "heatSetpoint":
                     return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evntNam) ? " ${evntNam}" : sBLANK} ${evntNam} is ${evt?.value} ${postfix}"
-                case "mode":
+                case sMODE:
                     return  "The location mode is now set to ${evt?.value}"
                 case "pistonExecuted":
                     return  "The ${evt?.displayName} piston was just executed!."
@@ -4375,7 +4406,11 @@ def getModeById(mId) {
     return location?.getModes()?.find{it?.id == mId}
 }
 
-Boolean isInMode(List modes, Boolean not=false) {
+Boolean isInMode(modes, Boolean not=false) {
+    if(modes instanceof String){
+        modes = modes.toList()
+        log.warn("Found bad mode settings $modes, this setting needs to be updated to work properly")
+    }
     return (modes) ? (not ? (!(getCurrentMode() in modes)) : (getCurrentMode() in modes)) : false
 }
 
@@ -4676,7 +4711,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
                         break
                     case "pistonExecuted":
 //                    case "routineExecuted":
-                    case "mode":
+                    case sMODE:
                     case "scene":
                         str += " \u2022 ${evt == "pistonExecuted" ? "Piston" : evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
                         str += settings."${sPre}${evt}_once" ? "    \u25E6 Once a Day: (${settings."${sPre}${evt}_once"})\n" : sBLANK
