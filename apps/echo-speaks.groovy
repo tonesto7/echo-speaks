@@ -3831,6 +3831,23 @@ static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under
 
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 
+
+String addLineBr(Boolean show=true) {
+    return (String) show ? sLINEBR : sBLANK
+}
+
+String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String getOkOrNotSymHTML(Boolean ok) {
+    return (String) ok ? "<span style='color: #43d843;'>(${okSymFLD})</span>" : "<span style='color: #cc2d3b;'>(${notOkSymFLD})</span>"
+}
+
 def appFooter() {
     section() {
         paragraph htmlLine()
@@ -4811,22 +4828,6 @@ String getNotifSchedDesc(Boolean min=false) {
     str += modeInput ? "${addLineBr(startLbl || stopLbl || qDays)}${spanWrap("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanWrap(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
     str = str ? "${spanWrap("Restrictions:", sNULL, sNULL, true)} ${getOkOrNotSymHTML(rest)}${addLineBr()}${str}" : sBLANK
     return (str != sBLANK) ? divWrap(str, sCLR4D9, "small") : sNULL
-}
-
-String addLineBr(Boolean show=true) {
-    return (String) show ? sLINEBR : sBLANK
-}
-
-String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
-    return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
-}
-
-String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
-    return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? "<br>" : sBLANK}" : sBLANK
-}
-
-String getOkOrNotSymHTML(Boolean ok) {
-    return (String) ok ? "<span style='color: #43d843;'>(${okSymFLD})</span>" : "<span style='color: #cc2d3b;'>(${notOkSymFLD})</span>"
 }
 
 String getServiceConfDesc() {

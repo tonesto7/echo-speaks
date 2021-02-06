@@ -42,7 +42,11 @@ import groovy.transform.Field
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
+@Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
+@Field static final String sCLRGRN        = 'green'
+@Field static final String sCLRGRN2       = '#43d843'
+@Field static final String sCLRORG        = 'orange'
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
 @Field static final String sTTP           = 'Tap to proceed...'
@@ -655,7 +659,8 @@ def triggersPage() {
             }
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
+                    paragraph pTS(spanWrap("Step Complete", sNULL, "medium", true), getAppImg("done", true))
+                    paragraph spanWrap("Press <b>Next</b> to Return to Main Page", sNULL, "small")
                 }
             }
         }
@@ -4712,7 +4717,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
             return str
         } else { return addE ? sTTM : sBLANK }
     } else {
-        return addE ? "<b>Must be configured!</b>\n"+sTTC : sBLANK
+        return addE ? spanWrap("Tap to configure (Required!)", sCLRRED, "small") : sBLANK
     }
 }
 
@@ -4796,13 +4801,14 @@ Map getZoneStatus() {
     return res
 }
 
-String getActionDesc(Boolean addE=true) {
+String getActionDesc(Boolean addFoot=true) {
     Boolean confd = executionConfigured()
 //    def time = null
 //    String sPre = "act_"
     String str = sBLANK
 //    str += addE && (String)settings.actionType ? "Action:\n • ${(String)settings.actionType}\n\n" : sBLANK
-    str += addE ? "Action:\n • "+buildActTypeEnum()."${settings.actionType}"+"\n\n" : sBLANK
+    str += addFoot ? spanWrap("Action:", sNULL, sNULL, true, true) : sBLANK
+    str += addFoot ? spanWrap(" ${sBULLET} "+buildActTypeEnum()."${settings.actionType}") : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
@@ -4810,7 +4816,7 @@ String getActionDesc(Boolean addE=true) {
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
-        str += zones?.size() ? "Echo Zones:\n${zones?.collect { " \u2022 ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("\n")}\n${eDevs?.size() ? "\n": ""}" : sBLANK
+        str += zones?.size() ? "Echo Zones:\n${zones?.collect { " ${sBULLET} ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("<br>")}\n${eDevs?.size() ? "\n": ""}" : sBLANK
         str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Inactive Zone default)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join("\n")}\n" : sBLANK
         str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? sBLANK : "\n"}" : sBLANK
         str += tierStart ? tierStart+"\n" : sBLANK
@@ -4821,11 +4827,11 @@ String getActionDesc(Boolean addE=true) {
         str += (String)settings.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings."act_${(String)settings.actionType}_txt" ? "Using Default Response: (True)\n" : sBLANK
         String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
         str += trigTasks ? trigTasks : sBLANK
-        str += addE ? "\n\n"+sTTM : sBLANK
-        return str.replaceAll("\n\n\n", "\n\n")
+        str += addFoot ? "\n\n"+sTTM : sBLANK
+        // return divWrap(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, "small")
     }
-    str += addE ? "<b>Must be configured!</b>\n"+sTTC : sBLANK
-    return str
+    str += addFoot ? spanWrap("Tap to configure (Required!)", sCLRRED, "small") : sBLANK
+    return divWrap(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, "small")
 }
 
 String getTimeCondDesc(Boolean addPre=true) {
@@ -4906,11 +4912,31 @@ static String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { 
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 /* """ */
 
+static String inputFooter(str, color=sCLR4D9, noBr=false) {
+    return "${noBr ? sBLANK : "<br>"}<div style='color: ${color}; font-size: small;font-weight: bold;'>${str}</div>"
+}
+
 static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
 static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 /* """ */
 
 static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+
+String addLineBr(Boolean show=true) {
+    return (String) show ? sLINEBR : sBLANK
+}
+
+String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String getOkOrNotSymHTML(Boolean ok) {
+    return (String) ok ? "<span style='color: #43d843;'>(${okSymFLD})</span>" : "<span style='color: #cc2d3b;'>(${notOkSymFLD})</span>"
+}
 
 def appFooter() {
 	section() {
