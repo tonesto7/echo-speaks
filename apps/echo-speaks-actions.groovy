@@ -351,6 +351,7 @@ def triggersPage() {
         if (trigEvtCnt) {
             Integer trigItemCnt = 0
             if((settings.triggerEvents in ["speak", "announcement"])) { showSpeakEvtVars = true }
+
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
                     List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
@@ -612,9 +613,12 @@ def triggersPage() {
                 section (sTS("Thermostat Events"), hideable: true) {
                     input "trig_thermostat", "capability.thermostat", title: inTS1("Thermostat", "thermostat"), multiple: true, required: true, submitOnChange: true
                     if (settings.trig_thermostat) {
-                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", (sMODE):"Mode Change", "operatingstate":"Operating State Change"], required: true, multiple: false, submitOnChange: true
-                        if (settings.trig_thermostat_cmd) {
-                            if (settings.trig_thermostat_cmd == "setpoint") {
+                        Boolean done=false
+                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", (sMODE):"Mode Change", "operatingstate":"Operating State Change","fanmode":"Fan Mode Change"], required: true, multiple: false, submitOnChange: true
+
+                        switch((String)settings.trig_thermostat_cmd) {
+
+                            case "setpoint":
                                 input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true
                                 if(settings.trig_thermostat_setpoint_type) {
                                     input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
@@ -628,10 +632,12 @@ def triggersPage() {
                                         if (settings.trig_thermostat_setpoint_cmd == sEQUALS) {
                                             input "trig_thermostat_setpoint_equal", sNUMBER, title: inTS1("a Setpoint temp of...", "equal"), required: true, submitOnChange: true
                                         }
+                                        done=true
                                     }
                                 }
-                            }
-                            if(settings.trig_thermostat_cmd == "ambient") {
+                                break
+
+                            case "ambient":
                                 input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
                                 if (settings.trig_thermostat_ambient_cmd) {
                                     if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, sBELOW]) {
@@ -643,17 +649,27 @@ def triggersPage() {
                                     if (settings.trig_thermostat_ambient_cmd == sEQUALS) {
                                         input "trig_thermostat_ambient_equal", sNUMBER, title: inTS1("a Ambient Temp of...", "equal"), required: true, submitOnChange: true
                                     }
+                                    done=true
                                 }
-                            }
-                            if (settings.trig_thermostat_cmd == sMODE) {
-                                input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true
-                            }
-                            if (settings.trig_thermostat_cmd == "operatingstate") {
-                                input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true
-                            }
-                            if (settings.trig_thermostat_cmd == "fanmode") {
+                                break
+
+                            case sMODE:
+                                input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: getThermModeOpts()+["every mode"], required: true, submitOnChange: true
+                                if (settings.trig_thermostat_mode_cmd) done=true
+                                break
+
+                            case "operatingstate":
+                                input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: getThermOperStOpts()+["every state"], required: true, submitOnChange: true
+                                if (settings.trig_thermostat_state_cmd) done=true
+                                break
+
+                            case "fanmode":
                                 input "trig_thermostat_fanmode_cmd", sENUM, title: inTS1("Fan Mode changes to?", sCOMMAND), options: ["on", "circulate", "auto", "every mode"], required: true, submitOnChange: true
-                            }
+                                if (settings.trig_thermostat_fanmode_cmd) done=true
+                                break
+                        }
+
+                        if(done) {
                             input "trig_thermostat_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: thermostat)", "question"), required: false, defaultValue: false, submitOnChange: true
                             input "trig_thermostat_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                             triggerVariableDesc("thermostat", false, trigItemCnt++)
@@ -663,7 +679,8 @@ def triggersPage() {
             }
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
+                    //paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
+                    paragraph pTS("\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
                 }
             }
         }
@@ -700,7 +717,7 @@ Map<String,Map> getCodes(List devs, String code=sNULL) {
 
 def dummy(a,b) {}
 
-def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
+def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, required: devReq, submitOnChange: true
         if (settings."trig_${inType}") {
@@ -730,7 +747,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
     }
 }
 
-def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt, devReq=true) {
+def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt, Boolean devReq=true) {
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", tite: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: devReq
         if(settings."trig_${inType}") {
@@ -770,9 +787,11 @@ Boolean locationTriggers() {
 }
 
 Boolean deviceTriggers() {
+//ERS
     return (
         (settings.trig_shade && settings.trig_shade_cmd) || (settings.trig_door && settings.trig_door_cmd) || (settings.trig_valve && settings.trig_valve_cmd) ||
         (settings.trig_switch && settings.trig_switch_cmd) || (settings.trig_level && settings.trig_level_cmd) || (settings.trig_lock && settings.trig_lock_cmd) ||
+        (settings.trig_securityKeypad && settings.trig_securityKeypad_cmd) ||
         (settings.trig_battery && settings.trig_battery_cmd) || (thermostatTriggers()) ||
         (settings.trig_button && settings.trig_button_cmd) ||
         (settings.trig_pushed && settings.trig_pushed_cmd && settings.trig_pushed_nums) ||
@@ -791,6 +810,8 @@ Boolean thermostatTriggers() {
                 return (settings.trig_thermostat_mode_cmd)
             case "operatingstate":
                 return (settings.trig_thermostat_state_cmd)
+            case "fanmode":
+                return (settings.trig_thermostat_fanmode_cmd)
             case "ambient":
                 return (settings.trig_thermostat_ambient_cmd && (trig_thermostat_ambient_low || trig_thermostat_ambient_high || trig_thermostat_ambient_equal))
         }
@@ -884,7 +905,38 @@ def conditionsPage() {
         condNonNumSect("valve", "valve", "Valves", "Valves", lOPNCLS, "are", "valve")
 
         condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
+
+        String titl="Thermostat Modes"
+        String typ="thermostat"
+        String cmdTitle = "is"
+        section (sTS(titl)) {
+            List cmdOpts = getThermModeOpts()
+            input "cond_thermostatMode", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            if (settings.cond_thermostatMode) {
+                input "cond_thermostatMode_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+            }
+        }
+
+        titl="Thermostat Operating States"
+        section (sTS(titl)) {
+            List cmdOpts = getThermOperStOpts()
+            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            if (settings.cond_thermostatOperatingState) {
+                input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+            }
+        }
+
+        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Cooling Setpoint", "Temperature", "temperature")
+        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Heating Setpoint", "Temperature", "temperature")
     }
+}
+
+static List getThermModeOpts() {
+    return ["auto", "cool", " heat", "emergency heat", "off"]
+}
+
+static List getThermOperStOpts() {
+    return ["cooling", "heating", "idle"]
 }
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
@@ -2344,13 +2396,11 @@ void subscribeToEvts() {
                     if (settings.trig_thermostat_cmd == "setpoint") {
                         if(settings.trig_thermostat_setpoint_type in ["cooling", sANY]) subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
                         if(settings.trig_thermostat_setpoint_type in ["heating", sANY]) subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
-//                        subscribe(settings."trig_${te}", "thermostatSetpoint", thermostatEvtHandler)
                     }
                     if (settings.trig_thermostat_cmd == "ambient") subscribe(settings."trig_${te}", "temperature", thermostatEvtHandler)
                     if (settings.trig_thermostat_cmd == sMODE) subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
                     if (settings.trig_thermostat_cmd == "operatingstate") subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
                     if (settings.trig_thermostat_cmd == "fanmode") subscribe(settings."trig_${te}", "thermostatFanMode", thermostatEvtHandler)
-//                    subscribe(settings."trig_${te}", attributeConvert(te), thermostatEvtHandler)
                     break
                 default:
                     // Handles Remaining Device Events
@@ -3310,7 +3360,7 @@ Boolean locationCondOk() {
 
 Boolean checkDeviceCondOk(String type) {
     List devs = settings."cond_${type}" ?: null
-    String cmdVal = settings."cond_${type}_cmd" ?: null
+    def cmdVal = settings."cond_${type}_cmd" ?: null  // list or string
     Boolean all = (settings."cond_${type}_all" == true)
     if( !(type && devs && cmdVal) ) { return true }
     return all ? allDevCapValsEqual(devs, type, cmdVal) : anyDevCapValsEqual(devs, type, cmdVal)
@@ -3354,15 +3404,23 @@ Boolean checkDeviceNumCondOk(String type) {
     return true
 }
 
+//            input "cond_thermostatMode", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+//            if (settings.cond_thermostatMode) {
+//                input "cond_thermostatMode_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+//            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+//            if (settings.cond_thermostatOperatingState) {
+//                input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+//        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Cooling Setpoint", "Temperature", "temperature")
+//        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Heating Setpoint", "Temperature", "temperature")
 Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water" ]?.each { String i->
+    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water", "thermostatMode", "thermostatOperatingState"  ]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return }
         checkDeviceCondOk(i) ? passed.push(i) : failed.push(i)
     }
-    ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { String i->
+    ["temperature", "humidity", "illuminance", "level", "power", "battery", "coolingSetpoint", "heatingSetpoint"]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return }
         checkDeviceNumCondOk(i) ? passed.push(i) : failed.push(i)
     }
@@ -3427,8 +3485,16 @@ Boolean deviceCondConfigured() {
     return (deviceCondCount() > 0)
 }
 
+//            input "cond_thermostatMode", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+//            if (settings.cond_thermostatMode) {
+//                input "cond_thermostatMode_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+//            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+//            if (settings.cond_thermostatOperatingState) {
+//                input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+//        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Cooling Setpoint", "Temperature", "temperature")
+//        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Heating Setpoint", "Temperature", "temperature")
 Integer deviceCondCount() {
-    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
+    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water", "thermostatMode", "thermostatOperatingState", "coolingSetpoint", "heatingSetpoint", "coolingSetpoint", "heatingSetpoint" ]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return items.size()
@@ -4487,12 +4553,19 @@ Boolean areAllDevsSame(List devs, String attr, val) {
 }
 
 Boolean allDevCapValsEqual(List devs, String cap, val) {
-    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
+    if(devs) {
+        if(val instanceof List) return (devs.findAll { it?."current${cap?.capitalize()}" in val }?.size() == devs?.size())
+        else return (devs.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size())
+    }
     return false
 }
 
 Boolean anyDevCapValsEqual(List devs, String cap, val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() >= 1) : false
+    if(devs && cap && val) {
+        if(val instanceof List) return (devs.findAll { it?."current${cap?.capitalize()}" in val }?.size() >= 1)
+        else return (devs.findAll { it?."current${cap?.capitalize()}" == val }?.size() >= 1)
+    }
+    return false
 }
 
 Boolean anyDevCapNumValAbove(List devs, String cap, val) {
@@ -4839,12 +4912,13 @@ String getConditionsDesc(Boolean addE=true) {
             Boolean not = settings.cond_mode_cmd == "not"
             str += settings.cond_mode ? "    - Allowed Modes (${not ? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
+
         if(deviceCondConfigured()) {
-            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power", "thermostatMode", "thermostatOperatingState", "coolingSetpoint", "heatingSetpoint" ]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
-                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
-                    else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
+                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water", "thermostatMode", "thermostatOperatingState" ]) { condOk = checkDeviceCondOk(evt) }
+                    else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity", "coolingSetpoint", "heatingSetpoint"]) { condOk = checkDeviceNumCondOk(evt) }
 
                     str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
@@ -4904,7 +4978,7 @@ String getActionDesc(Boolean addFoot=true) {
     String str = sBLANK
 //    str += addE && (String)settings.actionType ? "Action:\n • ${(String)settings.actionType}\n\n" : sBLANK
     str += addFoot ? spanWrap("Action:", sNULL, sNULL, true, true) : sBLANK
-    str += addFoot ? spanWrap(" ${sBULLET} "+buildActTypeEnum()."${(String)settings.actionType}", sNULL, sNULL, false, true) : sBLANK
+    str += addFoot ? spanWrap(" ${sBULLET} "+(String)buildActTypeEnum()."${(String)settings.actionType}", sNULL, sNULL, false, true) : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
