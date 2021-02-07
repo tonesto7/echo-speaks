@@ -4843,7 +4843,7 @@ String getActionDesc(Boolean addFoot=true) {
     String str = sBLANK
 //    str += addE && (String)settings.actionType ? "Action:\n • ${(String)settings.actionType}\n\n" : sBLANK
     str += addFoot ? spanWrap("Action:", sNULL, sNULL, true, true) : sBLANK
-    str += addFoot ? spanWrap(" ${sBULLET} "+buildActTypeEnum()."${settings.actionType}") : sBLANK
+    str += addFoot ? spanWrap(" ${sBULLET} "+buildActTypeEnum()."${settings.actionType}", sNULL, sNULL, false, true) : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
@@ -4865,7 +4865,7 @@ String getActionDesc(Boolean addFoot=true) {
         str += addFoot ? "\n\n"+sTTM : sBLANK
         // return divWrap(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, "small")
     }
-    str += addFoot ? spanWrap("Tap to configure (Required!)", sCLRRED, "small") : sBLANK
+    str += !confd && addFoot ? spanWrap("Tap to configure (Required!)", sCLRRED, "small") : sBLANK
     return divWrap(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, "small")
 }
 
