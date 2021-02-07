@@ -651,7 +651,9 @@ def triggersPage() {
                             if (settings.trig_thermostat_cmd == "operatingstate") {
                                 input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true
                             }
-                            //String dfc = settings.trig_thermostat_fanmode_cmd ?: null
+                            if (settings.trig_thermostat_cmd == "fanmode") {
+                                input "trig_thermostat_fanmode_cmd", sENUM, title: inTS1("Fan Mode changes to?", sCOMMAND), options: ["on", "circulate", "auto", "every mode"], required: true, submitOnChange: true
+                            }
                             input "trig_thermostat_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: thermostat)", "question"), required: false, defaultValue: false, submitOnChange: true
                             input "trig_thermostat_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                             triggerVariableDesc("thermostat", false, trigItemCnt++)
@@ -2248,7 +2250,7 @@ String cronBuilder() {
     String cron = sNULL
     //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
     String schedType = (String)settings.trig_scheduled_type
-    Boolean recur = schedType = 'Recurring'
+    Boolean recur = (schedType == 'Recurring')
     def time = settings.trig_scheduled_time ?: null
     List dayNums = recur && settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
     List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
@@ -2342,14 +2344,12 @@ void subscribeToEvts() {
                     if (settings.trig_thermostat_cmd == "setpoint") {
                         if(settings.trig_thermostat_setpoint_type in ["cooling", sANY]) subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
                         if(settings.trig_thermostat_setpoint_type in ["heating", sANY]) subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
-                        //input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true
 //                        subscribe(settings."trig_${te}", "thermostatSetpoint", thermostatEvtHandler)
                     }
                     if (settings.trig_thermostat_cmd == "ambient") subscribe(settings."trig_${te}", "temperature", thermostatEvtHandler)
                     if (settings.trig_thermostat_cmd == sMODE) subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
                     if (settings.trig_thermostat_cmd == "operatingstate") subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
-                    //   input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true
-                    //   input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true
+                    if (settings.trig_thermostat_cmd == "fanmode") subscribe(settings."trig_${te}", "thermostatFanMode", thermostatEvtHandler)
 //                    subscribe(settings."trig_${te}", attributeConvert(te), thermostatEvtHandler)
                     break
                 default:
@@ -2429,7 +2429,7 @@ def scheduleTrigEvt(evt=null) {
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         evt = [name: "Schedule", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
     }
-    Long evtDelay = now() - evt.date.getTime()
+    Long evtDelay = now() - ((Date)evt.date).getTime()
     logTrace( "${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
     //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
@@ -2673,13 +2673,13 @@ void afterEvtCheckHandler() {
         def nextItem = aEvtMap.find {it -> it?.value?.wait == lowWait && (!it?.value?.timeLeft || it?.value?.timeLeft == lowLeft) }
         //ERS TODO
         //log.debug "nextItem: $nextItem"
-        Map nextVal = nextItem?.value ?: null
+        Map nextVal = (Map)nextItem?.value ?: null
         //log.debug "nextVal: $nextVal"
-        String nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : sNULL
+        String nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal.deviceId}_${nextVal.name}" : sNULL
         //log.debug "nextId: $nextId    key: ${nextItem?.key}"
         if(nextVal && nextId && aEvtMap[nextId]) {
-            Date prevDt = (Boolean)nextVal.isRepeat && nextVal.repeatDt ? parseDate((String)nextVal.repeatDt) : parseDate((String)nextVal.dt)
             Date fullDt = parseDate((String)nextVal.dt)
+            Date prevDt = (Boolean)nextVal.isRepeat && nextVal.repeatDt ? parseDate((String)nextVal.repeatDt) : fullDt
             Integer repeatCnt = (nextVal.repeatCnt >= 0) ? nextVal.repeatCnt + 1 : 1
             Integer repeatCntMax = (Integer)nextVal.repeatCntMax ?: null
             Boolean isRepeat = (Boolean)nextVal.isRepeat ?: false
@@ -2714,7 +2714,8 @@ void afterEvtCheckHandler() {
                             releaseTheLock(sHMLF)
                             state.afterEvtMap = aEvtMap
                             hasLock = false
-                            deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap], true, isRepeat)
+                            Map<String,Object> tt=[date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap]
+                            deviceEvtHandler(tt, true, isRepeat)
                         } else {
                             aEvtMap.remove(nextId)
                             updMemStoreItem("afterEvtMap", aEvtMap)
@@ -2722,7 +2723,8 @@ void afterEvtCheckHandler() {
                             state.afterEvtMap = aEvtMap
                             hasLock = false
                             logDebug("Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}")
-                            deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data], true)
+                            Map<String,Object> tt = [date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data]
+                            deviceEvtHandler(tt, true)
                         }
                     } else {
                         aEvtMap.remove(nextId)
@@ -2749,7 +2751,7 @@ void afterEvtCheckHandler() {
 }
 
 def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
-    Long evtDelay = now() - ((Date)evt.date).getTime()
+    Long evtDelay = now() - (Long)((Date)evt.date).getTime()
     Boolean evtOk = false
     Boolean evtAd = false
     String evntNam = (String)evt.name
@@ -2979,7 +2981,6 @@ private void tierSchedHandler(data) {
     if(data && data.tierState?.size() && data.tierState?.message) {
         // log.debug "tierSchedHandler(${data})"
         Map evt = data.tierState.evt
-        //evt.date = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
@@ -3044,10 +3045,11 @@ def thermostatEvtHandler(evt) {
     logTrace( "Thermostat Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
 
-//    if (settings.trig_thermostat_cmd == "setpoint") subscribe(settings."trig_${te}", "thermostatSetpoint", thermostatEvtHandler)
 //    if (settings.trig_thermostat_cmd == "ambient") subscribe(settings."trig_${te}", "temperature", thermostatEvtHandler)
 //    if (settings.trig_thermostat_cmd == sMODE) subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
 //    if (settings.trig_thermostat_cmd == "operatingstate") subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == "fanmode") subscribe(settings."trig_${te}", "thermostatFanMode", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == "setpoint")
 //    if(settings.trig_thermosstat_setpoint_type in ["cooling", sANY]) subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
 //    if(settings.trig_thermosstat_setpoint_type in ["heating", sANY]) subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
     if(d?.size() && dc) {
@@ -3088,7 +3090,8 @@ def thermostatEvtHandler(evt) {
             case "fanmode":
                 if(evt.name == "thermostatFanMode") {
                     String dfc = settings.trig_thermostat_fanmode_cmd ?: sNULL
-                    if(dfc == sANY || evt.value == dfc) { evtOk=true }
+                    //input "trig_thermostat_fanmode_cmd", sENUM, title: inTS1("Fan Mode changes to?", sCOMMAND), options: ["on", "circulate", "auto", "every mode"], required: true, submitOnChange: true
+                    if(dfc == "every mode" || evt.value == dfc) { evtOk=true }
                 }
                 break
 
@@ -3500,15 +3503,35 @@ Map getRandomTrigEvt() {
         humidity: getRandomItem(1..100),
         battery: getRandomItem(1..100),
         power: getRandomItem(100..3000),
-        thermostat: getRandomItem(["cooling is "]),
+//        thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"])
     ]
     if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
+    if(settings.trig_thermostat){
+       switch(settings.trig_thermostat_cmd){
+           case "ambient":
+           case sMODE:
+           case "operatingState":
+           case "setpoint":
+               break
+       }
+    }
     Map evt = [:]
     if(attVal.containsKey(trig)) {
         // todo - do proper random for thermostat (temperature, setpoints, operatingstate, mode)
+//    if (settings.trig_thermostat_cmd == "ambient") subscribe(settings."trig_${te}", "temperature", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == sMODE) subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == "operatingstate") subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == "setpoint")
+//    if(settings.trig_thermosstat_setpoint_type in ["cooling", sANY]) subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
+//    if(settings.trig_thermosstat_setpoint_type in ["heating", sANY]) subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
+//        case "thermostatMode":
+//        case "thermostatFanMode":
+//        case "thermostatOperatingState":
+//        case "coolingSetpoint":
+//        case "heatingSetpoint":
         evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK,
                value: attVal[trig], date: new Date(),
                deviceId: trigItem?.id?.toString() ?: null]
