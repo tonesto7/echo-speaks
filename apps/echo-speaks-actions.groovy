@@ -3404,14 +3404,6 @@ Boolean checkDeviceNumCondOk(String type) {
     return true
 }
 
-//            input "cond_thermostatMode", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
-//            if (settings.cond_thermostatMode) {
-//                input "cond_thermostatMode_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-//            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
-//            if (settings.cond_thermostatOperatingState) {
-//                input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-//        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Cooling Setpoint", "Temperature", "temperature")
-//        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Heating Setpoint", "Temperature", "temperature")
 Boolean deviceCondOk() {
     List skipped = []
     List passed = []
@@ -3478,21 +3470,9 @@ Boolean locationAlarmConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
-//    List items = []
-//    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
-//    return (items.size() > 0)
     return (deviceCondCount() > 0)
 }
 
-//            input "cond_thermostatMode", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
-//            if (settings.cond_thermostatMode) {
-//                input "cond_thermostatMode_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-//            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1(titl, typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
-//            if (settings.cond_thermostatOperatingState) {
-//                input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-//        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Cooling Setpoint", "Temperature", "temperature")
-//        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Heating Setpoint", "Temperature", "temperature")
 Integer deviceCondCount() {
     List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water", "thermostatMode", "thermostatOperatingState", "coolingSetpoint", "heatingSetpoint", "coolingSetpoint", "heatingSetpoint" ]
     List items = []
@@ -3546,6 +3526,7 @@ Map getRandomTrigEvt() {
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
             (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
     if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
+    Boolean isC = (getTemperatureScale()=="C")
     Map attVal = [
         sSWITCH: getRandomItem(lONOFF),
         door: getRandomItem(lOPNCLS+["opening", "closing"]),
@@ -3564,40 +3545,41 @@ Map getRandomTrigEvt() {
         doubleTapped: getRandomItem(["doubleTapped"]),
         smoke: getRandomItem(["detected", "clear"]),
         carbonMonoxide: getRandomItem(["detected", "clear"]),
-        temperature: getRandomItem(30..80),
+        temperature: isC ? getRandomItem(-1..29) : getRandomItem(30..80),
         illuminance: getRandomItem(1..100),
         humidity: getRandomItem(1..100),
         battery: getRandomItem(1..100),
         power: getRandomItem(100..3000),
-//        thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"])
     ]
     if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
-    if(settings.trig_thermostat){
+    if(trig == "thermostat" && settings.trig_thermostat){
        switch(settings.trig_thermostat_cmd){
            case "ambient":
+               trig="temperature"
+               break;
            case sMODE:
+               trig="thermostatMode"
+               attVal.thermostatMode = getRandomItem(getThermModeOpts())
+               break;
+           case fanMode:
+               trig="thermostatFanMode"
+               attVal.thermostatFanMode = getRandomItem(["on", "circulate", "auto"])
+               break;
            case "operatingState":
+               trig="thermostatOperatingState"
+               attVal.thermostatOperatingState = getRandomItem(getThermOperStOpts())
+               break;
            case "setpoint":
+               trig= getRandomItem(["coolingSetpoint", "heatingSetpoint"])
+               attVal."${trig}" = attVal.temperature
                break
        }
     }
     Map evt = [:]
     if(attVal.containsKey(trig)) {
-        // todo - do proper random for thermostat (temperature, setpoints, operatingstate, mode)
-//    if (settings.trig_thermostat_cmd == "ambient") subscribe(settings."trig_${te}", "temperature", thermostatEvtHandler)
-//    if (settings.trig_thermostat_cmd == sMODE) subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
-//    if (settings.trig_thermostat_cmd == "operatingstate") subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
-//    if (settings.trig_thermostat_cmd == "setpoint")
-//    if(settings.trig_thermosstat_setpoint_type in ["cooling", sANY]) subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
-//    if(settings.trig_thermosstat_setpoint_type in ["heating", sANY]) subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
-//        case "thermostatMode":
-//        case "thermostatFanMode":
-//        case "thermostatOperatingState":
-//        case "coolingSetpoint":
-//        case "heatingSetpoint":
         evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK,
                value: attVal[trig], date: new Date(),
                deviceId: trigItem?.id?.toString() ?: null]
@@ -4817,7 +4799,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
     String sPre = "trig_"
     if(confd && setItem?.size()) {
         if(!hideDesc) {
-            String str = "Triggers${!addE ? " for "+buildActTypeEnum()."${(String)settings.actionType}" : sBLANK}:\n"
+            String str = "Triggers${!addE ? " for "+(String)buildActTypeEnum()."${(String)settings.actionType}" : sBLANK}:\n"
             setItem?.each { String evt->
                 String adder = sBLANK
                 switch(evt) {
