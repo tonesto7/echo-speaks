@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.6.0"
-@Field static final String appModifiedFLD = "2021-02-05"
+@Field static final String appModifiedFLD = "2021-02-07"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -5078,8 +5078,12 @@ static String addLineBr(Boolean show=true) {
     return show ? sLINEBR : sBLANK
 } */
 
-static String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
-    return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
+String lineBr(Boolean show=true) {
+    return (String) show ? sLINEBR : sBLANK
+}
+
+String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
 }
 
 static String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
