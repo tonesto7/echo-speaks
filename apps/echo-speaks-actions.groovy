@@ -911,7 +911,7 @@ def conditionsPage() {
         String cmdTitle = "is"
         section (sTS(titl)) {
             List cmdOpts = getThermModeOpts()
-            input "cond_thermostatMode", "capability.${typ}", title: inTS1("Select Thermostat(s)", typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            input "cond_thermostatMode", "capability.${typ}", title: inTS1("Thermostats", typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
             if (settings.cond_thermostatMode) {
                 input "cond_thermostatMode_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
             }
@@ -920,14 +920,14 @@ def conditionsPage() {
         titl="Thermostat Operating States"
         section (sTS(titl)) {
             List cmdOpts = getThermOperStOpts()
-            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1("Select Thermostat(s)", typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1("Thermostats", typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
             if (settings.cond_thermostatOperatingState) {
                 input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
             }
         }
 
-        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Select Thermostats", "Temperature", "temperature")
-        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Select Thermostats", "Temperature", "temperature")
+        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Thermostats", "Temperature", "temperature")
+        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Thermostats", "Temperature", "temperature")
     }
 }
 
