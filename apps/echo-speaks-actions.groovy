@@ -146,8 +146,8 @@ String selTriggerTypes(type) {
     return settings.triggerTypes?.findAll { it?.startsWith(type as String) }?.collect { it?.toString()?.split("::")[1] }?.join(", ")
 }
 
-private buildTriggerEnum() {
-    List enumOpts = []
+private Map buildTriggerEnum() {
+//    List enumOpts = []
     Map<String,Map> buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
     buildItems["Location"] = [(sMODE):"Modes", "pistonExecuted":"Pistons"]?.sort{ it?.key }
@@ -162,8 +162,8 @@ private buildTriggerEnum() {
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
-private static buildActTypeEnum() {
-    List enumOpts = []
+private static Map buildActTypeEnum() {
+//    List enumOpts = []
     Map<String, Map> buildItems = [:]
     buildItems["Speech"] = ["speak":"Speak", "announcement":"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
     buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"]?.sort{ it?.key }
@@ -203,7 +203,7 @@ def mainPage() {
             trigConf = triggersConfigured()
             condConf = conditionsConfigured()
             actConf = executionConfigured()
-            allOk = (Boolean) (settings.actionType && trigConf && actConf)
+            allOk = (Boolean) ((String)settings.actionType && trigConf && actConf)
             section(sTS("Configuration: Part 1")) {
                 input "actionType", sENUM, title: inTS1("Action Type", "list"), description: sBLANK, options: buildActTypeEnum(), multiple: false, required: true, submitOnChange: true
             }
@@ -351,6 +351,7 @@ def triggersPage() {
         if (trigEvtCnt) {
             Integer trigItemCnt = 0
             if((settings.triggerEvents in ["speak", "announcement"])) { showSpeakEvtVars = true }
+
             if (valTrigEvt("scheduled")) {
                 section(sTS("Time Based Events"), hideable: true) {
                     List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
@@ -612,9 +613,12 @@ def triggersPage() {
                 section (sTS("Thermostat Events"), hideable: true) {
                     input "trig_thermostat", "capability.thermostat", title: inTS1("Thermostat", "thermostat"), multiple: true, required: true, submitOnChange: true
                     if (settings.trig_thermostat) {
-                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", (sMODE):"Mode Change", "operatingstate":"Operating State Change"], required: true, multiple: false, submitOnChange: true
-                        if (settings.trig_thermostat_cmd) {
-                            if (settings.trig_thermostat_cmd == "setpoint") {
+                        Boolean done=false
+                        input "trig_thermostat_cmd", sENUM, title: inTS1("Thermostat Event is...", sCOMMAND), options: ["ambient":"Ambient Change", "setpoint":"Setpoint Change", (sMODE):"Mode Change", "operatingstate":"Operating State Change","fanmode":"Fan Mode Change"], required: true, multiple: false, submitOnChange: true
+
+                        switch((String)settings.trig_thermostat_cmd) {
+
+                            case "setpoint":
                                 input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true
                                 if(settings.trig_thermostat_setpoint_type) {
                                     input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
@@ -628,10 +632,12 @@ def triggersPage() {
                                         if (settings.trig_thermostat_setpoint_cmd == sEQUALS) {
                                             input "trig_thermostat_setpoint_equal", sNUMBER, title: inTS1("a Setpoint temp of...", "equal"), required: true, submitOnChange: true
                                         }
+                                        done=true
                                     }
                                 }
-                            }
-                            if(settings.trig_thermostat_cmd == "ambient") {
+                                break
+
+                            case "ambient":
                                 input "trig_thermostat_ambient_cmd", sENUM, title: inTS1("Ambient Temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
                                 if (settings.trig_thermostat_ambient_cmd) {
                                     if (settings.trig_thermostat_ambient_cmd in [sBETWEEN, sBELOW]) {
@@ -643,14 +649,27 @@ def triggersPage() {
                                     if (settings.trig_thermostat_ambient_cmd == sEQUALS) {
                                         input "trig_thermostat_ambient_equal", sNUMBER, title: inTS1("a Ambient Temp of...", "equal"), required: true, submitOnChange: true
                                     }
+                                    done=true
                                 }
-                            }
-                            if (settings.trig_thermostat_cmd == sMODE) {
-                                input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true
-                            }
-                            if (settings.trig_thermostat_cmd == "operatingstate") {
-                                input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true
-                            }
+                                break
+
+                            case sMODE:
+                                input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: getThermModeOpts()+["every mode"], required: true, submitOnChange: true
+                                if (settings.trig_thermostat_mode_cmd) done=true
+                                break
+
+                            case "operatingstate":
+                                input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: getThermOperStOpts()+["every state"], required: true, submitOnChange: true
+                                if (settings.trig_thermostat_state_cmd) done=true
+                                break
+
+                            case "fanmode":
+                                input "trig_thermostat_fanmode_cmd", sENUM, title: inTS1("Fan Mode changes to?", sCOMMAND), options: ["on", "circulate", "auto", "every mode"], required: true, submitOnChange: true
+                                if (settings.trig_thermostat_fanmode_cmd) done=true
+                                break
+                        }
+
+                        if(done) {
                             input "trig_thermostat_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: thermostat)", "question"), required: false, defaultValue: false, submitOnChange: true
                             input "trig_thermostat_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
                             triggerVariableDesc("thermostat", false, trigItemCnt++)
@@ -660,7 +679,8 @@ def triggersPage() {
             }
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
+                    //paragraph pTS("You are all done with this step.\n\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
+                    paragraph pTS("\nPress Next/Done/Save to go back", getAppImg("done", true)), state: sCOMPLT
                 }
             }
         }
@@ -669,7 +689,7 @@ def triggersPage() {
 }
 
 def handleCodeSect(String typ, String lbl) {
-    Map<String, Map> lockCodes = getCodes(settings."trig_${typ}")
+    Map<String, Map> lockCodes = getCodes((List)settings."trig_${typ}")
     log.debug "lockCodes: ${lockCodes}"
     if(lockCodes) {
 //        section (sTS("Filter ${lbl} Code Events"), hideable: true) {
@@ -697,7 +717,7 @@ Map<String,Map> getCodes(List devs, String code=sNULL) {
 
 def dummy(a,b) {}
 
-def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
+def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, required: devReq, submitOnChange: true
         if (settings."trig_${inType}") {
@@ -727,7 +747,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
     }
 }
 
-def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt, devReq=true) {
+def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt, Boolean devReq=true) {
     section (sTS(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", tite: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: devReq
         if(settings."trig_${inType}") {
@@ -767,9 +787,11 @@ Boolean locationTriggers() {
 }
 
 Boolean deviceTriggers() {
+//ERS
     return (
         (settings.trig_shade && settings.trig_shade_cmd) || (settings.trig_door && settings.trig_door_cmd) || (settings.trig_valve && settings.trig_valve_cmd) ||
         (settings.trig_switch && settings.trig_switch_cmd) || (settings.trig_level && settings.trig_level_cmd) || (settings.trig_lock && settings.trig_lock_cmd) ||
+        (settings.trig_securityKeypad && settings.trig_securityKeypad_cmd) ||
         (settings.trig_battery && settings.trig_battery_cmd) || (thermostatTriggers()) ||
         (settings.trig_button && settings.trig_button_cmd) ||
         (settings.trig_pushed && settings.trig_pushed_cmd && settings.trig_pushed_nums) ||
@@ -788,6 +810,8 @@ Boolean thermostatTriggers() {
                 return (settings.trig_thermostat_mode_cmd)
             case "operatingstate":
                 return (settings.trig_thermostat_state_cmd)
+            case "fanmode":
+                return (settings.trig_thermostat_fanmode_cmd)
             case "ambient":
                 return (settings.trig_thermostat_ambient_cmd && (trig_thermostat_ambient_low || trig_thermostat_ambient_high || trig_thermostat_ambient_equal))
         }
@@ -881,7 +905,38 @@ def conditionsPage() {
         condNonNumSect("valve", "valve", "Valves", "Valves", lOPNCLS, "are", "valve")
 
         condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
+
+        String titl="Thermostat Modes"
+        String typ="thermostat"
+        String cmdTitle = "is"
+        section (sTS(titl)) {
+            List cmdOpts = getThermModeOpts()
+            input "cond_thermostatMode", "capability.${typ}", title: inTS1("Thermostats", typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            if (settings.cond_thermostatMode) {
+                input "cond_thermostatMode_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+            }
+        }
+
+        titl="Thermostat Operating States"
+        section (sTS(titl)) {
+            List cmdOpts = getThermOperStOpts()
+            input "cond_thermostatOperatingState", "capability.${typ}", title: inTS1("Thermostats", typ), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            if (settings.cond_thermostatOperatingState) {
+                input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1(cmdTitle+"...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+            }
+        }
+
+        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Thermostats", "Temperature", "temperature")
+        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Thermostats", "Temperature", "temperature")
     }
+}
+
+static List getThermModeOpts() {
+    return ["auto", "cool", " heat", "emergency heat", "off"]
+}
+
+static List getThermOperStOpts() {
+    return ["cooling", "heating", "idle"]
 }
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
@@ -1597,8 +1652,8 @@ def actTrigTasksPage(params) {
 Boolean actTasksConfiguredByType(String pType) {
     String p = pType
     return (
-        settings."${p}mode_run" || settings."${p}alarm_run" /* || settings."${p}routine_run"*/ || settings."${p}switches_off" || settings."${p}switches_on" ||
-                (settings.enableWebCoRE && settings."${p}piston_run") ||
+            (String)settings."${p}mode_run" || (String)settings."${p}alarm_run" /* || settings."${p}routine_run"*/ || settings."${p}switches_off" || settings."${p}switches_on" ||
+                (settings.enableWebCoRE && (String)settings."${p}piston_run") ||
                 settings."${p}lights" || settings."${p}locks_lock" || settings."${p}locks_unlock" || settings."${p}sirens" || settings."${p}doors_close" || settings."${p}doors_open" ||
                 settings."${p}securityKeypads_disarm" || settings."${p}securityKeypads_armHome" || settings."${p}securityKeypads_armAway"
     )
@@ -1607,9 +1662,9 @@ Boolean actTasksConfiguredByType(String pType) {
 private executeTaskCommands(data) {
     String p = data?.type ?: sNULL
 
-    if(settings."${p}mode_run") { setLocationMode(settings."${p}mode_run" as String) }
-    if(settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: settings."${p}alarm_run" as String) }
-    if(settings.enableWebCoRE && settings."${p}piston_run") { webCoRE_execute(settings."${p}piston_run") }
+    if((String)settings."${p}mode_run") { setLocationMode((String)settings."${p}mode_run") }
+    if((String)settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: (String)settings."${p}alarm_run") }
+    if(settings.enableWebCoRE && (String)settings."${p}piston_run") { webCoRE_execute((String)settings."${p}piston_run") }
 
     if(settings."${p}switches_off") { settings."${p}switches_off"*.off() }
     if(settings."${p}switches_on") { settings."${p}switches_on"*.on() }
@@ -1620,8 +1675,8 @@ private executeTaskCommands(data) {
     if(settings."${p}securityKeypads_armAway") { settings."${p}securityKeypads_armAway"*.armAway() }
     if(settings."${p}doors_close") { settings."${p}doors_close"*.close() }
     if(settings."${p}doors_open") { settings."${p}doors_open"*.open() }
-    if(settings."${p}sirens" && settings."${p}siren_cmd") {
-        String cmd= settings."${p}siren_cmd"
+    if(settings."${p}sirens" && (String)settings."${p}siren_cmd") {
+        String cmd= (String)settings."${p}siren_cmd"
         settings."${p}sirens"*."${cmd}"()
         if(settings."${p}siren_time") runIn(settings."${p}siren_time", postTaskCommands, [data:[type: p]])
     }
@@ -1664,10 +1719,10 @@ String actTaskDesc(String t, Boolean isInpt=false) {
         str += settings."${t}doors_close" ? aStr+"Garages Close: (${settings."${t}doors_close"?.size()})" : sBLANK
         str += settings."${t}sirens" ? aStr+"Sirens On: (${settings."${t}sirens"?.size()})${settings."${t}sirens_delay" ? "(${settings."${t}sirens_delay"} sec)" : sBLANK}" : sBLANK
 
-        str += settings."${t}mode_run" ? aStr+"Set Mode:\n \u2022 ${settings."${t}mode_run"}" : sBLANK
-        str += settings."${t}alarm_run" ? aStr+"Set Alarm:\n \u2022 ${settings."${t}alarm_run"}" : sBLANK
+        str += (String)settings."${t}mode_run" ? aStr+"Set Mode:\n \u2022 ${(String)settings."${t}mode_run"}" : sBLANK
+        str += (String)settings."${t}alarm_run" ? aStr+"Set Alarm:\n \u2022 ${(String)settings."${t}alarm_run"}" : sBLANK
 //        str += settings."${t}routine_run" ? aStr+"Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
-        str += (settings.enableWebCoRE && settings."${t}piston_run") ? aStr+"Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
+        str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr+"Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
     return str != sBLANK ? (isInpt ? "${str}\n\n"+sTTM : str) : (isInpt ? "On trigger control devices, set mode, set alarm state, execute WebCore Pistons\n\n"+sTTC : sNULL)
 }
@@ -1743,11 +1798,11 @@ def actNotifPage() {
             input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
         }
 
-        if(settings.notif_devs || (Boolean)settings.notif_alexa_mobile) {
+        if((List)settings.notif_devs || (Boolean)settings.notif_alexa_mobile) {
             section (sTS("Message Customization:")) {
                 Boolean custMsgReq = customMsgRequired()
                 if(custMsgReq) {
-                    paragraph pTS("The selected action (${settings.actionType}) requires a custom notification message if notifications are enabled.", sNULL, false, sCLRGRY)
+                    paragraph pTS("The selected action (${(String)settings.actionType}) requires a custom notification message if notifications are enabled.", sNULL, false, sCLRGRY)
                     if(!settings.notif_use_custom) { settingUpdate("notif_use_custom", sTRUE, sBOOL) }
                 } else {
                     paragraph pTS("When using speak or announcement actions custom notification is optional and a notification will be sent with speech text.", sNULL, false, sCLRGRY)
@@ -1885,7 +1940,7 @@ private getLastEchoSpokenTo() {
 private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     Boolean capOk = (type in ["TTS", "announce"])
-    Boolean zonesOk = ((String) settings.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
+    Boolean zonesOk = ((String)settings.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
     Map echoZones = (capOk && zonesOk) ? getZones() : [:]
     section(sTS("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
 //    section(sTS("Alexa Devices${echoZones?.size() ? " & Zones" : sBLANK}:")) {
@@ -2247,7 +2302,7 @@ String cronBuilder() {
     String cron = sNULL
     //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
     String schedType = (String)settings.trig_scheduled_type
-    Boolean recur = schedType = 'Recurring'
+    Boolean recur = (schedType == 'Recurring')
     def time = settings.trig_scheduled_time ?: null
     List dayNums = recur && settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
     List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
@@ -2338,7 +2393,14 @@ void subscribeToEvts() {
                     break
                 case "thermostat":
                     // Thermostat Events
-                    subscribe(settings."trig_${te}", attributeConvert(te), thermostatEvtHandler)
+                    if (settings.trig_thermostat_cmd == "setpoint") {
+                        if(settings.trig_thermostat_setpoint_type in ["cooling", sANY]) subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
+                        if(settings.trig_thermostat_setpoint_type in ["heating", sANY]) subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
+                    }
+                    if (settings.trig_thermostat_cmd == "ambient") subscribe(settings."trig_${te}", "temperature", thermostatEvtHandler)
+                    if (settings.trig_thermostat_cmd == sMODE) subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
+                    if (settings.trig_thermostat_cmd == "operatingstate") subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
+                    if (settings.trig_thermostat_cmd == "fanmode") subscribe(settings."trig_${te}", "thermostatFanMode", thermostatEvtHandler)
                     break
                 default:
                     // Handles Remaining Device Events
@@ -2417,8 +2479,8 @@ def scheduleTrigEvt(evt=null) {
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         evt = [name: "Schedule", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
     }
-    Long evtDelay = now() - evt.date.getTime()
-    logTrace( "${evt.name} Event | Device: ${evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
+    Long evtDelay = now() - ((Date)evt.date).getTime()
+    logTrace( "${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
     //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
     String schedType = (String)settings.trig_scheduled_type
@@ -2661,13 +2723,13 @@ void afterEvtCheckHandler() {
         def nextItem = aEvtMap.find {it -> it?.value?.wait == lowWait && (!it?.value?.timeLeft || it?.value?.timeLeft == lowLeft) }
         //ERS TODO
         //log.debug "nextItem: $nextItem"
-        Map nextVal = nextItem?.value ?: null
+        Map nextVal = (Map)nextItem?.value ?: null
         //log.debug "nextVal: $nextVal"
-        String nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal?.deviceId}_${nextVal?.name}" : sNULL
+        String nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal.deviceId}_${nextVal.name}" : sNULL
         //log.debug "nextId: $nextId    key: ${nextItem?.key}"
         if(nextVal && nextId && aEvtMap[nextId]) {
-            Date prevDt = (Boolean)nextVal.isRepeat && nextVal.repeatDt ? parseDate((String)nextVal.repeatDt) : parseDate((String)nextVal.dt)
             Date fullDt = parseDate((String)nextVal.dt)
+            Date prevDt = (Boolean)nextVal.isRepeat && nextVal.repeatDt ? parseDate((String)nextVal.repeatDt) : fullDt
             Integer repeatCnt = (nextVal.repeatCnt >= 0) ? nextVal.repeatCnt + 1 : 1
             Integer repeatCntMax = (Integer)nextVal.repeatCntMax ?: null
             Boolean isRepeat = (Boolean)nextVal.isRepeat ?: false
@@ -2702,7 +2764,8 @@ void afterEvtCheckHandler() {
                             releaseTheLock(sHMLF)
                             state.afterEvtMap = aEvtMap
                             hasLock = false
-                            deviceEvtHandler([date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap], true, isRepeat)
+                            Map<String,Object> tt=[date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap]
+                            deviceEvtHandler(tt, true, isRepeat)
                         } else {
                             aEvtMap.remove(nextId)
                             updMemStoreItem("afterEvtMap", aEvtMap)
@@ -2710,7 +2773,8 @@ void afterEvtCheckHandler() {
                             state.afterEvtMap = aEvtMap
                             hasLock = false
                             logDebug("Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}")
-                            deviceEvtHandler([date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data], true)
+                            Map<String,Object> tt = [date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data]
+                            deviceEvtHandler(tt, true)
                         }
                     } else {
                         aEvtMap.remove(nextId)
@@ -2737,10 +2801,10 @@ void afterEvtCheckHandler() {
 }
 
 def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
-    Long evtDelay = now() - ((Date)evt.date).getTime()
+    Long evtDelay = now() - (Long)((Date)evt.date).getTime()
     Boolean evtOk = false
     Boolean evtAd = false
-    String evntNam = evt.name
+    String evntNam = (String)evt.name
     String a = evntNam // == "securityKeypad" ? "securityKeypad" : evntNam
     List d = settings."trig_${a}"
     String dc = settings."trig_${a}_cmd"
@@ -2967,7 +3031,6 @@ private void tierSchedHandler(data) {
     if(data && data.tierState?.size() && data.tierState?.message) {
         // log.debug "tierSchedHandler(${data})"
         Map evt = data.tierState.evt
-        //evt.date = dateTimeFmt(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
@@ -3017,25 +3080,40 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
 }
 
 def thermostatEvtHandler(evt) {
-    Long evtDelay = now() - evt?.date?.getTime()
+    Long evtDelay = now() - ((Date)evt?.date)?.getTime()
     Boolean evtOk = false
     Boolean evtAd = false
-    List d = settings."trig_${evt?.name}"
-    String dc = settings."trig_${evt?.name}_cmd"
-    Boolean dca = (settings."trig_${evt?.name}_all" == true)
-    Boolean dco = (!settings."trig_${evt?.name}_after" && settings."trig_${evt?.name}_once" == true)
-    Integer dcw = (!settings."trig_${evt?.name}_after" && settings."trig_${evt?.name}_wait") ? settings."trig_${evt?.name}_wait" : null
+    //List d = settings."trig_${evt?.name}"
+    List d = settings.trig_thermostat
+    //String dc = settings."trig_${evt?.name}_cmd"
+    String dc = settings."trig_thermostat_cmd"
+//    Boolean dca = (settings."trig_${evt?.name}_all" == true)
+//    Boolean dco = (!settings."trig_${evt?.name}_after" && settings."trig_thermostat_once" == true)
+//    Integer dcw = (!settings."trig_${evt?.name}_after" && settings."trig_thermostat_wait") ? settings."trig_${evt?.name}_wait" : null
+    Boolean dco = settings."trig_thermostat_once"
+    Integer dcw = settings."trig_thermostat_wait" ? settings."trig_thermostat_wait" : null
     logTrace( "Thermostat Event | ${evt?.name?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
 
+//    if (settings.trig_thermostat_cmd == "ambient") subscribe(settings."trig_${te}", "temperature", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == sMODE) subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == "operatingstate") subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == "fanmode") subscribe(settings."trig_${te}", "thermostatFanMode", thermostatEvtHandler)
+//    if (settings.trig_thermostat_cmd == "setpoint")
+//    if(settings.trig_thermosstat_setpoint_type in ["cooling", sANY]) subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
+//    if(settings.trig_thermosstat_setpoint_type in ["heating", sANY]) subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
     if(d?.size() && dc) {
         switch(dc) {
             case "setpoint":
-                switch(evt?.name) {
-                    case "coolSetpoint":
-                    case "heatSetpoint":
-                        if(dsc == sANY || (dsc == "cooling" && evt?.name == "coolSetpoint") || (dsc == "heating" && evt?.name == "heatSetpoint")) {
-                            String dsc = settings.trig_thermostat_setpoint_cmd ?: null
+                switch(evt.name) {
+                    case "coolingSetpoint":
+                    case "heatingSetpoint":
+                        //input "trig_thermostat_setpoint_type", sENUM, title: inTS1("SetPoint type is...", sCOMMAND), options: ["cooling", "heating", sANY], required: false, submitOnChange: true
+//                        if(settings.trig_thermostat_setpoint_type) {
+ //                           input "trig_thermostat_setpoint_cmd", sENUM, title: inTS1("Setpoint temp is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
+                        String dst = settings.trig_thermostat_setpoint_type ?: sNULL
+                        if(dst == sANY || (dst == "cooling" && evt.name == "coolingSetpoint") || (dst == "heating" && evt.name == "heatingSetpoint")) {
+                            String dsc = settings.trig_thermostat_setpoint_cmd ?: sNULL
                             Double dcl = settings.trig_thermostat_setpoint_low
                             Double dch = settings.trig_thermostat_setpoint_high
                             Double dce = settings.trig_thermostat_setpoint_equal
@@ -3048,8 +3126,8 @@ def thermostatEvtHandler(evt) {
                 break
 
             case "ambient":
-                if(evt?.name == "temperature") {
-                    String dac = settings.trig_thermostat_ambient_cmd ?: null
+                if(evt.name == "temperature") {
+                    String dac = settings.trig_thermostat_ambient_cmd ?: sNULL
                     Double dcl = settings.trig_thermostat_ambient_low
                     Double dch = settings.trig_thermostat_ambient_high
                     Double dce = settings.trig_thermostat_ambient_equal
@@ -3059,22 +3137,27 @@ def thermostatEvtHandler(evt) {
                 }
                 break
 
-            case sMODE:
-            case "operatingstate":
             case "fanmode":
-                if(evt?.name == "thermostatMode") {
-                    String dmc = settings.trig_thermostat_fanmode_cmd ?: null
-                    if(dmc == sANY || evt?.value == dmc) { evtOk=true }
+                if(evt.name == "thermostatFanMode") {
+                    String dfc = settings.trig_thermostat_fanmode_cmd ?: sNULL
+                    //input "trig_thermostat_fanmode_cmd", sENUM, title: inTS1("Fan Mode changes to?", sCOMMAND), options: ["on", "circulate", "auto", "every mode"], required: true, submitOnChange: true
+                    if(dfc == "every mode" || evt.value == dfc) { evtOk=true }
                 }
+                break
 
-                if(evt?.name == "thermostatOperatingState") {
-                    String doc = settings.trig_thermostat_state_cmd ?: null
-                    if(doc == sANY || evt?.value == doc) { evtOk=true }
+            case "operatingstate":
+                if(evt.name == "thermostatOperatingState") {
+                    String doc = settings.trig_thermostat_state_cmd ?: sNULL
+                    if(doc == "every state" || evt.value == doc) { evtOk=true }
+                    //input "trig_thermostat_state_cmd", sENUM, title: inTS1("Operating State changes to?", sCOMMAND), options: ["cooling", "heating", "idle", "every state"], required: true, submitOnChange: true
                 }
+                break
 
-                if(evt?.name == "thermostatFanMode") {
-                    String dfc = settings.trig_thermostat_mode_cmd ?: null
-                    if(dfc == sANY || evt?.value == dfc) { evtOk=true }
+            case sMODE:
+                if(evt.name == "thermostatMode") {
+                    String dmc = settings.trig_thermostat_mode_cmd ?: sNULL
+                    //input "trig_thermostat_mode_cmd", sENUM, title: inTS1("Hvac Mode changes to?", sCOMMAND), options: ["auto", "cool", " heat", "emergency heat", "off", "every mode"], required: true, submitOnChange: true
+                    if(dmc == "every mode" || evt.value == dmc) { evtOk=true }
                 }
                 break
         }
@@ -3082,7 +3165,7 @@ def thermostatEvtHandler(evt) {
     Boolean execOk = (evtOk && devEvtWaitOk)
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
-    } else if (execOk) { executeAction(evt, false, "thermostatEvtHandler(${evt?.name})", false, evtAd) }
+    } else if (execOk) { executeAction(evt, false, "thermostatEvtHandler(${evt?.name})".toString(), false, evtAd, null, "thermostat") }
 }
 
 static String evtValueCleanup(val) {
@@ -3123,7 +3206,7 @@ Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
         Date prevDt = parseDate(evtHistMap[n].dt)
         // log.debug "prevDt: ${prevDt.toString()}"
         if(prevDt && evtDt) {
-            dur = (evtDt.getTime() - prevDt.getTime())/1000L
+            dur = Math.round(((Long)evtDt.getTime() - (Long)prevDt.getTime())/1000.0D)
             waitOk = ( (wait && dur) && (wait < dur))
             dayOk = !once || (once && !isDateToday(prevDt))
             ok = (waitOk && dayOk)
@@ -3206,8 +3289,8 @@ Boolean reqAllCond() {
 }
 
 Boolean timeCondOk() {
-    Date startTime = null
-    Date stopTime = null
+    Date startTime
+    Date stopTime
     Date now = new Date()
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
@@ -3249,8 +3332,8 @@ Boolean timeCondOk() {
 
 Boolean dateCondOk() {
     Boolean result = null
-    Boolean dOk = null
-    Boolean mOk = null
+    Boolean dOk
+    Boolean mOk
     if(!(settings.cond_days == null && settings.cond_months == null)) {
         Boolean reqAll = reqAllCond()
         dOk = settings.cond_days ? (isDayOfWeek(settings.cond_days)) : reqAll // true
@@ -3263,8 +3346,8 @@ Boolean dateCondOk() {
 
 Boolean locationCondOk() {
     Boolean result = null
-    Boolean mOk = null
-    Boolean aOk = null
+    Boolean mOk
+    Boolean aOk
     if(!(settings.cond_mode == null && settings.cond_mode_cmd == null && settings.cond_alarm == null)) {
         Boolean reqAll = reqAllCond()
         mOk = (settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode(settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
@@ -3277,7 +3360,7 @@ Boolean locationCondOk() {
 
 Boolean checkDeviceCondOk(String type) {
     List devs = settings."cond_${type}" ?: null
-    String cmdVal = settings."cond_${type}_cmd" ?: null
+    def cmdVal = settings."cond_${type}_cmd" ?: null  // list or string
     Boolean all = (settings."cond_${type}_all" == true)
     if( !(type && devs && cmdVal) ) { return true }
     return all ? allDevCapValsEqual(devs, type, cmdVal) : anyDevCapValsEqual(devs, type, cmdVal)
@@ -3325,11 +3408,11 @@ Boolean deviceCondOk() {
     List skipped = []
     List passed = []
     List failed = []
-    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water" ]?.each { String i->
+    [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "water", "thermostatMode", "thermostatOperatingState"  ]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return }
         checkDeviceCondOk(i) ? passed.push(i) : failed.push(i)
     }
-    ["temperature", "humidity", "illuminance", "level", "power", "battery"]?.each { String i->
+    ["temperature", "humidity", "illuminance", "level", "power", "battery", "coolingSetpoint", "heatingSetpoint"]?.each { String i->
         if(!settings."cond_${i}") { skipped.push(i); return }
         checkDeviceNumCondOk(i) ? passed.push(i) : failed.push(i)
     }
@@ -3387,15 +3470,11 @@ Boolean locationAlarmConfigured() {
 }
 
 Boolean deviceCondConfigured() {
-//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
-//    List items = []
-//    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
-//    return (items.size() > 0)
     return (deviceCondCount() > 0)
 }
 
 Integer deviceCondCount() {
-    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water"]
+    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery", "water", "thermostatMode", "thermostatOperatingState", "coolingSetpoint", "heatingSetpoint", "coolingSetpoint", "heatingSetpoint" ]
     List items = []
     devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return items.size()
@@ -3447,6 +3526,7 @@ Map getRandomTrigEvt() {
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
             (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
     if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
+    Boolean isC = (getTemperatureScale()=="C")
     Map attVal = [
         sSWITCH: getRandomItem(lONOFF),
         door: getRandomItem(lOPNCLS+["opening", "closing"]),
@@ -3465,19 +3545,45 @@ Map getRandomTrigEvt() {
         doubleTapped: getRandomItem(["doubleTapped"]),
         smoke: getRandomItem(["detected", "clear"]),
         carbonMonoxide: getRandomItem(["detected", "clear"]),
-        temperature: getRandomItem(30..80),
+        temperature: isC ? getRandomItem(-1..29) : getRandomItem(30..80),
         illuminance: getRandomItem(1..100),
         humidity: getRandomItem(1..100),
         battery: getRandomItem(1..100),
         power: getRandomItem(100..3000),
-        thermostat: getRandomItem(["cooling is "]),
         mode: getRandomItem(location?.modes),
         alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"])
     ]
     if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
+    if(trig == "thermostat" && settings.trig_thermostat){
+       switch(settings.trig_thermostat_cmd){
+           case "ambient":
+               trig="temperature"
+               break;
+           case sMODE:
+               trig="thermostatMode"
+               attVal.thermostatMode = getRandomItem(getThermModeOpts())
+               break;
+           case fanMode:
+               trig="thermostatFanMode"
+               attVal.thermostatFanMode = getRandomItem(["on", "circulate", "auto"])
+               break;
+           case "operatingState":
+               trig="thermostatOperatingState"
+               attVal.thermostatOperatingState = getRandomItem(getThermOperStOpts())
+               break;
+           case "setpoint":
+               trig= getRandomItem(["coolingSetpoint", "heatingSetpoint"])
+               attVal."${trig}" = attVal.temperature
+               break
+       }
+    }
     Map evt = [:]
-    if(attVal.containsKey(trig)) { evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null] }
+    if(attVal.containsKey(trig)) {
+        evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK,
+               value: attVal[trig], date: new Date(),
+               deviceId: trigItem?.id?.toString() ?: null]
+    }
     if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
@@ -3497,16 +3603,16 @@ String decodeVariables(evt, String str) {
     if(!str) return str
     if(evt) {
         // log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
-        if(str.contains("%type%") && evt.name) {
+        if(str.contains("%type%") && (String)evt.name) {
             if(str.contains("%name%")) {
-                str = str.replaceAll("%type%", !evt.displayName?.toLowerCase()?.contains(evt.name) ? convEvtType(evt.name) : sBLANK)
+                str = str.replaceAll("%type%", !(String)evt.displayName?.toLowerCase()?.contains((String)evt.name) ? convEvtType((String)evt.name) : sBLANK)
             } else {
-                str = str.replaceAll("%type%", convEvtType(evt.name))
+                str = str.replaceAll("%type%", convEvtType((String)evt.name))
             }
         }
-        str = (str.contains("%name%")) ? str.replaceAll("%name%", evt.displayName) : str
+        str = (str.contains("%name%")) ? str.replaceAll("%name%", (String)evt.displayName) : str
 
-        str = (str.contains("%unit%") && evt.name) ? str.replaceAll("%unit%", getAttrPostfix(evt.name)) : str
+        str = (str.contains("%unit%") && (String)evt.name) ? str.replaceAll("%unit%", getAttrPostfix((String)evt.name)) : str
         str = (str.contains("%value%") && evt.value) ? str.replaceAll("%value%", evt.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
         if(!(evt instanceof com.hubitat.hub.domain.Event) && evt.totalDur) {
             Integer mins = durationToMinutes(evt.totalDur)
@@ -3534,7 +3640,7 @@ static Integer durationToHours(dur) {
     return 0 // dur?.toInteger()
 }
 
-String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
+String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false, String ESEvtName=sNULL) {
     // log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
     String glbText = (String)settings."act_${(String)settings.actionType}_txt" ?: sNULL
     if(glbText) {
@@ -3545,11 +3651,12 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
         return decodeVariables(evt, getRandomItem(eTxtItems))
     } else {
         String evntNam = evt?.name
-        List devs = settings."trig_${evntNam}" ?: []
-        String dc = (String)settings."trig_${evntNam}_cmd"
-        Boolean dca = (settings."trig_${evntNam}_all" == true)
-        String dct = settings."trig_${evntNam}_txt" ?: sNULL
-        String dcart = settings."trig_${evntNam}_after_repeat" && settings."trig_${evntNam}_after_repeat_txt" ? settings."trig_${evntNam}_after_repeat_txt" : sNULL
+        String evntKey = ESEvtName ?: evntName // thermostat
+        List devs = settings."trig_${evntKey}" ?: []
+        String dc = (String)settings."trig_${evntKey}_cmd"
+        Boolean dca = (settings."trig_${evntKey}_all" == true)
+        String dct = settings."trig_${evntKey}_txt" ?: sNULL
+        String dcart = settings."trig_${evntKey}_after_repeat" && settings."trig_${evntKey}_after_repeat_txt" ? settings."trig_${evntKey}_after_repeat_txt" : sNULL
         List eTxtItems = dct ? dct.tokenize(";") : []
         List rTxtItems = dcart ? dcart.tokenize(";") : []
         List testItems = eTxtItems + rTxtItems
@@ -3566,8 +3673,8 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                 case "thermostatMode":
                 case "thermostatFanMode":
                 case "thermostatOperatingState":
-                case "coolSetpoint":
-                case "heatSetpoint":
+                case "coolingSetpoint":
+                case "heatingSetpoint":
                     return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evntNam) ? " ${evntNam}" : sBLANK} ${evntNam} is ${evt?.value} ${postfix}"
                 case sMODE:
                     return  "The location mode is now set to ${evt?.value}"
@@ -3674,7 +3781,8 @@ void clearActHistory(){
 
 }
 
-private void executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
+//} else if (execOk) { executeAction(evt, false, "thermostatEvtHandler(${evt?.name})", false, evtAd, null, "thermostat") }
+private void executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null, String ESEvtName=sNULL) {
     Long startTime = now()
     logTrace( "executeAction${src ? "($src)" : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
     if(isPaused(true)) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
@@ -3682,6 +3790,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
     // log.debug "condStatus: ${condStatus}"
     addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct, isTier: (tierData != null)] )
     //ERS
+//    evt.name = ESEvtName ?: evt.name // thermostat
     Map actMap = state.actionExecMap
 
     List actDevices = settings.act_EchoDevices ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
@@ -3705,8 +3814,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
         if(settings.act_EchoZones && actZonesSiz == 0 && actDevSiz == 0) { logWarn("executeAction | No Active Zones Available and No Alternate Echo Devices Selected.", true); return }
         if(actDevSiz == 0 && !settings.act_EchoZones) { logError("executeAction Error | Echo Device List not found or is empty", true); return }
         if(!actMap.actionType) { logError("executeAction Error | The ActionType is missing or is empty", true); return }
-        Map actConf = actMap.config
-        Integer actDelay = actMap.delay ?: 0
+        Map actConf = (Map)actMap.config
+        Integer actDelay = (Integer)actMap.delay ?: 0
         Integer actDelayMs = actDelay*1000
         Integer changeVol = actConf?.volume?.change as Integer ?: null
         Integer restoreVol = actConf?.volume?.restore as Integer ?: null
@@ -3721,7 +3830,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         if(tierData?.volume?.change) changeVol = tierData?.volume?.change
                         if(tierData?.volume?.restore) restoreVol = tierData?.volume?.restore
                     }
-                    String txt = getResponseItem(evt, tierData?.msg, allDevsResp, isRptAct, testMode) ?: sNULL
+                    String txt = getResponseItem(evt, (String)tierData?.msg, allDevsResp, isRptAct, testMode, ESEvtName) ?: sNULL
                     // log.debug "txt: $txt"
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
@@ -3940,7 +4049,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 }
 
 private postTaskCommands(data) {
-    if(data?.type && settings."${data.type}sirens" && settings."${data.type}siren_cmd") { settings."${data.type}sirens"*.off() }
+    if(data?.type && settings."${data.type}sirens" && (String)settings."${data.type}siren_cmd") { settings."${data.type}sirens"*.off() }
 }
 
 Map getInputData(String inName) {
@@ -4186,7 +4295,7 @@ Boolean getOk2Notify() {
     Boolean pushOk // = (settings.notif_send_push)
     Boolean pushOver // = (settings.notif_pushover && settings.notif_pushover_devices)
     Boolean alexaMsg = ((Boolean)settings.notif_alexa_mobile)
-    Boolean notifDevsOk = (settings.notif_devs?.size())
+    Boolean notifDevsOk = (((List)settings.notif_devs)?.size())
     Boolean daysOk = settings.notif_days ? (isDayOfWeek(settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = settings.notif_modes ? (isInMode(settings.notif_modes)) : true
@@ -4245,9 +4354,9 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
             logInfo( "sendNotifMsg: Notification not configured or Message Skipped During Quiet Time ($flatMsg)")
 //            if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
-            if(settings.notif_devs) {
+            if((List)settings.notif_devs) {
                 sentSrc.push("Notification Devices")
-                settings.notif_devs?.each { it?.deviceNotification(newMsg) }
+                ((List)settings.notif_devs)?.each { it?.deviceNotification(newMsg) }
                 sent = true
             }
             if((Boolean)settings.notif_alexa_mobile && alexaDev) {
@@ -4269,7 +4378,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
 
 Boolean isActNotifConfigured() {
     if(customMsgRequired() && !(settings.notif_use_custom && settings.notif_custom_message)) { return false }
-    return (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
+    return ((List)settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
 }
 
 /*
@@ -4426,12 +4535,19 @@ Boolean areAllDevsSame(List devs, String attr, val) {
 }
 
 Boolean allDevCapValsEqual(List devs, String cap, val) {
-    if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
+    if(devs) {
+        if(val instanceof List) return (devs.findAll { it?."current${cap?.capitalize()}" in val }?.size() == devs?.size())
+        else return (devs.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size())
+    }
     return false
 }
 
 Boolean anyDevCapValsEqual(List devs, String cap, val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() >= 1) : false
+    if(devs && cap && val) {
+        if(val instanceof List) return (devs.findAll { it?."current${cap?.capitalize()}" in val }?.size() >= 1)
+        else return (devs.findAll { it?."current${cap?.capitalize()}" == val }?.size() >= 1)
+    }
+    return false
 }
 
 Boolean anyDevCapNumValAbove(List devs, String cap, val) {
@@ -4619,7 +4735,7 @@ String getAppNotifDesc(Boolean hide=false) {
     if(isActNotifConfigured()) {
         Boolean ok = getOk2Notify()
         str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
-        str += (settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr(settings.notif_devs)} (${settings.notif_devs.size()})\n" : sBLANK
+        str += ((List)settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})\n" : sBLANK
         str += (Boolean)settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
         String res = getNotifSchedDesc(true)
         str += res ?: sBLANK
@@ -4683,7 +4799,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addE=true) {
     String sPre = "trig_"
     if(confd && setItem?.size()) {
         if(!hideDesc) {
-            String str = "Triggers${!addE ? " for "+buildActTypeEnum()."${settings.actionType}" : sBLANK}:\n"
+            String str = "Triggers${!addE ? " for "+(String)buildActTypeEnum()."${(String)settings.actionType}" : sBLANK}:\n"
             setItem?.each { String evt->
                 String adder = sBLANK
                 switch(evt) {
@@ -4778,12 +4894,13 @@ String getConditionsDesc(Boolean addE=true) {
             Boolean not = settings.cond_mode_cmd == "not"
             str += settings.cond_mode ? "    - Allowed Modes (${not ? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
         }
+
         if(deviceCondConfigured()) {
-            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power", "thermostatMode", "thermostatOperatingState", "coolingSetpoint", "heatingSetpoint" ]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
-                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
-                    else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
+                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water", "thermostatMode", "thermostatOperatingState" ]) { condOk = checkDeviceCondOk(evt) }
+                    else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity", "coolingSetpoint", "heatingSetpoint"]) { condOk = checkDeviceNumCondOk(evt) }
 
                     str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
@@ -4843,7 +4960,7 @@ String getActionDesc(Boolean addFoot=true) {
     String str = sBLANK
 //    str += addE && (String)settings.actionType ? "Action:\n • ${(String)settings.actionType}\n\n" : sBLANK
     str += addFoot ? spanWrap("Action:", sNULL, sNULL, true, true) : sBLANK
-    str += addFoot ? spanWrap(" ${sBULLET} "+buildActTypeEnum()."${settings.actionType}", sNULL, sNULL, false, true) : sBLANK
+    str += addFoot ? spanWrap(" ${sBULLET} "+(String)buildActTypeEnum()."${(String)settings.actionType}", sNULL, sNULL, false, true) : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
@@ -4956,6 +5073,10 @@ static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under
 /* """ */
 
 static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+/*
+static String addLineBr(Boolean show=true) {
+    return show ? sLINEBR : sBLANK
+} */
 
 String lineBr(Boolean show=true) {
     return (String) show ? sLINEBR : sBLANK
@@ -4965,12 +5086,12 @@ String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false
     return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
 }
 
-String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
-    return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? "<br>" : sBLANK}" : sBLANK
+static String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? "<br>" : sBLANK}" : sBLANK
 }
 
-String getOkOrNotSymHTML(Boolean ok) {
-    return (String) ok ? "<span style='color: #43d843;'>(${okSymFLD})</span>" : "<span style='color: #cc2d3b;'>(${notOkSymFLD})</span>"
+static String getOkOrNotSymHTML(Boolean ok) {
+    return ok ? "<span style='color: #43d843;'>(${okSymFLD})</span>" : "<span style='color: #cc2d3b;'>(${notOkSymFLD})</span>"
 }
 
 def appFooter() {
@@ -4989,6 +5110,7 @@ Integer stateSize() {
 }
 
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
+/*
 String debugStatus() { return !settings.appDebug ? "Off" : "On" }
 String deviceDebugStatus() { return !settings.childDebug ? "Off" : "On" }
 Boolean isAppDebug() { return (settings.appDebug == true) }
@@ -5000,7 +5122,7 @@ String getAppDebugDesc() {
     str += isChildDebug() && str != sBLANK ? "\n" : sBLANK
     str += isChildDebug() ? "Device Debug: (${deviceDebugStatus()})" : sBLANK
     return (str != sBLANK) ? str : sNULL
-}
+}*/
 
 private addToLogHistory(String logKey, String data, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() > 70)
