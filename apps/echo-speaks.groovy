@@ -173,7 +173,7 @@ def mainPage() {
                     String gState = (String) state.alexaGuardState ? ((String) state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : sUnknown
                     String gStateIcon = gState == sUnknown ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
                     String ad = spanWrap("Alarm System Mode:", sCLR4D9, "small", true) + spanWrap(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)), "small")
-                    ad += guardAutoConfigured() ? addLineBr() + addLineBr() + guardAutoDesc() : sBLANK
+                    ad += guardAutoConfigured() ? lineBr() + lineBr() + guardAutoDesc() : sBLANK
                     ad += inputFooter(sTTM)
                     href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), description: ad
                 } else { paragraph divWrap("Alexa Guard is not enabled or supported by any of your Echo Devices", sCLRGRY, "small") }
@@ -221,9 +221,9 @@ def mainPage() {
         // getCustomerHistoryRecords(10, true)
         if(!newInstall) {
             section(sTS("Experimental Functions:")) {
-                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanWrap("Test Speech, Announcements, and Sequences Builder", sCLRGRY, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
-                href "alexaRoutinesTestPage", title: inTS1("Alexa Routine Testing", "routine"), description: spanWrap("View Routine Info and Test", sCLRGRY, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
-                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanWrap("Test music queries", sCLRGRY, "small") + addLineBr() + inputFooter(sTTP, sCLRGRY)
+                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanWrap("Test Speech, Announcements, and Sequences Builder", sCLRGRY, "small") + lineBr() + inputFooter(sTTP, sCLRGRY)
+                href "alexaRoutinesTestPage", title: inTS1("Alexa Routine Testing", "routine"), description: spanWrap("View Routine Info and Test", sCLRGRY, "small") + lineBr() + inputFooter(sTTP, sCLRGRY)
+                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanWrap("Test music queries", sCLRGRY, "small") + lineBr() + inputFooter(sTTP, sCLRGRY)
             }
             section(sTS("Donations:")) {
                 href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
@@ -263,12 +263,12 @@ def authStatusPage() {
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
                 String stat = spanWrap("Auth Status:", sNULL, sNULL, true) + getOkOrNotSymHTML(chk1 && chk2 && cookieValid)
-                stat += addLineBr() + spanWrap(" ${sBULLET} Cookie:") + getOkOrNotSymHTML(chk1)
-                stat += addLineBr() + spanWrap(" ${sBULLET} CSRF Value:") + getOkOrNotSymHTML(chk2)
-                stat += addLineBr()
-                stat += addLineBr() + spanWrap("Cookie Refresh:", sNULL, sNULL, true) + getOkOrNotSymHTML(chk3)
-                stat += addLineBr() + spanWrap(" ${sBULLET} Last Refresh:") + spanWrap(" (${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", (!chk3 ? sCLRRED : sNULL))
-                stat += addLineBr() + spanWrap(" ${sBULLET} Next Refresh:") + spanWrap(" (${nextCookieRefreshDur()})")
+                stat += lineBr() + spanWrap(" ${sBULLET} Cookie:") + getOkOrNotSymHTML(chk1)
+                stat += lineBr() + spanWrap(" ${sBULLET} CSRF Value:") + getOkOrNotSymHTML(chk2)
+                stat += lineBr()
+                stat += lineBr() + spanWrap("Cookie Refresh:", sNULL, sNULL, true) + getOkOrNotSymHTML(chk3)
+                stat += lineBr() + spanWrap(" ${sBULLET} Last Refresh:") + spanWrap(" (${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", (!chk3 ? sCLRRED : sNULL))
+                stat += lineBr() + spanWrap(" ${sBULLET} Next Refresh:") + spanWrap(" (${nextCookieRefreshDur()})")
                 paragraph divWrap(stat, sCLR4D9, 'small')
             }
 
@@ -378,7 +378,7 @@ def deviceManagePage() {
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs?.size()) {
                     String devDesc = devs?.collect { "<span>${it?.value?.name}</span>${it?.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it?.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
-                    String dd = spanWrap(devDesc) + addLineBr() + inputFooter(sTTVD)
+                    String dd = spanWrap(devDesc) + lineBr() + inputFooter(sTTVD)
                     href "deviceListPage", title: inTS("Installed Devices:"), description: divWrap(dd, sCLR4D9, "small")
                 } else { paragraph pTS("Discovered Devices:\nNo Devices Available", sNULL, false, "red"), state: sCOMPLT }
                 List remDevs = getRemovableDevs()
@@ -464,12 +464,12 @@ String guardAutoDesc() {
     String str = sBLANK
     if(guardAutoConfigured()) {
         str += spanWrap("Guard Triggers:", sNULL, sNULL, true)
-        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? addLineBr() + " ${sBULLET} Using ${getAlarmSystemName()}" : sBLANK
-        str += settings.guardHomeModes ? addLineBr() + " ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})" : sBLANK
-        str += settings.guardAwayModes ? addLineBr() + " ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})" : sBLANK
-        str += settings.guardHomeSwitch ? addLineBr() + " ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})" : sBLANK
-        str += settings.guardAwaySwitch ? addLineBr() + " ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
-        str += settings.guardAwayPresence ? addLineBr() + " ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
+        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? lineBr() + " ${sBULLET} Using ${getAlarmSystemName()}" : sBLANK
+        str += settings.guardHomeModes ? lineBr() + " ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})" : sBLANK
+        str += settings.guardAwayModes ? lineBr() + " ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})" : sBLANK
+        str += settings.guardHomeSwitch ? lineBr() + " ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})" : sBLANK
+        str += settings.guardAwaySwitch ? lineBr() + " ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
+        str += settings.guardAwayPresence ? lineBr() + " ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
     }
     return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sBLANK
 }
@@ -3832,7 +3832,7 @@ static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 
 
-String addLineBr(Boolean show=true) {
+String lineBr(Boolean show=true) {
     return (String) show ? sLINEBR : sBLANK
 }
 
@@ -4775,9 +4775,9 @@ String getAppNotifConfDesc() {
         str += spanWrap("Send Notifications Allowed:", sNULL, sNULL, true) + getOkOrNotSymHTML(ok)
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += notifDevs ? addLineBr() + spanWrap(" ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})", sNULL, sNULL, false, true) : sBLANK
-        str += (ap) ? addLineBr(str != sBLANK) + spanWrap("Enabled Alerts:", sNULL, sNULL, true, true) + ap : sBLANK
-        str += (ap && nd) ? addLineBr(str != sBLANK) + addLineBr() + nd : sBLANK
+        str += notifDevs ? lineBr() + spanWrap(" ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})", sNULL, sNULL, false, true) : sBLANK
+        str += (ap) ? lineBr(str != sBLANK) + spanWrap("Enabled Alerts:", sNULL, sNULL, true, true) + ap : sBLANK
+        str += (ap && nd) ? lineBr(str != sBLANK) + lineBr() + nd : sBLANK
     }
     return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sNULL
 }
@@ -4824,9 +4824,9 @@ String getNotifSchedDesc(Boolean min=false) {
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
     str += (startLbl && stopLbl) ? "${spanWrap("   ${sBULLET} Restricted Times:")} ${spanWrap("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(!timeOk)}" : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? "${addLineBr(startLbl || stopLbl)}${spanWrap("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanWrap(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
-    str += modeInput ? "${addLineBr(startLbl || stopLbl || qDays)}${spanWrap("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanWrap(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
-    str = str ? "${spanWrap("Restrictions:", sNULL, sNULL, true)} ${getOkOrNotSymHTML(rest)}${addLineBr()}${str}" : sBLANK
+    str += dayInput && qDays ? "${lineBr(startLbl || stopLbl)}${spanWrap("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanWrap(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
+    str += modeInput ? "${lineBr(startLbl || stopLbl || qDays)}${spanWrap("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanWrap(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
+    str = str ? "${spanWrap("Restrictions:", sNULL, sNULL, true)} ${getOkOrNotSymHTML(rest)}${lineBr()}${str}" : sBLANK
     return (str != sBLANK) ? divWrap(str, sCLR4D9, "small") : sNULL
 }
 
@@ -4842,7 +4842,7 @@ String getServiceConfDesc() {
 String getLoginStatusDesc() {
     String str = sBLANK
     str += "${spanWrap("Login Status:")} ${getOkOrNotSymHTML((Boolean)state.authValid)}"
-    str += (getTsVal("lastCookieRrshDt")) ? "${addLineBr()}${spanWrap("Cookie Updated:")} ${spanWrap("(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})")}" : sBLANK
+    str += (getTsVal("lastCookieRrshDt")) ? "${lineBr()}${spanWrap("Cookie Updated:")} ${spanWrap("(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})")}" : sBLANK
     return divWrap(str, sCLR4D9, "small")
 }
 
@@ -4861,7 +4861,7 @@ String getActionsDesc() {
     List<String> acts = (actActs + inactActs).sort()
     Integer a = acts?.size()
     String str = sBLANK
-    str += a ? divWrap("${spanWrap("Action Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(acts?.join("<br>"))}", sCLR4D9, "small") : sBLANK
+    str += a ? divWrap("${spanWrap("Action Status:", sNULL, sNULL, true)}${lineBr()}${spanWrap(acts?.join("<br>"))}", sCLR4D9, "small") : sBLANK
     str += a ? inputFooter(sTTM) : inputFooter("Tap to create actions using device/location events to perform advanced actions using your Alexa devices.", sCLRGRY)
     return str
 }
@@ -4874,7 +4874,7 @@ String getZoneDesc() {
     List<String> zones = (actZones + iZones + pZones).sort()
     String str = sBLANK
     Integer a = zones?.size()
-    str += a ? divWrap("${spanWrap("Zone Status:", sNULL, sNULL, true)}${addLineBr()}${spanWrap(zones?.join("<br>"))}", sCLR4D9, "small") : sBLANK
+    str += a ? divWrap("${spanWrap("Zone Status:", sNULL, sNULL, true)}${lineBr()}${spanWrap(zones?.join("<br>"))}", sCLR4D9, "small") : sBLANK
     str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", sCLRGRY)
     return str
 }
@@ -4932,7 +4932,7 @@ def appInfoSect() {
             if(!(Boolean) state.authValid && !(Boolean) state.resumeConfig) { 
                 isNote = true; 
                 String str4 = """<small style="color: orange;"><b>Login Issue:</b></small>"""
-                str4 += addLineBr() + addLineBr() + spanWrap("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", sCLRORG, "small")
+                str4 += lineBr() + lineBr() + spanWrap("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", sCLRORG, "small")
                 paragraph str4 
             }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {

@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.6.0"
-@Field static final String appModifiedFLD = "2021-02-05"
+@Field static final String appModifiedFLD = "2021-02-07"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -4957,7 +4957,7 @@ static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under
 
 static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 
-String addLineBr(Boolean show=true) {
+String lineBr(Boolean show=true) {
     return (String) show ? sLINEBR : sBLANK
 }
 
