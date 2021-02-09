@@ -1209,7 +1209,7 @@ void tierItemCleanup() {
 def actTextOrTiersInput(String type) {
     if(isTierAction()) {
         String tDesc = getTierRespDesc()
-        href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? "#2678D9" : sCLRRED)), description: (tDesc ? "${tDesc}\n\n"+sTTM : sTTC), required: true, state: (tDesc ? sCOMPLT : null)
+        href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? sCLR4D9 : sCLRRED)), description: (tDesc ? "${tDesc}\n\n"+sTTM : sTTC), required: true, state: (tDesc ? sCOMPLT : null)
         input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
@@ -1624,15 +1624,15 @@ def actTrigTasksPage(params) {
             switch(t) {
                 case "act_":
                     dMap = [def: sBLANK, delay: "tasks"]
-                    paragraph pTS("These tasks will be performed when the action is triggered.\n(Delay is optional)", sNULL, false, "#2678D9"), state: sCOMPLT
+                    paragraph pTS("These tasks will be performed when the action is triggered.\n(Delay is optional)", sNULL, false, sCLR4D9), state: sCOMPLT
                     break
                 case "act_tier_start_":
                     dMap = [def: " with Tier start", delay: "Tier Start tasks"]
-                    paragraph pTS("These tasks will be performed with when the first tier of action is triggered.\n(Delay is optional)", sNULL, false, "#2678D9"), state: sCOMPLT
+                    paragraph pTS("These tasks will be performed with when the first tier of action is triggered.\n(Delay is optional)", sNULL, false, sCLR4D9), state: sCOMPLT
                     break
                 case "act_tier_stop_":
                     dMap = [def: " with Tier stop", delay: "Tier Stop tasks"]
-                    paragraph pTS("These tasks will be performed with when the last tier of action is triggered.\n(Delay is optional)", sNULL, false, "#2678D9"), state: sCOMPLT
+                    paragraph pTS("These tasks will be performed with when the last tier of action is triggered.\n(Delay is optional)", sNULL, false, sCLR4D9), state: sCOMPLT
                     break
             }
         }
@@ -3001,7 +3001,7 @@ def getTierStatusSection() {
         str += getTsVal("lastTierRespStartDt") ? "Last Tier Start: ${getTsVal("lastTierRespStartDt")}\n" : sBLANK
         str += getTsVal("lastTierRespStopDt") ? "Last Tier Stop: ${getTsVal("lastTierRespStopDt")}\n" : sBLANK
         section("Tier Response Status: ") {
-            paragraph pTS(str, sNULL, false, "#2678D9"), state: sCOMPLT
+            paragraph pTS(str, sNULL, false, sCLR4D9)
         }
     }
 }
@@ -5060,7 +5060,7 @@ static String getPublicImg(String imgName) { return "https://raw.githubuserconte
 static String sTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 /* """ */
 
-static String s3TS(String t, String st, String i = sNULL, String c="#1A77C9") { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
+static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
 /* """ */
 
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
@@ -5074,7 +5074,7 @@ static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean unde
 static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return """${color ? """<div style="color: $color;">""" : ""}${i ? """<img src="${i}" width="42"> """ : ""} ${under ? "<u>" : ""}${t?.replaceAll("\n", " ")}${under ? "</u>" : ""}${color ? "</div>" : ""}""" }
 /* """ */
 
-static String htmlLine(String color="#1A77C9") { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
+static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 
 @Field static final String sLNBRK       = '<br>'
 @Field static final String sHFONTSM     = 'font-size: small;'
