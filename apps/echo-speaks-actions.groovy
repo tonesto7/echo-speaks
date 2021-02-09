@@ -612,7 +612,6 @@ def triggersPage() {
                 trigNonNumSect("valve", "valve", "Valves", "Valves", lOPNCLS+[sANY], "changes to", lOPNCLS, "valve", trigItemCnt++)
             }
 
-            
             if (valTrigEvt("coolingSetpoint")) {
                 trigNumValSect("coolingSetpoint", "thermostat", "Thermostat Cooling Setpoint Events", "Thermostat (Cooling Setpoint)", "Setpoint temp", "thermostat", trigItemCnt++)
 /*
@@ -675,7 +674,6 @@ def triggersPage() {
                 } */
             }
 
-            
             if (valTrigEvt("thermostatTemperature")) {
                 trigNumValSect("thermostatTemperature", "thermostat", "Thermostat Ambient Temperature Events", "Thermostat (Ambient Temperature)", "Ambient Temp", "thermostat", trigItemCnt++)
 /*
@@ -1002,7 +1000,7 @@ def conditionsPage() {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
                 if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
                     input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
-                } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL) }
+                } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL)
             }
         }
 
@@ -1015,7 +1013,7 @@ def conditionsPage() {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
                 if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
                     input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
-                } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL) }
+                } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL)
             }
         }
 
@@ -2930,7 +2928,7 @@ def thermostatEvtHandler(evt) {
                 evtOk = valChk.evtOk
                 evtAd = valChk.evtAd
                 break
-            
+
             case "thermostatFanMode":
                 String dfc = settings."trig_${a}_cmd" ?: sNULL
                 if(dfc == sANY || evt.value == dfc) { evtOk=true }
@@ -5538,7 +5536,7 @@ public Map getSettingsAndStateMap() {
     data.settings = setObjs
 
     List stateSkip = [
-        /* "isInstalled", "isParent", */ 
+        /* "isInstalled", "isParent", */
         "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
         "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory",
         // actions
