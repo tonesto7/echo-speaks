@@ -3624,8 +3624,7 @@ Map getRandomTrigEvt() {
     if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
     Map evt = [:]
     if(attVal.containsKey(trig)) {
-        String newtrig = trig == "thermostatTemperature" ? "temperature" : trig
-        evt = [name: newtrig, displayName: trigItem?.displayName ?: sBLANK,
+        evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK,
                value: attVal[trig], date: new Date(),
                deviceId: trigItem?.id?.toString() ?: null]
     }
