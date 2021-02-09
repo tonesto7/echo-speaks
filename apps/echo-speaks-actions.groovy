@@ -993,19 +993,29 @@ def conditionsPage() {
 
         condNumValSect("battery", "battery", "Battery Level Conditions", "Batteries", "Level (%)", "battery")
 
-        section (sTS("Thermostat Modes")) {
+        section (sTS("Thermostat Modes")) { // these allow multiple: true for _cmd
+            String inType = "thermostatMode"
+            String devTitle = "Thermostat Mode"
             List cmdOpts = getThermModeOpts()
-            input "cond_thermostatMode", "capability.thermostat", title: inTS1("Thermostats", "thermostat"), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
-            if (settings.cond_thermostatMode) {
-                input "cond_thermostatMode_cmd", sENUM, title: inTS1("is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+            input "cond_${inType}", "capability.thermostat", title: inTS1("Thermostats", "thermostat"), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            if (settings."cond_${inType}") {
+                input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+                if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
+                    input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
+                } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL) }
             }
         }
 
         section (sTS("Thermostat Operating States")) {
+            String inType = "thermostatOperatingState"
+            String devTitle = "Thermostat Operating State"
             List cmdOpts = getThermOperStOpts()
-            input "cond_thermostatOperatingState", "capability.thermostat", title: inTS1("Thermostats", "thermostat"), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
-            if (settings.cond_thermostatOperatingState) {
-                input "cond_thermostatOperatingState_cmd", sENUM, title: inTS1("is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+            input "cond_${inType}", "capability.thermostat", title: inTS1("Thermostats", "thermostat"), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            if (settings."cond_${inType}") {
+                input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
+                if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
+                    input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
+                } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL) }
             }
         }
 
