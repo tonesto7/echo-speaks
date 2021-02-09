@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.6.0"
-@Field static final String appModifiedFLD = "2021-02-05"
+@Field static final String appVersionFLD  = "4.0.7.0"
+@Field static final String appModifiedFLD = "2021-02-08"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4060, zoneApp: 4050, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4070, zoneApp: 4050, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1092,7 +1092,7 @@ def returnHomeBtn() {
 }
 
 def appButtonHandler(btn) {
-    log.debug "appButton: $btn"
+    // log.debug "appButton: $btn"
 	switch (btn) {
 		case "btnMainMenu":
 			state.mainMenu = true
@@ -6000,7 +6000,12 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _shade: "windowShades",
         _water: "waterSensor",
         _valve: "valve",
-        _thermostat: "thermostat",
+        _thermostatOperatingState: "thermostat",
+        _thermostatMode: "thermostat",
+        _thermostatFanMode: "thermostat",
+        _thermostatTemperature: "thermostat",
+        _thermostatHeatingSetpoint: "thermostat",
+        _thermostatCoolingSetpoint: "thermostat",
         _carbonMonoxide: "carbonMonoxideDetector",
         _smoke: "smokeDetector",
         _lock: "lock",
