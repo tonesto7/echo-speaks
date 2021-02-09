@@ -51,6 +51,7 @@ import groovy.transform.Field
 @Field static final String sCLRORG        = 'orange'
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
+@Field static final String sTTCR          = 'Tap to configure (Required)'
 @Field static final String sTTP           = 'Tap to proceed...'
 //@Field static final String sTTS           = 'Tap to select...'
 //@Field static final String sSETTINGS      = 'settings'
@@ -4788,13 +4789,13 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!timeOk ? okSymFLD : notOkSymFLD})" : sBLANK
+    str += (startLbl && stopLbl) ? "   ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} (${!timeOk ? okSymFLD : notOkSymFLD})" : sBLANK
     List qDays = getQuietDays()
     String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
-    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
+    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
     a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " \u2022 Restrictions Active: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
+    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
+    str = str ? " ${sBULLET} Restrictions Active: ${getOkOrNotSymHTML(rest)}" + addLineBr() + str : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
@@ -4804,13 +4805,13 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     String sPre = "trig_"
     if(confd && setItem?.size()) {
         if(!hideDesc) {
-            String str = "Triggers${!addFoot ? " for "+(String)buildActTypeEnum()."${(String)settings.actionType}" : sBLANK}:\n"
+            String str = spanWrapSm("Triggers${!addFoot ? " for "+(String)buildActTypeEnum()."${(String)settings.actionType}" : sBLANK}:", sNULL, true, true)
             setItem?.each { String evt->
                 String adder = sBLANK
                 switch(evt) {
                     case "scheduled":
                         String schedTyp = settings."${sPre}${evt}_type" ? settings."${sPre}${evt}_type" : sNULL
-                        str += " \u2022 ${evt?.capitalize()}${settings."${sPre}${evt}_type" ? " (${settings."${sPre}${evt}_type"})" : ""}\n"
+                        str += spanWrapSm(" ${sBULLET} ${evt?.capitalize()}${settings."${sPre}${evt}_type" ? " (${settings."${sPre}${evt}_type"})" : ""}", sNULL, false, true)
                         if(schedTyp == "Recurring") {
                             str += settings."${sPre}${evt}_recurrence"     ? "    ${sBULLETINV} Recurrence: (${settings."${sPre}${evt}_recurrence"})\n"      : sBLANK
                             str += settings."${sPre}${evt}_time"     ? "    ${sBULLETINV} Time: (${fmtTime(settings."${sPre}${evt}_time")})\n"      : sBLANK
@@ -4843,7 +4844,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                     case "doubleTapped":
                         adder = "Button "
                     default:
-                        str += " \u2022 ${adder}${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}\n"
+                        str += spanWrapSm(" ${sBULLET} ${adder}${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}", sNULL, false, true)
                         def subStr = sBLANK
                         if(settings."${sPre}${evt}_cmd" in [sABOVE, sBELOW, "equal", sBETWEEN]) {
                             if (settings."${sPre}${evt}_cmd" == sBETWEEN) {
@@ -4924,10 +4925,10 @@ String getConditionsDesc(Boolean addFoot=true) {
                 }
             }
         }
-        str += addFoot ? "\n"+sTTM : sBLANK
+        str += addFoot ? inputFooter(sTTM, sCLRGRY) : sBLANK
         return str
     } else {
-        return addFoot ? sTTC : sBLANK
+        return addFoot ? inputFooter(sTTC, sCLRGRY) : sBLANK
     }
 }
 
