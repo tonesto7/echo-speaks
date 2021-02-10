@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-08"
+@Field static final String appModifiedFLD = "2021-02-10"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true

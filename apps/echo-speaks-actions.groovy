@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-09"
+@Field static final String appModifiedFLD = "2021-02-10"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -31,10 +31,13 @@ import groovy.transform.Field
 @Field static final String sSPACE         = ' '
 @Field static final String sBULLET        = '\u2022'
 @Field static final String sBULLETINV     = '\u25E6'
+@Field static final String sSQUARE        = '\u29C8'
+@Field static final String sPLUS          = '\u002B'
 @Field static final String sRIGHTARR      = '\u02C3'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
 @Field static final String sPAUSESymFLD   = "\u275A\u275A"
+@Field static final String sLINEBR        = '<br>'
 @Field static final String sFALSE         = 'false'
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
@@ -73,7 +76,6 @@ import groovy.transform.Field
 @Field static final List<String> lOPNCLS       = ["open", "closed"]
 @Field static final List<String> lACTINACT     = ["active", "inactive"]
 @Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
-
 
 static String appVersion()  { return appVersionFLD }
 
@@ -219,28 +221,28 @@ def mainPage() {
             }
             if (newInstall) {
                 section("Configuration: Part 2") {
-                    paragraph spanBld("Further Options will be configured once you save this automation.  Please save and return to complete", sNULL, getAppImg("info"))
+                    paragraph spanBld("Further Options will be configured once you save this automation.<br>Please save and return to complete", sNULL, getAppImg("info"))
                 }
             } else {
                 section (sTS("Configuration: Part 2")) {
                     if((String)settings.actionType) {
-                        href "triggersPage", title: inTS1("Action Triggers", "trigger"), description: divSm(getTriggersDesc(), sCLR4D9)
+                        href "triggersPage", title: inTS1("Action Triggers", "trigger"), description: spanSm(getTriggersDesc(), sCLR4D9)
                     } else { paragraph spanBld("These options will be shown once the action type is configured.", sNULL, getAppImg("info")) }
                 }
                 section(sTS("Configuration: Part 3")) {
                     if((String)settings.actionType && trigConf) {
-                        href "conditionsPage", title: inTS1("Condition/Restrictions\n(Optional)", "conditions"), description: divSm(getConditionsDesc(), sCLR4D9)
+                        href "conditionsPage", title: inTS1("Conditions/Restrictions", "conditions") + spanSmBld(" (Optional)", "violet"), description: spanSm(getConditionsDesc(true), sCLR4D9)
                     } else { paragraph spanBld("These options will be shown once the triggers are configured.", sNULL, getAppImg("info")) }
                 }
                 section(sTS("Configuration: Part 4")) {
                     if((String)settings.actionType && trigConf) {
-                        href "actionsPage", title: inTS1("Execution Config", "es_actions"), description: divSm(getActionDesc(), sCLR4D9)
+                        href "actionsPage", title: inTS1("Execution Config", "es_actions"), description: spanSm(getActionDesc(true), sCLR4D9)
                     } else { paragraph spanBld("These options will be shown once the triggers are configured.", sNULL, getAppImg("info")) }
                 }
                 if(allOk) {
                     section(sTS("Notifications:")) {
                         String t0 = getAppNotifDesc()
-                        href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC)
+                        href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sCLRGRY, true)
                     }
                     // getTierStatusSection()
 
@@ -268,14 +270,14 @@ def mainPage() {
                 input "appLbl", sTEXT, title: inTS1("Action Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true
             }
             section(sTS("Remove Action:")) {
-                href "uninstallPage", title: inTS1("Remove this Action", "uninstall"), description: "Tap to Remove..."
+                href "uninstallPage", title: inTS1("Remove this Action", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
             }
             if(allOk) {
                 section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
                     String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28ACTIONS+BUG%29+&projects=echo-speaks%2F6"
                     String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BActions+Feature+Request%5D&projects=echo-speaks%2F6"
-                    href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: "Tap to open browser"
-                    href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: "Tap to open browser"
+                    href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
+                    href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
                 }
             }
         }
@@ -288,8 +290,8 @@ def prefsPage() {
             input "logInfo",  sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: spanSm("Auto disables after 6 hours", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: spanSm("Only enable when asked to.<br>(Auto disables after 6 hours)", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
         }
         if((Boolean)state.isInstalled) {
             if(advLogsActive()) { logsEnabled() }
@@ -316,7 +318,7 @@ def actionHistoryPage() {
         }
         if( ((List)getMemStoreItem("actionHistory")).size() ) {
             section(sBLANK) {
-                input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", "reset"), description: "Clears Stored Action History.", defaultValue: false, submitOnChange: true
+                input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", "reset"), description: spanSm("Clears Stored Action History.", sCLRGRY), defaultValue: false, submitOnChange: true
                 //private List getMemStoreItem(String key){
                 if(settings.clearActionHistory) {
                     settingUpdate("clearActionHistory", sFALSE, sBOOL)
@@ -348,7 +350,7 @@ def triggersPage() {
             }
         }
         section (sTS("Enable webCoRE Integration:")) {
-            input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true
+            input "enableWebCoRE", sBOOL, title: inTS1("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true
         }
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
@@ -388,21 +390,21 @@ def triggersPage() {
                                     if(schedRecur) {
                                         switch(schedRecur) {
                                             case "Daily":
-                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Only of these Days of the Week?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: daysOfWeekMap()
+                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Only of these Days of the Week?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: daysOfWeekMap()
                                                 break
 
                                             case "Weekly":
                                                 input "trig_scheduled_weekdays", sENUM, title: inTS1("Days of the Week?", "day_calendar"), description: sBLANK, multiple: true, required: true, submitOnChange: true, options: daysOfWeekMap()
-                                                input "trig_scheduled_weeks", sENUM, title: inTS1("Only these Weeks on the Month?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: weeksOfMonthMap()
-                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap()
+                                                input "trig_scheduled_weeks", sENUM, title: inTS1("Only these Weeks on the Month?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: weeksOfMonthMap()
+                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: monthMap()
                                                 break
 
                                             case "Monthly":
-                                                input "trig_scheduled_daynums", sENUM, title: inTS1("Days of the Month?", "day_calendar"), description: (!settings.trig_scheduled_weeks ? "(Optional)" : sBLANK), multiple: true, required: (!settings.trig_scheduled_weeks), submitOnChange: true, options: (1..31)?.collect { it as String }
+                                                input "trig_scheduled_daynums", sENUM, title: inTS1("Days of the Month?", "day_calendar"), description: (!settings.trig_scheduled_weeks ? spanSm("(Optional)", "violet") : sBLANK), multiple: true, required: (!settings.trig_scheduled_weeks), submitOnChange: true, options: (1..31)?.collect { it as String }
                                                 if(!settings.trig_scheduled_daynums) {
-                                                    input "trig_scheduled_weeks", sENUM, title: inTS1("Weeks of the Month?", "day_calendar"), description: (!settings.trig_scheduled_daynums ? "(Optional)" : sBLANK), multiple: true, required: (!settings.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap()
+                                                    input "trig_scheduled_weeks", sENUM, title: inTS1("Weeks of the Month?", "day_calendar"), description: (!settings.trig_scheduled_daynums ? spanSm("(Optional)", "violet") : sBLANK), multiple: true, required: (!settings.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap()
                                                 }
-                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: "(Optional)", multiple: true, required: false, submitOnChange: true, options: monthMap()
+                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: monthMap()
                                                 break
                                         }
                                     }
@@ -447,7 +449,7 @@ def triggersPage() {
                     input "trig_mode", sMODE, title: inTS1("Location Modes", sMODE), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_mode) {
                         input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)" + spanSm("(Optional)", "violet"), "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc(sMODE, false, trigItemCnt++)
                     }
                 }
@@ -455,11 +457,11 @@ def triggersPage() {
 
             if(valTrigEvt("pistonExecuted")) {
                 section(sTS("webCoRE Piston Executed Events"), hideable: true) {
-                    input "trig_pistonExecuted", sENUM, title: inTS("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true
+                    input "trig_pistonExecuted", sENUM, title: inTS1("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_pistonExecuted) {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)" + spanSm("(Optional)", "violet"), "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc("pistonExecuted", false, trigItemCnt++)
                     }
                 }
@@ -645,8 +647,7 @@ def triggersPage() {
 
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph pTS(span("Step Complete", sNULL, "medium", true), getAppImg("done"))
-                    paragraph spanSm("Press <b>Next</b> to Return to Main Page")
+                    paragraph spanMdBldBr("Step Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
                 }
             }
         }
@@ -724,17 +725,17 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
             input "trig_${inType}_cmd", sENUM, title: spanSmBld("${cmdTitle} is...", sNULL, sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
             if (settings."trig_${inType}_cmd") {
                 if (settings."trig_${inType}_cmd" in [sBETWEEN, sBELOW]) {
-                    input "trig_${inType}_low", sNUMBER, title: spanSmBld(settings."trig_${inType}_cmd" == sBETWEEN ? "Between a Low" : "a" + " ${cmdTitle} of...", "low"), required: true, submitOnChange: true
+                    input "trig_${inType}_low", sNUMBER, title: spanSmBld((settings."trig_${inType}_cmd" == sBETWEEN ? "Between a Low" : "a low") + " ${cmdTitle} of...", sNULL, "low"), required: true, submitOnChange: true
                 }
                 if(settings."trig_${inType}_low" && (settings."trig_${inType}_cmd" in [sBELOW]) ) done=true
                 if (settings."trig_${inType}_cmd" in [sBETWEEN, sABOVE]) {
-                    input "trig_${inType}_high", sNUMBER, title: spanSmBld(settings."trig_${inType}_cmd" == sBETWEEN ? "and a High " : "a" + " ${cmdTitle} of...", "high"), required: true, submitOnChange: true
+                    input "trig_${inType}_high", sNUMBER, title: spanSmBld((settings."trig_${inType}_cmd" == sBETWEEN ? "and a High of..." : "a High") + " ${cmdTitle} of...", sNULL, "high"), required: true, submitOnChange: true
                 }
                 if(settings."trig_${inType}_high" && (settings."trig_${inType}_cmd" in [sABOVE])) done=true
                 if(settings."trig_${inType}_low" && settings."trig_${inType}_high" && (settings."trig_${inType}_cmd" in [sBETWEEN])) done=true
 
                 if (settings."trig_${inType}_cmd" == sEQUALS) {
-                    input "trig_${inType}_equal", sNUMBER, title: spanSmBld("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true
+                    input "trig_${inType}_equal", sNUMBER, title: spanSmBld("a ${cmdTitle} of...", sNULL, "equal"), required: true, submitOnChange: true
                     if(settings."trig_${inType}_equal") done=true
                 }
                 if(done) {
@@ -828,7 +829,7 @@ def conditionsPage() {
         }
         section(sTS("Time/Date")) {
             // input "test_time", sTIME, title: "Trigger Time?", required: false, submitOnChange: true
-            href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false)
+            href "condTimePage", title: inTS1("Time Schedule", "clock"), description: spanSm(getTimeCondDesc(false), sCLR4D9)
             input "cond_days", sENUM, title: inTS1("Days of the week", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum()
             input "cond_months", sENUM, title: inTS1("Months of the year", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: monthEnum()
         }
@@ -979,7 +980,7 @@ def actVariableDesc(String actType, Boolean hideUserTxt=false) {
                 txtItems?.each { i->
                     i?.value?.each { i2-> str += lineBr() + "${sBULLET} ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()}: (${i2?.value?.size()} Responses)" }
                 }
-                paragraph pTS(str, sNULL, true, sCLR4D9)
+                paragraph spanSmBld(str, sCLR4D9)
                 paragraph spanSmBld("WARNING:<br>Entering text below will override the text you defined for the trigger types under Step 2.", sCLRRED)
             }
         }
@@ -1127,7 +1128,7 @@ def actTextOrTiersInput(String type) {
         input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: sEXTNRL, required: false, title: inTS1("Default Action Response\n(Optional)", sTEXT), description: settings."${type}" ?: "Open Response Designer..."
+        href url: textUrl, style: sEXTNRL, required: false, title: inTS1("Default Action Response", sTEXT) + spanSmBld(" (Optional)", "violet"), description: settings."${type}" ? spanSm(settings."${type}", sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY, true)
     }
 }
 
@@ -1509,8 +1510,7 @@ def actionsPage() {
                 }
                 actionSimulationSect()
                 section(sBLANK) {
-                    paragraph spanBldBr("Step Complete", sNULL, getAppImg("done"))
-                    paragraph spanSm("Press <b>Next</b> to Return to Main Page")
+                    paragraph spanMdBldBr("Step Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
 
@@ -1627,10 +1627,10 @@ def actTrigTasksPage(params) {
 Boolean actTasksConfiguredByType(String pType) {
     String p = pType
     return (
-            (String)settings."${p}mode_run" || (String)settings."${p}alarm_run" /* || settings."${p}routine_run"*/ || settings."${p}switches_off" || settings."${p}switches_on" ||
-                (settings.enableWebCoRE && (String)settings."${p}piston_run") ||
-                settings."${p}lights" || settings."${p}locks_lock" || settings."${p}locks_unlock" || settings."${p}sirens" || settings."${p}doors_close" || settings."${p}doors_open" ||
-                settings."${p}securityKeypads_disarm" || settings."${p}securityKeypads_armHome" || settings."${p}securityKeypads_armAway"
+        (String)settings."${p}mode_run" || (String)settings."${p}alarm_run" || settings."${p}switches_off" || settings."${p}switches_on" ||
+        (settings.enableWebCoRE && (String)settings."${p}piston_run") ||
+        settings."${p}lights" || settings."${p}locks_lock" || settings."${p}locks_unlock" || settings."${p}sirens" || settings."${p}doors_close" || settings."${p}doors_open" ||
+        settings."${p}securityKeypads_disarm" || settings."${p}securityKeypads_armHome" || settings."${p}securityKeypads_armAway"
     )
 }
 
@@ -1678,7 +1678,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
                 str += "${isInpt ? sBLANK : "\n\n"}Tiered Stop Tasks:"
                 break
         }
-        String aStr = "\n \u2022 "
+        String aStr = "\n ${sBULLET} "
         str += settings."${t}switches_on" ? aStr+"Switches On: (${settings."${t}switches_on"?.size()})" : sBLANK
         str += settings."${t}switches_off" ? aStr+"Switches Off: (${settings."${t}switches_off"?.size()})" : sBLANK
         str += settings."${t}lights" ? aStr+"Lights: (${settings."${t}lights"?.size()})" : sBLANK
@@ -1699,7 +1699,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
 //        str += settings."${t}routine_run" ? aStr+"Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
         str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr+"Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
-    return str != sBLANK ? (isInpt ? "${str}\n\n"+sTTM : str) : (isInpt ? "On trigger control devices, set mode, set alarm state, execute WebCore Pistons\n\n"+sTTC : sNULL)
+    return str != sBLANK ? (isInpt ? divSm(spanSmBr(str) + inputFooter(sTTM), sCLR4D9) : str) : (isInpt ? spanSmBr("On trigger control devices, set mode, set alarm state, execute WebCore Pistons", sCLRGRY) + inputFooter(sTTC, sCLRGRY) : sNULL)
 }
 
 private flashLights(data) {
@@ -1760,13 +1760,14 @@ def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
         //href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC)
         String a = getAppNotifDesc()
-         if(!a) a= "Notifications not enabled"
-         section() {
-             paragraph spanSm(a, sCLR4D9)
-         }
+        String b = spanSmBldBr("Notification Overview:", sCLR4D9)
+        b += (!a) ? "  ${sBULLET} Notifications not enabled" : a
+        section() {
+            paragraph spanSm(b, sCLR4D9)
+        }
 
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), description: ((!settings?.notif_devs) ? inputFooter(sTTC, sCLRGRY, true) : sBLANK), required: false, multiple: true, submitOnChange: true
         }
         section (sTS("Alexa Mobile Notification:")) {
             paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
@@ -4664,11 +4665,11 @@ String getAppNotifDesc(Boolean hide=false) {
     String str = sBLANK
     if(isActNotifConfigured()) {
         Boolean ok = getOk2Notify()
-        str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
-        str += ((List)settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})\n" : sBLANK
-        str += (Boolean)settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
+        str += hide ? sBLANK : spanSmBr("Send allowed: " +  getOkOrNotSymHTML(ok))
+        str += ((List)settings.notif_devs) ? spanSmBr(" ${sBULLET} Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})") : sBLANK
+        str += (Boolean)settings.notif_alexa_mobile ? spanSmBr(" ${sBULLET} Alexa Mobile App") : sBLANK
         String res = getNotifSchedDesc(true)
-        str += res ?: sBLANK
+        str += spanSmBr(res) ?: sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -4729,13 +4730,13 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     String sPre = "trig_"
     if(confd && setItem?.size()) {
         if(!hideDesc) {
-            String str = spanSmBldBr("Triggers${!addFoot ? " for "+(String)buildActTypeEnum()."${(String)settings.actionType}" : sBLANK}:", sNULL)
+            String str = spanSmBldBr("Triggers${!addFoot ? " for ("+(String)buildActTypeEnum()."${(String)settings.actionType}" + ")" : sBLANK}:", sNULL)
             setItem?.each { String evt->
                 String adder = sBLANK
                 switch(evt) {
                     case "scheduled":
                         String schedTyp = settings."${sPre}${evt}_type" ? settings."${sPre}${evt}_type" : sNULL
-                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()}${settings."${sPre}${evt}_type" ? " (${settings."${sPre}${evt}_type"})" : ""}")
+                        str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())}${settings."${sPre}${evt}_type" ? " (${settings."${sPre}${evt}_type"})" : ""}")
                         if(schedTyp == "Recurring") {
                             str += settings."${sPre}${evt}_recurrence"  ? spanSmBr("    ${sBULLETINV} Recurrence: (${settings."${sPre}${evt}_recurrence"})")            : sBLANK
                             str += settings."${sPre}${evt}_time"        ? spanSmBr("    ${sBULLETINV} Time: (${fmtTime(settings."${sPre}${evt}_time")})")               : sBLANK
@@ -4752,14 +4753,13 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         }
                         break
                     case "alarm":
-                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${getAlarmSystemName(true)})" + settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : sBLANK)
+                        str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : sBLANK)
                         str += settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${settings."${sPre}${evt}_once"})") : sBLANK
                         break
                     case "pistonExecuted":
-//                    case "routineExecuted":
                     case sMODE:
                     case "scene":
-                        str += spanSmBr(" ${sBULLET} ${evt == "pistonExecuted" ? "Piston" : evt?.capitalize()}" + settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : sBLANK)
+                        str += spanSmBr(" ${sBULLET} ${strUnder(evt == "pistonExecuted" ? "Piston" : evt?.capitalize())}" + settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Scene${settings."${sPre}${evt}"?.size()>1 ? "s" : sBLANK})" : sBLANK)
                         str += settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${settings."${sPre}${evt}_once"})") : sBLANK
                         break
                     case "pushed":
@@ -4768,29 +4768,29 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                     case "doubleTapped":
                         adder = "Button "
                     default:
-                        str += spanSmBr(" ${sBULLET} ${adder}${evt?.capitalize()}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Selected)" : ""}")
+                        str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Device${settings."${sPre}${evt}"?.size()>1 ? "s" : sBLANK})" : sBLANK}")
                         def subStr = sBLANK
                         if(settings."${sPre}${evt}_cmd" in [sABOVE, sBELOW, "equal", sBETWEEN]) {
                             if (settings."${sPre}${evt}_cmd" == sBETWEEN) {
-                                str += settings."${sPre}${evt}_cmd"  ? spanSmBr("    ${sBULLETINV} ${settings."${sPre}${evt}_cmd"}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})") : sBLANK
+                                str += settings."${sPre}${evt}_cmd"  ? spanSmBr("    ${sPLUS} Trigger Value ${settings."${sPre}${evt}_cmd".capitalize()}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})") : sBLANK
                             } else {
-                                str += (settings."${sPre}${evt}_cmd" == sABOVE && settings."${sPre}${evt}_high")    ? spanSmBr("    ${sBULLETINV} Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
-                                str += (settings."${sPre}${evt}_cmd" == sBELOW && settings."${sPre}${evt}_low")     ? spanSmBr("    ${sBULLETINV} Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
-                                str += (settings."${sPre}${evt}_cmd" == "equal" && settings."${sPre}${evt}_equal")  ? spanSmBr("    ${sBULLETINV} Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
+                                str += (settings."${sPre}${evt}_cmd" == sABOVE && settings."${sPre}${evt}_high")    ? spanSmBr("    ${sPLUS} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
+                                str += (settings."${sPre}${evt}_cmd" == sBELOW && settings."${sPre}${evt}_low")     ? spanSmBr("    ${sPLUS} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
+                                str += (settings."${sPre}${evt}_cmd" == "equal" && settings."${sPre}${evt}_equal")  ? spanSmBr("    ${sPLUS} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
                             }
                         } else {
-                            str += settings."${sPre}${evt}_cmd"  ? spanSmBr("    ${sBULLETINV} Trigger State: (${settings."${sPre}${evt}_cmd"})") : sBLANK
+                            str += settings."${sPre}${evt}_cmd"  ? spanSmBr("    ${sPLUS} Trigger State: (${settings."${sPre}${evt}_cmd"})") : sBLANK
                         }
-                        str += settings."${sPre}${evt}_nums"               ? spanSmBr("    ${sBULLETINV} Button Numbers: ${settings."${sPre}${evt}_nums"}") : sBLANK
-                        str += settings."${sPre}${evt}_after"              ? spanSmBr("    ${sBULLETINV} Only After: (${settings."${sPre}${evt}_after"} sec)") : sBLANK
-                        str += settings."${sPre}${evt}_after_repeat"       ? spanSmBr("    ${sBULLETINV} Repeat Every: (${settings."${sPre}${evt}_after_repeat"} sec)") : sBLANK
-                        str += settings."${sPre}${evt}_after_repeat_cnt"   ? spanSmBr("    ${sBULLETINV} Repeat Count: (${settings."${sPre}${evt}_after_repeat_cnt"})") : sBLANK
-                        str += (settings."${sPre}${evt}_all" == true)      ? spanSmBr("    ${sBULLETINV} Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
-                        str += settings."${sPre}${evt}_once"               ? spanSmBr("    ${sBULLETINV} Once a Day: (${settings."${sPre}${evt}_once"})") : sBLANK
-                        str += settings."${sPre}${evt}_wait"               ? spanSmBr("    ${sBULLETINV} Wait: (${settings."${sPre}${evt}_wait"})") : sBLANK
-                        str += (settings."${sPre}${evt}_txt" || settings."${sPre}${evt}_after_repeat_txt") ? spanSmBr("    ${sBULLETINV} Custom Responses:") : sBLANK
-                        str += settings."${sPre}${evt}_txt"                ? spanSmBr("       ${sRIGHTARR} Events: (${settings."${sPre}${evt}_txt"?.toString()?.tokenize(";")?.size()} Items)") : sBLANK
-                        str += settings."${sPre}${evt}_after_repeat_txt"   ? spanSmBr("       ${sRIGHTARR} Repeats: (${settings."${sPre}${evt}_after_repeat_txt"?.toString()?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += settings."${sPre}${evt}_nums"               ? spanSmBr("    ${sPLUS} Button Numbers: ${settings."${sPre}${evt}_nums"}") : sBLANK
+                        str += settings."${sPre}${evt}_after"              ? spanSmBr("    ${sPLUS} Only After: (${settings."${sPre}${evt}_after"} sec)") : sBLANK
+                        str += settings."${sPre}${evt}_after_repeat"       ? spanSmBr("    ${sPLUS} Repeat Every: (${settings."${sPre}${evt}_after_repeat"} sec)") : sBLANK
+                        str += settings."${sPre}${evt}_after_repeat_cnt"   ? spanSmBr("    ${sPLUS} Repeat Count: (${settings."${sPre}${evt}_after_repeat_cnt"})") : sBLANK
+                        str += (settings."${sPre}${evt}_all" == true)      ? spanSmBr("    ${sPLUS} Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
+                        str += settings."${sPre}${evt}_once"               ? spanSmBr("    ${sPLUS} Once a Day: (${settings."${sPre}${evt}_once"})") : sBLANK
+                        str += settings."${sPre}${evt}_wait"               ? spanSmBr("    ${sPLUS} Wait (Sec): (${settings."${sPre}${evt}_wait"})") : sBLANK
+                        str += (settings."${sPre}${evt}_txt" || settings."${sPre}${evt}_after_repeat_txt") ? spanSmBr("    ${sPLUS} Custom Responses:") : sBLANK
+                        str += settings."${sPre}${evt}_txt"                ? spanSmBr("       ${sPLUS} Events: (${settings."${sPre}${evt}_txt"?.toString()?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += settings."${sPre}${evt}_after_repeat_txt"   ? spanSmBr("       ${sPLUS} Repeats: (${settings."${sPre}${evt}_after_repeat_txt"?.toString()?.tokenize(";")?.size()} Items)") : sBLANK
                         break
                 }
             }
@@ -4804,25 +4804,24 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
 
 String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
-//    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Conditions Allow Operation: (${(Boolean)conditionStatus().ok ? okSymFLD : notOkSymFLD})\n"
-        str += reqAllCond() ?  " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
+        String str = spanSmBldBr("Conditions Status: " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+        str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if(timeCondConfigured()) {
-            str += " • Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += "    - ${getTimeCondDesc(false)}\n"
+            str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
+            str += spanSmBr("    - ${getTimeCondDesc(false)}")
         }
         if(dateCondConfigured()) {
-            str += " • Date:\n"
-            str += settings.cond_days      ? "    - Days Allowed: (${isDayOfWeek(settings.cond_days) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += settings.cond_months    ? "    - Months Allowed: (${isMonthOfYear(settings.cond_months) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
+            str += spanSmBr(" ${sBULLET} Date:")
+            str += settings.cond_days    ? spanSmBr("    - Days Allowed: " + getOkOrNotSymHTML(isDayOfWeek(settings.cond_days))) : sBLANK
+            str += settings.cond_months  ? spanSmBr("    - Months Allowed: " + getOkOrNotSymHTML(isMonthOfYear(settings.cond_months)))  : sBLANK
         }
-        if(settings.cond_alarm || (settings.cond_mode /*&& settings.cond_mode_cmd*/)) {
-            str += " • Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += settings.cond_alarm ? "    - Alarm Modes Allowed: (${isInAlarmMode(settings.cond_alarm) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            Boolean not = settings.cond_mode_cmd == "not"
-            str += settings.cond_mode ? "    - Allowed Modes (${not ? "not in" : "in"}): (${(isInMode(settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+        if(settings.cond_alarm || (settings.cond_mode)) {
+            str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
+            str += settings.cond_alarm ? spanSmBr("    - Alarm Modes Allowed: " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
+            Boolean not = (settings.cond_mode_cmd == "not")
+            str += settings.cond_mode ? spanSmBr("    - Allowed Modes (${not ? "not in" : "in"}): " + getOkOrNotSymHTML(isInMode(settings.cond_mode, not))) : sBLANK
         }
 
         if(deviceCondConfigured()) {
@@ -4832,27 +4831,28 @@ String getConditionsDesc(Boolean addFoot=true) {
                     if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water", "thermostatMode", "thermostatOperatingState" ]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity", "coolingSetpoint", "heatingSetpoint", "thermostatTemperature"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings."${sPre}${evt}"     ? " • ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
+                    str += settings."${sPre}${evt}"     ? spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) " + getOkOrNotSymHTML(condOk)) : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == sEQUALS && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
-                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
-                        str += (cmd == sABOVE && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
-                        str += (cmd == sBELOW && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
+                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr("    - Value: ( =${cmdEq}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
+                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr("    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr("    - Value: ( >${cmdHigh}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? spanSmBr("    - Value: ( <${cmdLow}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
                     } else {
-                        str += cmd ? "    - Value: (${cmd})${settings."cond_${inType}_avg" ? "(Avg)" : ""}\n" : sBLANK
+                        str += cmd ? spanSmBr("    - Value: (${cmd})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
                     }
-                    str += (settings."${sPre}${evt}_all" == true) ? "    - Require All: (${settings."${sPre}${evt}_all"})\n" : sBLANK
+                    str += (settings."${sPre}${evt}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                 }
             }
         }
         str += addFoot ? inputFooter(sTTM, sCLRGRY) : sBLANK
         return str
     } else {
-        return addFoot ? inputFooter(sTTC, sCLRGRY) : sBLANK
+        log.debug "inputFooter: ${inputFooter(sTTC, sCLRGRY, true)}"
+        return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
     }
 }
 
@@ -4887,8 +4887,8 @@ String getActionDesc(Boolean addFoot=true) {
     Boolean confd = executionConfigured()
 //    String sPre = "act_"
     String str = sBLANK
-    str += addFoot ? spanBldBr("Action:", sNULL) : sBLANK
-    str += addFoot ? spanBr(" ${sBULLET} "+(String)buildActTypeEnum()."${(String)settings.actionType}", sNULL) : sBLANK
+    str += addFoot ? spanSmBr("Action Config:", sNULL) : sBLANK
+    str += addFoot ? spanSmBr(" ${sBULLET} "+(String)buildActTypeEnum()."${(String)settings.actionType}", sNULL) + lineBr() : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
@@ -4896,22 +4896,22 @@ String getActionDesc(Boolean addFoot=true) {
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
-        str += zones?.size() ? "Echo Zones:\n${zones?.collect { " ${sBULLET} ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join("<br>")}\n${eDevs?.size() ? "\n": ""}" : sBLANK
-        str += eDevs?.size() ? "Alexa Devices:${zones?.size() ? " (Inactive Zone default)" : ""}\n${eDevs?.collect { " \u2022 ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join("\n")}\n" : sBLANK
-        str += tierDesc ? "\n${tierDesc}${tierStart || tierStop ? sBLANK : "\n"}" : sBLANK
-        str += tierStart ? tierStart+"\n" : sBLANK
-        str += tierStop ? tierStop+"\n" : sBLANK
-        str += settings.act_volume_change != null ? "New Volume: (${settings.act_volume_change})\n" : sBLANK
-        str += settings.act_volume_restore != null ? "Restore Volume: (${settings.act_volume_restore})\n" : sBLANK
-        str += settings.act_delay ? "Delay: (${settings.act_delay})\n" : sBLANK
-        str += (String)settings.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings."act_${(String)settings.actionType}_txt" ? "Using Default Response: (True)\n" : sBLANK
+        str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) + spanSmBr(zones?.collect { " ${sBULLET} ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join(sLINEBR)) + (eDevs?.size() ? lineBr() : sBLANK) : sBLANK
+        str += eDevs?.size() ? spanSm(strUnder("Alexa Devices:")) + spanSmBr(zones?.size() ? " (Inactive Zone Default)" : sLINEBR, sCLRGRY) + spanSmBr(eDevs?.collect { " ${sBULLET} ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join(sLINEBR)) : sBLANK
+        str += tierDesc ? sLINEBR + spanSm(tierDesc) + (tierStart || tierStop ? sBLANK : sLINEBR) : sBLANK
+        str += tierStart ? spanSmBr(tierStart) : sBLANK
+        str += tierStop ? spanSmBr(tierStop) : sBLANK
+        str += settings.act_volume_change != null ? spanSmBr("New Volume: (${settings.act_volume_change})") : sBLANK
+        str += settings.act_volume_restore != null ? spanSmBr("Restore Volume: (${settings.act_volume_restore})") : sBLANK
+        str += settings.act_delay ? spanSmBr("Delay: (${settings.act_delay})") : sBLANK
+        str += (String)settings.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings."act_${(String)settings.actionType}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
         String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
-        str += trigTasks ? trigTasks : sBLANK
-        str += addFoot ? "\n\n"+sTTM : sBLANK
+        str += trigTasks ? spanSm(trigTasks) : sBLANK
+        str += addFoot ? inputFooter(sTTM) : sBLANK
         // return div(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, "small")
     }
     str += !confd && addFoot ? spanSm("Tap to configure (Required!)", sCLRRED) : sBLANK
-    return div(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, "small")
+    return divSm(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9)
 }
 
 String getTimeCondDesc(Boolean addPre=true) {
@@ -4982,52 +4982,43 @@ static String getAppImg(String imgName) { return "https://raw.githubusercontent.
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
-static String sTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
+static String sTS(String t, String i = sNULL, Boolean bold=false) { return "<h3>${i ? "<img src='${i}' width='42'> " : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>" }
 /* """ */
 
-static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
+static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return "<h3 style='color:${c};font-weight: bold;'>${i ? "<img src='${i}' width='42'> " : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}" }
 
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : ""}${bold ? "<b>" : ""}${i ? """<img src="${i}" width="42"> """ : ""}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 
 
 
-static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return inTS(str, getAppImg(img), clr, und) }
+static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
 static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ").replaceAll("<br>", " "), und), clr, img) }
 
-
-
-@Field static final String sLNBRK       = '<br>'
-@Field static final String sHFONTSM     = 'font-size: small;'
-@Field static final String sHFONTLG     = 'font-size: large;'
-@Field static final String sHFONTBLD    = 'font-weight: bold;'
-
-
-String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
-
 // Root HTML Objects
-static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLNBRK : sBLANK}" : sBLANK }
-static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLNBRK : sBLANK}" : sBLANK }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
 static String spanImgStr(String img=sNULL) { return (String) img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
 static String divImgStr(String str, String img=sNULL) { return (String) str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
 static String strUnder(String str, Boolean showUnd=true) { return (String) str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
 static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
-static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? lineBr(!noBr) + divSmBld(str, clr) : sBLANK }
-
+static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
+static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
 //
 
 // Custom versions of the root objects above
-static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)           : sBLANK }
-static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)     : sBLANK }
-static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)    : sBLANK }
-static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "small")               : sBLANK }
-static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "small", false, true)  : sBLANK }
-static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "small", true)         : sBLANK }
-static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "small", true, true)   : sBLANK }
-static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "medium")              : sBLANK }
-static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "medium", false, true) : sBLANK }
-static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true)        : sBLANK }
-static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true, true)  : sBLANK }
+static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
+static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
+static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
+static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "small")                 : sBLANK }
+static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "small", false, true)    : sBLANK }
+static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "small", true)           : sBLANK }
+static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, "small", true) : sBLANK }
+static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "small", true, true)     : sBLANK }
+static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "medium")                : sBLANK }
+static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "medium", false, true)   : sBLANK }
+static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true)          : sBLANK }
+static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true, true)    : sBLANK }
 
 
 static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
@@ -5041,7 +5032,7 @@ static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { re
 def appFooter() {
 	section() {
 		paragraph htmlLine("orange")
-		paragraph """<div style='color:orange;text-align:center'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+		paragraph "<div style='color:orange;text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target='_blank'><img width=120' height='120' src='https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png'></a><br><br>Please consider donating if you find this integration useful.</div>"
 	}
 }
 
@@ -5086,51 +5077,42 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     releaseTheLock(sHMLF)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
-private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE+addHead(msg) } }
-private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(span(msg, "purple")) } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE+logPrefix(span(msg, "blue")) } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(span(msg, sCLRGRY)) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE+logPrefix(span(msg, sCLRORG)) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError != false) {
-        log.error addHead(msg)
+        log.error logPrefix(msg)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error addHead(a)
+        if(a) log.error logPrefix(span(a, sCLRRED))
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
 }
 
-static String addHead(String msg) {
-    return "Action (v"+appVersionFLD+") | "+msg
+static String logPrefix(String msg) {
+    return "Action (v" + appVersionFLD + ") | " + msg
 }
 
 Map getLogHistory() {
     Boolean aa = getTheLock(sHMLF, "getLogHistory")
     // log.trace "lock wait: ${aa}"
-
     List warn = (List)getMemStoreItem("warnHistory")
-//    warn = warn ?: []
     List errs = (List)getMemStoreItem("errorHistory")
-//    errs = errs ?: []
-
     releaseTheLock(sHMLF)
-
     return [ warnings: []+warn, errors: []+errs ]
 }
 
 private void clearLogHistory() {
-//    String appId = app.getId()
-
     Boolean aa = getTheLock(sHMLF, "clearLogHistory")
     // log.trace "lock wait: ${aa}"
-
     updMemStoreItem("warnHistory", [])
     updMemStoreItem("errorHistory", [])
-
     releaseTheLock(sHMLF)
 }
 
