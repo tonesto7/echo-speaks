@@ -142,7 +142,9 @@ def uhOhPage () {
 
 def appInfoSect()	{
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_actions")), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}"  }
+    String str = spanBldBr(app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
+    str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
+    section() { paragraph divSm(str, sCLRGRY) + htmlLine(sCLRGRY) }
 }
 
 List cleanedTriggerList() {
@@ -647,7 +649,7 @@ def triggersPage() {
 
             if(triggersConfigured()) {
                 section(sBLANK) {
-                    paragraph spanMdBldBr("Step Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
+                    paragraph spanMdBldBr("Trigger Configuration Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
                 }
             }
         }
@@ -1038,7 +1040,7 @@ String actionTypeDesc() {
 def actionTiersPage() {
     return dynamicPage(name: "actionTiersPage", title: sBLANK, install: false, uninstall: false) {
         section() {
-            input "act_tier_cnt", sNUMBER, title: inTS1("Number of Tiers", "equal"), required: true, submitOnChange: true
+            input "act_tier_cnt", sNUMBER, title: inTS1("How many Tiers?", "equal"), required: true, submitOnChange: true
         }
         Integer tierCnt = (Integer)settings.act_tier_cnt
         if(tierCnt) {
@@ -1048,15 +1050,17 @@ def actionTiersPage() {
                         input "act_tier_item_${ti}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", "equal"), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true
                     }
                     if(ti==1 || settings."act_tier_item_${ti}_delay") {
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT), description: settings."act_tier_item_${ti}_txt" ?: "Open Response Designer..."
+                        String inTxt = settings."act_tier_item_${ti}_txt"
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT) + (!inTxt ? spanSm(" (Required)", sCLRRED) : sBLANK), 
+                                description: inTxt ? spanSm(inTxt, sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY)
                     }
-                    input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", "speed_knob"), defaultValue: null, required: false, submitOnChange: true
-                    input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", "speed_knob"), defaultValue: null, required: false, submitOnChange: true
+                    input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", "speed_knob") + spanSm(" (Optional)", "violet"), defaultValue: null, required: false, submitOnChange: true
+                    input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", "speed_knob") + spanSm(" (Optional)", "violet"), defaultValue: null, required: false, submitOnChange: true
                 }
             }
             if(isTierActConfigured()) {
                 section(sBLANK) {
-                    paragraph spanSm("You are all done configuring tier responses.<br><br>Press Next/Done/Save to go back", sNULL, getAppImg("done"))
+                    paragraph spanMdBldBr("Tier Configuration Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
                 }
             }
         }
@@ -1066,15 +1070,15 @@ def actionTiersPage() {
 String getTierRespDesc() {
     Map tierMap = getTierMap() ?: [:]
     String str = sBLANK
-    str += tierMap?.size() ? "Tiered Responses: (${tierMap?.size()})" : sBLANK
+    str += tierMap?.size() ? spanSmBr("Tiered Responses: (${tierMap?.size()})") : sBLANK
     tierMap?.each { k,v->
         if(settings."act_tier_item_${k}_txt") {
-            str += (settings."act_tier_item_${k}_delay") ? "\n ${sBULLET} Tier ${k} delay: (${settings."act_tier_item_${k}_delay"} sec)" : sBLANK
-            str += (settings."act_tier_item_${k}_volume_change") ? "\n ${sBULLET} Tier ${k} volume: (${settings."act_tier_item_${k}_volume_change"})" : sBLANK
-            str += (settings."act_tier_item_${k}_volume_restore") ? "\n ${sBULLET} Tier ${k} restore: (${settings."act_tier_item_${k}_volume_restore"})" : sBLANK
+            str += (settings."act_tier_item_${k}_delay") ? spanSmBr(" ${sBULLET} Tier ${k} delay: (${settings."act_tier_item_${k}_delay"} sec)") : sBLANK
+            str += (settings."act_tier_item_${k}_volume_change") ? spanSmBr(" ${sBULLET} Tier ${k} volume: (${settings."act_tier_item_${k}_volume_change"})") : sBLANK
+            str += (settings."act_tier_item_${k}_volume_restore") ? spanSmBr(" ${sBULLET} Tier ${k} restore: (${settings."act_tier_item_${k}_volume_restore"})") : sBLANK
         }
     }
-    return str != sBLANK ? str : sNULL
+    return str != sBLANK ? str : sBLANK
 }
 
 Boolean isTierAction() {
@@ -1124,11 +1128,12 @@ void tierItemCleanup() {
 def actTextOrTiersInput(String type) {
     if(isTierAction()) {
         String tDesc = getTierRespDesc()
-        href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? sCLR4D9 : sCLRRED)), description: (tDesc ? "${tDesc}\n\n"+sTTM : sTTC)
-        input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
+        href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? sCLR4D9 : sCLRRED)), description: (tDesc ? divSm(tDesc + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sCLRGRY))
+        input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?"), required: false, defaultValue: false, submitOnChange: true
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: sEXTNRL, required: false, title: inTS1("Default Action Response", sTEXT) + spanSmBld(" (Optional)", "violet"), description: settings."${type}" ? spanSm(settings."${type}", sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY, true)
+        href url: textUrl, style: sEXTNRL, title: inTS1("Default Action Response", sTEXT) + spanSmBld(" (Optional)", "violet"), 
+                description: settings."${type}" ? spanSm(settings."${type}", sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY, true)
     }
 }
 
@@ -1510,7 +1515,7 @@ def actionsPage() {
                 }
                 actionSimulationSect()
                 section(sBLANK) {
-                    paragraph spanMdBldBr("Step Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
+                    paragraph spanMdBldBr("Execution Configuration Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
 
@@ -1747,8 +1752,11 @@ Boolean isActDevContConfigured() {
 
 def actionSimulationSect() {
     section(sTS("Simulate Action")) {
-        paragraph pTS("Toggle this to execute the action and see the results.\nWhen global text is not defined, this will generate a random event based on your trigger selections.${act_EchoZones ? "\nTesting with zones requires you to save the app and come back in to test." : sBLANK}", getAppImg("info"), false, sCLR4D9)
-        input "actTestRun", sBOOL, title: inTS1("Test this action?", "testing"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+        String str = spanSmBldBr("Test this action and see the results.", "black", "testing")
+        str += spanSmBldBr("NOTE: ") + spanSmBr("  ${sBULLET} When global text is not defined, this will generate a random event based on your trigger selections.")
+        str += settings.act_EchoZones ? spanSm("  ${sBULLET} Testing with zones requires you to save the app and come back in to test.") : sBLANK
+        paragraph spanSm(str, sCLRGRY)
+        input "actTestRun", sBOOL, title: inTS1("Test this action?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
         if(actTestRun) { executeActTest() }
     }
 }
@@ -1758,7 +1766,6 @@ Boolean customMsgConfigured() { return (settings.notif_use_custom && settings.no
 
 def actNotifPage() {
     return dynamicPage(name: "actNotifPage", title: "Action Notifications", install: false, uninstall: false) {
-        //href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC)
         String a = getAppNotifDesc()
         String b = spanSmBldBr("Notification Overview:", sCLR4D9)
         b += (!a) ? "  ${sBULLET} Notifications not enabled" : a
@@ -1770,7 +1777,7 @@ def actNotifPage() {
             input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), description: ((!settings?.notif_devs) ? inputFooter(sTTC, sCLRGRY, true) : sBLANK), required: false, multiple: true, submitOnChange: true
         }
         section (sTS("Alexa Mobile Notification:")) {
-            paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
+            paragraph spanSmBldBr("Description:", sCLRGRY) + spanSmBld("This will send a push notification the Alexa Mobile app.", sCLRGRY)
             input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
         }
 
@@ -1813,7 +1820,8 @@ def actNotifTimePage() {
          if(a) {
              section() {
                  paragraph spanSmBldBr("Restrictions Status:", sCLR4D9) + spanSm(a, sCLR4D9)
-                 paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm("All selected restrictions must be inactive for notifications to be sent.", sCLR4D9)
+                 paragraph spanSmBldBr("NOTICE: All selected restrictions must be ${strUnder("INACTIVE")} for notifications to be sent.", sCLRORG)
+                 paragraph htmlLine()
              }
          }
         String pre = "notif"
@@ -4665,9 +4673,9 @@ String getAppNotifDesc(Boolean hide=false) {
     String str = sBLANK
     if(isActNotifConfigured()) {
         Boolean ok = getOk2Notify()
-        str += hide ? sBLANK : spanSmBr("Send allowed: " +  getOkOrNotSymHTML(ok))
-        str += ((List)settings.notif_devs) ? spanSmBr(" ${sBULLET} Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})") : sBLANK
-        str += (Boolean)settings.notif_alexa_mobile ? spanSmBr(" ${sBULLET} Alexa Mobile App") : sBLANK
+        str += hide ? sBLANK : spanSmBr(strUnder("Send allowed: ") +  getOkOrNotSymHTML(ok))
+        str += ((List)settings.notif_devs) ? spanSmBr("  ${sBULLET} Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})") : sBLANK
+        str += (Boolean)settings.notif_alexa_mobile ? spanSmBr("  ${sBULLET} Alexa Mobile App") : sBLANK
         String res = getNotifSchedDesc(true)
         str += spanSmBr(res) ?: sBLANK
     }
@@ -4681,14 +4689,13 @@ List getQuietDays() {
 }
 
 String getNotifSchedDesc(Boolean min=false) {
-    String startType = settings.cond_time_start_type
+    String startType = settings.notif_time_start_type
     Date startTime
-    String stopType = settings.cond_time_stop_type
+    String stopType = settings.notif_time_stop_type
     Date stopTime
     List dayInput = settings.notif_days
     List modeInput = settings.notif_modes
     String str = sBLANK
-
     if(startType && stopType) {
         startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
         stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
@@ -4714,13 +4721,11 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "   ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} (${!timeOk ? okSymFLD : notOkSymFLD})" : sBLANK
+    str += (startLbl && stopLbl) ? spanSmBr("     ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} " + getOkOrNotSymHTML(timeOk)) : sBLANK
     List qDays = getQuietDays()
-    String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
-    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
-    a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " ${sBULLET} Restrictions Active: ${getOkOrNotSymHTML(rest)}" + lineBr() + str : sBLANK
+    str += dayInput && qDays ? spanSmBr("     ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
+    str += modeInput ? spanSm("     ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
+    str = str ? spanSmBr("  ${sBULLET} Restrictions Active: " + getOkOrNotSymHTML(rest)) + spanSm(str) : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
@@ -4851,7 +4856,6 @@ String getConditionsDesc(Boolean addFoot=true) {
         str += addFoot ? inputFooter(sTTM, sCLRGRY) : sBLANK
         return str
     } else {
-        log.debug "inputFooter: ${inputFooter(sTTC, sCLRGRY, true)}"
         return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
     }
 }
@@ -4887,8 +4891,8 @@ String getActionDesc(Boolean addFoot=true) {
     Boolean confd = executionConfigured()
 //    String sPre = "act_"
     String str = sBLANK
-    str += addFoot ? spanSmBr("Action Config:", sNULL) : sBLANK
-    str += addFoot ? spanSmBr(" ${sBULLET} "+(String)buildActTypeEnum()."${(String)settings.actionType}", sNULL) + lineBr() : sBLANK
+    str += addFoot ? spanSmBr(strUnder("Action Type:")) : sBLANK
+    str += addFoot ? spanSmBr(" ${sBULLET} " + (String)buildActTypeEnum()."${(String)settings.actionType}") + lineBr() : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
         def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
@@ -4896,7 +4900,7 @@ String getActionDesc(Boolean addFoot=true) {
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
-        str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) + spanSmBr(zones?.collect { " ${sBULLET} ${it?.value?.name} (${it?.value?.active == true ? "Active" : "Inactive"})" }?.join(sLINEBR)) + (eDevs?.size() ? lineBr() : sBLANK) : sBLANK
+        str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) + spanSmBr(zones?.collect { " ${sBULLET} ${it?.value?.name} ${it?.value?.active == true ? spanSm("(Active)", sCLRGRN2) : spanSm("(Inactive)", sCLRGRY)}" }?.join(sLINEBR)) + (eDevs?.size() ? lineBr() : sBLANK) : sBLANK
         str += eDevs?.size() ? spanSm(strUnder("Alexa Devices:")) + spanSmBr(zones?.size() ? " (Inactive Zone Default)" : sLINEBR, sCLRGRY) + spanSmBr(eDevs?.collect { " ${sBULLET} ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join(sLINEBR)) : sBLANK
         str += tierDesc ? sLINEBR + spanSm(tierDesc) + (tierStart || tierStop ? sBLANK : sLINEBR) : sBLANK
         str += tierStart ? spanSmBr(tierStart) : sBLANK
