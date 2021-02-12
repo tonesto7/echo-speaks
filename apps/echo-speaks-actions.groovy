@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-10"
+@Field static final String appModifiedFLD = "2021-02-12"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -233,7 +233,7 @@ def mainPage() {
                 }
                 section(sTS("Configuration: Part 3")) {
                     if((String)settings.actionType && trigConf) {
-                        href "conditionsPage", title: inTS1("Conditions/Restrictions", "conditions") + spanSmBld(" (Optional)", "violet"), description: spanSm(getConditionsDesc(true), sCLR4D9)
+                        href "conditionsPage", title: inTS1("Conditions/Restrictions", "conditions") + optPrefix(), description: spanSm(getConditionsDesc(true), sCLR4D9)
                     } else { paragraph spanBld("These options will be shown once the triggers are configured.", sNULL, getAppImg("info")) }
                 }
                 section(sTS("Configuration: Part 4")) {
@@ -244,7 +244,7 @@ def mainPage() {
                 if(allOk) {
                     section(sTS("Notifications:")) {
                         String t0 = getAppNotifDesc()
-                        href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sCLRGRY, true)
+                        href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inactFoot(sTTC)
                     }
                     // getTierStatusSection()
 
@@ -278,8 +278,8 @@ def mainPage() {
                 section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
                     String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28ACTIONS+BUG%29+&projects=echo-speaks%2F6"
                     String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BActions+Feature+Request%5D&projects=echo-speaks%2F6"
-                    href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
-                    href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
+                    href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: inactFoot("Tap to open browser")
+                    href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: inactFoot("Tap to open browser")
                 }
             }
         }
@@ -392,13 +392,13 @@ def triggersPage() {
                                     if(schedRecur) {
                                         switch(schedRecur) {
                                             case "Daily":
-                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Only of these Days of the Week?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: daysOfWeekMap()
+                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Only of these Days of the Week?", "day_calendar") + optPrefix(), description: sBLANK, multiple: true, required: false, submitOnChange: true, options: daysOfWeekMap()
                                                 break
 
                                             case "Weekly":
-                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Days of the Week?", "day_calendar"), description: sBLANK, multiple: true, required: true, submitOnChange: true, options: daysOfWeekMap()
-                                                input "trig_scheduled_weeks", sENUM, title: inTS1("Only these Weeks on the Month?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: weeksOfMonthMap()
-                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: monthMap()
+                                                input "trig_scheduled_weekdays", sENUM, title: inTS1("Days of the Week?", "day_calendar") + optPrefix(), description: sBLANK, multiple: true, required: true, submitOnChange: true, options: daysOfWeekMap()
+                                                input "trig_scheduled_weeks", sENUM, title: inTS1("Only these Weeks on the Month?", "day_calendar") + optPrefix(), description: sBLANK, multiple: true, required: false, submitOnChange: true, options: weeksOfMonthMap()
+                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar") + optPrefix(), description: sBLANK, multiple: true, required: false, submitOnChange: true, options: monthMap()
                                                 break
 
                                             case "Monthly":
@@ -450,8 +450,8 @@ def triggersPage() {
                 section (sTS("Mode Events"), hideable: true) {
                     input "trig_mode", sMODE, title: inTS1("Location Modes", sMODE), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_mode) {
-                        input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)" + spanSm("(Optional)", "violet"), "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc(sMODE, false, trigItemCnt++)
                     }
                 }
@@ -463,7 +463,7 @@ def triggersPage() {
                     if(settings.trig_pistonExecuted) {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)" + spanSm("(Optional)", "violet"), "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
                         triggerVariableDesc("pistonExecuted", false, trigItemCnt++)
                     }
                 }
@@ -704,14 +704,13 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     if(settings."trig_${inType}_after") {
                         input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         if(settings."trig_${inType}_after_repeat") {
-                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times? (Optional)", sNULL, "question"), required: false, defaultValue: null, submitOnChange: true
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, "question")  + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
                         }
                     }
                 }
                 if(!settings."trig_${inType}_after") {
-                    " (per type: ${inType})"
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, "question") + spanSm(" (Optional)", "violet"), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, "delay_time") + spanSm(" (Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
+                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, "question") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                 }
                 triggerVariableDesc(inType, true, trigItemCnt)
             }
@@ -747,8 +746,8 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                             input "trig_${inType}_avg", sBOOL, title: spanSmBld("Use the average of all selected device values?", sNULL, sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, "question") + spanSm(" (Optional)", "violet"), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (In Seconds)?", sNULL, "question") + spanSm(" (Optional)", "violet"), required: false, defaultValue: 120, submitOnChange: true
+                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, "question") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (In Seconds)?", sNULL, "question") + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
                     triggerVariableDesc(inType, false, trigItemCnt)
                 }
             }
@@ -998,7 +997,7 @@ def triggerVariableDesc(String inType, Boolean showRepInputs=false, Integer item
         str += spanSmBr("   ${sBULLET} ${strUnder("3")}: Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)")
         paragraph divSm(str, sCLRGRY, "info")
         //Custom Text Options
-        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: spanSm("Custom ${inType?.capitalize()} Responses (Optional)", sNULL, sTEXT), 
+        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + spanSm("(Optional)", "violet"), 
             description: (settings."trig_${inType}_txt" ? spanSm(settings."trig_${inType}_txt", sCLR4D9) : sBLANK) + spanSm("Open Response Designer...", sCLRGRY)
         if(showRepInputs) {
             if(settings."trig_${inType}_after_repeat") {
@@ -1052,10 +1051,10 @@ def actionTiersPage() {
                     if(ti==1 || settings."act_tier_item_${ti}_delay") {
                         String inTxt = settings."act_tier_item_${ti}_txt"
                         href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT) + (!inTxt ? spanSm(" (Required)", sCLRRED) : sBLANK), 
-                                description: inTxt ? spanSm(inTxt, sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY)
+                                description: inTxt ? spanSm(inTxt, sCLR4D9) : inactFoot("Open Response Designer...")
                     }
-                    input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", "speed_knob") + spanSm(" (Optional)", "violet"), defaultValue: null, required: false, submitOnChange: true
-                    input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", "speed_knob") + spanSm(" (Optional)", "violet"), defaultValue: null, required: false, submitOnChange: true
+                    input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", "speed_knob") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                    input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", "speed_knob") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
                 }
             }
             if(isTierActConfigured()) {
@@ -1132,8 +1131,8 @@ def actTextOrTiersInput(String type) {
         input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?"), required: false, defaultValue: false, submitOnChange: true
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: sEXTNRL, title: inTS1("Default Action Response", sTEXT) + spanSmBld(" (Optional)", "violet"), 
-                description: settings."${type}" ? spanSm(settings."${type}", sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY, true)
+        href url: textUrl, style: sEXTNRL, title: inTS1("Default Action Response", sTEXT) + optPrefix(), 
+                description: settings."${type}" ? spanSm(settings."${type}", sCLR4D9) : inactFoot("Open Response Designer...")
     }
 }
 
@@ -1499,7 +1498,7 @@ def actionsPage() {
             }
             if(done) {
                 section(sTS("Delay Config:")) {
-                    input "act_delay", sNUMBER, title: inTS1("Delay Action in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true
+                    input "act_delay", sNUMBER, title: inTS1("Delay Action in Seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
                 }
                 if(isTierAct && (Integer)settings.act_tier_cnt > 1) {
                     section(sTS("Tier Action Start Tasks:")) {
@@ -1564,12 +1563,12 @@ def actTrigTasksPage(params) {
             if(!webCoREFLD) webCoRE_init()
         }
         section(sTS("Control Devices:")) {
-            input "${t}switches_on", "capability.switch", title: inTS1("Turn ON these Switches${dMap?.def}\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
-            input "${t}switches_off", "capability.switch", title: inTS1("Turn OFF these Switches${dMap?.def}\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
+            input "${t}switches_on", "capability.switch", title: inTS1("Turn ON these Switches${dMap?.def}", sSWITCH) + optPrefix(), multiple: true, required: false, submitOnChange: true
+            input "${t}switches_off", "capability.switch", title: inTS1("Turn OFF these Switches${dMap?.def}", sSWITCH) + optPrefix(), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Lights:")) {
-            input "${t}lights", "capability.switch", title: inTS1("Turn ON these Lights${dMap?.def}\n(Optional)", "light"), multiple: true, required: false, submitOnChange: true
+            input "${t}lights", "capability.switch", title: inTS1("Turn ON these Lights${dMap?.def}", "light") + optPrefix(), multiple: true, required: false, submitOnChange: true
             if(settings."${t}lights") {
                 List lights = settings."${t}lights"
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
@@ -1577,53 +1576,53 @@ def actTrigTasksPage(params) {
                     settingRemove("${t}lights_color".toString())
                     settingRemove("${t}lights_color_delay".toString())
                 } else {
-                    input "${t}lights_color", sENUM, title: inTS1("To this color?\n(Optional)", sCOMMAND), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true
+                    input "${t}lights_color", sENUM, title: inTS1("To this color?", sCOMMAND) + optPrefix(), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true
                     if(settings."${t}lights_color") {
-                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?\n(Optional)", "delay"), required: false, submitOnChange: true
+                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?", "delay") + optPrefix(), required: false, submitOnChange: true
                     }
                 }
                 if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
                     paragraph spanSmBld("Not all selected devices support level. So level option is hidden.", sCLRRED)
                     settingRemove("${t}lights_level".toString())
-                } else { input "${t}lights_level", sENUM, title: inTS1("At this level?\n(Optional)", "speed_knob"), options: dimmerLevelEnum(), required: false, submitOnChange: true }
+                } else { input "${t}lights_level", sENUM, title: inTS1("At this level?", "speed_knob") + optPrefix(), options: dimmerLevelEnum(), required: false, submitOnChange: true }
             }
         }
 
         section(sTS("Control Locks:")) {
-            input "${t}locks_lock", "capability.lock", title: inTS1("Lock these Locks${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
-            input "${t}locks_unlock", "capability.lock", title: inTS1("Unlock these Locks${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
+            input "${t}locks_lock", "capability.lock", title: inTS1("Lock these Locks${dMap?.def}", "lock") + optPrefix(), multiple: true, required: false, submitOnChange: true
+            input "${t}locks_unlock", "capability.lock", title: inTS1("Unlock these Locks${dMap?.def}", "lock") + optPrefix(), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Keypads:")) {
-            input "${t}securityKeypads_disarm", "capability.securityKeypad", title: inTS1("Disarm these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
-            input "${t}securityKeypads_armHome", "capability.securityKeypad", title: inTS1("Arm Home these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
-            input "${t}securityKeypads_armAway", "capability.securityKeypad", title: inTS1("Arm Away these Keypads${dMap?.def}\n(Optional)", "lock"), multiple: true, required: false, submitOnChange: true
+            input "${t}securityKeypads_disarm", "capability.securityKeypad", title: inTS1("Disarm these Keypads${dMap?.def}", "lock") + optPrefix(), multiple: true, required: false, submitOnChange: true
+            input "${t}securityKeypads_armHome", "capability.securityKeypad", title: inTS1("Arm Home these Keypads${dMap?.def}", "lock") + optPrefix(), multiple: true, required: false, submitOnChange: true
+            input "${t}securityKeypads_armAway", "capability.securityKeypad", title: inTS1("Arm Away these Keypads${dMap?.def}", "lock") + optPrefix(), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Doors:")) {
-            input "${t}doors_close", "capability.garageDoorControl", title: inTS1("Close these Garage Doors${dMap?.def}\n(Optional)", "garage_door"), multiple: true, required: false, submitOnChange: true
-            input "${t}doors_open", "capability.garageDoorControl", title: inTS1("Open these Garage Doors${dMap?.def}\n(Optional)", "garage_door"), multiple: true, required: false, submitOnChange: true
+            input "${t}doors_close", "capability.garageDoorControl", title: inTS1("Close these Garage Doors${dMap?.def}", "garage_door") + optPrefix(), multiple: true, required: false, submitOnChange: true
+            input "${t}doors_open", "capability.garageDoorControl", title: inTS1("Open these Garage Doors${dMap?.def}", "garage_door") + optPrefix(), multiple: true, required: false, submitOnChange: true
         }
 
         section(sTS("Control Siren:")) {
-            input "${t}sirens", "capability.alarm", title: inTS1("Activate these Sirens${dMap?.def}\n(Optional)", "siren"), multiple: true, required: false, submitOnChange: true
+            input "${t}sirens", "capability.alarm", title: inTS1("Activate these Sirens${dMap?.def}", "siren") + optPrefix(), multiple: true, required: false, submitOnChange: true
             if(settings."${t}sirens") {
-                input "${t}siren_cmd", sENUM, title: inTS1("Alarm action to take${dMap?.def}\n(Optional)", sCOMMAND), options: ["both": "Siren & Stobe", "strobe":"Strobe Only", "siren":"Siren Only"], multiple: false, required: true, submitOnChange: true
+                input "${t}siren_cmd", sENUM, title: inTS1("Alarm action to take${dMap?.def}", sCOMMAND) + optPrefix(), options: ["both": "Siren & Stobe", "strobe":"Strobe Only", "siren":"Siren Only"], multiple: false, required: true, submitOnChange: true
                 input "${t}siren_time", sNUMBER, title: inTS1("Stop after (x) seconds...", "delay"), required: true, submitOnChange: true
             }
         }
         section(sTS("Location Actions:")) {
-            input "${t}mode_run", sENUM, title: inTS1("Set Location Mode${dMap?.def}\n(Optional)", sMODE), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true
-            input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}\n(Optional)", "alarm_home"), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true
+            input "${t}mode_run", sENUM, title: inTS1("Set Location Mode${dMap?.def}", sMODE) + optPrefix(), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true
+            input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}", "alarm_home") + optPrefix(), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true
 
             if(settings.enableWebCoRE) {
-                input "${t}piston_run", sENUM, title: inTS("Execute a piston${dMap?.def}\n(Optional)", webCore_icon()), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true
+                input "${t}piston_run", sENUM, title: inTS("Execute a piston${dMap?.def}", webCore_icon()) + optPrefix(), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true
             }
         }
 
         if(actTasksConfiguredByType(t)) {
             section("Delay before running Tasks: ") {
-                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true
+                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in Seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
             }
         }
     }
@@ -1704,7 +1703,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
 //        str += settings."${t}routine_run" ? aStr+"Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
         str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr+"Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
-    return str != sBLANK ? (isInpt ? divSm(spanSmBr(str) + inputFooter(sTTM), sCLR4D9) : str) : (isInpt ? spanSmBr("On trigger control devices, set mode, set alarm state, execute WebCore Pistons", sCLRGRY) + inputFooter(sTTC, sCLRGRY) : sNULL)
+    return str != sBLANK ? (isInpt ? divSm(spanSmBr(str) + inputFooter(sTTM), sCLR4D9) : str) : (isInpt ? spanSmBr("On trigger control devices, set mode, set alarm state, execute WebCore Pistons", sCLRGRY) + inactFoot(sTTC) : sNULL)
 }
 
 private flashLights(data) {
@@ -1774,7 +1773,7 @@ def actNotifPage() {
         }
 
         section (sTS("Notification Devices:")) {
-            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), description: ((!settings?.notif_devs) ? inputFooter(sTTC, sCLRGRY, true) : sBLANK), required: false, multiple: true, submitOnChange: true
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), description: ((!settings?.notif_devs) ? inactFoot(sTTC) : sBLANK), required: false, multiple: true, submitOnChange: true
         }
         section (sTS("Alexa Mobile Notification:")) {
             paragraph spanSmBldBr("Description:", sCLRGRY) + spanSmBld("This will send a push notification the Alexa Mobile app.", sCLRGRY)
@@ -1803,7 +1802,7 @@ def actNotifPage() {
         if(isActNotifConfigured()) {
             section(sTS("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
-                href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? divSm(spanSmBr(nsd) + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sCLRGRY, true))
+                href "actNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? divSm(spanSmBr(nsd) + inputFooter(sTTM), sCLR4D9) : inactFoot(sTTC))
             }
             if(!(Boolean)state.notif_message_tested) {
                 def actDevices = (Boolean)settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
@@ -1858,10 +1857,10 @@ def ssmlInfoSection() {
     String ssmlSpeechConsUrl = "https://developer.amazon.com/docs/custom-skills/speechcon-reference-interjections-english-us.html"
     section(sTS("SSML Documentation:"), hideable: true, hidden: true) {
         paragraph spanSmBldBr("What is SSML?", sCLR4D9) + spanSm("SSML allows for changes in tone, speed, voice, emphasis. As well as using MP3, and access to the Sound Library", sCLR4D9)
-        href url: ssmlDocsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SSML Docs", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
-        href url: ssmlSoundsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Sound Library", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
-        href url: ssmlSpeechConsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SpeechCons", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
-        href url: ssmlTestUrl, style: sEXTNRL, required: false, title: inTS1("SSML Designer and Tester", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
+        href url: ssmlDocsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SSML Docs", "www"), description: inactFoot("Tap to open browser")
+        href url: ssmlSoundsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Sound Library", "www"), description: inactFoot("Tap to open browser")
+        href url: ssmlSpeechConsUrl, style: sEXTNRL, required: false, title: inTS1("Amazon SpeechCons", "www"), description: inactFoot("Tap to open browser")
+        href url: ssmlTestUrl, style: sEXTNRL, required: false, title: inTS1("SSML Designer and Tester", "www"), description: inactFoot("Tap to open browser")
     }
 }
 /*
@@ -1938,9 +1937,9 @@ private echoDevicesInputByPerm(String type) {
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices${devsOpt ? "\n(Optional backup)" : sBLANK}", "echo_gen1"), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true
+            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices", "echo_gen1") + (devsOpt ? spanSm(" (Optional backup)", "violet") : sBLANK), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true
             List aa = settings.act_EchoDevices
-            List devIt = aa.collect { it ? it.toInteger():null }
+            List devIt = aa.collect { it ? it.toInteger() : null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
         } else { paragraph pTS("No devices were found with support for ($type)", sNULL, true, sCLRRED) }
     }
@@ -1950,18 +1949,29 @@ private echoDevicesInputByPerm(String type) {
 private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmVol=false) {
     if(showAlrmVol) {
         section(sTS("Volume Options:")) {
-            input "act_alarm_volume", sNUMBER, title: inTS1("Alarm Volume\n(Optional)", "speed_knob"), range: "0..100", required: false, submitOnChange: true
+            input "act_alarm_volume", sNUMBER, title: inTS1("Alarm Volume", "speed_knob") + optPrefix(), description: inactFoot("(0% - 100%)"), range: "0..100", required: false, submitOnChange: true
         }
     } else {
         if((devices || settings.act_EchoZones) && (String)settings.actionType in ["speak", "announcement", "weather", "sounds", "builtin", "music", "calendar", "playback"]) {
             Map volMap = devsSupportVolume(devices)
             Integer volMapSiz = volMap?.n?.size()
             Integer devSiz = devices?.size()
+            // List zoneList = (List)settings.act_EchoZones || []
+            // if(zoneList.size()>1) {
+            //     section(sTS("Per Zone Volume Options:")) {
+            //         input "act_EchoZones_vol_per_zone", sBOOL, title: inTS1("Set Per Zone Volume?", "question"), defaultValue: false, submitOnChange: true
+            //         if((Boolean)settings.act_EchoZones_vol_per_zone) {
+            //             Map echoZones = getZones()
+            //             log.debug "echoZones: $echoZones"
+                        
+            //         }
+            //     }
+            // }
             section(sTS("Volume Options:")) {
-                if(volMapSiz > 0 && volMapSiz < devSiz) { paragraph "Some of the selected devices do not support volume control" }
-                else if(devSiz == volMapSiz) { paragraph "Some of the selected devices do not support volume control"; return }
-                input "act_volume_change", sNUMBER, title: inTS1("Volume Level\n(Optional)", "speed_knob"), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
-                if(!showVolOnly) { input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume\n(Optional)", "speed_knob"), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true }
+                if(volMapSiz > 0 && volMapSiz < devSiz) { paragraph spanSmBld("NOTICE:<br>Some of the selected devices do not support volume control", sCLRORG) }
+                else if(devSiz == volMapSiz) { paragraph spanSmBld("Some of the selected devices do not support volume control", sCLRORG); return }
+                input "act_volume_change", sNUMBER, title: inTS1("Volume Level", "speed_knob") + optPrefix(), description: inactFoot("(0% - 100%)"), range: "0..100", required: false, submitOnChange: true
+                if(!showVolOnly) { input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume", "speed_knob") + optPrefix(), description: inactFoot("(0% - 100%)"), range: "0..100", required: false, submitOnChange: true }
             }
         }
     }
@@ -1991,7 +2001,7 @@ def condTimePage() {
 
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
-        section(sBLANK) { paragraph "This will delete this Echo Speaks Action." }
+        section(sBLANK) { paragraph spanSmBld("This will delete this Echo Speaks Action.", sCLRORG) }
     }
 }
 
@@ -4856,7 +4866,7 @@ String getConditionsDesc(Boolean addFoot=true) {
         str += addFoot ? inputFooter(sTTM, sCLRGRY) : sBLANK
         return str
     } else {
-        return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
+        return addFoot ? inactFoot(sTTC) : sBLANK
     }
 }
 
@@ -5008,6 +5018,9 @@ static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${ok
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
 static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
+static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, false) : sBLANK }
+static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, true) : sBLANK }
+static String optPrefix() { return spanSm(" (Optional)", "violet") }
 //
 
 // Custom versions of the root objects above
