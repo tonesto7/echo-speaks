@@ -5024,8 +5024,8 @@ static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${ok
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
 static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
 static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
-static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, false) : sBLANK }
-static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, true) : sBLANK }
+static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, true) : sBLANK }
+static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, false) : sBLANK }
 static String optPrefix() { return spanSm(" (Optional)", "violet") }
 //
 

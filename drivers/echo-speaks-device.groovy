@@ -21,15 +21,25 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.5.0"
-@Field static final String appModifiedFLD = "2021-02-04"
+@Field static final String devVersionFLD  = "4.0.7.0"
+@Field static final String appModifiedFLD = "2021-02-15"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
+@Field static final String sLINEBR        = '<br>'
 @Field static final String sTRUE          = 'true'
 @Field static final String sFALSE         = 'false'
+@Field static final String sMEDIUM        = 'medium'
+@Field static final String sSMALL         = 'small'
+@Field static final String sCLR4D9        = '#2784D9'
+@Field static final String sCLRRED        = 'red'
+@Field static final String sCLRRED2       = '#cc2d3b'
+@Field static final String sCLRGRY        = 'gray'
+@Field static final String sCLRGRN        = 'green'
+@Field static final String sCLRGRN2       = '#43d843'
+@Field static final String sCLRORG        = 'orange'
 @Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
@@ -3149,31 +3159,33 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
     updMemStoreItem(logKey, eData)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
-private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
-private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info logPrefix(msg, "#0299b1") } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError != false) {
-        log.error addHead(msg)
+        log.error logPrefix(msg, sCLRRED)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error addHead(a)
+        if(a) log.error logPrefix(a, sCLRRED)
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, null, 15) }
 }
 
-static String addHead(String msg) {
-    return "Echo ("+devVersionFLD+") | "+msg
+static String logPrefix(String msg, String color = sNULL) {
+    return span("Echo (v" + devVersionFLD + ") | ", sCLRGRY) + span(msg, color)
 }
 
 Map getLogHistory() {
     return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [], speech: getMemStoreItem("speechHistory") ?: [] ]
 }
+
 public clearLogHistory() {
     updMemStoreItem("warnHistory", [])
     updMemStoreItem("errorHistory",[])

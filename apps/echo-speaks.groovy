@@ -141,8 +141,6 @@ def startPage() {
 def mainPage() {
     Boolean tokenOk = getAccessToken()
     Boolean newInstall = !(Boolean)state.isInstalled
-//    Boolean resumeConf = ((Boolean)state.resumeConfig == true)
-    //if((Boolean)state.refreshDeviceData) { getEchoDevices(true) }
 
 // force defaults
     if(settings.autoCreateDevices == null) settingUpdate("autoCreateDevices", sTRUE, sBOOL)
@@ -2275,7 +2273,7 @@ private List getAllDeviceVolumes(Boolean frc=false) {
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             Map rData = response?.data ?: [:]
-            log.debug "Device Volumes: ${rData.volumes}"
+            // log.debug "Device Volumes: ${rData.volumes}"
             state.deviceVolumes = rData && rData.volumes ? rData.volumes : []
             volumes = rData && rData.volumes ? rData.volumes : []
             updTsVal("deviceVolumeUpdDt")
@@ -4306,8 +4304,8 @@ static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${ok
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
 static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
 static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
-static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, false) : sBLANK }
-static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, true) : sBLANK }
+static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, true) : sBLANK }
+static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, false) : sBLANK }
 static String optPrefix() { return spanSm(" (Optional)", "violet") }
 //
 
@@ -4346,7 +4344,7 @@ static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
 static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP }
+def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
 
 String getAppEndpointUrl(subPath)   { return "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
 
@@ -5443,7 +5441,7 @@ def appInfoSect() {
         section() {
             Map params = [ assignees: "tonesto7", labels: "add_device_support", title: "[ADD DEVICE SUPPORT] (${unkDevs?.size()}) Devices", body: "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString() ]
             def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
-            href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: "Tap to open browser"
+            href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: spanSm("Tap to open browser", sCLRGRY)
         }
     }
 }
