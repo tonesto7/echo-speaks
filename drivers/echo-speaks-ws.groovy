@@ -27,6 +27,7 @@ import groovy.transform.Field
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
+@Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
 @Field static final String sMEDIUM        = 'medium'
 @Field static final String sSMALL         = 'small'
@@ -819,4 +820,3 @@ static void mb(String meth=sNULL){
         theMBLockFLD.release()
     }
 }
-
