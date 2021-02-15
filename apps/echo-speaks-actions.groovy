@@ -120,7 +120,6 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-//            state.isParent = false
             List aa = settings.act_EchoDevices
             List devIt = aa.collect { it ? it.toInteger() : null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
@@ -4860,18 +4859,18 @@ String getConditionsDesc(Boolean addFoot=true) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr("    - Value: ( =${cmdEq}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
-                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr("    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
-                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr("    - Value: ( >${cmdHigh}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
-                        str += (cmd == sBELOW && cmdLow) ? spanSmBr("    - Value: ( <${cmdLow}${attUnit(evt)})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
+                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr("    - Value: ( =${cmdEq}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr("    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr("    - Value: ( >${cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? spanSmBr("    - Value: ( <${cmdLow}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
                     } else {
-                        str += cmd ? spanSmBr("    - Value: (${cmd})" + settings."cond_${inType}_avg" ? "(Avg)" : sBLANK) : sBLANK
+                        str += cmd ? spanSmBr("    - Value: (${cmd})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
                     }
                     str += (settings."${sPre}${evt}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                 }
             }
         }
-        str += addFoot ? inputFooter(sTTM, sCLRGRY) : sBLANK
+        str += addFoot ? inputFooter(sTTM) : sBLANK
         return str
     } else {
         return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
@@ -5423,7 +5422,6 @@ public Map getSettingsAndStateMap() {
         "tierSchedActive",
         // zones
         "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", "handleGuardEvents", "startTime", "stopTime", "alexaGuardState", "appFlagsMap",
-
         "dupPendingSetup", "dupOpenedByUser"
 
     ]

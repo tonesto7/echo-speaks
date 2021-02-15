@@ -17,34 +17,46 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.6.0"
-@Field static final String appModifiedFLD = "2021-02-06"
+@Field static final String appVersionFLD  = "4.0.7.0"
+@Field static final String appModifiedFLD = "2021-02-15"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
 
-@Field static final String sNULL          = (String) null
+@Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sBULLET        = '\u2022'
+@Field static final String sBULLETINV     = '\u25E6'
+@Field static final String sSQUARE        = '\u29C8'
+@Field static final String sPLUS          = '\u002B'
+@Field static final String sRIGHTARR      = '\u02C3'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
 @Field static final String sPAUSESymFLD   = "\u275A\u275A"
+@Field static final String sLINEBR        = '<br>'
 @Field static final String sFALSE         = 'false'
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
 @Field static final String sENUM          = 'enum'
-@Field static final String sMODE          = 'mode'
 @Field static final String sNUMBER        = 'number'
 @Field static final String sTEXT          = 'text'
 @Field static final String sTIME          = 'time'
+@Field static final String sMODE          = 'mode'
 @Field static final String sCOMPLT        = 'complete'
+@Field static final String sMEDIUM        = 'medium'
+@Field static final String sSMALL         = 'small'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
+@Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
+@Field static final String sCLRGRN        = 'green'
+@Field static final String sCLRGRN2       = '#43d843'
+@Field static final String sCLRORG        = 'orange'
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
-//@Field static final String sTTP           = 'Tap to proceed...'
+@Field static final String sTTCR          = 'Tap to configure (Required)'
+@Field static final String sTTP           = 'Tap to proceed...'
 @Field static final String sTTS           = 'Tap to select...'
 @Field static final String sSETTINGS      = 'settings'
 @Field static final String sRESET         = 'reset'
@@ -74,7 +86,7 @@ preferences {
     page(name: "startPage")
     page(name: "uhOhPage")
     page(name: "codeUpdatePage")
-    page(name: "mainPage", install: false, uninstall: false)
+    page(name: "mainPage")
     page(name: "prefsPage")
     page(name: "conditionsPage")
     page(name: "condTimePage")
@@ -89,95 +101,102 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-//            state.isParent = false
             List aa = settings.zone_EchoDevices
-            List devIt = aa.collect { it ? it.toInteger():null }
+            List devIt = aa.collect { it ? it.toInteger() : null }
             app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
             return (minVersionFailed()) ? codeUpdatePage() : mainPage()
         }
     } else { return uhOhPage() }
 }
 
-def appInfoSect() {
-    def instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@'h:mm a", true) : null
-    section() { href "empty", title: pTS("${app?.name}", getAppImg("es_groups", true)), description: "${instDt ? "Installed: ${instDt}\n" : sBLANK}Version: ${appVersionFLD}" }
-}
-
 def codeUpdatePage () {
     return dynamicPage(name: "codeUpdatePage", title: "Update is Required", install: false, uninstall: false) {
-        section() { paragraph "Looks like your Zone App needs an update\n\nPlease make sure all app and device code is updated to the most current version\n\nOnce updated your zones will resume normal operation.", required: true, state: null }
+        section() { paragraph spanSmBld("Looks like your Zone App needs an update<br><br>Please make sure all app and device code is updated to the most current version<br><br>Once updated your zones will resume normal operation.", sCLRRED) }
     }
 }
 
 def uhOhPage () {
     return dynamicPage(name: "uhOhPage", title: "This install Method is Not Allowed", install: false, uninstall: true) {
         section() {
-            def str = "HOUSTON WE HAVE A PROBLEM!\n\nEcho Speaks - Zones can't be directly installed from the Marketplace.\n\nPlease use the Echo Speaks SmartApp to configure them."
-            paragraph str, required: true, state: null
+            paragraph spanBld("HOUSTON WE HAVE A PROBLEM!<br><br>Echo Speaks - Zones can't be directly installed from the Marketplace.<br><br>Please use the Echo Speaks SmartApp to configure them.", sCLRRED)
         }
     }
 }
 
+def appInfoSect()	{
+    String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
+    String str = spanBldBr(app.name, "black", "es_groups")
+    str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
+    str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
+    section() { paragraph divSm(str, sCLRGRY) }
+}
+
 def mainPage() {
     Boolean newInstall = (!(Boolean)state.isInstalled)
-    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? "" : "namePage"), uninstall: newInstall, install: !newInstall) {
+    return dynamicPage(name: "mainPage", nextPage: (!newInstall ? sBLANK : "namePage"), uninstall: newInstall, install: !newInstall) {
         Boolean dup = (settings.duplicateFlag == true && state.dupPendingSetup)
         if(dup) {
             state.dupOpenedByUser = true
-            section() { paragraph pTS("This Zone was created from an existing zone.\n\nPlease review the settings and save to activate...\n${state.badMode ?: sBLANK}", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null }
+            section() { paragraph spanBld("This Zone was created from an existing zone.<br><br>Please review the settings and save to activate...<br>${state.badMode ?: sBLANK}", sCLRORG, "pause_orange") }
         }
         appInfoSect()
         Boolean paused = isPaused()
         if(paused) {
             section() {
-                paragraph pTS("This Zone is currently disabled...\nTo edit the please re-enable it.", getAppImg("pause_orange", true), false, sCLRRED), required: true, state: null
+                paragraph spanSmBlr("This Zone is currently disabled...<br>To edit the please re-enable it.", sCLRRED, "pause_orange")
             }
         } else {
             if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
             Boolean condConf = conditionsConfigured()
-            section(sTS("Zone Configuration:")) {
-                href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions"), description: getConditionsDesc(), required: true, state: (condConf ? sCOMPLT: null)
+            section(sectHead("Zone Configuration:")) {
+                href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: spanSm(getConditionsDesc(true), sCLR4D9)
                 if(condConf) { echoDevicesInputByPerm("announce") }
             }
 
             if(settings.zone_EchoDevices) {
-                section(sTS("Condition Delays:")) {
-                    input "zone_active_delay", sNUMBER, title: inTS1("Delay Activation in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true
-                    input "zone_inactive_delay", sNUMBER, title: inTS1("Delay Deactivation in Seconds\n(Optional)", "delay_time"), required: false, submitOnChange: true
+                section(sectHead("Condition Delays:")) {
+                    input "zone_active_delay", sNUMBER, title: inTS1("Delay Activation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                    input "zone_inactive_delay", sNUMBER, title: inTS1("Delay Deactivation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
                 }
-                section(sTS("Zone Active Tasks (Optional):")) {
-                    input "zone_active_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Active\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
-                    input "zone_active_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Active\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
+                section(sectHead("Control Switches on Zone Active (Optional):")) {
+                    input "zone_active_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                    input "zone_active_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
                 }
-                section(sTS("Zone Inactive Tasks (Optional):")) {
-                    input "zone_inactive_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Inactive\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
-                    input "zone_inactive_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Inactive\n(Optional)", sSWITCH), multiple: true, required: false, submitOnChange: true
+                section(sectHead("Control Switches on Zone Inactive (Optional):")) {
+                    input "zone_inactive_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                    input "zone_inactive_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
                 }
-                section(sTS("Notifications:")) {
+                section(sectHead("Notifications:")) {
                     def t0 = getAppNotifDesc()
-                    href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: (t0 ? "${t0}\n\n"+sTTM : sTTC), state: (t0 ? sCOMPLT : null)
+                    href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sNULL, true)
                 }
             }
             updConfigStatusMap()
         }
 
-        section(sTS("Zone History")) {
-            href "zoneHistoryPage", title: inTS1("View Zone History", "tasks"), description: ""
+        section(sectHead("Zone History")) {
+            href "zoneHistoryPage", title: inTS1("View Zone History", "tasks"), description: sBLANK
         }
 
-        section(sTS("Preferences")) {
-            href "prefsPage", title: inTS1("Logging Preferences", sSETTINGS), description: ""
+        section(sectHead("Preferences")) {
+            href "prefsPage", title: inTS1("Logging Preferences", sSETTINGS), description: sBLANK
             if((Boolean)state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
         if((Boolean) state.isInstalled) {
-            section(sTS("Name this Zone:")) {
-                input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: "", required:true, submitOnChange: true
+            section(sectHead("Name this Zone:")) {
+                input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true
             }
-            section(sTS("Remove Zone:")) {
-                href "uninstallPage", title: inTS1("Remove this Zone", "uninstall"), description: "Tap to Remove..."
+            section(sectHead("Remove Zone:")) {
+                href "uninstallPage", title: inTS1("Remove this Zone", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
+            }
+            section(sectHead("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
+                String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28ZONES+BUG%29+&projects=echo-speaks%2F6"
+                String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BZones+Feature+Request%5D&projects=echo-speaks%2F6"
+                href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: spanSm("Tap to open browser", sCLRGRY)
+                href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: spanSm("Tap to open browser", sCLRGRY)
             }
         }
     }
@@ -188,12 +207,12 @@ private echoDevicesInputByPerm(String type) {
     if(echoDevs?.size()) {
         Map eDevsMap = echoDevs?.collectEntries { [(it.getId()): [label: (String)it.getLabel(), lsd: (it.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
         Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
-        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: "Select the devices", options: moptions, multiple: true, required: true, submitOnChange: true
+        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: spanSm("Select the devices", sCLRGRY), options: moptions, multiple: true, required: true, submitOnChange: true
 
         List aa = settings.zone_EchoDevices
-        List devIt = aa.collect { it ? it.toInteger():null }
+        List devIt = aa.collect { it ? it.toInteger() : null }
         app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt.unique()]) // this won't take effect until next execution
-    } else { paragraph "No devices were found with support for ($type)"}
+    } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
 }
 
 def zoneHistoryPage() {
@@ -203,8 +222,8 @@ def zoneHistoryPage() {
         }
         List eData = (List)getMemStoreItem(zoneHisFLD) ?: []
         if(eData.size()) {
-            section("") {
-                input "clearZoneHistory", sBOOL, title: inTS1("Clear Zone History?", sRESET), description: "Clears Stored Zone History.", defaultValue: false, submitOnChange: true
+            section(sBLANK) {
+                input "clearZoneHistory", sBOOL, title: inTS1("Clear Zone History?", sRESET), description: spanSm("Clears Stored Zone History.", sCLRGRY), defaultValue: false, submitOnChange: true
                 if(settings.clearZoneHistory) { settingUpdate("clearZoneHistory", sFALSE, sBOOL); updMemStoreItem(zoneHisFLD, []) }
             }
         }
@@ -213,28 +232,30 @@ def zoneHistoryPage() {
 
 def prefsPage() {
     return dynamicPage(name: "prefsPage", install: false, uninstall: false) {
-        section(sTS("Logging:")) {
-            input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
-            input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+        section(sectHead("Logging:")) {
+            input "logInfo",  sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
+            input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enable when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: spanSm("Auto disables after 6 hours", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: spanSm("Only enable when asked to (Auto disables after 6 hours)", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
         }
-        if(advLogsActive()) { logsEnabled() }
+        if((Boolean)state.isInstalled) {
+            if(advLogsActive()) { logsEnabled() }
+        }
     }
 }
 
 def namePage() {
     return dynamicPage(name: "namePage", install: true, uninstall: false) {
-        section(sTS("Zone Description:")) {
-            input "appLbl", sTEXT, title: inTS1("Name this Zone", "name_tag"), description: "", required:true, submitOnChange: true
+        section(sectHead("Name the Zone:")) {
+            input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true
         }
     }
 }
 
 def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
-        section("") { paragraph "This will delete this Echo Speaks Zone." }
+        section(sBLANK) { paragraph spanSmBld("This will delete this Echo Speaks Zone.", sCLRORG) }
     }
 }
 
@@ -243,27 +264,27 @@ def uninstallPage() {
 ******************************************************************************/
 
 def conditionsPage() {
-    return dynamicPage(name: "conditionsPage", title: "", nextPage: "mainPage", install: false, uninstall: false) {
-        String a = getConditionsDesc(false)
-        if(a) {
-            section() {
-                paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
-            }
-        }
+    return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
+        // String a = getConditionsDesc(false)
+        // if(a) {
+        //     section() {
+        //         paragraph pTS(a, sNULL, false, sCLR4D9)
+        //     }
+        // }
         Boolean multiConds = multipleConditions()
         section() {
             if(multiConds) {
                 input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
             }
-            paragraph pTS("Notice:\n${reqAllCond() ? "All selected conditions must pass before this zone will be marked active." : "Any condition will make this zone active."}", sNULL, false, sCLR4D9), state: sCOMPLT
+            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(reqAllCond() ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
         }
-        section(sTS("Time/Date Restrictions")) {
-            href "condTimePage", title: inTS1("Time Schedule", "clock"), description: getTimeCondDesc(false), state: timeCondConfigured() ? sCOMPLT : sNULL
+        section(sectHead("Time/Date Restrictions")) {
+            href "condTimePage", title: inTS1("Time Schedule", "clock"), description: spanSm(getTimeCondDesc(false), sCLR4D9)
             input "cond_days", sENUM, title: inTS1("Days of the week", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum()
             input "cond_months", sENUM, title: inTS1("Months of the year", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: monthEnum()
         }
 
-        section (sTS("Mode Conditions")) {
+        section (sectHead("Mode Conditions")) {
             input "cond_mode", sMODE, title: inTS1("Location Modes...", sMODE), multiple: true, required: false, submitOnChange: true
             if(settings.cond_mode) {
                 input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true
@@ -273,7 +294,7 @@ def conditionsPage() {
             }
         }
 
-        section (sTS("Alarm Conditions")) {
+        section (sectHead("Alarm Conditions")) {
             input "cond_alarm", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true
             if((List)settings.cond_alarm) {
                 input "cond_alarm_db", sBOOL, title: inTS1("Deactivate Zone immediately when Alarm condition no longer passes?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
@@ -317,7 +338,7 @@ def conditionsPage() {
 }
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
-    section (sTS(sectStr), hideWhenEmpty: true) {
+    section (sectHead(sectStr), hideWhenEmpty: true) {
         input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
         if (settings."cond_${inType}") {
             input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle}...", sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true
@@ -330,18 +351,18 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
 }
 
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
-    section (sTS(sectStr), hideWhenEmpty: true) {
+    section (sectHead(sectStr), hideWhenEmpty: true) {
         input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false, hideWhenEmpty: true
         if(settings."cond_${inType}") {
-            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: ["between", "below", "above", "equals"], required: true, multiple: false, submitOnChange: true
+            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
             if (settings."cond_${inType}_cmd") {
-                if (settings."cond_${inType}_cmd" in ["between", "below"]) {
-                    input "cond_${inType}_low", sNUMBER, title: inTS1("a ${settings."cond_${inType}_cmd" == "between" ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true
+                if (settings."cond_${inType}_cmd" in [sBETWEEN, sBELOW]) {
+                    input "cond_${inType}_low", sNUMBER, title: inTS1("a ${settings."cond_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true
                 }
-                if (settings."cond_${inType}_cmd" in ["between", "above"]) {
-                    input "cond_${inType}_high", sNUMBER, title: inTS1("${settings."cond_${inType}_cmd" == "between" ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true
+                if (settings."cond_${inType}_cmd" in [sBETWEEN, sABOVE]) {
+                    input "cond_${inType}_high", sNUMBER, title: inTS1("${settings."cond_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true
                 }
-                if (settings."cond_${inType}_cmd" == "equals") {
+                if (settings."cond_${inType}_cmd" == sEQUALS) {
                     input "cond_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true
                 }
                 if (settings."cond_${inType}"?.size() > 1) {
@@ -357,9 +378,9 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
 }
 
 def condTimePage() {
-    return dynamicPage(name:"condTimePage", title: "", install: false, uninstall: false) {
+    return dynamicPage(name:"condTimePage", title: sBLANK, install: false, uninstall: false) {
         Boolean timeReq = (settings["cond_time_start"] || settings["cond_time_stop"])
-        section(sTS("Start Time:")) {
+        section(sectHead("Start Time:")) {
             input "cond_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(cond_time_start_type  == sTIME) {
                 input "cond_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true
@@ -367,7 +388,7 @@ def condTimePage() {
                 input "cond_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
         }
-        section(sTS("Stop Time:")) {
+        section(sectHead("Stop Time:")) {
             input "cond_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(cond_time_stop_type == sTIME) {
                 input "cond_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true
@@ -380,24 +401,24 @@ def condTimePage() {
 
 def zoneNotifPage() {
     return dynamicPage(name: "zoneNotifPage", title: "Zone Notifications", install: false, uninstall: false) {
-        String a = getAppNotifDesc()
-         if(!a) a= "Notifications not enabled"
-         section() {
-             paragraph pTS(a, sNULL, false, sCLR4D9), state: sCOMPLT
-         }
+        // String a = getAppNotifDesc()
+        //  if(!a) a= "Notifications not enabled"
+        //  section() {
+        //      paragraph pTS(a, sNULL, false, sCLR4D9)
+        //  }
 
-        section (sTS("Notification Devices:")) {
-            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
+        section (sectHead("Notification Devices:")) {
+            input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), description: ((!settings?.notif_devs) ? inactFoot(sTTC) : sBLANK), required: false, multiple: true, submitOnChange: true
         }
-        section (sTS("Alexa Mobile Notification:")) {
-            paragraph pTS("This will send a push notification the Alexa Mobile app.", sNULL, false, sCLRGRY)
+        section (sectHead("Alexa Mobile Notification:")) {
+            paragraph spanSmBldBr("Description:", sCLRGRY) + spanSmBld("This will send a push notification the Alexa Mobile app.", sCLRGRY)
             input "notif_alexa_mobile", sBOOL, title: inTS1("Send message to Alexa App?", "notification"), required: false, defaultValue: false, submitOnChange: true
         }
 
         Boolean active = (settings.notif_devs || (Boolean)settings.notif_alexa_mobile)
         if(active) {
-            section (sTS("Message Customization:")) {
-                paragraph pTS("Configure either an Active or Inactive message to complete notification configuration.", sNULL, false, sCLR4D9), state: sCOMPLT
+            section (sectHead("Message Customization:")) {
+                paragraph spanSm("Configure either an Active or Inactive message to complete notification configuration.", sCLR4D9)
                 Boolean req = !(settings.notif_active_message || settings.notif_inactive_message)
                 input "notif_active_message", sTEXT, title: inTS1("Active Message?", sTEXT), required: req, submitOnChange: true
                 input "notif_inactive_message", sTEXT, title: inTS1("Inactive Message?", sTEXT), required: req, submitOnChange: true
@@ -408,9 +429,9 @@ def zoneNotifPage() {
         }
 
         if(isZoneNotifConfigured()) {
-            section(sTS("Notification Restrictions:")) {
+            section(sectHead("Notification Restrictions:")) {
                 String nsd = getNotifSchedDesc()
-                href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? "${nsd}\n\n"+sTTM : sTTC), state: (nsd ? sCOMPLT : sNULL)
+                href "zoneNotifTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (nsd ? divSm(spanSmBr(nsd) + inputFooter(sTTM), sCLR4D9) : inactFoot(sTTC))
             }
             if(!(Boolean)state.notif_message_tested) {
                 List actDevices = settings.notif_alexa_mobile ? parent?.getDevicesFromList(settings.zone_EchoDevices) : []
@@ -422,17 +443,18 @@ def zoneNotifPage() {
 }
 
 def zoneNotifTimePage() {
-    return dynamicPage(name:"zoneNotifTimePage", title: "", install: false, uninstall: false) {
-        String a = getNotifSchedDesc()
-        if(a) {
-            section() {
-                paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9), state: sCOMPLT
-                paragraph pTS("Notice:\nAll selected restrictions  must be inactive for notifications to be sent.", sNULL, false, sCLR4D9), state: sCOMPLT
-            }
-        }
+    return dynamicPage(name:"zoneNotifTimePage", title: sBLANK, install: false, uninstall: false) {
+        // String a = getNotifSchedDesc()
+        //  if(a) {
+        //      section() {
+        //          paragraph spanSmBldBr("Restrictions Status:", sCLR4D9) + spanSm(a, sCLR4D9)
+        //          paragraph spanSmBldBr("NOTICE: All selected restrictions must be ${strUnder("INACTIVE")} for notifications to be sent.", sCLRORG)
+        //          paragraph htmlLine()
+        //      }
+        //  }
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
-        section(sTS("Quiet Start Time:")) {
+        section(sectHead("Quiet Start Time:")) {
             input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings."${pre}_time_start_type" == sTIME) {
                 input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true
@@ -440,7 +462,7 @@ def zoneNotifTimePage() {
                 input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
         }
-        section(sTS("Quiet Stop Time:")) {
+        section(sectHead("Quiet Stop Time:")) {
             input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
             if(settings."${pre}_time_stop_type" == sTIME) {
                 input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true
@@ -448,10 +470,10 @@ def zoneNotifTimePage() {
                 input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
         }
-        section(sTS("Allowed Days:")) {
+        section(sectHead("Allowed Days:")) {
             input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
         }
-        section(sTS("Allowed Modes:")) {
+        section(sectHead("Allowed Modes:")) {
             input "${pre}_modes", sMODE, title: inTS1("Only in these Modes", sMODE), multiple: true, submitOnChange: true, required: false
         }
     }
@@ -515,7 +537,7 @@ def initialize() {
 }
 
 private void processDuplication() {
-    String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? "" : " (Dup)"}"
+    String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? sBLANK : " (Dup)"}"
     app?.updateLabel(newLbl)
     state.dupPendingSetup = true
 
@@ -559,7 +581,7 @@ def uninstalled() {
 String getZoneName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (Z${isPaused() ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
+    String newLbl = "${settings.appLbl} (Z${isPaused() ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s",sSPACE)
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl); sendZoneStatus() } 
 }
 /*
@@ -1059,7 +1081,7 @@ public getZoneHistory(Boolean asObj=false) {
         }
     } else { output.push("No History Items Found...") }
     if(!asObj) {
-        output.each { i-> paragraph pTS(i) }
+        output.each { i-> paragraph spanSm(i) }
     } else { return output }
 }
 
@@ -1287,7 +1309,7 @@ String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 
 String convToTime(Date dt) {
     String newDt = dateTimeFmt(dt, "h:mm a")
-    if(newDt?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", " ") }
+    if(newDt?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", sSPACE) }
     return newDt
 }
 
@@ -1508,11 +1530,11 @@ String getAppNotifDesc(Boolean hide=false) {
     String str = sBLANK
     if(isZoneNotifConfigured()) {
         Boolean ok = getOk2Notify()
-        str += hide ? sBLANK : "Send allowed: (${ok ? okSymFLD : notOkSymFLD})\n"
-        str += ((List)settings.notif_devs) ? " \u2022 Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})\n" : sBLANK
-        str += settings.notif_alexa_mobile ? " \u2022 Alexa Mobile App\n" : sBLANK
+        str += hide ? sBLANK : spanSmBr(strUnder("Send allowed: ") +  getOkOrNotSymHTML(ok))
+        str += ((List)settings.notif_devs) ? spanSmBr("  ${sBULLET} Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})") : sBLANK
+        str += (Boolean)settings.notif_alexa_mobile ? spanSmBr("  ${sBULLET} Alexa Mobile App") : sBLANK
         String res = getNotifSchedDesc(true)
-        str += res ?: sBLANK
+        str += spanSmBr(res) ?: sBLANK
     }
     return str != sBLANK ? str : sNULL
 }
@@ -1531,7 +1553,6 @@ String getNotifSchedDesc(Boolean min=false) {
     List dayInput = settings.notif_days
     List modeInput = settings.notif_modes
     String str = sBLANK
-
     if(startType && stopType) {
         startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
         stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
@@ -1557,66 +1578,63 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "   \u2022 Restricted Times: ${startLbl} - ${stopLbl} (${!timeOk ? okSymFLD : notOkSymFLD})" : sBLANK
+    str += (startLbl && stopLbl) ? spanSmBr("     ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} " + getOkOrNotSymHTML(timeOk)) : sBLANK
     List qDays = getQuietDays()
-    String a = " (${!daysOk ? okSymFLD : notOkSymFLD})"
-    str += dayInput && qDays ? "${(startLbl || stopLbl) ? "\n" : sBLANK}   \u2022 Restricted Day${pluralizeStr(qDays, false)}:${min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}"}${a}" : sBLANK
-    a = " (${!modesOk ? okSymFLD : notOkSymFLD})"
-    str += modeInput ? "${(startLbl || stopLbl || qDays) ? "\n" : sBLANK}   \u2022 Allowed Mode${pluralizeStr(modeInput, false)}:${min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(",")}"}${a}" : sBLANK
-    str = str ? " \u2022 Restrictions Active: (${rest ? okSymFLD : notOkSymFLD})\n"+str : sBLANK
+    str += dayInput && qDays ? spanSmBr("     ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
+    str += modeInput ? spanSm("     ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
+    str = str ? spanSmBr("  ${sBULLET} Restrictions Active: " + getOkOrNotSymHTML(rest)) + spanSm(str) : sBLANK
     return (str != sBLANK) ? str : sNULL
 }
 
-String getConditionsDesc(Boolean addE=true) {
+String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
-//    def time = null
     String sPre = "cond_"
     if(confd) {
-        String str = "Zone is Active: (${((Boolean)conditionStatus().ok) ? okSymFLD : notOkSymFLD})\n\n"
-        str += (reqAllCond()) ? " \u2022 All Conditions Required\n" : " \u2022 Any Condition Allowed\n"
-        if(timeCondConfigured()) {
-            str += " \u2022 Time Between Allowed: (${timeCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += "    - ${getTimeCondDesc(false)}\n"
+        String str = spanSmBldBr("Zone is Active: " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+        str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
+        if((Boolean)timeCondConfigured()) {
+            str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
+            str += spanSmBr("    - ${getTimeCondDesc(false)}")
         }
-        if(dateCondConfigured()) {
-            str += " \u2022 Date:\n"
-            str += (List)settings.cond_days      ? "    - Days Allowed: (${isDayOfWeek((List)settings.cond_days) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            str += (List)settings.cond_months    ? "    - Months Allowed: (${isMonthOfYear((List)settings.cond_months) ? okSymFLD : notOkSymFLD})\n"  : sBLANK
+        if((Boolean)dateCondConfigured()) {
+            str += spanSmBr(" ${sBULLET} Date:")
+            str += settings.cond_days    ? spanSmBr("    - Days Allowed: " + getOkOrNotSymHTML(isDayOfWeek(settings.cond_days))) : sBLANK
+            str += settings.cond_months  ? spanSmBr("    - Months Allowed: " + getOkOrNotSymHTML(isMonthOfYear(settings.cond_months)))  : sBLANK
         }
         if((List)settings.cond_alarm || (List)settings.cond_mode) {
-            str += " \u2022 Location: (${locationCondOk() ? okSymFLD : notOkSymFLD})\n"
-            str += (List)settings.cond_alarm ? "    - Alarm Modes Allowed: (${(isInAlarmMode((List)settings.cond_alarm)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
-            Boolean not = settings.cond_mode_cmd == "not"
-            str += (List)settings.cond_mode  ? "    - Allowed Location Modes (${not? "not in" : "in"}): (${(isInMode((List)settings.cond_mode, not)) ? okSymFLD : notOkSymFLD})\n" : sBLANK
+            str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
+            str += settings.cond_alarm ? spanSmBr("    - Alarm Modes Allowed: " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
+            Boolean not = (settings.cond_mode_cmd == "not")
+            str += settings.cond_mode ? spanSmBr("    - Allowed Modes (${not ? "not in" : "in"}): " + getOkOrNotSymHTML(isInMode(settings.cond_mode, not))) : sBLANK
         }
-        if(deviceCondConfigured()) {
-            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power"]?.each { String evt->
+         if(deviceCondConfigured()) {
+            [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power" ]?.each { String evt->
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
-                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water"]) { condOk = checkDeviceCondOk(evt) }
-                    else if(evt in ["battery", "humidity", "temperature", "illuminance", "level", "power"]) { condOk = checkDeviceNumCondOk(evt) }
-                    // str += settings."${}"
-                    str += settings."${sPre}${evt}"     ? " \u2022 ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) (${condOk ? okSymFLD : notOkSymFLD})\n" : sBLANK
-                    String cmd = settings."${sPre}${evt}_cmd" ?: sNULL
-                    if(cmd in ["between", "below", "above", "equals"]) {
+                    if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water" ]) { condOk = checkDeviceCondOk(evt) }
+                    else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
+
+                    str += settings."${sPre}${evt}" ? spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) " + getOkOrNotSymHTML(condOk)) : sBLANK
+                    def cmd = settings."${sPre}${evt}_cmd" ?: null
+                    if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == "equals" && cmdEq) ? "    - Value: ( =${cmdEq}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
-                        str += (cmd == "between" && cmdLow && cmdHigh) ? "    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
-                        str += (cmd == "above" && cmdHigh) ? "    - Value: ( >${cmdHigh}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
-                        str += (cmd == "below" && cmdLow) ? "    - Value: ( <${cmdLow}${attUnit(evt)})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
+                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr("    - Value: ( =${cmdEq}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "()" : sBLANK)) : sBLANK
+                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr("    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr("    - Value: ( >${cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? spanSmBr("    - Value: ( <${cmdLow}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
                     } else {
-                        str += cmd ? "    - Value: (${cmd})${settings."cond_${inType}_avg" ? "(Avg)" : sBLANK}\n" : sBLANK
+                        str += cmd ? spanSmBr("    - Value: (${cmd})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
                     }
-                    str += (settings."${sPre}${evt}_all" == true) ? "    - Require All: (${settings."${sPre}${evt}_all"})\n" : sBLANK
+                    str += (settings."${sPre}${evt}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                 }
             }
         }
-        str += addE ? "\n"+sTTM : sBLANK
+        str += addFoot ? inputFooter(sTTM) : sBLANK
         return str
     } else {
-        return addE ? sTTC : sBLANK
+        return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
     }
 }
 
@@ -1784,7 +1802,7 @@ public Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean 
     Boolean sent = false
     try {
         String newMsg = "${msgTitle}: ${msg}"
-        String flatMsg = newMsg.toString().replaceAll("\n", " ")
+        String flatMsg = newMsg.toString().replaceAll("\n", sSPACE)
         if(!getOk2Notify()) {
             logInfo( "sendNotifMsg: Notification not configured or Message Skipped During Quiet Time ($flatMsg)")
             //if(showEvt) { sendNotificationEvent(newMsg) }
@@ -1836,20 +1854,57 @@ Boolean isActive() {
 
 Boolean isPaused() { return (Boolean)settings.zonePause }
 
-static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
-static String getAppImg(String imgName, Boolean frc=false) { return frc ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK }
+static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
-static String sTS(String t, String i = sNULL) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>""" }
-/* """ */
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
-/* """ */
+static String sTS(String t, String i = sNULL, Boolean bold=false) { return "<h3>${i ? "<img src='${i}' width='42'> " : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>" }
 
-static String inTS1(String t, String i = sNULL, String color=sNULL) { return inTS(t, getHEAppImg(i), color) }
-static String inTS(String t, String i = sNULL, String color=sNULL) { return """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} <u>${t?.replaceAll("\\n", " ")}</u>${color ? "</div>" : sBLANK}""" }
-/* """ */
+static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return "<h3 style='color:${c};font-weight: bold;'>${i ? "<img src='${i}' width='42'> " : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}" }
 
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
+
+static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
+static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE).replaceAll("<br>", sSPACE), und), clr, img) }
+
+// Root HTML Objects
+static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String spanImgStr(String img=sNULL) { return (String) img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
+static String divImgStr(String str, String img=sNULL) { return (String) str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
+static String strUnder(String str, Boolean showUnd=true) { return (String) str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
+static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
+static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
+static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
+static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
+static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, true) : sBLANK }
+static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, false) : sBLANK }
+static String optPrefix() { return spanSm(" (Optional)", "violet") }
+//
+
+// Custom versions of the root objects above
+static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
+static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
+static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
+static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
+static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
+static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
+static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
+static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
+static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
+static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
+static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
+static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
+
+
+static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
+static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
+static String divBr(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
+static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
+static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
+static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
+static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"}"+sSPACE+sBULLET+sSPACE+strVal }
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - "+strVal }
 
@@ -1869,26 +1924,26 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     updMemStoreItem(logKey, eData)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
-private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
-private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError != false) {
-        log.error addHead(msg)
+        log.error logPrefix(msg, sCLRRED)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error addHead(a)
+        if(a) log.error logPrefix(a, sCLRRED)
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
 }
 
-static String addHead(String msg) {
-    return "Zone (v"+appVersionFLD+") | "+msg
+static String logPrefix(String msg, String color = sNULL) {
+    return span("Zone (v" + appVersionFLD + ") | ", sCLRGRY) + span(msg, color)
 }
 
 private Map getLogHistory() {
@@ -2040,19 +2095,18 @@ public Map getSettingsAndStateMap() {
         }
     }
     Map data = [:]
-    //String newLbl = settings.appLbl?.replaceAll(/ (Dup)/, "").replaceAll("\\s"," ")
     String newlbl = app?.getLabel()?.toString()?.replace(" (Z ${sPAUSESymFLD})", sBLANK)
     data.label = newlbl?.replace(" (Z)", sBLANK)
     data.settings = setObjs
 
     List stskip = [
-        /*"isInstalled", "isParent", */ "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
+        // "isInstalled", "isParent",
+        "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
         "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory",
-// actions
+        // actions
         "tierSchedActive",
-// zones
+        // zones
         "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", "handleGuardEvents", "startTime", "stopTime", "alexaGuardState", "appFlagsMap",
-
         "dupPendingSetup", "dupOpenedByUser"
     ]
     data.state = state?.findAll { !(it?.key in stskip) }
