@@ -1955,7 +1955,7 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
             Map volMap = devsSupportVolume(devices)
             Integer volMapSiz = volMap?.n?.size()
             Integer devSiz = devices?.size()
-            if(settings.act_EchoZones.size() > 1) {
+            if(settings.act_EchoZones?.size() > 1) {
                 section(sectHead("(Per Zone) Volume Options:"), hideable: true) {
                     input "act_EchoZones_vol_per_zone", sBOOL, title: inTS1("Set Per Zone Volume?", "question"), defaultValue: false, submitOnChange: true
                     if(settings.act_EchoZones_vol_per_zone) {
