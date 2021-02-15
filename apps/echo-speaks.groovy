@@ -1117,8 +1117,8 @@ def appButtonHandler(btn) {
                     executeRoutineTest(rt[1].toString())
                 }
             }
-			break
-	}
+            break
+        }
 }
 
 void executeRoutineTest(String rtId) {
@@ -3577,19 +3577,24 @@ void workQ() {
 //    Integer lastChkSec = getLastTsValSecs("lastWorkQDt")
     if(!active && now() > nextOk) {
 
+        List<String> lmsg = []
+        Double msSum = 0.0D
         List seqList = []
-        Boolean oldParallel
+        List svSeqList = []
         List activeD = []
+        Map extData=[:]
+        List extList = []
+        active = true;  myMap.active=active; workQMapFLD[appId]=myMap
 
-        if(eData.size()){
-            active = true;  myMap.active=active; workQMapFLD[appId]=myMap
+        Boolean oldParallel
+        Boolean parallel = false
 
-            Map item = (Map)eData.remove(0)
-            updMemStoreItem(k, eData)
+// lets try to join commands in single request to Alexa
 
-// save what we are doing to an active list
-            activeD.push(item)
-            updMemStoreItem('active', activeD)
+        while(eData.size()>0){
+
+            Map item = (Map)eData[0]
+            svSeqList = seqList
 
             String t=item.t
             Long tLong=(Long)item.time
@@ -3598,50 +3603,43 @@ void workQ() {
             String device = item.device
             String callback = item.callback
             String srcDesc
-            Boolean parallel = false
+
             if(t=='multi') {
                 List<Map> seqCmds = (List<Map>)item.commands
                 srcDesc = (String)item.srcDesc
-                parallel = (Boolean)item.parallel
+                Boolean nparallel = item.parallel
+                parallel = nparallel != null ? nparallel : parallel
                 cmdMap = (Map)item.cmdMap
                 //log.debug "seqCmds: $seqCmds"
                 seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
                 //log.debug "seqList: ${seqList}"
             }
-            if(oldParallel == null) oldParallel = parallel
+
             if(t=='sequence') {
                 String type=item.type
                 srcDesc = type + "${device ? " from $device" : sBLANK}"
+                Boolean nparallel = item.parallel
+                parallel = nparallel != null ? nparallel : false
                 String command=(String)item.command
                 def value = item.value
                 seqList = seqList + [createSequenceNode(command, value, deviceData)]
             }
 
-            Integer ms = ((cmdMap?.msgDelay ?: 1) * 1000)
-            ms = Math.min(60000, Math.max(ms, 3000))  // at least 3 seconds, max 60
-            nextOk = now() + ms
-            myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
+            if(oldParallel == null) oldParallel = parallel
+            if(parallel != oldParallel) { seqList = svSeqList; break } // if parallel changes we are done this set of command
 
-            locked = false
-            releaseTheLock(sHMLF)
+            Map titem = (Map)eData.remove(0) // pop the command if we are going to do it
+            updMemStoreItem(k, eData)
+            activeD.push(titem) // save what we are doing to an active list
+            updMemStoreItem('active', activeD)
 
-            Map seqMap = multiSequenceBuilder(seqList, oldParallel)
-            Map seqObj = sequenceBuilder(seqMap, null, null)
+            lmsg.push("workQ adding ${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}")
 
-            Map params = [
-                    uri: getAmazonUrl(),
-                    path: "/api/behaviors/preview",
-                    headers: getReqHeaderMap(true),//getCookieMap(),
-                    contentType: sAPPJSON,
-                    timeout: 20,
-                    body: new groovy.json.JsonOutput().toJson(seqObj)
-            ]
-
-            Map extData=[nextOk: nextOk]
+            Map t_extData =[:]
             if(device && callback) {
                 Boolean isSSML = (cmdMap?.message?.toString()?.startsWith("<speak>") && cmdMap?.message?.toString()?.endsWith("</speak>"))
                 Integer msgLen = ((String)cmdMap.message)?.length()
-                extData = [
+                t_extData = [
                         cmdDt:(cmdMap.cmdDt ?: null),
                         cmdDesc: (cmdMap.cmdDesc ?: null),
                         msgLen: msgLen,
@@ -3655,7 +3653,38 @@ void workQ() {
                         cmdId: (cmdMap.cmdId ?: null),
                 ]
             }
-            logInfo("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}")
+            extList.push(t_extData)
+            extData.extList = extList
+
+            Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
+            ms = Math.min(60000, Math.max(ms, 0))  // at least 0 seconds, max 60
+            msSum += ms
+        }
+
+        if(seqList.size() > 0){
+            msSum = Math.min(60000, Math.max(msSum, 3000))
+            nextOk = (Long)now() + msSum.toLong()
+            myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
+
+            locked = false
+            releaseTheLock(sHMLF)
+
+            lmsg.each { String msg -> logInfo(msg) }
+
+            extData = extData + [nextOk: nextOk]
+
+            Map seqMap = multiSequenceBuilder(seqList, oldParallel)
+            Map seqObj = sequenceBuilder(seqMap, null, null)
+
+            Map params = [
+                    uri: getAmazonUrl(),
+                    path: "/api/behaviors/preview",
+                    headers: getReqHeaderMap(true),//getCookieMap(),
+                    contentType: sAPPJSON,
+                    timeout: 20,
+                    body: new groovy.json.JsonOutput().toJson(seqObj)
+            ]
+
             log.trace("workQ params: $params extData: $extData")
 
             try{
@@ -3667,7 +3696,7 @@ void workQ() {
             }
         }
     }
-    Long sec = ((nextOk+500L - now())/1000)
+    Long sec = ((nextOk+500L - (Long)now())/1000L)
     String mmsg
     if(!active && fnd && now() < nextOk){
         runIn(sec, "workQ")
@@ -3722,10 +3751,12 @@ void finishWorkQ(response, extData){
 
     releaseTheLock(sHMLF)
 
-    if((String)extData.deviceId && (String)extData.callback) {
-        if(extData != null && statusCode==200) extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-        def child = getChildDevice((String)extData.deviceId)
-        child."${(String)extData.callback}"(sData, statusCode, extData)
+    extData?.extList?.each  { extItem ->
+        if(extItem && (String)extItem.deviceId && (String)extItem.callback) {
+            if(extItem != null && statusCode==200) extItem["amznReqId"] = response?.headers["x-amz-rid"] ?: null
+            def child = getChildDevice((String)extItem.deviceId)
+            child."${(String)extItem.callback}"(sData, statusCode, extItem)
+        }
     }
     workQ()
 }
