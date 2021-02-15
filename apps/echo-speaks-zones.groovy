@@ -1114,6 +1114,12 @@ public zoneCmdHandler(evt) {
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
         Map zoneDevMap = getZoneDevices()
         List zoneDevs = (List)zoneDevMap.devices
+        if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
+            Map zVol = data.zoneVolumes[appId]
+            // log.debug "zoneVolume: ${zVol}"
+            data.changeVol = zVol.change ?: data.changeVol
+            data.restoreVol = zVol.restore ?: data.restoreVol
+        }
         Integer delay = data.delay ?: null
         if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" }
         switch(cmd) {

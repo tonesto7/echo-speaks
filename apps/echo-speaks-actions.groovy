@@ -211,7 +211,7 @@ def mainPage() {
 
         if(paused) {
             section() {
-                paragraph spanSmBlr("This Action is currently in a paused state...<br>To edit the please un-pause", sCLRRED, "pause_orange")
+                paragraph spanSmBld("This Action is currently in a paused state...<br>To edit the please un-pause", sCLRRED, "pause_orange")
             }
         } else {
             if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
@@ -1517,7 +1517,8 @@ def actionsPage() {
                     paragraph spanMdBldBr("Execution Configuration Complete", sNULL, getAppImg("done")) + spanSm("Press <b>Next</b> to Return to Main Page")
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
-
+                actionExecMap.config.zoneVolume = getZoneVolumeMap()
+                log.debug "zoneVolume: ${actionExecMap.config.zoneVolume}"
                 actionExecMap.delay = settings.act_delay
                 actionExecMap.configured = true
                 actionCleanup()
@@ -1530,6 +1531,8 @@ def actionsPage() {
         logDebug("actionExecMap: ${t1}")
     }
 }
+
+
 
 def actTrigTasksPage(params) {
     String t = params?.type
@@ -1683,25 +1686,25 @@ String actTaskDesc(String t, Boolean isInpt=false) {
                 break
         }
         String aStr = "\n ${sBULLET} "
-        str += settings."${t}switches_on" ? aStr+"Switches On: (${settings."${t}switches_on"?.size()})" : sBLANK
-        str += settings."${t}switches_off" ? aStr+"Switches Off: (${settings."${t}switches_off"?.size()})" : sBLANK
-        str += settings."${t}lights" ? aStr+"Lights: (${settings."${t}lights"?.size()})" : sBLANK
+        str += settings."${t}switches_on" ? aStr + "Switches On: (${settings."${t}switches_on"?.size()})" : sBLANK
+        str += settings."${t}switches_off" ? aStr + "Switches Off: (${settings."${t}switches_off"?.size()})" : sBLANK
+        str += settings."${t}lights" ? aStr + "Lights: (${settings."${t}lights"?.size()})" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_level" ? "\n    - Level: (${settings."${t}lights_level"}%)" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_color" ? "\n    - Color: (${settings."${t}lights_color"})" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_color" && settings."${t}lights_color_delay" ? "\n    - Restore After: (${settings."${t}lights_color_delay"} sec.)" : sBLANK
-        str += settings."${t}locks_unlock" ? aStr+"Locks Unlock: (${settings."${t}locks_unlock"?.size()})" : sBLANK
-        str += settings."${t}locks_lock" ? aStr+"Locks Lock: (${settings."${t}locks_lock"?.size()})" : sBLANK
-        str += settings."${t}securityKeypads_disarm" ? aStr+"KeyPads Disarm: (${settings."${t}securityKeypads_disarm".size()})" : sBLANK
-        str += settings."${t}securityKeypads_armHome" ? aStr+"KeyPads Arm Home: (${settings."${t}securityKeypads_armHome".size()})" : sBLANK
-        str += settings."${t}securityKeypads_armAway" ? aStr+"KeyPads Arm Away: (${settings."${t}securityKeypads_armAway".size()})" : sBLANK
-        str += settings."${t}doors_open" ? aStr+"Garages Open: (${settings."${t}doors_open"?.size()})" : sBLANK
-        str += settings."${t}doors_close" ? aStr+"Garages Close: (${settings."${t}doors_close"?.size()})" : sBLANK
-        str += settings."${t}sirens" ? aStr+"Sirens On: (${settings."${t}sirens"?.size()})${settings."${t}sirens_delay" ? "(${settings."${t}sirens_delay"} sec)" : sBLANK}" : sBLANK
+        str += settings."${t}locks_unlock" ? aStr + "Locks Unlock: (${settings."${t}locks_unlock"?.size()})" : sBLANK
+        str += settings."${t}locks_lock" ? aStr + "Locks Lock: (${settings."${t}locks_lock"?.size()})" : sBLANK
+        str += settings."${t}securityKeypads_disarm" ? aStr + "KeyPads Disarm: (${settings."${t}securityKeypads_disarm".size()})" : sBLANK
+        str += settings."${t}securityKeypads_armHome" ? aStr + "KeyPads Arm Home: (${settings."${t}securityKeypads_armHome".size()})" : sBLANK
+        str += settings."${t}securityKeypads_armAway" ? aStr + "KeyPads Arm Away: (${settings."${t}securityKeypads_armAway".size()})" : sBLANK
+        str += settings."${t}doors_open" ? aStr + "Garages Open: (${settings."${t}doors_open"?.size()})" : sBLANK
+        str += settings."${t}doors_close" ? aStr + "Garages Close: (${settings."${t}doors_close"?.size()})" : sBLANK
+        str += settings."${t}sirens" ? aStr + "Sirens On: (${settings."${t}sirens"?.size()})${settings."${t}sirens_delay" ? "(${settings."${t}sirens_delay"} sec)" : sBLANK}" : sBLANK
 
-        str += (String)settings."${t}mode_run" ? aStr+"Set Mode:\n \u2022 ${(String)settings."${t}mode_run"}" : sBLANK
-        str += (String)settings."${t}alarm_run" ? aStr+"Set Alarm:\n \u2022 ${(String)settings."${t}alarm_run"}" : sBLANK
+        str += (String)settings."${t}mode_run" ? aStr + "Set Mode:\n \u2022 ${(String)settings."${t}mode_run"}" : sBLANK
+        str += (String)settings."${t}alarm_run" ? aStr + "Set Alarm:\n \u2022 ${(String)settings."${t}alarm_run"}" : sBLANK
 //        str += settings."${t}routine_run" ? aStr+"Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
-        str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr+"Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
+        str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr + "Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
     return str != sBLANK ? (isInpt ? divSm(spanSmBr(str) + inputFooter(sTTM), sCLR4D9) : str) : (isInpt ? spanSm("On trigger control devices, set mode, set alarm state, execute WebCore Pistons", sCLRGRY) + inactFoot(sTTC) : sNULL)
 }
@@ -1927,11 +1930,11 @@ private echoDevicesInputByPerm(String type) {
     Map echoZones = (capOk && zonesOk) ? getZones() : [:]
     section(sectHead("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
         if(echoZones?.size()) {
-            if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions in the zone (Motion, presence, etc).\nWhen both Zones and Echo devices are selected, the zone will take priority over the echo device setting.", sNULL, false) }
-            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: spanSm("Select the Zone(s)", sCLRGRY), options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true
+            if(!settings.act_EchoZones) { paragraph spanSmBldBr("What are Zones?") + spanSm("Zones are used to direct the speech output based on the conditions in the zone (Motion, presence, etc).<br>When both Zones and Echo devices are selected, the zone will take priority over the echo device setting.") }
+            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: spanSm("Select the Zone(s)", sCLRGRY), options: echoZones?.collectEntries { [(it?.key): it?.value?.name.replace(" (Z)", sBLANK) as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true
         }
         if(settings.act_EchoZones?.size() && echoDevs?.size() && !settings.act_EchoDevices?.size()) {
-            paragraph pTS("There may be scenarios when none of your zones are active at the triggered action execution.\nYou have the option to select echo devices to use when no zones are available.", sNULL, false, sCLR4D9)
+            paragraph spanSm("There may be scenarios when none of your zones are active at the triggered action execution.\nYou have the option to select echo devices to use when no zones are available.", sCLR4D9)
         }
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
@@ -1955,7 +1958,7 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
             Map volMap = devsSupportVolume(devices)
             Integer volMapSiz = volMap?.n?.size()
             Integer devSiz = devices?.size()
-            if(settings.act_EchoZones.size() > 1) {
+            if(settings.act_EchoZones?.size() > 1) {
                 section(sectHead("(Per Zone) Volume Options:"), hideable: true) {
                     input "act_EchoZones_vol_per_zone", sBOOL, title: inTS1("Set Per Zone Volume?", "question"), defaultValue: false, submitOnChange: true
                     if(settings.act_EchoZones_vol_per_zone) {
@@ -1967,7 +1970,6 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
                             if(!showVolOnly) { 
                                 input "act_EchoZones_${znId}_volume_restore", sNUMBER, title: inTS1("Restore Volume (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true 
                             }
-                            // paragraph htmlLine(sCLRGRY)
                         }
                     }
                 }
@@ -1982,6 +1984,20 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
             }
         }
     }
+}
+
+private Map getZoneVolumeMap() {
+    Map znMap = [:]
+    if(settings.act_EchoZones_vol_per_zone) {
+        Map echoZones = (getZones() ?: [:]).findAll { it.key in settings.act_EchoZones }
+        echoZones.each { String zId, zData -> 
+            Map aa = [:]
+            aa.change = settings."act_EchoZones_${zId}_volume_change" ? settings."act_EchoZones_${zId}_volume_change" : null
+            aa.restore = settings."act_EchoZones_${zId}_volume_restore" ? settings."act_EchoZones_${zId}_volume_restore" : null
+            if(aa.keySet().size()) { znMap[zId] = aa }
+        }
+    }
+    return znMap
 }
 
 def condTimePage() {
@@ -2392,22 +2408,6 @@ void subscribeToEvts() {
                     break
                 case "pistonExecuted":
                     break
-/*                case "coolingSetpoint":
-                    // Thermostat Events
-                    subscribe(settings."trig_${te}", "coolingSetpoint", thermostatEvtHandler)
-                    break
-                case "heatingSetpoint":
-                    subscribe(settings."trig_${te}", "heatingSetpoint", thermostatEvtHandler)
-                    break
-                case "thermostatOperatingState":
-                    subscribe(settings."trig_${te}", "thermostatOperatingState", thermostatEvtHandler)
-                    break
-                case "thermostatMode":
-                    subscribe(settings."trig_${te}", "thermostatMode", thermostatEvtHandler)
-                    break
-                case "thermostatFanMode":
-                    subscribe(settings."trig_${te}", "thermostatFanMode", thermostatEvtHandler)
-                    break */
                 case "thermostatTemperature":
                     if (settings."trig_${te}_cmd") subscribe(settings."trig_${te}", "temperature", getThermEvtHandlerName(te))
                     break
@@ -2810,55 +2810,6 @@ def thermostatEvtHandler(evt) {
     if(a == "temperature") a = "thermostatTemperature"
     evt.name = a
     deviceEvtHandler(evt)
-/*
-    Long evtDelay = now() - ((Date)evt?.date)?.getTime()
-    Boolean evtOk = false
-    Boolean evtAd = false
-    String a = evt.name
-    if(a == "temperature") a = "thermostatTemperature"
-    evt.name = a
-    List d = settings."trig_${a}"
-    String dc = settings."trig_${a}_cmd"
-    Boolean dco = settings."trig_${a}_once"
-    Integer dcw = settings."trig_${a}_wait" ? settings."trig_${a}_wait" : null
-    logTrace( "${a} Event | ${a.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms")
-//    log.debug "d: $d | dc: $dc | dco: $dco | dcw: $dcw"
-    Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
-    if(d?.size() && dc) {
-        switch(a) {
-            case "coolingSetpoint":
-            case "heatingSetpoint":
-            case "thermostatTemperature":
-                String dsc = settings."trig_${a}_cmd" ?: sNULL
-                Double dcl = settings."trig_${a}_low"
-                Double dch = settings."trig_${a}_high"
-                Double dce = settings."trig_${a}_equal"
-                Map valChk = deviceEvtProcNumValue(evt, d, dsc, dcl, dch, dce, null)
-                evtOk = valChk.evtOk
-                evtAd = valChk.evtAd
-                break
-
-            case "thermostatFanMode":
-                String dfc = settings."trig_${a}_cmd" ?: sNULL
-                if(dfc == sANY || evt.value == dfc) { evtOk=true }
-                break
-
-            case "thermostatOperatingState":
-                String doc = settings."trig_${a}_cmd" ?: sNULL
-                if(doc == sANY || evt.value == doc) { evtOk=true }
-                break
-
-            case "thermostatMode":
-                String dmc = settings."trig_${a}_cmd" ?: sNULL
-                if(dmc ==sANY || evt.value == dmc) { evtOk=true }
-                break
-        }
-    }
-    Boolean execOk = (evtOk && devEvtWaitOk)
-    // log.debug "execOk: $execOk"
-    if(getConfStatusItem("tiers")) {
-        processTierTrigEvt(evt, execOk)
-    } else if (execOk) { executeAction(evt, false, "thermostatEvtHandler(${a})", false, evtAd) } */
 }
 
 def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
@@ -3776,6 +3727,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
         Integer changeVol = actConf?.volume?.change as Integer ?: null
         Integer restoreVol = actConf?.volume?.restore as Integer ?: null
         Integer alarmVol = actConf?.volume?.alarm ?: null
+        Map zoneVolumeMap = actConf?.zoneVolume ?: null
         switch(actType) {
             case "speak":
             case "speak_tiered":
@@ -3793,8 +3745,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 
                     if(actZonesSiz) {
                         String mCmd = actType.replaceAll("_tiered", sBLANK)
-                        sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending Speech Text: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        log.debug("Sending Speech Text: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
 
                     } else {
                         if(actType in ["speak", "speak_tiered"]) {
@@ -4917,7 +4869,7 @@ String getActionDesc(Boolean addFoot=true) {
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
-        str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) + spanSmBr(zones?.collect { " ${sBULLET} ${it?.value?.name} ${it?.value?.active == true ? spanSm("(Active)", sCLRGRN2) : spanSm("(Inactive)", sCLRGRY)}" }?.join(sLINEBR)) + (eDevs?.size() ? lineBr() : sBLANK) : sBLANK
+        str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) + spanSmBr(zones?.collect { " ${sBULLET} ${it?.value?.name} ${it?.value?.active == true ? spanSm("(Active)", sCLRGRN2) : spanSm("(Inactive)", sCLRGRY)}" }?.join(sLINEBR)) + (eDevs?.size() ? sLINEBR : sBLANK) : sBLANK
         str += eDevs?.size() ? spanSm(strUnder("Alexa Devices:")) + spanSmBr(zones?.size() ? " (Inactive Zone Default)" : sLINEBR, sCLRGRY) + spanSmBr(eDevs?.collect { " ${sBULLET} ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join(sLINEBR)) : sBLANK
         str += tierDesc ? sLINEBR + spanSm(tierDesc) + (tierStart || tierStop ? sBLANK : sLINEBR) : sBLANK
         str += tierStart ? spanSmBr(tierStart) : sBLANK
