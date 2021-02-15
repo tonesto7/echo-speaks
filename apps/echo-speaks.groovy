@@ -22,7 +22,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4070, zoneApp: 4070, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -849,11 +849,12 @@ def settingsPage() {
             input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
         }
         if(advLogsActive()) { logsEnabled() }
+        input "disableTextTransform", sBOOL, required: false, title: "Disable Text Transform?", description: "This will disable attempts to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false, submitOnChange: true
         showDevSharePrefs()
         section(sectHead("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", sNULL, false, sCLRGRY)
             input "diagShareSensitveData", sBOOL, title: inTS1("Share Cookie Data?", "question"), required: false, defaultValue: false, submitOnChange: true
-            href url: getAppEndpointUrl("diagData"), style: sEXTNRL, title: inTS1("Diagnostic Data"), description: "Tap to view"
+            href url: getAppEndpointUrl("diagData"), style: sEXTNRL, title: inTS1("Diagnostic Data"), description: spanSm("Tap to view", sCLRGRY)
         }
     }
 }
@@ -872,7 +873,6 @@ def deviceListPage() {
                 str += "<br><span>Music Player: (${v.mediaPlayer?.toString()?.capitalize()})</span>"
                 str += v.supported != true ? "<br><span>Unsupported Device: (True)</span>" : sBLANK
                 str += (v.mediaPlayer == true && v.musicProviders) ? "<br><span>Music Providers: [${v.musicProviders}]</span>" : sBLANK
-                String a = (String)v.style?.image
                 paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
             }
         }
@@ -898,7 +898,7 @@ def unrecogDevicesPage() {
                     str += "<br><span>Reason Ignored: (${v?.reason})</span>"
                     paragraph paraTS((String)v.name, str, (String)v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
                 }
-                input "bypassDeviceBlocks", sBOOL, title: inTS1("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
+                input "bypassDeviceBlocks", sBOOL, title: inTS1("Override Blocks and Create Ignored Devices?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
             } else {
                 paragraph pTS("No Uncognized Devices", sNULL, true)
             }
@@ -925,9 +925,7 @@ def showDevSharePrefs() {
     section(sectHead("Share Data with Developer:")) {
         paragraph  spanSmBldBr("What is this used for?", sCLRGRY) + spanSmBldBr("These options send non-user identifiable information and error data to diagnose catch trending issues.", sCLRGRY)
         input ("optOutMetrics", sBOOL, title: inTS1("Do Not Share Data?", "analytics"), required: false, defaultValue: false, submitOnChange: true)
-//        if(!(Boolean)settings.optOutMetrics) {
-            href url: getAppEndpointUrl("renderMetricData"), style: sEXTNRL, title: inTS1("View the Data shared with Developer", "view"), description: inputFooter("Tap to view Data", sCLRGRY, true)
- //       }
+        href url: getAppEndpointUrl("renderMetricData"), style: sEXTNRL, title: inTS1("View the Data shared with Developer", "view"), description: inputFooter("Tap to view Data", sCLRGRY, true)
     }
     if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
         section() { input "sendMetricsNow", sBOOL, title: inTS1("Send Metrics Now?", sRESET), description: sBLANK, required: false, defaultValue: false, submitOnChange: true }
@@ -1044,7 +1042,6 @@ static String dashItem(String inStr, String strVal, Boolean newLine=false) { ret
 
 def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
-        String t1 = sNULL
         section(sBLANK) {
             href "speechPage", title: inTS1("Speech Test", "broadcast"), description: inputFooter(sTTC, sCLRGRY, true)
             href "announcePage", title: inTS1("Announcement Test","announcement"), description: inputFooter(sTTC, sCLRGRY, true)
@@ -1079,7 +1076,6 @@ def speechPage() {
 
 def alexaRoutinesTestPage() {
     return dynamicPage(name: "alexaRoutinesTestPage", uninstall: false, install: false) {
-        String t1 = sNULL
         Map rts = getAlexaRoutines()
         section("Available Routines") {
             if(rts.size()) {
@@ -1160,7 +1156,7 @@ def announcePage() {
     }
 }
 
-@Field final Map seqItemsAvailFLD = [
+@Field final Map<String,Map> seqItemsAvailFLD = [
     other: [
         "weather":sNULL, "traffic":sNULL, "flashbriefing":sNULL, "goodnews":sNULL, "goodmorning":sNULL, "goodnight":sNULL, "cleanup":sNULL,
         "singasong":sNULL, "tellstory":sNULL, "funfact":sNULL, "joke":sNULL, "playsearch":sNULL, "calendartoday":sNULL,
@@ -1181,7 +1177,7 @@ def announcePage() {
     ]
 ]
 
-public Map seqItemsAvail() {
+public Map<String,Map> seqItemsAvail() {
     return seqItemsAvailFLD
 }
 
@@ -1226,6 +1222,7 @@ def sequencePage() {
     }
 }
 
+/*
 static Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     def random = new Random()
     Integer randomInt = random?.nextInt(5) //Was using 7
@@ -1233,7 +1230,7 @@ static Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logTrace("getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return addRandom ? (v + randomInt) : (v < 5 ? 5 : v)
-}
+} */
 
 void executeSpeechTest() {
     settingUpdate("test_speechRun", sFALSE, sBOOL)
@@ -1242,9 +1239,9 @@ void executeSpeechTest() {
     selectedDevs?.each { String devSerial->
         def childDev = getChildDeviceBySerial(devSerial)
         if(childDev && childDev?.hasCommand('setVolumeSpeakAndRestore')) {
-            childDev?.setVolumeSpeakAndRestore(settings.test_speechVolume as Integer, testMsg, (settings.test_speechRestVolume ?: 30))
+            childDev?.setVolumeSpeakAndRestore((Integer)settings.test_speechVolume, testMsg, ((Integer)settings.test_speechRestVolume ?: 30))
         } else {
-            logError("Speech Test device with serial# (${devSerial} was not located!!!")
+            logError("Speech Test device with serial# (${devSerial} was not located!!! or does not support speakAndRestore")
         }
     }
 }
@@ -1255,9 +1252,10 @@ void executeAnnouncement() {
     List sDevs = (Boolean)settings.test_announceAllDevices ? getChildDevicesByCap("announce") : getDevicesFromList((List)settings.test_announceDevices)
     if(sDevs?.size()) {
         if(sDevs.size() > 1) {
-            List devObj = []
-            sDevs.each { devObj.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+            List<Map> devObj = []
+            sDevs.each { devObj.push([deviceTypeId: (String)it?.getEchoDeviceType(), deviceSerialNumber: (String)it?.getEchoSerial()]) }
 //            String devJson = new groovy.json.JsonOutput().toJson(devObj)
+// send to first one which will have Amazon fan it out
             sDevs[0]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
         } else {
             sDevs[0]?.playAnnouncement(testMsg, "Echo Speaks Test", settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
@@ -1281,7 +1279,7 @@ Map executeTuneInSearch(String query) {
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
         query: [ query: query, mediaOwnerCustomerId: state.deviceOwnerCustomerId ],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),
         requestContentType: sAPPJSON,
         contentType: sAPPJSON,
         timeout: 20
@@ -1341,10 +1339,10 @@ def searchTuneInResultsPage() {
         Map results = executeTuneInSearch((String)settings.test_tuneinSearchQuery)
         section(sectHead("Search Results: (Query: ${(String)settings.test_tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
-                results?.browseList?.eachWithIndex { item, Integer i->
+                results?.browseList?.eachWithIndex { Map item, Integer i->
                     if(i < 25) {
                         if(item?.browseList != null && item?.browseList?.size()) {
-                            item?.browseList?.eachWithIndex { item2, i2->
+                            item?.browseList?.eachWithIndex { Map item2, i2->
                                 dumpBrowseItem(item2)
                             }
                         } else {
@@ -1436,6 +1434,7 @@ def updated() {
 
 def initialize() {
     logInfo("running initialize...")
+    appCleanup()
     //if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL; state.remove('appGuid') } }
     subscribe(location, "systemStart", startHandler)
@@ -1473,12 +1472,12 @@ def initialize() {
 
 void startHandler(evt){
     logDebug('startHandler called')
-    runIn(6, "restartSocket")
+    runIn(6, "chkRestartSocket")
 }
 
-void restartSocket(){
+void chkRestartSocket(){
     def dev= getSocketDevice()
-    if(!(Boolean) dev?.isSocketActive()) { dev?.triggerInitialize() }
+    if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
 }
 
 void stateMigrationChk() {
@@ -1497,7 +1496,6 @@ void updateZoneSubscriptions() {
 void postInitialize() {
     logTrace("postInitialize")
     runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
-    appCleanup()
     reInitChildren()
 }
 
@@ -1515,7 +1513,7 @@ void appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize", "lastMsg"
     ]
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 
@@ -1525,7 +1523,7 @@ void appCleanup() {
     state.deviceRefreshInProgress = false
 
     // Settings Cleanup
-    List setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
+    List<String> setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
     settings?.each { si-> ["music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"].each { String swi-> if(si.key?.startsWith(swi)) { setItems.push(si?.key as String) } } }
     setItems.unique().sort().each { String sI-> if(settings?.containsKey(sI)) { settingRemove(sI) } }
     cleanUpdVerMap()
@@ -1553,7 +1551,7 @@ void wsEvtHandler(evt) {
 }
 
 private findEchoDevice(String serial) {
-    def a = getEsDevices()?.find { it?.getEchoSerial()?.toString() == serial }
+    def a = getEsDevices()?.find { (String)it?.getEchoSerial() == serial }
     return a ?: null
 }
 
@@ -1629,12 +1627,12 @@ public Map getZones() {
 
 List getActiveZones() {
     List zones = getZoneApps()
-    return zones.size() ? zones.findAll { (Boolean) it?.isActive() == true && (Boolean) !it?.isPaused() } : []
+    return zones.size() ? zones.findAll { (Boolean)it?.isActive() && !(Boolean)it?.isPaused() } : []
 }
 
 List getInActiveZones() {
     List zones = getZoneApps()
-    return zones.size() ? zones.findAll { (Boolean) it?.isActive() != true || (Boolean) it?.isPaused() } : []
+    return zones.size() ? zones.findAll { !(Boolean)it?.isActive() || (Boolean)it?.isPaused() } : []
 }
 
 static List getMyZNames(Map zones) {
@@ -1662,17 +1660,17 @@ def getZoneById(String id) {
 
 List getActiveApps() {
     List acts = getActionApps()
-    return acts.size() ? acts.findAll { it?.isPaused() != true } : []
+    return acts.size() ? acts.findAll { !(Boolean)it?.isPaused() } : []
 }
 
 List getInActiveApps() {
     List acts = getActionApps()
-    return acts.size() ? acts.findAll { it?.isPaused() == true } : []
+    return acts.size() ? acts.findAll { (Boolean)it?.isPaused() } : []
 }
 
 List getMyANames(List acts) {
     acts = acts ?: []
-    return acts.size() ? acts?.findAll { it }.collect { (String)it?.getLabel() } : []
+    return acts.size() ? acts.findAll { it }.collect { (String)it?.getLabel() } : []
 }
 
 public List getActiveActionNames() {
@@ -1867,16 +1865,16 @@ Map getCookieMap() {
     return [cookie: getCookieVal(), csrf: getCsrfVal()]
 }
 
-Map getReqHeaderMap() {
-    return [
+Map getReqHeaderMap(Boolean extra=false) {
+    Map head = [
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
         Referer: "https://alexa.${state.cookieData?.amazonPage}/spa/index.html",
         Origin: "https://alexa.${state.cookieData?.amazonPage}",
         cookie: getCookieVal(), 
         csrf: getCsrfVal(),
-        //'Content-Type': 'application/json',
-        //'Connection': 'keep-alive', // new
     ]
+    if(extra) return head + [Connection: "keep-alive", DNT: "1"]
+    return head
 }
 
 String getCookieVal() {
@@ -2180,7 +2178,7 @@ Boolean validateCookie(Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
             query: ["version": 0],
-            headers: getReqHeaderMap(),//getCookieMap(),
+            headers: getReqHeaderMap(true),
             contentType: sAPPJSON,
             timeout: 20,
         ]
@@ -2220,7 +2218,7 @@ def validateCookieResp(resp, data){
             logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-(Long)data.dt)}ms)")
             return true
        }
-    } catch(ex) { 
+    } catch(ex) {
         respExceptionHandler(ex, "validCookieResp", true)
         incrementCntByKey("err_app_cookieValidCnt")
     }
@@ -2236,7 +2234,7 @@ private getCustomerData(Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/get-customer-pfm",
             query: ["_": execDt],
-            headers: getReqHeaderMap(),//getCookieMap(),
+            headers: getReqHeaderMap(true),
             contentType: sAPPJSON,
             timeout: 20,
         ]
@@ -2260,13 +2258,13 @@ private getCustomerData(Boolean frc=false) {
     }
 }
 
-private getAllDeviceVolumes(Boolean frc=false) {
+private List getAllDeviceVolumes(Boolean frc=false) {
     if(!isAuthValid("getAllDeviceVolumes")) { return [:] }
-    if(!frc && (Map)state.deviceVolumes && getLastTsValSecs("deviceVolumeUpdDt") < 3600) { return (Map)state.deviceVolumes }
+    if(!frc && (List)state.deviceVolumes && getLastTsValSecs("deviceVolumeUpdDt") < 3600) { return (List)state.deviceVolumes }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/devices/deviceType/dsn/audio/v1/allDeviceVolumes",
-        headers: getReqHeaderMap(), //getCookieMap(),
+        headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2440,7 +2438,7 @@ Map getMusicProviders(Boolean frc=false) {
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
-        headers: [Connection: "keep-alive", DNT: "1", "Routines-Version": "1.1.210292" ] + getReqHeaderMap(), //getCookieMap(),
+        headers: ["Routines-Version": "1.1.210292" ] + getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2490,7 +2488,7 @@ void getBluetoothDevices(Boolean frc=false) {
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
         query: [cached: true, _: new Date()?.getTime()],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2568,7 +2566,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/activities",
             query: [ size: 5, offset: 1 ],
-            headers: getReqHeaderMap(),//getCookieMap(),
+            headers: getReqHeaderMap(true),
             contentType: sAPPJSON,
             timeout: 20
         ]
@@ -2622,7 +2620,7 @@ void getDoNotDisturb() {
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         query: [_: now()],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2649,7 +2647,7 @@ void DnDResp(resp, data){
         else dndResp = resp?.data
 //            log.debug "DoNotDisturb Data: ${dndResp}"
             String myId=app.getId()
-            dndDataFLD[myId] = dndResp
+            dndDataFLD[myId] = (Map)dndResp
             dndDataFLD=dndDataFLD
     } catch(ex) { 
         respExceptionHandler(ex, "DnDResp", true)
@@ -2681,7 +2679,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
         uri: getAmazonUrl(),
         path: "/api/behaviors/v2/automations",
         query: [ limit: 100 ],
-        headers: getReqHeaderMap(), // getCookieMap(),
+        headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2755,7 +2753,10 @@ Boolean executeRoutineById(String routineId) {
     Map routineData = getAlexaRoutines(routineId)
     // log.debug "routineData: ${routineData.sequence}"
     if(routineData && routineData.sequence) {
-        sendSequenceCommand("ExecuteRoutine", routineData, null)
+        //sendSequenceCommand("ExecuteRoutine", routineData, null)
+        List seqList =  []
+        seqList.push([command: routineData])
+        queueMultiSequenceCommand(seqList, "ExecuteRoutine", false)
         String rtName = routineData && routineData.name ? routineData.name : sBLANK
         log.debug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | Label: ${rtName} | RoutineId: ${routineId}")
         return true
@@ -2777,7 +2778,7 @@ void checkGuardSupport() {
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -2792,18 +2793,6 @@ void checkGuardSupportResponse(response, data) {
         if(response?.status != 200) logWarn("${response?.status} $data")
         if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
         Integer respLen = response?.data?.toString()?.length() ?: null
-        // log.trace("GuardSupport Response Length: ${respLen}")
-        // if(response?.data && respLen && respLen > 485000) {
-        //     Map minUpdMap = getMinVerUpdsRequired()
-        //     if(!minUpdMap?.updRequired || (minUpdMap?.updItems && !minUpdMap?.updItems?.contains("Echo Speaks Server"))) {
-        //         wakeupServer(false, false, "checkGuardSupport")
-        //         logDebug("Guard Support Check Response is too large for ST... Checking for Guard Support using the Server")
-        //     } else {
-        //         logWarn("Can't check for Guard Support because server version is out of date...  Please update to the latest version...")
-        //     }
-        //     state.alexaGuardDataOverMaxSize = true
-        //     return
-        // }
         Map resp = response?.data ? parseJson(response?.data?.toString()) : null
         if(resp && resp.networkDetail) {
             Map details = parseJson(resp.networkDetail as String)
@@ -2882,7 +2871,7 @@ void getGuardState() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20,
         body: [ stateRequests: [ [entityId: state.alexaGuardData?.applianceId, entityType: "APPLIANCE" ] ] ]
@@ -2955,7 +2944,7 @@ private getAlexaSkills() {
         headers: [
             Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
             Origin: getAmazonUrl()
-        ] + getReqHeaderMap(),//getCookieMap(),
+        ] + getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -2993,8 +2982,25 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
             if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
-        } else if (sCode == 400) {
-            switch(errMsg) {
+        } else if (sCode in [400, 429]) {
+            String respMsgLow = errMsg ? errpMsg.toLowerCase() : sNULL
+            if((sCode in [400, 429]) && respMsgLow) { // && (respMsgLow in ["rate exceeded", "too many requests"])) {
+                switch(respMsgLow) {
+                    case "rate exceeded":
+                        logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                        break
+                    case "too many requests":
+                        logError("${mName} | ${toMsg} is currently rate-limiting your requests | Msg: ${errMsg}")
+                        break
+                    case "bad request":
+                        logError("${mName} | Improperly formatted request sent to ${toMsg} | Msg: ${errMsg}")
+                        break
+                    default:
+                        logError("${mName} | 400 Error | Msg: ${errMsg}")
+                        break
+                }
+            }
+/*            switch(errMsg) {
                 case "Bad Request":
                     logError("${mName} | Improperly formatted request sent to ${toMsg} | Msg: ${errMsg}")
                     break
@@ -3006,7 +3012,7 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
                     break
             }
         } else if(sCode == 429) {
-            logWarn("${mName} | Too Many Requests Made to ${toMsg} | Msg: ${errMsg}")
+            logWarn("${mName} | Too Many Requests Made to ${toMsg} | Msg: ${errMsg}") */
         } else {
             logError("${mName} | Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
@@ -3090,7 +3096,7 @@ void getEchoDevices(Boolean lazy=false) {
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -3442,82 +3448,6 @@ void removeDevices(Boolean all=false) {
     } catch (ex) { logError("Device Removal Failed: ${ex}", false, ex) }
 }
 
-Map sequenceBuilder(cmd, val) {
-    Map seqJson
-    if (cmd instanceof Map) {
-        seqJson = cmd?.sequence ?: cmd
-    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson), status: "ENABLED"]
-    return seqObj
-}
-
-Map multiSequenceBuilder(commands, Boolean parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem-> nodeList.push(createSequenceNode((String)cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType:cmdItem?.type])) }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    Map seqObj = sequenceBuilder(seqJson, null)
-    return seqObj
-}
-
-Map createSequenceNode(String command, value, Map deviceData = [:]) {
-    try {
-        Boolean remDevSpecifics = false
-        Map seqNode = [
-            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-            operationPayload: [
-                deviceType: deviceData?.deviceType ?: null,
-                deviceSerialNumber: deviceData?.serialNumber ?: null,
-                locale: (settings.regionLocale ?: "en-US"),
-                customerId: state.deviceOwnerCustomerId
-            ]
-        ]
-        switch (command) {
-            case "volume":
-                seqNode.type = "Alexa.DeviceControls.Volume"
-                seqNode.operationPayload.value = value
-                break
-            case "speak":
-                seqNode.type = "Alexa.Speak"
-                seqNode.operationPayload.textToSpeak = value as String
-                break
-            case "announcementTest":
-                seqNode.type = "AlexaAnnouncement"
-                seqNode.operationPayload.remove('deviceType')
-                seqNode.operationPayload.remove('deviceSerialNumber')
-                seqNode.operationPayload.remove('locale')
-                seqNode.operationPayload.expireAfter = "PT5S"
-                List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-                seqNode.operationPayload.content = [[
-                    locale: (state.regionLocale ?: "en-US"),
-                    display: [ title: valObj[0], body: valObj[1] as String ],
-                    speak: [ type: "text", value: valObj[1] as String ],
-                ]]
-                List announceDevs = []
-                if(settings.test_announceDevices) {
-                    Map eDevs = getEchoDeviceMap() //state.echoDeviceMap
-                    settings.test_announceDevices.each { String dev->
-                        announceDevs.push([deviceTypeId: eDevs[dev]?.type, deviceSerialNumber: dev])
-                    }
-                }
-                seqNode.operationPayload.target = [ customerId : state.deviceOwnerCustomerId, devices: announceDevs ]
-                break
-            default:
-                return
-        }
-        if(remDevSpecifics) {
-            seqNode.operationPayload.remove('deviceType')
-            seqNode.operationPayload.remove('deviceSerialNumber')
-            seqNode.operationPayload.remove('locale')
-        }
-        // log.debug "seqNode: $seqNode"
-        return seqNode
-    } catch (ex) {
-        logError("createSequenceNode Exception: ${ex}", false, ex)
-    }
-    return [:]
-}
-
 void execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
         String m = method?.toString()?.toLowerCase()
@@ -3562,25 +3492,558 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
     }
 }
 
-void sendSequenceCommand(String type, Map command, value) {
-    // logTrace("sendSequenceCommand($type) | command: $command | value: $value", true)
-    Map seqObj = sequenceBuilder(command, value)
+void sendSpeak(Map cmdMap, String device, String callback){
+    logTrace("sendSpeak cmdMap: $cmdMap  callback: $callback,  device: $device")
+
+    String bodyObj = sNULL
+    Map st=[serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
+    List<Map> seqCmds = []
+    if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume]+st) }
+    seqCmds = seqCmds + msgSeqBuilder((String)cmdMap.message, st)
+    if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume]+st) }
+
+    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, st, cmdMap, device, callback)
+}
+
+void queueSequenceCommand(String type, command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
+    Map item= [
+        t: 'sequence',
+        time: now(),
+        type: type,
+        command: command,
+        value: value,
+        deviceData: deviceData,
+        device: device,
+        callback: callback
+    ]
+    addToQ(item)
+}
+
+void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+    Map item= [
+        t: 'multi',
+        time: now(),
+        commands: commands,
+        srcDesc: srcDesc,
+        parallel: parallel,
+        deviceData: deviceData,
+        cmdMap: cmdMap,
+        device: device,
+        callback: callback
+    ]
+    addToQ(item)
+}
+
+void addToQ(Map item) {
+    String appId=app.getId()
+
+    Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
+    // log.trace "lock wait: ${aa}"
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    String k = 'cmdQ'
+    List<Map> eData = (List)memStore[k] ?: []
+    eData.push(item)
+    updMemStoreItem(k, eData)
+    releaseTheLock(sHMLF)
+
+    //log.debug "item: $item"
+
+    workQ()
+}
+
+@Field volatile static Map<String,Map> workQMapFLD = [:]
+
+void workQ() {
+    log.trace "running workQ"
+    Boolean locked=false
+    String appId=app.getId()
+    Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
+    // log.trace "lock wait: ${aa}"
+
+    locked = true
+
+    Map myMap = workQMapFLD[appId] ?: [:]
+    Boolean active = (Boolean)myMap.active
+    if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap }
+
+    Long nextOk = (Long)myMap.nextOk ?: 0L
+
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    String k = 'cmdQ'
+    List<Map> eData = (List<Map>)memStore[k] ?: []
+
+    Boolean fnd = (eData.size())
+
+// if we are not doing anything grab next item off queue and start it;
+//    Integer lastChkSec = getLastTsValSecs("lastWorkQDt")
+    if(!active && now() > nextOk) {
+
+        List seqList = []
+        Boolean oldParallel
+        List activeD = []
+
+        if(eData.size()){
+            active = true;  myMap.active=active; workQMapFLD[appId]=myMap
+
+            Map item = (Map)eData.remove(0)
+            updMemStoreItem(k, eData)
+
+// save what we are doing to an active list
+            activeD.push(item)
+            updMemStoreItem('active', activeD)
+
+            String t=item.t
+            Long tLong=(Long)item.time
+            Map deviceData = (Map)item.deviceData
+            Map cmdMap
+            String device = item.device
+            String callback = item.callback
+            String srcDesc
+            Boolean parallel = false
+            if(t=='multi') {
+                List<Map> seqCmds = (List<Map>)item.commands
+                srcDesc = (String)item.srcDesc
+                parallel = (Boolean)item.parallel
+                cmdMap = (Map)item.cmdMap
+                //log.debug "seqCmds: $seqCmds"
+                seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
+                //log.debug "seqList: ${seqList}"
+            }
+            if(oldParallel == null) oldParallel = parallel
+            if(t=='sequence') {
+                String type=item.type
+                srcDesc = type + "${device ? " from $device" : sBLANK}"
+                String command=(String)item.command
+                def value = item.value
+                seqList = seqList + [createSequenceNode(command, value, deviceData)]
+            }
+
+            Integer ms = ((cmdMap?.msgDelay ?: 1) * 1000)
+            ms = Math.min(60000, Math.max(ms, 3000))  // at least 3 seconds, max 60
+            nextOk = now() + ms
+            myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
+
+            locked = false
+            releaseTheLock(sHMLF)
+
+            Map seqMap = multiSequenceBuilder(seqList, oldParallel)
+            Map seqObj = sequenceBuilder(seqMap, null, null)
+
+            Map params = [
+                    uri: getAmazonUrl(),
+                    path: "/api/behaviors/preview",
+                    headers: getReqHeaderMap(true),//getCookieMap(),
+                    contentType: sAPPJSON,
+                    timeout: 20,
+                    body: new groovy.json.JsonOutput().toJson(seqObj)
+            ]
+
+            Map extData=[nextOk: nextOk]
+            if(device && callback) {
+                Boolean isSSML = (cmdMap?.message?.toString()?.startsWith("<speak>") && cmdMap?.message?.toString()?.endsWith("</speak>"))
+                Integer msgLen = ((String)cmdMap.message)?.length()
+                extData = [
+                        cmdDt:(cmdMap.cmdDt ?: null),
+                        cmdDesc: (cmdMap.cmdDesc ?: null),
+                        msgLen: msgLen,
+                        isSSML: isSSML,
+                        deviceId: device,
+                        callback: callback,
+                        msgDelay: (cmdMap.msgDelay ?: null),
+                        message: (cmdMap.message ? cmdMap.message : null),
+                        newVolume: (cmdMap.newVolume ?: null),
+                        oldVolume: (cmdMap.oldVolume ?: null),
+                        cmdId: (cmdMap.cmdId ?: null),
+                ]
+            }
+            logInfo("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}")
+            log.trace("workQ params: $params extData: $extData")
+
+            try{
+                execAsyncCmd("post", "finishWorkQ", params, extData)
+                updTsVal("lastWorkQDt")
+            } catch (ex) {
+                respExceptionHandler(ex, "workQ", true)
+                finishWorkQ([status: 500, data: [:]], extData)
+            }
+        }
+    }
+    Long sec = ((nextOk+500L - now())/1000)
+    String mmsg
+    if(!active && fnd && now() < nextOk){
+        runIn(sec, "workQ")
+        mmsg = "workQ wakeup requested in $sec seconds"
+    }
+    if(locked) releaseTheLock(sHMLF)
+    if(mmsg) log.debug(mmsg)
+}
+
+void finishWorkQ(response, extData){
+    String meth = 'finishWorkQ'
+    log.trace "running "+meth
+    Integer statusCode
+    def sData
+    String respMsg
+    try {
+        statusCode = response?.status
+        if(response.hasError()){
+           respMsg = response.getErrorMessage()
+        } else sData = response?.data
+    } catch(ex) {
+        respExceptionHandler(ex, "finishWorkQ", true)
+    }
+
+    if(statusCode == 200) updTsVal("lastSpokeToAmazon")
+    else {
+        logWarn("$meth | ${statusCode} | $respMsg  | $extData")
+        String respMsgLow = respMsg ? respMsg.toLowerCase() : sNULL
+        if((statusCode in [400, 429]) && respMsgLow && (respMsgLow in ["rate exceeded", "too many requests"])) {
+            switch(respMsgLow) {
+                case "rate exceeded":
+                    logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    break
+                case "too many requests":
+                    logWarn("You've sent too many consecutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    break
+            }
+        }
+    }
+
+    String appId=app.getId()
+    Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
+
+    Map myMap = workQMapFLD[appId]
+    Boolean active = false;  myMap.active=active; workQMapFLD[appId]=myMap
+
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    String k = 'active'
+    List<Map> activeD = (List<Map>)memStore[k] ?: []
+    activeD = []
+    updMemStoreItem(k, activeD)
+
+    releaseTheLock(sHMLF)
+
+    if((String)extData.deviceId && (String)extData.callback) {
+        if(extData != null && statusCode==200) extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
+        def child = getChildDevice((String)extData.deviceId)
+        child."${(String)extData.callback}"(sData, statusCode, extData)
+    }
+    workQ()
+}
+/*
+void sendSequenceCommand(String type, command, value, Map deviceData=[:]) {
+// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
+    // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
+    Map seqObj = sequenceBuilder(command, value, deviceData)
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
         body: new groovy.json.JsonOutput().toJson(seqObj)
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
-private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType: cmdItem?.type])) }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+private void sendMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:]) {
+// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
+    List nodeList = multiSequenceListBuilder(commands, deviceData)
+//    List nodeList = []
+//    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial ?: deviceData?.serialNumber, deviceType: cmdItem?.type ?: deviceData?.deviceType])) }
+//    String seqType = parallel ? "ParallelNode" : "SerialNode"
+//    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    Map seqJson = multiSequenceBuilder(nodeList, parallel)
     sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
+} */
+
+Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
+// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
+    Map seqJson
+    if (cmd instanceof Map) {
+        seqJson = cmd?.sequence ?: cmd
+    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val, deviceData)] }
+    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson), status: "ENABLED"]
+    return seqObj
+}
+
+List multiSequenceListBuilder(List<Map>commands, Map deviceData) {
+    //log.debug "multiSequenceListBuilder commands: $commands"
+    //log.debug "multiSequenceListBuilder deviceData: $deviceData"
+    List nodeList = []
+    commands?.each { cmdItem->
+        //log.debug "multiSequenceListBuilder cmdItem: $cmdItem"
+        if(cmdItem.command instanceof String){
+            nodeList.push(createSequenceNode((String)cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serialNumber ?: deviceData.serialNumber, deviceType:cmdItem?.deviceType ?: deviceData.deviceType]))
+        } else {
+            nodeList.push(cmdItem.command)
+        }
+    }
+    return nodeList
+}
+
+static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
+//Map multiSequenceBuilder(List<Map> commands, Boolean parallel=false) {
+//    List nodeList = multiSequenceListBuilder(commands) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+//    Map seqObj = sequenceBuilder(seqJson, null)
+//    return seqObj
+    return seqJson
+}
+
+static Integer getStringLen(String str) { return str?.length() ?: 0 }
+
+private static List msgSeqBuilder(String str, Map st) {
+    // log.debug "msgSeqBuilder: $str"
+    List seqCmds = []
+    List strArr = []
+    Boolean isSSML = (str.startsWith("<speak>") && str.endsWith("</speak>"))
+    if(str.length() < 450) {
+        seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str]+st)
+    } else {
+        List<String> msgItems = str.split()
+        msgItems.each { String wd->
+            // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
+            if((getStringLen(strArr.join(" ")) + wd.length()) > 430) {
+                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st)
+                strArr = []
+            }
+            strArr.push(wd)
+            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st) }
+        }
+    }
+    // log.debug "seqCmds: $seqCmds"
+    return seqCmds
+}
+
+String cleanString(String str, Boolean frcTrans=false) {
+    if(!str) { return sNULL }
+    //Cleans up characters from message
+    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, " ")
+    str = textTransform(str, frcTrans)
+    // log.debug "cleanString: $str"
+    return str
+}
+
+private String textTransform(String str, Boolean force=false) {
+    if(!force && (Boolean)settings.disableTextTransform) { return str }
+    // Converts F temp values to readable text "19F"
+    str = str.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
+    str = str.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
+    str = str.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
+    str = str.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
+    str = str.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
+    str = str.replaceAll("%"," percent ")
+    str = str.replaceAll("°"," degrees ")
+    return str
+}
+
+Map createSequenceNode(String command, value, Map deviceData = [:]) {
+    //log.debug "createSequenceNode: command: $command   "
+    //log.debug "createSequenceNode: value:  $value   "
+    //log.debug "createSequenceNode: deviceData:  $deviceDatavalue   "
+    try {
+        Boolean remDevSpecifics = false
+        String deviceType = deviceData?.deviceType ?: null
+        String serialNumber = deviceData?.serialNumber ?: null
+        Map seqNode = [
+                "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+                operationPayload: [
+                        deviceType: deviceType,
+                        deviceSerialNumber: serialNumber,
+                        locale: (settings.regionLocale ?: "en-US"),
+                        customerId: state.deviceOwnerCustomerId
+                ]
+        ]
+
+        String lcmd = command.toLowerCase()
+        switch (lcmd) {
+            case "weather":
+                seqNode.type = "Alexa.Weather.Play"
+                break
+            case "traffic":
+                seqNode.type = "Alexa.Traffic.Play"
+                break
+            case "flashbriefing":
+                seqNode.type = "Alexa.FlashBriefing.Play"
+                break
+            case "goodmorning":
+                seqNode.type = "Alexa.GoodMorning.Play"
+                break
+            case "goodnight":
+                seqNode.type = "Alexa.GoodNight.Play"
+                break
+            case "cleanup":
+                seqNode.type = "Alexa.CleanUp.Play"
+                break
+            case "singasong":
+                seqNode.type = "Alexa.SingASong.Play"
+                break
+            case "tellstory":
+                seqNode.type = "Alexa.TellStory.Play"
+                break
+            case "funfact":
+                seqNode.type = "Alexa.FunFact.Play"
+                break
+            case "joke":
+                seqNode.type = "Alexa.Joke.Play"
+                break
+            case "calendartomorrow":
+                seqNode.type = "Alexa.Calendar.PlayTomorrow"
+                break
+            case "calendartoday":
+                seqNode.type = "Alexa.Calendar.PlayToday"
+                break
+            case "calendarnext":
+                seqNode.type = "Alexa.Calendar.PlayNext"
+                break
+            case "date":
+                seqNode.type = "Alexa.Date.Play"
+                seqNode.skillId = "amzn1.ask.1p.dateandtime"
+                break
+            case "time":
+                seqNode.type = "Alexa.Time.Play"
+                seqNode.skillId = "amzn1.ask.1p.dateandtime"
+                break
+            case "stop":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.DeviceControls.Stop"
+                seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
+                seqNode.operationPayload.devices = [ [deviceType: deviceType, deviceSerialNumber: serialNumber] ]
+                seqNode.operationPayload.isAssociatedDevice = false
+                break
+            case "stopalldevices":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.DeviceControls.Stop"
+                seqNode.operationPayload.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
+                seqNode.operationPayload.isAssociatedDevice = false
+                break
+            case "cannedtts_random":
+            case "cannedtts":
+                List<String> okVals = (List<String>)seqItemsAvail().speech.cannedtts_random //["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+                String sval = value.toString()
+                if(!(sval in okVals)) { return null }
+                seqNode.type = "Alexa.CannedTts.Speak"
+                List<String> valObj = lcmd == 'cannedtts_random' ?  [sval, 'random'] : (sval?.contains("::") ? sval.split("::") : [sval, sval])
+                seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
+                break
+            case "sound":
+                String sndName =sBLANK
+                if(value?.startsWith("amzn_sfx_")) {
+                    sndName = value
+                } else {
+                    Map sounds = getAvailableSounds()
+                    if(!(sounds[value])) { return null }
+                    sndName = sounds[value]
+                }
+                seqNode.type = "Alexa.Sound"
+                seqNode.operationPayload.soundStringId = sndName
+                break
+            case "wait":
+                remDevSpecifics = true
+                seqNode.operationPayload?.remove('customerId')
+                seqNode.type = "Alexa.System.Wait"
+                seqNode.operationPayload.waitTimeInSeconds = value?.toInteger() ?: 5
+                break
+
+            case "dnd_duration":
+            case "dnd_time":
+            case "dnd_all_duration":
+            case "dnd_all_time":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.DeviceControls.DoNotDisturb"
+                seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
+//                seqNode.operationPayload.customerId = (String)state.deviceOwnerCustomerId
+                if(lcmd in ["dnd_all_time", "dnd_all_duration"]) {
+                    seqNode.operationPayload.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
+                }
+                if(lcmd in ["dnd_time", "dnd_duration"]) {
+                    seqNode.operationPayload.devices = [ [deviceAccountId: (String)state.deviceAccountId, deviceType: deviceType, deviceSerialNumber: serialNumber] ]
+                }
+                seqNode.operationPayload.action = "Enable"
+                if(lcmd in ["dnd_time","dnd_all_time"]) {
+                    seqNode.operationPayload.until = "TIME#T${value}"
+                } else if (lcmd in ["dnd_duration","dnd_all_duration"]) { seqNode?.operationPayload?.duration = "DURATION#PT${value}" }
+//ERS
+                seqNode.operationPayload.timeZoneId = "America/Detroit" //location?.timeZone?.ID ?: null
+                break
+            case "speak":
+                seqNode.type = "Alexa.Speak"
+                value = cleanString(value.toString())
+                seqNode.operationPayload.textToSpeak = (String)value
+                break
+            case "volume":
+                seqNode.type = "Alexa.DeviceControls.Volume"
+                seqNode.operationPayload.value = value
+                break
+            case "ssml":
+            case "announcement":
+            case "announcementall":
+            case "announcement_devices":
+                remDevSpecifics = true
+                seqNode.type = "AlexaAnnouncement"
+                seqNode.operationPayload.expireAfter = "PT5S"
+                List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
+                // log.debug "valObj(size: ${valObj?.size()}): $valObj"
+                // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
+                // log.debug "valObj[1]: ${valObj[1]}"
+                seqNode.operationPayload.content = [[
+                                                            locale: ((String)state.regionLocale ?: "en-US"),
+                                                            display: [ title: valObj[0], body: valObj[1].replaceAll(/<[^>]+>/, '') ],
+                                                            speak: [ type: (lcmd == "ssml" ? "ssml" : "text"), value: valObj[1] ]
+                                                    ]]
+                seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
+                if(!(lcmd in ["announcementall", "announcement_devices"])) {
+                    seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
+                } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
+                    List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
+                    seqNode.operationPayload.target.devices = devObjs
+                }
+                break
+
+            case "pushnotification":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.Notifications.SendMobilePush"
+                seqNode.skillId = "amzn1.ask.1p.alexanotifications"
+                seqNode.operationPayload.notificationMessage = value as String
+                seqNode.operationPayload.alexaUrl = "#v2/behaviors"
+                seqNode.operationPayload.title = "Echo Speaks"
+//                seqNode.operationPayload.remove("deviceType")
+//                seqNode.operationPayload.remove("deviceSerialNumber")
+//                seqNode.operationPayload.remove("locale")
+                break
+            case "email":
+                seqNode.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"
+                seqNode.skillId = "amzn1.ask.1p.email"
+                seqNode.operationPayload.targetDevice = [deviceType: deviceType, deviceSerialNumber: serialNumber ]
+                seqNode.operationPayload.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
+                seqNode.operationPayload.remove('deviceType')
+                seqNode.operationPayload.remove('deviceSerialNumber')
+                break
+            case "goodnews":
+                seqNode.type = "Alexa.GoodNews.Play"
+                seqNode.skillId = "amzn1.ask.1p.goodnews"
+                break
+            case "voicecmdtxt":
+                seqNode.type = "Alexa.TextCommand"
+                seqNode.skillId = "amzn1.ask.1p.tellalexa"
+                seqNode.operationPayload.text = value.toString()
+                break
+
+            default:
+                return null
+        }
+        if(remDevSpecifics) {
+            seqNode.operationPayload.remove('deviceType')
+            seqNode.operationPayload.remove('deviceSerialNumber')
+            seqNode.operationPayload.remove('locale')
+        }
+        // log.debug "seqNode: $seqNode"
+        return seqNode
+    } catch (ex) {
+        logError("createSequenceNode Exception: ${ex}", false, ex)
+    }
+    return [:]
 }
 
 /******************************************
@@ -3620,7 +4083,8 @@ void healthCheck() {
         checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
-    restartSocket()
+    def aa=getAllDeviceVolumes()
+    chkRestartSocket()
 
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(advLogsActive()) { logsDisable() }
@@ -3732,9 +4196,9 @@ Boolean getOk2Notify() {
     Boolean pushOk // (Boolean)settings.usePush
     Boolean notifDevs = (settings.notif_devs?.size())
     Boolean pushOver // ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
-    Boolean daysOk = quietDaysOk(settings.quietDays)
+    Boolean daysOk = quietDaysOk((List)settings.quietDays)
     Boolean timeOk = quietTimeOk()
-    Boolean modesOk = quietModesOk(settings.quietModes)
+    Boolean modesOk = quietModesOk((List)settings.quietModes)
     Boolean result = true
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
@@ -3812,8 +4276,6 @@ Boolean childInstallOk() { return (Boolean)state.childInstallOkFlag }
 static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
-
-static String getHEPublicImg(String imgName) { return getPublicImg(imgName, true) }
 
 static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 
@@ -4881,7 +5343,7 @@ String getAppNotifDesc() {
 }
 
 String getActionsDesc() {
-    List<String> actActs = getActiveActionNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (A)', sBLANK)}") + spanSm(" (Active)", "#43d843") }
+    List<String> actActs = getActiveActionNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (A)', sBLANK)}") + spanSm(" (Active)", sCLRGRN2) }
     List<String> inactActs = getInActiveActionNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (A ❚❚)', sBLANK)}") + spanSm(" (Paused)", sCLRORG) }
     List<String> acts = (actActs + inactActs).sort()
     Integer a = acts?.size()
@@ -4892,7 +5354,7 @@ String getActionsDesc() {
 }
 
 String getZoneDesc() {
-    List<String> actZones = getActiveZoneNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanSm(" (Active)", "#43d843") }
+    List<String> actZones = getActiveZoneNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanSm(" (Active)", sCLRGRN2) }
     List<String> inActZones = getInActiveZoneNames()?.sort()
     List<String> iZones = inActZones.findAll { it.contains(" (Z)") }?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanSm(" (Inactive)", sCLRGRY) }
     List<String> pZones = inActZones.findAll { it.contains(" (Z ❚❚)") }?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z ❚❚)', sBLANK)}") + spanSm(" (Paused)", sCLRORG) }
@@ -5962,7 +6424,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
             if(devModeFLD) log.warn "overriding lock $meth"
         }
     }
-    lockTimesFLD[semaSNum] = now()
+    lockTimesFLD[semaSNum] = (Long)now()
     lockTimesFLD = lockTimesFLD
     lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
