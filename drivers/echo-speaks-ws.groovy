@@ -53,7 +53,7 @@ preferences {
     input "autoConnectWs", "bool", required: false, title: "Auto Connect on Initialize?", defaultValue: true
 }
 
-def isSocketActive() { return (state.connectionActive == true) }
+Boolean isSocketActive() { return (Boolean)state.connectionActive }
 
 public updateCookies(Map cookies) {
     logInfo("Cookies Update by Parent.  Re-Initializing Device in 10 Seconds...")
