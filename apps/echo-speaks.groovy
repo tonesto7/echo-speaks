@@ -1083,7 +1083,7 @@ def alexaRoutinesTestPage() {
                     str += spanBldBr(rv)
                     str += spanSmBld("Routine ID: ") + spanSmBr(rk)
                     paragraph divSm(str, sCLR4D9)
-                    input "executeRoutine::${rk}", "button", title: spanSmBld("Run Routine: ", sC:RGRY) + spanSm("(${rv})", sCLRGRY), width: 4
+                    input "executeRoutine::${rk}", "button", title: spanSmBld("Run Routine: ", sCLRGRY) + spanSm("(${rv})", sCLRGRY), width: 4
                     paragraph htmlLine()
                 }
             } else {
