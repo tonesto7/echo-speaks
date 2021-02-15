@@ -830,7 +830,6 @@ def conditionsPage() {
             paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(reqAllCond() ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
         }
         section(sectHead("Time/Date")) {
-            // input "test_time", sTIME, title: "Trigger Time?", required: false, submitOnChange: true
             href "condTimePage", title: inTS1("Time Schedule", "clock"), description: spanSm(getTimeCondDesc(false), sCLR4D9)
             input "cond_days", sENUM, title: inTS1("Days of the week", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: weekDaysEnum()
             input "cond_months", sENUM, title: inTS1("Months of the year", "day_calendar"), multiple: true, required: false, submitOnChange: true, options: monthEnum()
@@ -883,7 +882,7 @@ def conditionsPage() {
             String inType = "thermostatMode"
             String devTitle = "Thermostat Mode"
             List cmdOpts = getThermModeOpts()
-            input "cond_${inType}", "capability.thermostat", title: inTS1("Thermostats", "thermostat"), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            input "cond_${inType}", "capability.thermostat", title: inTS1(devTitle, "thermostat"), multiple: true, submitOnChange: true, required:false
             if (settings."cond_${inType}") {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
                 if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
@@ -896,7 +895,7 @@ def conditionsPage() {
             String inType = "thermostatOperatingState"
             String devTitle = "Thermostat Operating State"
             List cmdOpts = getThermOperStOpts()
-            input "cond_${inType}", "capability.thermostat", title: inTS1("Thermostats", "thermostat"), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+            input "cond_${inType}", "capability.thermostat", title: inTS1(devTitle, "thermostat"), multiple: true, submitOnChange: true, required:false
             if (settings."cond_${inType}") {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
                 if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
@@ -905,8 +904,8 @@ def conditionsPage() {
             }
         }
 
-        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Thermostats", "Temperature", "temperature")
-        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Thermostats", "Temperature", "temperature")
+        condNumValSect("coolingSetpoint", "thermostat", "Cooling Setpoint", "Thermostat Cooling SetPoint", "Temperature", "temperature")
+        condNumValSect("heatingSetpoint", "thermostat", "Heating Setpoint", "Thermostat Heating SetPoint", "Temperature", "temperature")
     }
 }
 
@@ -919,8 +918,8 @@ static List getThermOperStOpts() {
 }
 
 def condNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, String image) {
-    section (sectHead(sectStr), hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required:false, hideWhenEmpty: true
+    section (sectHead(sectStr)) {
+        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required:false
         if (settings."cond_${inType}") {
             input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle}...", sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true
             if (settings."cond_${inType}_cmd" && settings."cond_${inType}"?.size() > 1) {
@@ -931,8 +930,8 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
 }
 
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Boolean hideable= false) {
-    section (sectHead(sectStr), hideWhenEmpty: true) {
-        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false, hideWhenEmpty: true
+    section (sectHead(sectStr)) {
+        input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false
         if(settings."cond_${inType}") {
             input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
             if (settings."cond_${inType}_cmd") {
@@ -4911,7 +4910,7 @@ String getTimeCondDesc(Boolean addPre=true) {
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
 
-    return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl1}${startLbl} - ${stopLbl1}${stopLbl})" : sTTC
+    return startLbl && stopLbl ? "${addPre ? "Time Condition:\n" : sBLANK}(${startLbl1}${startLbl} - ${stopLbl1}${stopLbl})" : inactFoot(sTTC)
 }
 
 static String getInputToStringDesc(inpt, addSpace = null) {
