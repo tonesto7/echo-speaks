@@ -1197,7 +1197,7 @@ def actionsPage() {
                         section(sectHead("Action Type Config:")) {
                             input "act_voicecmd_txt", sTEXT, title: inTS1("Enter voice command text", sTEXT), submitOnChange: true, required: false
                         }
-                        actionExecMap.config.voicecmd = [text: settings.act_voicecmd_txt]
+                        actionExecMap.config.voicecmd = [text: settings.act_voicecmd_txt, cmd: "voiceCmdAsText"]
                         if(settings.act_voicecmd_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -1235,7 +1235,7 @@ def actionsPage() {
                         section(sectHead("Action Type Config:")) {
                             input "act_sequence_txt", sTEXT, title: inTS1("Enter sequence text", sTEXT), submitOnChange: true, required: false
                         }
-                        actionExecMap.config.sequence = [text: settings.act_sequence_txt]
+                        actionExecMap.config.sequence = [text: settings.act_sequence_txt, cmd: "executeSequenceCommand"]
                         if(settings.act_sequence_txt) { done = true } else { done = false }
                     } else { done = false }
                     break
@@ -3765,7 +3765,6 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                             bn = bn ?: "Echo Speaks Action"
                             if(actDevSiz > 1 && actConf[actType]?.deviceObjs && actConf[actType]?.deviceObjs?.size()) {
                                 //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                                //def devJson = new groovy.json.JsonOutput().toJson(actConf[actType]?.deviceObjs)
                                 actDevices[0]?.sendAnnouncementToDevices(txt, bn, actConf[actType]?.deviceObjs, changeVol, restoreVol)
                             } else {
                                 actDevices?.each { dev->
@@ -3779,40 +3778,20 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 break
             case "voicecmd":
             case "sequence":
-                String mAct="VoiceCmdasText"
-                String mMeth="voiceCmdAsText"
-                if(actType == "sequence") {
-                    mAct="Sequence"
-                    mMeth="executeSequenceCommand"
-                }
+                String mCmd= actConf[actType] ? (String)actConf[actType].cmd : sNULL
                 String mText= actConf[actType] ? (String)actConf[actType].text : sNULL
                 if(mText != sNULL) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, message: mText, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${mAct} Command: (${mText}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${mText}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         actDevices.each { dev->
-                            dev?."${mMeth}"(mText)
+                            dev?."${mCmd}"(mText)
                         }
                         logDebug("Sending ${mAct} Command: (${mText}) to devices (${actDevices})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     }
                 }
                 break
-/*
-            case "sequence":
-                if(actConf[actType] && actConf[actType].text) {
-                    if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, message: actConf[actType]?.text, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending Sequence Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
-                    } else if(actDevSiz) {
-                        actDevices.each { dev->
-                            dev?.executeSequenceCommand(actConf[actType].text as String)
-                        }
-                        logDebug("Sending Sequence Command to Zones: (${actConf[actType].text}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
-                    }
-                }
-                break
-*/
             case "playback":
             case "dnd":
                 String mCmd= actConf[actType] ? (String)actConf[actType].cmd : sNULL
@@ -4856,10 +4835,23 @@ Map getZoneStatus() {
     return res
 }
 
+String getZoneVolDesc(zone, volMap) {
+    String str = sBLANK
+    str += spanSmBr(" ${sBULLET} ${zone?.value?.name} ${zone?.value?.active == true ? spanSm(" (Active)", sCLRGRN2) : spanSm(" (Inactive)", sCLRGRY)}")
+    if(settings.act_EchoZones_vol_per_zone && volMap && volMap[zone.key]) {
+        List s2 = []
+        if(volMap[zone.key].change) s2.push(spanSm("    - New Volume: ${volMap[zone.key].change}"))
+        if(volMap[zone.key].restore) s2.push(spanSm("    - Restore Volume: ${volMap[zone.key].restore}"))
+        str += s2.size() ? s2.join(sLINEBR) : sBLANK
+    }
+    return str
+}
+
 String getActionDesc(Boolean addFoot=true) {
     Boolean confd = executionConfigured()
-//    String sPre = "act_"
     String str = sBLANK
+    Map actMap = state.actionExecMap
+    Map znVolMap = actMap && actMap.config && actMap.config.zoneVolume ? actMap.config.zoneVolume : null
     str += addFoot ? spanSmBr(strUnder("Action Type:")) : sBLANK
     str += addFoot ? spanSmBr(" ${sBULLET} " + (String)buildActTypeEnum()."${(String)settings.actionType}") + lineBr() : sBLANK
     if((String)settings.actionType && confd) {
@@ -4869,20 +4861,19 @@ String getActionDesc(Boolean addFoot=true) {
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
-        str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) + spanSmBr(zones?.collect { " ${sBULLET} ${it?.value?.name} ${it?.value?.active == true ? spanSm("(Active)", sCLRGRN2) : spanSm("(Inactive)", sCLRGRY)}" }?.join(sLINEBR)) + (eDevs?.size() ? sLINEBR : sBLANK) : sBLANK
+        str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) : sBLANK
+        str += zones?.size() ? spanSmBr(zones?.collect { getZoneVolDesc(it, znVolMap) }?.join(sLINEBR)) + (eDevs?.size() ? sLINEBR : sBLANK) : sBLANK
         str += eDevs?.size() ? spanSm(strUnder("Alexa Devices:")) + spanSmBr(zones?.size() ? " (Inactive Zone Default)" : sLINEBR, sCLRGRY) + spanSmBr(eDevs?.collect { " ${sBULLET} ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join(sLINEBR)) : sBLANK
         str += tierDesc ? sLINEBR + spanSm(tierDesc) + (tierStart || tierStop ? sBLANK : sLINEBR) : sBLANK
         str += tierStart ? spanSmBr(tierStart) : sBLANK
         str += tierStop ? spanSmBr(tierStop) : sBLANK
-        str += settings.act_EchoZones_vol_per_zone ? spanSmBr("Volume (Per Zone): (${settings.act_EchoZones_vol_per_zone})") : sBLANK
-        str += settings.act_volume_change != null ? spanSmBr("New Volume: (${settings.act_volume_change})") : sBLANK
-        str += settings.act_volume_restore != null ? spanSmBr("Restore Volume: (${settings.act_volume_restore})") : sBLANK
+        str += settings.act_volume_change != null ? spanSmBr(" - New Volume: (${settings.act_volume_change})") : sBLANK
+        str += settings.act_volume_restore != null ? spanSmBr(" - Restore Volume: (${settings.act_volume_restore})") : sBLANK
         str += settings.act_delay ? spanSmBr("Delay: (${settings.act_delay})") : sBLANK
         str += (String)settings.actionType in ["speak", "announcement", "speak_tiered", "announcement_tiered"] && settings."act_${(String)settings.actionType}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
         String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
         str += trigTasks ? spanSm(trigTasks) : sBLANK
         str += addFoot ? inputFooter(sTTM) : sBLANK
-        // return div(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, sSMALL)
     }
     str += !confd && addFoot ? inputFooter("Tap to configure (Required!)", sCLRRED, true) : sBLANK
     return divSm(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9)
