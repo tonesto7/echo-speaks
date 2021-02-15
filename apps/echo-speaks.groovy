@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-12"
+@Field static final String appModifiedFLD = "2021-02-10"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -168,71 +168,70 @@ def mainPage() {
         if(newInstall) {
             deviceDetectOpts()
         } else {
-            section(sectHead("Alexa Guard:")) {
+            section(sTS("Alexa Guard:")) {
                 if((Boolean) state.alexaGuardSupported) {
                     String gState = (String) state.alexaGuardState ? ((String) state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : sUnknown
                     String gStateIcon = gState == sUnknown ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-                    String ad = spanSmBld("Alarm System Mode:", sCLR4D9) + spanSm(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)))
+                    String ad = spanWrap("Alarm System Mode:", sCLR4D9, "small", true) + spanWrap(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)), "small")
                     ad += guardAutoConfigured() ? lineBr() + lineBr() + guardAutoDesc() : sBLANK
                     ad += inputFooter(sTTM)
                     href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), description: ad
-                } else { paragraph divSm("Alexa Guard is not enabled or supported by any of your Echo Devices", sCLRGRY) }
+                } else { paragraph divWrap("Alexa Guard is not enabled or supported by any of your Echo Devices", sCLRGRY, "small") }
             }
 
-            section(sectHead("Alexa Devices:")) {
+            section(sTS("Alexa Devices:")) {
                 if(!newInstall) {
                     List remDevs = getRemovableDevs()
                     if(remDevs?.size()) {
-                        String rd = remDevs.sort().collect { spanSm(" ${sBULLET} ${it}") }.join("<br>")
-                        href "devCleanupPage", title: inTS1("Removable Devices:"), description: divSm(rd, sCLRRED)
+                        String rd = remDevs.sort().collect { spanWrap(" ${sBULLET} ${it}") }.join("<br>")
+                        href "devCleanupPage", title: inTS("Removable Devices:"), description: divWrap(rd, sCLRRED, "small"), required: true, state: sNULL
                     }
-                    String devDesc = getDeviceList()?.collect { "${spanSm(it?.value?.name)}${it?.value?.online ? spanSm(" (Online)", sCLRGRN2) : sBLANK}${it?.value?.supported == false ? spanSm(" ${sFRNFACE}", sCLRRED2) : sBLANK}" }?.sort().join("<br>").toString()
-                    String dd = devDesc ? divSm(devDesc, sCLR4D9) + inputFooter(sTTM) : inputFooter(sTTC, sCLRGRY)
-                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd
-                } else { paragraph spanSmBld("Device Management will be displayed after install is complete", sCLRORG) }
+                    String devDesc = getDeviceList()?.collect { "${spanWrap(it?.value?.name)}${it?.value?.online ? spanWrap(" (Online)", sCLRGRN2) : sBLANK}${it?.value?.supported == false ? spanWrap(" ${sFRNFACE}", sCLRRED2) : sBLANK}" }?.sort().join("<br>").toString()
+                    String dd = devDesc ? "${divWrap(devDesc, sCLR4D9, "small")}${inputFooter(sTTM)}" : "${inputFooter(sTTC, sCLRGRY)}"
+                    href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd, state: sCOMPLT
+                } else { paragraph pTS("Device Management will be displayed after install is complete", sNull, true, "orange") }
             }
 
-            section(sectHead("Companion Apps:")) {
+            section(sTS("Companion Apps:")) {
                 List zones = getZoneApps()
                 List acts = getActionApps()
-                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc()
-                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc()
+                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc(), state: (zones?.size() ? sCOMPLT : sNULL)
+                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc(), state: (acts?.size() ? sCOMPLT : sNULL)
             }
 
-            section(sectHead("Alexa Login Service:")) {
+            section(sTS("Alexa Login Service:")) {
                 String ls = getLoginStatusDesc()
-                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true))
+                href "authStatusPage", title: inTS1("Login Status | Cookie Service Management", sSETTINGS), description: (ls ? "${ls}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true)), state: (ls ? sCOMPLT : sNULL)
             }
             if(!(Boolean)state.shownDevSharePage) { showDevSharePrefs() }
         }
-        section(sectHead("Notifications:")) {
+        section(sTS("Notifications:")) {
             String t0 = getAppNotifConfDesc()
-            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true))
+            href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true)), state: (t0 ? sCOMPLT : sNULL)
         }
-        section(sectHead("Documentation & Settings:")) {
+        section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inputFooter(sTTP, sCLRGRY, true)
             href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: inputFooter(sTTM, sCLRGRY, true)
-            href "changeLogPage", title: inTS1("View Change Logs", "change_log"), description: inputFooter(sTTVD, sCLRGRY, true)
         }
 
 //        if((Boolean)state.isInstalled) {
 //        } else {
-//            paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getHEAppImg("info"), false, sCLR4D9)
+//            paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getHEAppImg("info"), false, sCLR4D9), state: sCOMPLT
 //        }
         // getCustomerHistoryRecords(10, true)
         if(!newInstall) {
-            section(sectHead("Experimental Functions")) {
-                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanSm("Test Speech, Announcements, and Sequences Builder", sCLRGRY) + inputFooter(sTTP, sCLRGRY)
-                href "alexaRoutinesTestPage", title: inTS1("Alexa Routine Testing", "routine"), description: spanSm("View Routine Info and Test", sCLRGRY) + inputFooter(sTTP, sCLRGRY)
-                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanSm("Test music queries", sCLRGRY) + inputFooter(sTTP, sCLRGRY)
+            section(sTS("Experimental Functions:")) {
+                href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanWrap("Test Speech, Announcements, and Sequences Builder", sCLRGRY, "small") + lineBr() + inputFooter(sTTP, sCLRGRY)
+                href "alexaRoutinesTestPage", title: inTS1("Alexa Routine Testing", "routine"), description: spanWrap("View Routine Info and Test", sCLRGRY, "small") + lineBr() + inputFooter(sTTP, sCLRGRY)
+                href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanWrap("Test music queries", sCLRGRY, "small") + lineBr() + inputFooter(sTTP, sCLRGRY)
             }
-            section(sectHead("Donations:")) {
+            section(sTS("Donations:")) {
                 href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
             }
-            section(sectHead("Remove Everything:")) {
+            section(sTS("Remove Everything:")) {
                 href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
             }
-            section(sectHead("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
+            section(sTS("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
                 def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
                 def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
                 href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
@@ -240,8 +239,8 @@ def mainPage() {
             }
         } else {
             showDevSharePrefs()
-            section(sectHead("Important Step:")) {
-                paragraph spanSmBld("Notice", sCLRRED) + spanSmBr("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sCLRRED)
+            section(sTS("Important Step:")) {
+                paragraph spanWrap("Notice", sCLRRED, "small", true) + spanWrap("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sCLRRED, "small", false, true)
                 state.resumeConfig = true
             }
         }
@@ -256,36 +255,36 @@ def authStatusPage() {
         if((Boolean)state.authValid) {
             Integer lastChkSec = getLastTsValSecs("lastCookieRrshDt")
             Boolean pastDayChkOk = (lastChkSec > 86400)
-            section(sectHead("Cookie Status:")) {
+            section(sTS("Cookie Status:")) {
                 Boolean cookieValid = validateCookie(true)
                 Boolean chk1 = (state.cookieData && state.cookieData.localCookie)
                 Boolean chk2 = (state.cookieData && state.cookieData.csrf  )
                 Boolean chk3 = (lastChkSec < 432000)
                 // Boolean chk4 = (cookieValid == true)
                 // log.debug "cookieValid: ${cookieValid} | chk1: $chk1 | chk2: $chl2 | chk3: $chk3 | chk4: $chk4"
-                String stat = spanSmBld("Auth Status:") + spanSmBr(getOkOrNotSymHTML(chk1 && chk2 && cookieValid))
-                stat += spanSm(" ${sBULLET} Cookie:") + spanSmBr(getOkOrNotSymHTML(chk1))
-                stat += spanSm(" ${sBULLET} CSRF Value:") + spanSmBr(getOkOrNotSymHTML(chk2))
+                String stat = spanWrap("Auth Status:", sNULL, sNULL, true) + getOkOrNotSymHTML(chk1 && chk2 && cookieValid)
+                stat += lineBr() + spanWrap(" ${sBULLET} Cookie:") + getOkOrNotSymHTML(chk1)
+                stat += lineBr() + spanWrap(" ${sBULLET} CSRF Value:") + getOkOrNotSymHTML(chk2)
                 stat += lineBr()
-                stat += spanSm("Cookie Refresh:", sNULL, sNULL, true) + spanSmBr(getOkOrNotSymHTML(chk3))
-                stat += spanSm(" ${sBULLET} Last Refresh:") + spanSmBr(" (${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", (!chk3 ? sCLRRED : sNULL))
-                stat += spanSm(" ${sBULLET} Next Refresh:") + spanSmBr(" (${nextCookieRefreshDur()})")
-                paragraph divSm(stat, sCLR4D9)
+                stat += lineBr() + spanWrap("Cookie Refresh:", sNULL, sNULL, true) + getOkOrNotSymHTML(chk3)
+                stat += lineBr() + spanWrap(" ${sBULLET} Last Refresh:") + spanWrap(" (${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", (!chk3 ? sCLRRED : sNULL))
+                stat += lineBr() + spanWrap(" ${sBULLET} Next Refresh:") + spanWrap(" (${nextCookieRefreshDur()})")
+                paragraph divWrap(stat, sCLR4D9, 'small')
             }
 
-            section(sectHead("Cookie Tools: (Tap to show)", getHEAppImg("cookie")), hideable: true, hidden: true) {
+            section(sTS("Cookie Tools: (Tap to show)", getHEAppImg("cookie")), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
                 input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
                 if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
                 // Refreshes the cookie
-                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: spanSm(ckDesc), required: true, defaultValue: false, submitOnChange: true
+                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: ckDesc, required: true, defaultValue: false, submitOnChange: true, state: (pastDayChkOk ? sBLANK : sNULL)
                 paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED)
-                paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9)
+                paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9), state: sCOMPLT
                 // Clears cookies for app and devices
-                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: spanSm("Clear all stored cookie data from the app and devices."), required: false, defaultValue: false, submitOnChange: true
+                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: "Clear all stored cookie data from the app and devices.", required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY)
-                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: spanSm("Force devices to synchronize their stored cookies."), required: false, defaultValue: false, submitOnChange: true
+                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: "Force devices to synchronize their stored cookies.", required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY)
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
@@ -293,9 +292,9 @@ def authStatusPage() {
             }
         }
 
-        section(sectHead("Cookie Service Management")) {
+        section(sTS("Cookie Service Management")) {
             String t0 = getServiceConfDesc()
-            href "servPrefPage", title: inTS1("Manage Cookie Login Service", sSETTINGS), description: (t0 ? divSm(t0, sCLR4D9) + inputFooter(sTTM, sCLR4D9) : inputFooter(sTTC, sCLRGRY, true))
+            href "servPrefPage", title: inTS1("Manage Cookie Login Service", sSETTINGS), description: (t0 ? "${t0}\n\n${sTTM}" : sTTC), state: (t0 ? sCOMPLT : sNULL)
         }
     }
 }
@@ -313,41 +312,41 @@ def servPrefPage() {
         if(settings.regionLocale == null) settingUpdate("regionLocale", "en-US", sENUM)
 
         if(!(Boolean)state.serviceConfigured) {
-            section(sectHead("Cookie Server Deployment Option:")) {
-                input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: spanSm("Turn Off to allow local server deployment"), required: false, defaultValue: true, submitOnChange: true
+            section(sTS("Cookie Server Deployment Option:")) {
+                input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: "Turn Off to allow local server deployment", required: false, defaultValue: true, submitOnChange: true
                 if(!(Boolean)settings.useHeroku) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
             }
-            section() { paragraph pTS("To proceed with the server setup.\nTap on 'Begin Server Setup' below", sNULL, true, sCLR4D9) }
+            section() { paragraph pTS("To proceed with the server setup.\nTap on 'Begin Server Setup' below", sNULL, true, sCLR4D9), state: sCOMPLT }
             srvcPrefOpts(true)
-            section(sectHead("Deploy the Server:")) {
-                href url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP
+            section(sTS("Deploy the Server:")) {
+                href (url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP, required: false, state: sCOMPLT)
             }
         } else {
             String myUrl = "${getServerHostURL()}/config"
             String t0 = getServiceConfDesc()
             if(!authValid) {
-                section(sectHead("Authentication:")) {
-                    paragraph spanSmBld("You still need to Login to Amazon to complete the setup", sCLRRED)
-                    href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
+                section(sTS("Authentication:")) {
+                    paragraph pTS("You still need to Login to Amazon to complete the setup", sNULL, true, sCLRRED), required: true, state: sNULL
+                    href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP
                 }
             } else {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
-                    section(sectHead("Server Management:")) {
-                        if(oH && (String)state.herokuName) { paragraph spanSmBr("Heroku Name:", sCLR4D9) + spanSmBld(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
-                        href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
+                    section(sTS("Server Management:")) {
+                        if(oH && (String)state.herokuName) { paragraph pTS("Heroku Name:\n ${sBULLET} ${(String)state.herokuName}", sNULL, true, sCLR4D9), state: sCOMPLT }
+                        href url: myUrl, style: sEXTNRL, required: false, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0+'\n\n'+sTTP
+                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, required: false, title: inTS1("Heroku App Settings", sHEROKU), description: sTTP
+                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, required: false, title: inTS1("Heroku App Logs", sHEROKU), description: sTTP
                     }
             }
             srvcPrefOpts()
         }
-        section(sectHead("Reset Options (Tap to show):"), hideable: true, hidden: true) {
+        section(sTS("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", sBOOL, title: inTS1("Reset Service Data?", sRESET), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true
             paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY)
             if(settings.resetService) { clearCloudConfig() }
         }
-/*        section(sectHead("Documentation & Settings:")) {
+/*        section(sTS("Documentation & Settings:")) {
             href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
             href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: sTTM
         } */
@@ -356,7 +355,7 @@ def servPrefPage() {
 }
 
 def srvcPrefOpts(Boolean req=false) {
-    section(sectHead("${req ? "Required " : sBLANK}Amazon Locale Settings"), hideable: false, hidden: false) {
+    section(sTS("${req ? "Required " : sBLANK}Amazon Locale Settings"), hideable: false, hidden: false) {
         if(req) {
             input "amazonDomain", sENUM, title: inTS1("Select your Amazon Domain?", sAMAZONORNG), description: sBLANK, required: true, defaultValue: "amazon.com", options: amazonDomainOpts(), submitOnChange: true
             input "regionLocale", sENUM, title: inTS1("Select your Locale?", "www"), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true
@@ -364,7 +363,7 @@ def srvcPrefOpts(Boolean req=false) {
             String s = sBLANK
             s += settings.amazonDomain ? "Amazon Domain: (${settings.amazonDomain})" : sBLANK
             s += settings.regionLocale ? "\nLocale Region: (${settings.regionLocale})" : sBLANK
-            paragraph spanSm(s, sCLR4D9, getHEAppImg(sAMAZONORNG))
+            paragraph pTS(s, getHEAppImg(sAMAZONORNG), false, sCLR4D9), state: sCOMPLT
         }
     }
 }
@@ -372,30 +371,30 @@ def srvcPrefOpts(Boolean req=false) {
 def deviceManagePage() {
     return dynamicPage(name: "deviceManagePage", uninstall: false, install: false) {
         Boolean newInstall = !(Boolean)state.isInstalled
-        section(sectHead("Alexa Devices:")) {
+        section(sTS("Alexa Devices:")) {
             if(!newInstall) {
                 Map devs = getDeviceList()
                 Map skDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason != sIN_IGNORE) }
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs?.size()) {
                     String devDesc = devs?.collect { "<span>${it?.value?.name}</span>${it?.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it?.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
-                    String dd = spanSmBr(devDesc) + inputFooter(sTTVD)
-                    href "deviceListPage", title: inTS1("Installed Devices:"), description: divSm(dd, sCLR4D9)
-                } else { paragraph spanSm("Discovered Devices:<br>No Devices Available", sCLRRED) }
+                    String dd = spanWrap(devDesc) + lineBr() + inputFooter(sTTVD)
+                    href "deviceListPage", title: inTS("Installed Devices:"), description: divWrap(dd, sCLR4D9, "small")
+                } else { paragraph pTS("Discovered Devices:\nNo Devices Available", sNULL, false, "red"), state: sCOMPLT }
                 List remDevs = getRemovableDevs()
                 if(remDevs?.size()) {
-                    String rd = spanSm(remDevs.sort().collect { " ${sBULLET} ${it}" }.join("<br>"))
-                    href "devCleanupPage", title: inTS1("Removable Devices:"), description: divSm(rd, sCLRGRY)
+                    String rd = spanWrap(remDevs.sort().collect { " ${sBULLET} ${it}" }.join("<br>"))
+                    href "devCleanupPage", title: inTS("Removable Devices:"), description: divWrap(rd, sCLRGRY, "small"), required: true, state: sNULL
                 }
                 if(skDevs?.size()) {
                     String uDesc = "Unsupported: (${skDevs?.size()})"
                     uDesc += ignDevs?.size() ? "\nUser Ignored: (${ignDevs?.size()})" : sBLANK
                     uDesc += (Boolean)settings.bypassDeviceBlocks ? "\nBlock Bypass: (Active)" : sBLANK
-                    href "unrecogDevicesPage", title: inTS1("Unused Devices:"), description: spanSmBr("${uDesc}", sCLRORG) + inputFooter(sTTVD)
+                    href "unrecogDevicesPage", title: inTS("Unused Devices:"), description: "<div style='color: orange;font-size: small;'>${uDesc}</div><br><div style='font-weight: bold;font-size: small;'>${sTTVD}</div>", state: sCOMPLT
                 }
             }
             String devPrefDesc = devicePrefsDesc()
-            href "devicePrefsPage", title: inTS1("Device Detection Preferences", sDEVICES), description: (devPrefDesc ? devPrefDesc + inputFooter(sTTM) : inputFooter(sTTC, sCLRGRY))
+            href "devicePrefsPage", title: inTS1("Device Detection\nPreferences", sDEVICES), description: (devPrefDesc ? "${devPrefDesc}${inputFooter(sTTM)}" : inputFooter(sTTC)), state: sCOMPLT
         }
     }
 }
@@ -405,17 +404,17 @@ def alexaGuardPage() {
         String gState = (String)state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : sUnknown
         String gStateIcon = gState == sUnknown ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
         String gStateTitle = (gState == sUnknown || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
-        section(sectHead("Alexa Guard Control")) {
-            paragraph spanSm("Current Status:", sCLR4D9) + spanSm(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)))
+        section(sTS("Alexa Guard Control")) {
+            paragraph spanWrap("Current Status:", sCLR4D9, "small") + spanWrap(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)), "small")
             input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), defaultValue: false, submitOnChange: true
         }
         if(settings.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
             setGuardState(settings.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
         }
         state.alexaGuardAwayToggle = settings.alexaGuardAwayToggle
-        section(sectHead("Automate Guard Control")) {
+        section(sTS("Automate Guard Control")) {
             String t0 = guardAutoDesc()
-            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: (t0 ? t0 + inputFooter(sTTM) : spanSm("Automate the control of Alexa using modes, HSM, and more.", sCLRGRY) + inputFooter(sTTC, sCLRGRY, true))
+            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: (t0 ? t0 + inputFooter(sTTM) : spanWrap("Automate the control of Alexa using modes, HSM, and more.", sCLRGRY, "small") + inputFooter(sTTC, sCLRGRY, true))
         }
     }
 }
@@ -427,54 +426,52 @@ def alexaGuardAutoPage() {
         Boolean alarmReq = (settings.guardAwayAlarm || settings.guardHomeAlarm)
         Boolean modeReq = (settings.guardAwayModes || settings.guardHomeModes)
         // Boolean swReq = (settings.guardAwaySw || settings.guardHomeSw)
-        section(sectHead("Set Guard Using ${asn}")) {
-            input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: inputFooter(sTTS, sCLRGRY, true), options: amo, required: alarmReq, multiple: true, submitOnChange: true
-            input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: inputFooter(sTTS, sCLRGRY, true), options: amo, required: alarmReq, multiple: true, submitOnChange: true
+        section(sTS("Set Guard Using ${asn}")) {
+            input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
+            input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: sTTS, options: amo, required: alarmReq, multiple: true, submitOnChange: true
         }
 
-        section(sectHead("Set Guard Using Modes")) {
-            input "guardHomeModes", "mode", title: inTS1("Home in these Modes?", "mode"), description: inputFooter(sTTS, sCLRGRY, true), required: modeReq, multiple: true, submitOnChange: true
-            input "guardAwayModes", "mode", title: inTS1("Away in these Modes?", "mode"), description: inputFooter(sTTS, sCLRGRY, true), required: modeReq, multiple: true, submitOnChange: true
+        section(sTS("Set Guard Using Modes")) {
+            input "guardHomeModes", "mode", title: inTS1("Home in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true
+            input "guardAwayModes", "mode", title: inTS1("Away in these Modes?", "mode"), description: sTTS, required: modeReq, multiple: true, submitOnChange: true
         }
 
-        section(sectHead("Set Guard Using Switches:")) {
-            input "guardHomeSwitch", "capability.switch", title: inTS1("Home when any of these are On?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-            input "guardAwaySwitch", "capability.switch", title: inTS1("Away when any of these are On?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-            input "guardFollowSwitch", "capability.switch", title: inTS1("Follow Switch State (ON = Away | OFF = HOME)?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: false, required: false, submitOnChange: true
+        section(sTS("Set Guard Using Switches:")) {
+            input "guardHomeSwitch", "capability.switch", title: inTS1("Home when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
+            input "guardAwaySwitch", "capability.switch", title: inTS1("Away when any of these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
 
-        section(sectHead("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS1("Away when these devices are All away?", "presence"), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+        section(sTS("Set Guard using Presence")) {
+            input "guardAwayPresence", "capability.presenceSensor", title: inTS1("Away when these devices are All away?", "presence"), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
         if(guardAutoConfigured()) {
-            section(sectHead("Delay:")) {
+            section(sTS("Delay:")) {
                 input "guardAwayDelay", "number", title: inTS1("Delay before arming Away?\n(in seconds)", "delay_time"), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true
             }
         }
-        section(sectHead("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS1("Only when these are On?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS1("Only when these are Off?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+        section(sTS("Restrict Guard Changes (Optional):")) {
+            input "guardRestrictOnSwitch", "capability.switch", title: inTS1("Only when these are On?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
+            input "guardRestrictOffSwitch", "capability.switch", title: inTS1("Only when these are Off?", sSWITCH), description: sTTS, multiple: true, required: false, submitOnChange: true
         }
     }
 }
 
 Boolean guardAutoConfigured() {
-    return ((settings.guardAwayAlarm && settings.guardHomeAlarm) || (settings.guardAwayModes && settings.guardHomeModes) || settings.guardFollowSwitch || (settings.guardAwaySwitch && settings.guardHomeSwitch) || settings.guardAwayPresence)
+    return ((settings.guardAwayAlarm && settings.guardHomeAlarm) || (settings.guardAwayModes && settings.guardHomeModes) || (settings.guardAwaySwitch && settings.guardHomeSwitch) || settings.guardAwayPresence)
 }
 
 String guardAutoDesc() {
     String str = sBLANK
     if(guardAutoConfigured()) {
-        str += spanSmBldBr("Guard Triggers:")
-        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? spanSmBr(" ${sBULLET} Using ${getAlarmSystemName()}") : sBLANK
-        str += settings.guardHomeModes ? spanSmBr(" ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})") : sBLANK
-        str += settings.guardAwayModes ? spanSmBr(" ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})") : sBLANK
-        str += settings.guardHomeSwitch ? spanSmBr(" ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})") : sBLANK
-        str += settings.guardAwaySwitch ? spanSmBr(" ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})") : sBLANK
-        str += settings.guardFollowSwitch ? spanSmBr(" ${sBULLET} Follow Switch: (${isSwitchOn(settings.guardFollowSwitch) ? "Armed Away" : "Disarmed"})") : sBLANK
-        str += settings.guardAwayPresence ? spanSmBr(" ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})") : sBLANK
+        str += spanWrap("Guard Triggers:", sNULL, sNULL, true)
+        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? lineBr() + " ${sBULLET} Using ${getAlarmSystemName()}" : sBLANK
+        str += settings.guardHomeModes ? lineBr() + " ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})" : sBLANK
+        str += settings.guardAwayModes ? lineBr() + " ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})" : sBLANK
+        str += settings.guardHomeSwitch ? lineBr() + " ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})" : sBLANK
+        str += settings.guardAwaySwitch ? lineBr() + " ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})" : sBLANK
+        str += settings.guardAwayPresence ? lineBr() + " ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})" : sBLANK
     }
-    return str != sBLANK ? divSm(str, sCLR4D9) : sBLANK
+    return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sBLANK
 }
 
 def guardTriggerEvtHandler(evt) {
@@ -495,16 +492,11 @@ def guardTriggerEvtHandler(evt) {
             if(!inAwayMode && inHomeMode) { newState = sARM_STAY }
             break
         case "switch":
-            Boolean isFollowSwitch = (settings.guardFollowSwitch && settings.guardFollowSwitch.deviceNetworkId == evt.deviceNetworkId)
-            if(isFollowSwitch) {
-                newState = isSwitchOn(settings.guardFollowSwitch) ? sARM_AWAY : sARM_STAY
-            } else {
-                Boolean inAwaySw = isSwitchOn(settings.guardAwaySwitch)
-                Boolean inHomeSw = isSwitchOn(settings.guardHomeSwitch)
-                if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return }
-                if(inAwaySw && !inHomeSw) { newState = sARM_AWAY }
-                if(!inAwaySw && inHomeSw) { newState = sARM_STAY }
-            }
+            Boolean inAwaySw = isSwitchOn(settings.guardAwaySwitch)
+            Boolean inHomeSw = isSwitchOn(settings.guardHomeSwitch)
+            if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return }
+            if(inAwaySw && !inHomeSw) { newState = sARM_AWAY }
+            if(!inAwaySw && inHomeSw) { newState = sARM_STAY }
             break
         case "presence":
             newState = isSomebodyHome(settings.guardAwayPresence) ? sARM_STAY : sARM_AWAY
@@ -554,15 +546,16 @@ def actionsPage() {
             }
         }
         if(actApps?.size()) {
-            section (sectHead("Action History:")) {
-                href "viewActionHistory", title: inTS1("View Action History", "tasks"), description: spanSm("(Grouped by Action)", sCLR4D9)
+            section (sTS("Action History:")) {
+                href "viewActionHistory", title: inTS1("View Action History", "tasks"), description: "(Grouped by Action)", state: sCOMPLT
             }
 
-            section (sectHead("Global Actions Management:"), hideable: true, hidden: true) {
+            section (sTS("Global Actions Management:"), hideable: true, hidden: true) {
                 if(activeActions?.size()) {
-                    input "pauseChildActions", sBOOL, title: inTS1("Pause all actions?", "pause_orange"), description: sBLANK, defaultValue: false, submitOnChange: true
+                    input "pauseChildActions", sBOOL, title: inTS1("Pause all actions?", "pause_orange"), description: "When pausing all Actions you can either restore all or open each action and manually unpause it.",
+                            defaultValue: false, submitOnChange: true
                     if((Boolean)settings.pauseChildActions) { settingUpdate("pauseChildActions", sFALSE, sBOOL); runIn(3, "executeActionPause") }
-                    paragraph spanSm("When pausing all Actions you can either restore all or open each action and manually unpause it.", sCLRGRY)
+                    paragraph pTS("When pausing all Actions you can either restore all or open each action and manually unpause it.", sNULL, false, sCLRGRY)
                 }
                 if(pausedActions?.size()) {
                     input "unpauseChildActions", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true
@@ -581,7 +574,7 @@ def actionDuplicationPage() {
     return dynamicPage(name: "actionDuplicationPage", nextPage: "actionsPage", uninstall: false, install: false) {
         section() {
             if((Boolean)state.actionDuplicated) {
-                paragraph spanSmBldBr("Action already duplicated...", sCLRRED) + spanSmBld("Return to action page and select it", sCLRRED)
+                paragraph pTS("Action already duplicated...\n\nReturn to action page and select it", sNULL, true, sCLRRED), required: true, state: sNULL
             } else {
                 def act = getActionApps()?.find { it?.id?.toString() == settings.actionDuplicateSelect?.toString() }
                 if(act) {
@@ -598,9 +591,9 @@ def actionDuplicationPage() {
                     // actData?.settings["actionPause"] = [type: sBOOL, value: true]
                     actData.settings["duplicateSrcId"] = [type: "text", value: actId]
                     addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
-                    paragraph spanSmBldBr("Action Duplicated...", sCLR4D9) + spanSmBld("<br>Return to Action Page and look for the App with '(Dup)' in the name...", sCLR4D9)
+                    paragraph pTS("Action Duplicated...\n\nReturn to Action Page and look for the App with '(Dup)' in the name...", sNULL, true, sCLR4D9), state: sCOMPLT
                     state.actionDuplicated = true
-                } else { paragraph spanSmBld("Action not Found", sCLRRED) }
+                } else { paragraph pTS("Action not Found", sNULL, true, sCLRRED), required: true, state: sNULL }
             }
         }
     }
@@ -610,7 +603,7 @@ def zoneDuplicationPage() {
     return dynamicPage(name: "zoneDuplicationPage", nextPage: "zonesPage", uninstall: false, install: false) {
         section() {
             if((Boolean)state.zoneDuplicated) {
-                paragraph spanSmBldBr("Zone already duplicated...", sCLRRED) +  spanSmBld("<br>Return to zone page and select it", sCLRRED)
+                paragraph pTS("Zone already duplicated...\n\nReturn to zone page and select it", sNULL, true, sCLRRED), required: true, state: sNULL
             } else {
                 def zn = getZoneApps()?.find { it.id.toString() == settings.zoneDuplicateSelect?.toString() }
                 if(zn) {
@@ -628,9 +621,9 @@ def zoneDuplicationPage() {
                     // znData?.settings["zonePause"] = [type: sBOOL, value: true]
                     znData?.settings["duplicateSrcId"] = [type: "text", value: znId]
                     addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
-                    paragraph spanSmBldBr("Zone Duplicated...", sCLR4D9) + spanSmBld("<br>Return to Zone Page and look for the App with '(Dup)' in the name...", sCLR4D9)
+                    paragraph pTS("Zone Duplicated...\n\nReturn to Zone Page and look for the App with '(Dup)' in the name...", sNULL, true, sCLR4D9), state: sCOMPLT
                     state.zoneDuplicated = true
-                } else { paragraph spanSmBld("Zone not Found", sCLRRED) }
+                } else { paragraph pTS("Zone not Found", sNULL, true, sCLRRED), required: true, state: sNULL }
             }
         }
     }
@@ -667,7 +660,7 @@ def zonesPage() {
         List pausedZones = zApps?.findAll { it?.isPaused() == true }
         if(zApps) { /*Nothing to add here yet*/ }
         else {
-            section(sBLANK) { paragraph spanSmBld("You haven't created any Zones yet!<br>Tap Create New Zone to get Started", sCLRGRY) }
+            section(sBLANK) { paragraph pTS("You haven't created any Zones yet!\nTap Create New Zone to get Started") }
         }
         section() {
             app(name: "zoneApp", appName: zoneChildName(), namespace: "tonesto7", multiple: true, title: inTS1("Create New Zone", "es_groups"))
@@ -679,15 +672,15 @@ def zonesPage() {
             }
         }
         if(zApps?.size()) {
-            section (sectHead("Zone History:")) {
-                href "viewZoneHistory", title: inTS1("View Zone History", "tasks"), description: spanSm("(Grouped by Zone)", sCLR4D9)
+            section (sTS("Zone History:")) {
+                href "viewZoneHistory", title: inTS1("View Zone History", "tasks"), description: "(Grouped by Zone)", state: sCOMPLT
             }
         }
-        section (sectHead("Zone Management:"), hideable: true, hidden: true) {
+        section (sTS("Zone Management:"), hideable: true, hidden: true) {
             if(activeZones?.size()) {
                 input "pauseChildZones", sBOOL, title: inTS1("Pause all Zones?", "pause_orange"), description: "When pausing all Zones you can either restore all or open each zones and manually unpause it.", defaultValue: false, submitOnChange: true
                 if(settings.pauseChildZones) { settingUpdate("pauseChildZones", sFALSE, sBOOL); runIn(3, "executeZonePause") }
-                paragraph spanSm("When pausing all zones you can either restore all or open each zone and manually unpause it.", sCLRGRY)
+                paragraph pTS("When pausing all zones you can either restore all or open each zone and manually unpause it.", sNULL, false, sCLRGRY)
             }
             if(pausedZones?.size()) {
                 input "unpauseChildZone", sBOOL, title: inTS1("Restore all actions?", "pause_orange"), defaultValue: false, submitOnChange: true
@@ -706,7 +699,7 @@ def viewZoneHistory() {
     return dynamicPage(name: "viewZoneHistory", uninstall: false, install: false) {
         List zApps = getZoneApps()
         zApps?.each { z->
-            section(sectHead((String)z.getLabel())) {
+            section((String)z.getLabel()) {
                 List<String> items = z.getZoneHistory(true)
                 items = items ?: []
                 items.each { String v->
@@ -721,7 +714,7 @@ def viewActionHistory() {
     return dynamicPage(name: "viewActionHistory", uninstall: false, install: false) {
         List actApps = getActionApps()
         actApps?.each { a->
-            section(sectHead(a.getLabel())) {
+            section(a.getLabel()) {
                 List<String> items = (List<String>)a.getActionHistory(true)
                 items.each { String v->
                     paragraph pTS(v)
@@ -756,10 +749,10 @@ def devicePrefsPage() {
 //    Boolean resumeConf = (Boolean)state.resumeConfig
     return dynamicPage(name: "devicePrefsPage", uninstall: false, install: false) {
         deviceDetectOpts()
-        section(sectHead("Detection Override:")) {
-            paragraph spanSmBldBr("Device not detected?", sCLRORG) + spanSm("Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.<br>This is useful for testing if a device supports certain features.", sCLRORG)
-            input "bypassDeviceBlocks", sBOOL, title: inTS1("Override Blocks and Create Ignored Devices?"), required: false, defaultValue: false, submitOnChange: true
-            paragraph spanSmBld("WARNING:", sCLRRED) + spanSm(" This will create devices for all remaining ignored devices", sCLRRED)
+        section(sTS("Detection Override:")) {
+            paragraph spanWrap("Device not detected?", sCLRORG, "small", true, true) + spanWrap("Enabling this will allow you to override the developer block for unrecognized or uncontrollable devices.<br>This is useful for testing if a device supports certain features.", sCLRORG, "small")
+            input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), required: false, defaultValue: false, submitOnChange: true
+            paragraph spanWrap("WARNING:", sCLRRED, "small", true) + spanWrap(" This will create devices for all remaining ignored devices", sCLRRED, "small")
         }
         devCleanupSect()
 //        if(!newInstall && !resumeConf) { state.refreshDeviceData = true }
@@ -769,7 +762,7 @@ def devicePrefsPage() {
 private deviceDetectOpts() {
 //    Boolean newInstall = !(Boolean) state.isInstalled
 //    Boolean resumeConf = (Boolean) state.resumeConfig
-    section(sectHead("Device Detection Preferences")) {
+    section(sTS("Device Detection Preferences")) {
         input "autoCreateDevices", sBOOL, title: inTS1("Auto Create New Devices?", sDEVICES), description: sBLANK, required: false, defaultValue: true, submitOnChange: true
         input "createTablets", sBOOL, title: inTS1("Create Devices for Tablets?", "amazon_tablet"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
         input "createWHA", sBOOL, title: inTS1("Create Multiroom Devices?", "echo_wha"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
@@ -779,7 +772,7 @@ private deviceDetectOpts() {
         Map devs = getAllDevices(true)
         if(devs?.size()) {
             input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
-            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm("To prevent unwanted devices from reappearing after removal make sure to add the device to the Don't Use these Devices input above before removing.", sCLR4D9)
+            paragraph spanWrap("Notice:", sCLR4D9, "small", true, true) + spanWrap("To prevent unwanted devices from reappearing after removal make sure to add the device to the Don't Use these Devices input above before removing.", sCLR4D9, "small")
         }
     }
 }
@@ -792,15 +785,15 @@ private devCleanupPage() {
 
 private devCleanupSect() {
     if(state.isInstalled && !(Boolean)state.resumeConfig) {
-        section(sectHead("Device Cleanup Options:")) {
+        section(sTS("Device Cleanup Options:")) {
             Map devs = getAllDevices(true)
             if(devs?.size()) {
                 input "echoDeviceFilter", sENUM, title: inTS1("Don't Use these Devices", "exclude"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             }
             List remDevs = getRemovableDevs()
-            if(remDevs.size()) { paragraph spanSmBldBr("Removable Devices:", sCLRRED) + spanSm(remDevs.sort().collect { " ${sBULLET} ${it}" } ?.join("<br>"), sCLRGRY), required: true }
-            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm("Remember to add device to filter above to prevent recreation.<br>Also the cleanup process will fail if the devices are used in external apps/automations", sCLR4D9)
-            input "cleanUpDevices", sBOOL, title: inTS1("Cleanup Unused Devices?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+            if(remDevs.size()) { paragraph spanWrap("Removable Devices:", sCLRRED, "small", true, true) + spanWrap(remDevs.sort().collect { " ${sBULLET} ${it}" } ?.join("<br>"), sCLRGRY, "small"), required: true }
+            paragraph spanWrap("Notice:", sCLR4D9, sNULL, true, true) + spanWrap("Remember to add device to filter above to prevent recreation.<br>Also the cleanup process will fail if the devices are used in external apps/automations", sCLR4D9, "small")
+            input "cleanUpDevices", sBOOL, title: inTS("Cleanup Unused Devices?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
             if((Boolean)settings.cleanUpDevices) { removeDevices() }
         }
     }
@@ -839,7 +832,7 @@ private String devicePrefsDesc() {
 
 def settingsPage() {
     return dynamicPage(name: "settingsPage", uninstall: false, install: false) {
-        section(sectHead("Logging:")) {
+        section(sTS("Logging:")) {
             input "logInfo", sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logWarn", sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
@@ -847,18 +840,19 @@ def settingsPage() {
             input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
         }
         if(advLogsActive()) { logsEnabled() }
+        input "disableTextTransform", sBOOL, required: false, title: "Disable Text Transform?", description: "This will disable attempts to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false, submitOnChange: true
         showDevSharePrefs()
-        section(sectHead("Diagnostic Data:")) {
+        section(sTS("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", sNULL, false, sCLRGRY)
             input "diagShareSensitveData", sBOOL, title: inTS1("Share Cookie Data?", "question"), required: false, defaultValue: false, submitOnChange: true
-            href url: getAppEndpointUrl("diagData"), style: sEXTNRL, title: inTS1("Diagnostic Data"), description: "Tap to view"
+            href url: getAppEndpointUrl("diagData"), style: sEXTNRL, title: inTS("Diagnostic Data"), description: "Tap to view"
         }
     }
 }
 
 def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
-        section(sectHead("Discovered Devices:")) {
+        section(sTS("Discovered Devices:")) {
             getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k,Map v->
                 String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
                 str += "<br><span>Style: ${v.style?.name}</span>"
@@ -870,7 +864,6 @@ def deviceListPage() {
                 str += "<br><span>Music Player: (${v.mediaPlayer?.toString()?.capitalize()})</span>"
                 str += v.supported != true ? "<br><span>Unsupported Device: (True)</span>" : sBLANK
                 str += (v.mediaPlayer == true && v.musicProviders) ? "<br><span>Music Providers: [${v.musicProviders}]</span>" : sBLANK
-                String a = (String)v.style?.image
                 paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
             }
         }
@@ -882,7 +875,7 @@ def unrecogDevicesPage() {
         Map<String, Map> skDevMap = (Map<String, Map>)state.skippedDevices ?: [:]
         Map<String, Map> ignDevs = skDevMap?.findAll { (it?.value?.reason == sIN_IGNORE) }
         Map<String, Map> unDevs = skDevMap?.findAll { (it?.value?.reason != sIN_IGNORE) }
-        section(sectHead("Unrecognized/Unsupported Devices:")) {
+        section(sTS("Unrecognized/Unsupported Devices:")) {
             if(unDevs?.size()) {
                 unDevs.sort { it?.value?.name }?.each { String k, Map v->
                     // log.debug "v: $v"
@@ -896,23 +889,18 @@ def unrecogDevicesPage() {
                     str += "<br><span>Reason Ignored: (${v?.reason})</span>"
                     paragraph paraTS((String)v.name, str, (String)v.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
                 }
-                input "bypassDeviceBlocks", sBOOL, title: inTS1("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
+                input "bypassDeviceBlocks", sBOOL, title: inTS("Override Blocks and Create Ignored Devices?"), description: "WARNING: This will create devices for all remaining ignored devices", required: false, defaultValue: false, submitOnChange: true
             } else {
                 paragraph pTS("No Uncognized Devices", sNULL, true)
             }
         }
         if(ignDevs?.size()) {
-            section(sectHead("User Ignored Devices:")) {
+            section(sTS("User Ignored Devices:")) {
                 ignDevs.sort { it?.value?.name }?.each { k,v->
-                    String str = spanSmBr("Status: (${v.online ? "Online" : "Offline"})")
-                    str += spanSmBr("Style: ${(String)v.desc}")
-                    str += spanSmBr("Family: ${(String)v.family}") 
-                    str += spanSmBr("Type: ${(String)v.type}") 
-                    str += spanSmBr("Volume Control: (${v?.volume?.toString()?.capitalize()})")
-                    str += spanSmBr("Text-to-Speech: (${v?.tts?.toString()?.capitalize()})")
-                    str += spanSmBr("Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})")
-                    str += spanSmBr("Reason Ignored: (${v?.reason})")
-                    href "unrecogDevicesPage", title: inTS1((String)v.name, (String)v.image), description: divSm(str, sCLRGRY)
+                    String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span><br><span>Style: ${(String)v.desc}</span><br><span>Family: ${(String)v.family}</span><br><span>Type: ${(String)v.type}</span><br><span>Volume Control: (${v?.volume?.toString()?.capitalize()})</span>"
+                    str += "<br><span>Text-to-Speech: (${v?.tts?.toString()?.capitalize()})</span><br><span>Music Player: (${v?.mediaPlayer?.toString()?.capitalize()})</span><br><span>Reason Ignored: (${v?.reason})</span"
+                    String a = (String)v.image
+                    href "unrecogDevicesPage", title: inTS1((String)v.name, a), description: str, required: true, state: (v?.online ? sCOMPLT : sNULL)
                 }
             }
         }
@@ -920,11 +908,11 @@ def unrecogDevicesPage() {
 }
 
 def showDevSharePrefs() {
-    section(sectHead("Share Data with Developer:")) {
-        paragraph  spanSmBldBr("What is this used for?", sCLRGRY) + spanSmBldBr("These options send non-user identifiable information and error data to diagnose catch trending issues.", sCLRGRY)
+    section(sTS("Share Data with Developer:")) {
+        paragraph title: "What is this used for?", pTS("These options send non-user identifiable information and error data to diagnose catch trending issues.", sNULL, false)
         input ("optOutMetrics", sBOOL, title: inTS1("Do Not Share Data?", "analytics"), required: false, defaultValue: false, submitOnChange: true)
 //        if(!(Boolean)settings.optOutMetrics) {
-            href url: getAppEndpointUrl("renderMetricData"), style: sEXTNRL, title: inTS1("View the Data shared with Developer", "view"), description: inputFooter("Tap to view Data", sCLRGRY, true)
+            href url: getAppEndpointUrl("renderMetricData"), style: sEXTNRL, title: inTS1("View the Data shared with Developer", "view"), description: "Tap to view Data", required: false
  //       }
     }
     if(!(Boolean)settings.optOutMetrics && (Boolean)state.isInstalled && (Boolean)state.serviceConfigured && !(Boolean)state.resumeConfig) {
@@ -958,9 +946,9 @@ Map getAllDevices(Boolean isInputEnum=false) {
 def notifPrefPage() {
     dynamicPage(name: "notifPrefPage", install: false) {
         section(sBLANK) {
-            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSmBld("The settings configured here are used by both the App and the Devices.", sCLR4D9, getAppImg("info"))
+            paragraph title: "Notice:", pTS("The settings configured here are used by both the App and the Devices.", getAppImg("info", true), true, sCLR4D9), state: sCOMPLT
         }
-        section (sectHead("Notification Devices:")) {
+        section (sTS("Notification Devices:")) {
             input "notif_devs", "capability.notification", title: inTS1("Send to Notification devices?", "notification"), required: false, multiple: true, submitOnChange: true
         }
         
@@ -981,25 +969,25 @@ def notifPrefPage() {
                     state.pushTested = true
                 }
             }
-            section(sectHead("Notification Restrictions:")) {
+            section(sTS("Notification Restrictions:")) {
                 String t1 = getNotifSchedDesc()
-                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? t1 + inputFooter(sTTM) : inputFooter(sTTC, sCLRGRY))
+                href "setNotificationTimePage", title: inTS1("Quiet Restrictions", "restriction"), description: (t1 ? t1 + inputFooter(sTTM) : inputFooter(sTTC, sCLRGRY)), state: (t1 ? sCOMPLT : sNULL)
             }
-            section(sectHead("Missed Poll Alerts:")) {
+            section(sTS("Missed Poll Alerts:")) {
                 input (name: "sendMissedPollMsg", type: sBOOL, title: inTS1("Send Missed Checkin Alerts?", "late"), defaultValue: true, submitOnChange: true)
                 if((Boolean)settings.sendMissedPollMsg) {
-                    input (name: "misPollNotifyWaitVal", type: sENUM, title: inTS1("Time Past the Missed Checkin?", "delay_time"), description: spanSm("Default: 45 Minutes"), required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true)
-                    input (name: "misPollNotifyMsgWaitVal", type: sENUM, title: inTS1("Send Reminder After?", "reminder"), description: spanSm("Default: 1 Hour"), required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true)
+                    input (name: "misPollNotifyWaitVal", type: sENUM, title: inTS1("Time Past the Missed Checkin?", "delay_time"), description: "Default: 45 Minutes", required: false, defaultValue: 2700, options: notifValEnum(), submitOnChange: true)
+                    input (name: "misPollNotifyMsgWaitVal", type: sENUM, title: inTS1("Send Reminder After?", "reminder"), description: "Default: 1 Hour", required: false, defaultValue: 3600, options: notifValEnum(), submitOnChange: true)
                 }
             }
-            section(sectHead("Cookie Alerts:")) {
+            section(sTS("Cookie Alerts:")) {
                 input (name: "sendCookieRefreshMsg", type: sBOOL, title: inTS1("Send on Refreshed Cookie?", "cookie"), defaultValue: false, submitOnChange: true)
                 input (name: "sendCookieInvalidMsg", type: sBOOL, title: inTS1("Send on Invalid Cookie?", "cookie"), defaultValue: true, submitOnChange: true)
             }
-            section(sectHead("Code Update Alerts:")) {
+            section(sTS("Code Update Alerts:")) {
                 input "sendAppUpdateMsg", sBOOL, title: inTS1("Send for Updates...", "update"), defaultValue: true, submitOnChange: true
                 if((Boolean)settings.sendAppUpdateMsg) {
-                    input (name: "updNotifyWaitVal", type: sENUM, title: inTS1("Send Reminders After?", "reminder"), description: spanSm("Default: 12 Hours"), required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true)
+                    input (name: "updNotifyWaitVal", type: sENUM, title: inTS1("Send Reminders After?", "reminder"), description: "Default: 12 Hours", required: false, defaultValue: 43200, options: notifValEnum(), submitOnChange: true)
                 }
             }
         } else { state.pushTested = false }
@@ -1011,8 +999,8 @@ def setNotificationTimePage() {
         String a = getNotifSchedDesc()
          if(a) {
              section() {
-                 paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9)
-                 paragraph pTS("Notice:\nAll selected restrictions must be inactive for notifications to be sent.", sNULL, false, sCLR4D9)
+                 paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9), state: sCOMPLT
+                 paragraph pTS("Notice:\nAll selected restrictions must be inactive for notifications to be sent.", sNULL, false, sCLR4D9), state: sCOMPLT
              }
          }
         Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
@@ -1033,7 +1021,7 @@ def setNotificationTimePage() {
 
 def uninstallPage() {
     dynamicPage(name: "uninstallPage", title: "Uninstall", uninstall: true) {
-        section(sBLANK) { paragraph spanSmBldBr("This will remove the app, all devices, all actions, all zones.<br>", sCLRRED) + spanSmBld("Please make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove.", sCLRRED) }
+        section(sBLANK) { paragraph "This will remove the app, all devices, all actions, all zones.\n\nPlease make sure that any devices created by this app are removed from any routines/rules/smartapps before tapping Remove." }
     }
 }
 
@@ -1042,7 +1030,6 @@ static String dashItem(String inStr, String strVal, Boolean newLine=false) { ret
 
 def deviceTestPage() {
     return dynamicPage(name: "deviceTestPage", uninstall: false, install: false) {
-        String t1 = sNULL
         section(sBLANK) {
             href "speechPage", title: inTS1("Speech Test", "broadcast"), description: inputFooter(sTTC, sCLRGRY, true)
             href "announcePage", title: inTS1("Announcement Test","announcement"), description: inputFooter(sTTC, sCLRGRY, true)
@@ -1057,17 +1044,17 @@ def speechPage() {
         section(sBLANK) {
             paragraph pTS("This feature has been known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             Map<String,String> devs = getDeviceList(true, [tts])
-            input "test_speechDevices", sENUM, title: inTS1("Select Devices to Test the Speech"), description: inputFooter(sTTS, sCLRGRY, true), options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
+            input "test_speechDevices", sENUM, title: inTS("Select Devices to Test the Speech"), description: sTTS, options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             if(((List) settings.test_speechDevices)?.size() >= 3) {
-                paragraph spanSmBldBr("NOTICE:", sCLRRED) + spanSm("Amazon often rate limits when 3 or more device commands are sent at a time.<br>There may be a delay in the other devices but they should play the test after a few seconds", sCLRRED)
+                paragraph spanWrap("NOTICE:", sCLRRED, "small", true, true) + spanWrap("Amazon often rate limits when 3 or more device commands are sent at a time.<br>There may be a delay in the other devices but they should play the test after a few seconds", sCLRRED, "small")
             }
-            input "test_speechVolume", "number", title: inTS1("Speak at this volume (0% - 100%)"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
-            input "test_speechRestVolume", "number", title: inTS1("Restore to this volume after (0% - 100%)"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
-            input "test_speechMessage", "text", title: inTS1("Message to Speak"), defaultValue: "This is a speech test for your Echo speaks device!!!", required: true, submitOnChange: true
+            input "test_speechVolume", "number", title: inTS("Speak at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+            input "test_speechRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
+            input "test_speechMessage", "text", title: inTS("Message to Speak"), defaultValue: "This is a speech test for your Echo speaks device!!!", required: true, submitOnChange: true
         }
         if((List)settings.test_speechDevices) {
             section() {
-                input "test_speechRun", sBOOL, title: inTS1("Perform the Speech Test?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+                input "test_speechRun", sBOOL, title: inTS("Perform the Speech Test?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                 if((Boolean)settings.test_speechRun) { executeSpeechTest() }
             }
         }
@@ -1077,20 +1064,19 @@ def speechPage() {
 
 def alexaRoutinesTestPage() {
     return dynamicPage(name: "alexaRoutinesTestPage", uninstall: false, install: false) {
-        String t1 = sNULL
         Map rts = getAlexaRoutines()
         section("Available Routines") {
             if(rts.size()) {
                 rts.each { String rk, String rv->
                     String str = sBLANK
-                    str += spanBldBr(rv)
-                    str += spanSmBld("Routine ID: ") + spanSmBr(rk)
-                    paragraph divSm(str, sCLR4D9)
-                    input "executeRoutine::${rk}", "button", title: spanSmBld("Run Routine: ", sC:RGRY) + spanSm("(${rv})", sCLRGRY), width: 4
+                    str += spanWrap(rv, "black", "medium", true, true)
+                    str += spanWrap("Routine ID: ", sNULL, sNULL, true) + spanWrap(rk, sNULL, sNULL, false, true)
+                    paragraph divWrap(str, sCLR4D9, "small")
+                    input "executeRoutine::${rk}", "button", title: spanWrap("<b>Run Routine:</b> (${rv})", sCLRGRY, "small"), width: 4
                     paragraph htmlLine()
                 }
             } else {
-                paragraph divSm("No Routine Data Found...", sCLRGRY)
+                paragraph divWrap("No Routine Data Found...", sCLRGRY, "small")
             }
         }
     }
@@ -1137,28 +1123,28 @@ def announcePage() {
         section(sBLANK) {
             paragraph pTS("This feature has known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
             if(!settings.test_announceDevices) {
-                input "test_announceAllDevices", sBOOL, title: inTS1("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
+                input "test_announceAllDevices", sBOOL, title: inTS("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
             }
             if(!(Boolean)settings.test_announceAllDevices) {
                 def devs = getChildDevicesByCap("announce") ?: []
-                input "test_announceDevices", sENUM, title: inTS1("Select Devices to Test the Announcement"), description: sTTS, options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
+                input "test_announceDevices", sENUM, title: inTS("Select Devices to Test the Announcement"), description: sTTS, options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
             }
             if((Boolean)settings.test_announceAllDevices || settings.test_announceDevices) {
-                input "test_announceVolume", "number", title: inTS1("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
-                input "test_announceRestVolume", "number", title: inTS1("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
-                input "test_announceMessage", "text", title: inTS1("Message to announce"), defaultValue: "This is a test of the Echo speaks announcement system!!!", required: true, submitOnChange: true
+                input "test_announceVolume", "number", title: inTS("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+                input "test_announceRestVolume", "number", title: inTS("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
+                input "test_announceMessage", "text", title: inTS("Message to announce"), defaultValue: "This is a test of the Echo speaks announcement system!!!", required: true, submitOnChange: true
             }
         }
         if(settings.test_announceDevices || (Boolean)settings.test_announceAllDevices) {
             section() {
-                input "test_announceRun", sBOOL, title: inTS1("Perform the Announcement?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+                input "test_announceRun", sBOOL, title: inTS("Perform the Announcement?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                 if((Boolean)settings.test_announceRun) { executeAnnouncement() }
             }
         }
     }
 }
 
-@Field final Map seqItemsAvailFLD = [
+@Field final Map<String,Map> seqItemsAvailFLD = [
     other: [
         "weather":sNULL, "traffic":sNULL, "flashbriefing":sNULL, "goodnews":sNULL, "goodmorning":sNULL, "goodnight":sNULL, "cleanup":sNULL,
         "singasong":sNULL, "tellstory":sNULL, "funfact":sNULL, "joke":sNULL, "playsearch":sNULL, "calendartoday":sNULL,
@@ -1179,13 +1165,13 @@ def announcePage() {
     ]
 ]
 
-public Map seqItemsAvail() {
+public Map<String,Map> seqItemsAvail() {
     return seqItemsAvailFLD
 }
 
 def sequencePage() {
     return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
-        section(sectHead("Command Legend:"), hideable: true, hidden: true) {
+        section(sTS("Command Legend:"), hideable: true, hidden: true) {
             String str1 = "Sequence Options:"
             seqItemsAvailFLD.other?.sort()?.each { String k, String v->
                 str1 += "${bulletItem(str1, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
@@ -1205,25 +1191,25 @@ def sequencePage() {
                 else newV=v
                 str3 += "${bulletItem(str3, "${k}${newV != sNULL ? "::${newV}" : sBLANK}")}"
             }
-            paragraph spanSm(str1, sCLR4D9)
-            // paragraph spanSm(str4, sCLR4D9)
-            paragraph spanSm(str2, sCLR4D9)
-            paragraph spanSm(str3, sCLR4D9)
-            paragraph spanSmBldBr("Enter the command in a format exactly like this:") + spanSmBr("volume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30") + spanSm("<br>Each command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.")
+            paragraph str1, state: sCOMPLT
+            // paragraph str4, state: sCOMPLT
+            paragraph str2, state: sCOMPLT
+            paragraph str3, state: sCOMPLT
+            paragraph "Enter the command in a format exactly like this:\nvolume::40,, speak::this is so silly,, wait::60,, weather,, cannedtts_random::goodbye,, traffic,, amazonmusic::green day,, volume::30\n\nEach command needs to be separated by a double comma `,,` and the separator between the command and value must be command::value.", state: sCOMPLT
         }
-        section(sectHead("Sequence Test Config:")) {
-            input "test_sequenceDevice", "device.EchoSpeaksDevice", title: inTS1("Select Devices to Test Sequence Command"), description: inputFooter(sTTS, sCLRGRY, true), multiple: false, required: ((String)settings.test_sequenceString != sNULL), submitOnChange: true
-            input "test_sequenceString", "text", title: inTS1("Sequence String to Use"), required: ((String)settings?.test_sequenceDevice != sNULL), submitOnChange: true
+        section(sTS("Sequence Test Config:")) {
+            input "test_sequenceDevice", "device.EchoSpeaksDevice", title: inTS("Select Devices to Test Sequence Command"), description: sTTS, multiple: false, required: ((String)settings.test_sequenceString != sNULL), submitOnChange: true
+            input "test_sequenceString", "text", title: inTS("Sequence String to Use"), required: ((String)settings?.test_sequenceDevice != sNULL), submitOnChange: true
         }
         if(settings?.test_sequenceDevice && settings?.test_sequenceString) {
             section() {
-                input "test_sequenceRun", sBOOL, title: inTS1("Perform the Sequence?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
+                input "test_sequenceRun", sBOOL, title: inTS("Perform the Sequence?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                 if((Boolean)settings.test_sequenceRun) { executeSequence() }
             }
         }
     }
 }
-
+/*
 static Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     def random = new Random()
     Integer randomInt = random?.nextInt(5) //Was using 7
@@ -1231,7 +1217,7 @@ static Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
     // logTrace("getRecheckDelay($msgLen) | delay: $v + $randomInt")
     return addRandom ? (v + randomInt) : (v < 5 ? 5 : v)
-}
+} */
 
 void executeSpeechTest() {
     settingUpdate("test_speechRun", sFALSE, sBOOL)
@@ -1240,9 +1226,9 @@ void executeSpeechTest() {
     selectedDevs?.each { String devSerial->
         def childDev = getChildDeviceBySerial(devSerial)
         if(childDev && childDev?.hasCommand('setVolumeSpeakAndRestore')) {
-            childDev?.setVolumeSpeakAndRestore(settings.test_speechVolume as Integer, testMsg, (settings.test_speechRestVolume ?: 30))
+            childDev?.setVolumeSpeakAndRestore((Integer)settings.test_speechVolume, testMsg, ((Integer)settings.test_speechRestVolume ?: 30))
         } else {
-            logError("Speech Test device with serial# (${devSerial} was not located!!!")
+            logError("Speech Test device with serial# (${devSerial} was not located!!! or does not support speakAndRestore")
         }
     }
 }
@@ -1253,9 +1239,10 @@ void executeAnnouncement() {
     List sDevs = (Boolean)settings.test_announceAllDevices ? getChildDevicesByCap("announce") : getDevicesFromList((List)settings.test_announceDevices)
     if(sDevs?.size()) {
         if(sDevs.size() > 1) {
-            List devObj = []
-            sDevs.each { devObj.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+            List<Map> devObj = []
+            sDevs.each { devObj.push([deviceTypeId: (String)it?.getEchoDeviceType(), deviceSerialNumber: (String)it?.getEchoSerial()]) }
 //            String devJson = new groovy.json.JsonOutput().toJson(devObj)
+// send to first one which will have Amazon fan it out
             sDevs[0]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
         } else {
             sDevs[0]?.playAnnouncement(testMsg, "Echo Speaks Test", settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
@@ -1279,7 +1266,7 @@ Map executeTuneInSearch(String query) {
         uri: getAmazonUrl(),
         path: "/api/tunein/search",
         query: [ query: query, mediaOwnerCustomerId: state.deviceOwnerCustomerId ],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         requestContentType: sAPPJSON,
         contentType: sAPPJSON,
         timeout: 20
@@ -1309,14 +1296,14 @@ void executeMusicSearchTest() {
 
 def musicSearchTestPage() {
     return dynamicPage(name: "musicSearchTestPage", uninstall: false, install: false) {
-        section(sectHead("Test a Music Search on Device:")) {
-            paragraph spanSm("Use this to test the search you discovered above directly on a device.", sCLR4D9)
+        section("Test a Music Search on Device:") {
+            paragraph "Use this to test the search you discovered above directly on a device.", state: sCOMPLT
             Map testEnum = ["CLOUDPLAYER": "My Library", "AMAZON_MUSIC": "Amazon Music", "I_HEART_RADIO": "iHeartRadio", "PANDORA": "Pandora", "APPLE_MUSIC": "Apple Music", "TUNEIN": "TuneIn", "SIRIUSXM": "siriusXm", "SPOTIFY": "Spotify"]
             input "test_musicProvider", sENUM, title: inTS1("Select Music Provider to perform test", "music"), defaultValue: null, required: false, options: testEnum, multiple: false, submitOnChange: true
             if((String)settings.test_musicProvider) {
                 input "test_musicQuery", "text", title: inTS1("Music Search term to test on Device", "search2"), defaultValue: null, required: false, submitOnChange: true
                 if((String)settings.test_musicQuery) {
-                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS1("Select a Device to Test Music Search", "echo_speaks_3.1x"), description: inputFooter(sTTS, sCLRGRY, true), multiple: false, required: false, submitOnChange: true
+                    input "test_musicDevice", "device.EchoSpeaksDevice", title: inTS1("Select a Device to Test Music Search", "echo_speaks_3.1x"), description: sTTS, multiple: false, required: false, submitOnChange: true
                     if(settings.test_musicDevice) {
                         input "test_musicSearchRun", sBOOL, title: inTS1("Perform the Music Search Test?", "music"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
                         if((Boolean)settings.test_musicSearchRun) { executeMusicSearchTest() }
@@ -1324,8 +1311,8 @@ def musicSearchTestPage() {
                 }
             }
         }
-        section(sectHead("TuneIn Search Results:")) {
-            paragraph spanSm("Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", sCLR4D9)
+        section(sTS("TuneIn Search Results:")) {
+            paragraph "Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", state: sCOMPLT
             input "test_tuneinSearchQuery", "text", title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: sNULL, required: false, submitOnChange: true
             if((String)settings.test_tuneinSearchQuery) {
                 href "searchTuneInResultsPage", title: inTS1("View search results!", "search2"), description: sTTP
@@ -1337,12 +1324,12 @@ def musicSearchTestPage() {
 def searchTuneInResultsPage() {
     return dynamicPage(name: "searchTuneInResultsPage", uninstall: false, install: false) {
         Map results = executeTuneInSearch((String)settings.test_tuneinSearchQuery)
-        section(sectHead("Search Results: (Query: ${(String)settings.test_tuneinSearchQuery})")) {
+        section(sTS("Search Results: (Query: ${(String)settings.test_tuneinSearchQuery})")) {
             if(results?.browseList && results?.browseList?.size()) {
-                results?.browseList?.eachWithIndex { item, Integer i->
+                results?.browseList?.eachWithIndex { Map item, Integer i->
                     if(i < 25) {
                         if(item?.browseList != null && item?.browseList?.size()) {
-                            item?.browseList?.eachWithIndex { item2, i2->
+                            item?.browseList?.eachWithIndex { Map item2, i2->
                                 dumpBrowseItem(item2)
                             }
                         } else {
@@ -1363,7 +1350,7 @@ def dumpBrowseItem(Map item) {
     String a = (String)item.image ?: sNULL
     String b = ((String)item.name).take(75)
     Boolean c = !item.name?.contains("Not Supported")
-    href "searchTuneInResultsPage", title: pTS(b, a, false), description: spanSm(str, c ? sCLR4D9 : sCLRRED)
+    href "searchTuneInResultsPage", title: pTS(b, a, false), description: str, required: true, state: (c ? sCOMPLT : sNULL)
 }
 
 private getChildDeviceBySerial(String serial) {
@@ -1400,13 +1387,14 @@ def donationPage() {
     return dynamicPage(name: "donationPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
         section(sBLANK) {
             def str = sBLANK
-            str += spanSmBldBr("Hello User,") + spanSmBr("Please forgive the interuption but it's been 30 days since you installed/updated this App and I wanted to present you with this one time reminder that donations are accepted (We do not require them).")
-            str += spanSmBr("<br>If you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices.")
-            str += spanSmBr("<br>If you have already donated, thank you very much for your support!")
-            str += spanSmBr("<br>If you are just not interested in donating please ignore this message")
-            str += spanSm("<br>Thanks again for using Echo Speaks")
-            paragraph divSm(str, sCLRRED)
-            href url: textDonateLink(), style: sEXTNRL, required: false, title: "Donations", description: inputFooter("Tap to open in browser", sCLRGRY, true)
+            str += "Hello User, \n\nPlease forgive the interuption but it's been 30 days since you installed/updated this App and I wanted to present you with this one time reminder that donations are accepted (We do not require them)."
+            str += "\n\nIf you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices."
+            str += "\n\nIf you have already donated, thank you very much for your support!"
+            str += "\n\nIf you are just not interested in donating please ignore this message"
+
+            str += "\n\nThanks again for using Echo Speaks"
+            paragraph str, required: true, state: sNULL
+            href url: textDonateLink(), style: sEXTNRL, required: false, title: "Donations", description: "Tap to open in browser", state: sCOMPLT
         }
         updInstData("shownDonation", true)
     }
@@ -1434,6 +1422,7 @@ def updated() {
 
 def initialize() {
     logInfo("running initialize...")
+    appCleanup()
     //if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL; state.remove('appGuid') } }
     subscribe(location, "systemStart", startHandler)
@@ -1444,8 +1433,7 @@ def initialize() {
         if(settings.guardAwayModes && settings.guardHomeModes) {
             subscribe(location, "mode", guardTriggerEvtHandler)
         }
-        if(settings.guardFollowSwitch || (settings.guardAwaySwitch && settings.guardHomeSwitch)) {
-            if(settings.guardFollowSwitch) subscribe(settings.guardFollowSwitch, sSWITCH, guardTriggerEvtHandler)
+        if(settings.guardAwaySwitch && settings.guardHomeSwitch) {
             if(settings.guardHomeSwitch) subscribe(settings.guardHomeSwitch, sSWITCH, guardTriggerEvtHandler)
             if(settings.guardAwaySwitch) subscribe(settings.guardAwaySwitch, sSWITCH, guardTriggerEvtHandler)
         }
@@ -1471,12 +1459,12 @@ def initialize() {
 
 void startHandler(evt){
     logDebug('startHandler called')
-    runIn(6, "restartSocket")
+    runIn(6, "chkRestartSocket")
 }
 
-void restartSocket(){
+void chkRestartSocket(){
     def dev= getSocketDevice()
-    if(!(Boolean) dev?.isSocketActive()) { dev?.triggerInitialize() }
+    if(!(Boolean)dev?.isSocketActive()) { dev?.triggerInitialize() }
 }
 
 void stateMigrationChk() {
@@ -1495,7 +1483,6 @@ void updateZoneSubscriptions() {
 void postInitialize() {
     logTrace("postInitialize")
     runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
-    appCleanup()
     reInitChildren()
 }
 
@@ -1513,7 +1500,7 @@ void appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize", "lastMsg"
     ]
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 
@@ -1523,7 +1510,7 @@ void appCleanup() {
     state.deviceRefreshInProgress = false
 
     // Settings Cleanup
-    List setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
+    List<String> setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
     settings?.each { si-> ["music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"].each { String swi-> if(si.key?.startsWith(swi)) { setItems.push(si?.key as String) } } }
     setItems.unique().sort().each { String sI-> if(settings?.containsKey(sI)) { settingRemove(sI) } }
     cleanUpdVerMap()
@@ -1551,7 +1538,7 @@ void wsEvtHandler(evt) {
 }
 
 private findEchoDevice(String serial) {
-    def a = getEsDevices()?.find { it?.getEchoSerial()?.toString() == serial }
+    def a = getEsDevices()?.find { (String)it?.getEchoSerial() == serial }
     return a ?: null
 }
 
@@ -1627,12 +1614,12 @@ public Map getZones() {
 
 List getActiveZones() {
     List zones = getZoneApps()
-    return zones.size() ? zones.findAll { (Boolean) it?.isActive() == true && (Boolean) !it?.isPaused() } : []
+    return zones.size() ? zones.findAll { (Boolean)it?.isActive() && !(Boolean)it?.isPaused() } : []
 }
 
 List getInActiveZones() {
     List zones = getZoneApps()
-    return zones.size() ? zones.findAll { (Boolean) it?.isActive() != true || (Boolean) it?.isPaused() } : []
+    return zones.size() ? zones.findAll { !(Boolean)it?.isActive() || (Boolean)it?.isPaused() } : []
 }
 
 static List getMyZNames(Map zones) {
@@ -1660,17 +1647,17 @@ def getZoneById(String id) {
 
 List getActiveApps() {
     List acts = getActionApps()
-    return acts.size() ? acts.findAll { it?.isPaused() != true } : []
+    return acts.size() ? acts.findAll { !(Boolean)it?.isPaused() } : []
 }
 
 List getInActiveApps() {
     List acts = getActionApps()
-    return acts.size() ? acts.findAll { it?.isPaused() == true } : []
+    return acts.size() ? acts.findAll { (Boolean)it?.isPaused() } : []
 }
 
 List getMyANames(List acts) {
     acts = acts ?: []
-    return acts.size() ? acts?.findAll { it }.collect { (String)it?.getLabel() } : []
+    return acts.size() ? acts.findAll { it }.collect { (String)it?.getLabel() } : []
 }
 
 public List getActiveActionNames() {
@@ -1865,16 +1852,16 @@ Map getCookieMap() {
     return [cookie: getCookieVal(), csrf: getCsrfVal()]
 }
 
-Map getReqHeaderMap() {
-    return [
+Map getReqHeaderMap(Boolean extra=false) {
+    Map head = [
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
         Referer: "https://alexa.${state.cookieData?.amazonPage}/spa/index.html",
         Origin: "https://alexa.${state.cookieData?.amazonPage}",
         cookie: getCookieVal(), 
         csrf: getCsrfVal(),
-        //'Content-Type': 'application/json',
-        //'Connection': 'keep-alive', // new
     ]
+    if(extra) return head + [Connection: "keep-alive", DNT: "1"]
+    return head
 }
 
 String getCookieVal() {
@@ -2178,7 +2165,7 @@ Boolean validateCookie(Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
             query: ["version": 0],
-            headers: getReqHeaderMap(),//getCookieMap(),
+            headers: getReqHeaderMap(true),//getCookieMap(),
             contentType: sAPPJSON,
             timeout: 20,
         ]
@@ -2218,7 +2205,7 @@ def validateCookieResp(resp, data){
             logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-(Long)data.dt)}ms)")
             return true
        }
-    } catch(ex) { 
+    } catch(ex) {
         respExceptionHandler(ex, "validCookieResp", true)
         incrementCntByKey("err_app_cookieValidCnt")
     }
@@ -2234,7 +2221,7 @@ private getCustomerData(Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/get-customer-pfm",
             query: ["_": execDt],
-            headers: getReqHeaderMap(),//getCookieMap(),
+            headers: getReqHeaderMap(true),//getCookieMap(),
             contentType: sAPPJSON,
             timeout: 20,
         ]
@@ -2258,13 +2245,13 @@ private getCustomerData(Boolean frc=false) {
     }
 }
 
-private getAllDeviceVolumes(Boolean frc=false) {
+private List getAllDeviceVolumes(Boolean frc=false) {
     if(!isAuthValid("getAllDeviceVolumes")) { return [:] }
-    if(!frc && (Map)state.deviceVolumes && getLastTsValSecs("deviceVolumeUpdDt") < 3600) { return (Map)state.deviceVolumes }
+    if(!frc && (List)state.deviceVolumes && getLastTsValSecs("deviceVolumeUpdDt") < 3600) { return (List)state.deviceVolumes }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/devices/deviceType/dsn/audio/v1/allDeviceVolumes",
-        headers: getReqHeaderMap(), //getCookieMap(),
+        headers: getReqHeaderMap(true), //getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2438,7 +2425,7 @@ Map getMusicProviders(Boolean frc=false) {
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
         query: [ skillId: "amzn1.ask.1p.music" ],
-        headers: [Connection: "keep-alive", DNT: "1", "Routines-Version": "1.1.210292" ] + getReqHeaderMap(), //getCookieMap(),
+        headers: ["Routines-Version": "1.1.210292" ] + getReqHeaderMap(true), //getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2488,7 +2475,7 @@ void getBluetoothDevices(Boolean frc=false) {
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
         query: [cached: true, _: new Date()?.getTime()],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2566,7 +2553,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             uri: getAmazonUrl(),
             path: "/api/activities",
             query: [ size: 5, offset: 1 ],
-            headers: getReqHeaderMap(),//getCookieMap(),
+            headers: getReqHeaderMap(true),//getCookieMap(),
             contentType: sAPPJSON,
             timeout: 20
         ]
@@ -2620,7 +2607,7 @@ void getDoNotDisturb() {
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
         query: [_: now()],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2647,7 +2634,7 @@ void DnDResp(resp, data){
         else dndResp = resp?.data
 //            log.debug "DoNotDisturb Data: ${dndResp}"
             String myId=app.getId()
-            dndDataFLD[myId] = dndResp
+            dndDataFLD[myId] = (Map)dndResp
             dndDataFLD=dndDataFLD
     } catch(ex) { 
         respExceptionHandler(ex, "DnDResp", true)
@@ -2679,7 +2666,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
         uri: getAmazonUrl(),
         path: "/api/behaviors/v2/automations",
         query: [ limit: 100 ],
-        headers: getReqHeaderMap(), // getCookieMap(),
+        headers: getReqHeaderMap(true), // getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -2753,7 +2740,10 @@ Boolean executeRoutineById(String routineId) {
     Map routineData = getAlexaRoutines(routineId)
     // log.debug "routineData: ${routineData.sequence}"
     if(routineData && routineData.sequence) {
-        sendSequenceCommand("ExecuteRoutine", routineData, null)
+        //sendSequenceCommand("ExecuteRoutine", routineData, null)
+        List seqList =  []
+        seqList.push([command: routineData])
+        queueMultiSequenceCommand(seqList, "ExecuteRoutine", false)
         String rtName = routineData && routineData.name ? routineData.name : sBLANK
         log.debug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | Label: ${rtName} | RoutineId: ${routineId}")
         return true
@@ -2775,7 +2765,7 @@ void checkGuardSupport() {
         uri: getAmazonUrl(),
         path: "/api/phoenix",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -2880,7 +2870,7 @@ void getGuardState() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix/state",
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
         body: [ stateRequests: [ [entityId: state.alexaGuardData?.applianceId, entityType: "APPLIANCE" ] ] ]
@@ -2953,7 +2943,7 @@ private getAlexaSkills() {
         headers: [
             Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
             Origin: getAmazonUrl()
-        ] + getReqHeaderMap(),//getCookieMap(),
+        ] + getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -2991,8 +2981,25 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
             if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
-        } else if (sCode == 400) {
-            switch(errMsg) {
+        } else if (sCode in [400, 429]) {
+            String respMsgLow = errMsg ? errpMsg.toLowerCase() : sNULL
+            if((sCode in [400, 429]) && respMsgLow) { // && (respMsgLow in ["rate exceeded", "too many requests"])) {
+                switch(respMsgLow) {
+                    case "rate exceeded":
+                        logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                        break
+                    case "too many requests":
+                        logError("${mName} | ${toMsg} is currently rate-limiting your requests | Msg: ${errMsg}")
+                        break
+                    case "bad request":
+                        logError("${mName} | Improperly formatted request sent to ${toMsg} | Msg: ${errMsg}")
+                        break
+                    default:
+                        logError("${mName} | 400 Error | Msg: ${errMsg}")
+                        break
+                }
+            }
+/*            switch(errMsg) {
                 case "Bad Request":
                     logError("${mName} | Improperly formatted request sent to ${toMsg} | Msg: ${errMsg}")
                     break
@@ -3004,7 +3011,7 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
                     break
             }
         } else if(sCode == 429) {
-            logWarn("${mName} | Too Many Requests Made to ${toMsg} | Msg: ${errMsg}")
+            logWarn("${mName} | Too Many Requests Made to ${toMsg} | Msg: ${errMsg}") */
         } else {
             logError("${mName} | Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
@@ -3088,7 +3095,7 @@ void getEchoDevices(Boolean lazy=false) {
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
         query: [ cached: true, _: new Date().getTime() ],
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
     ]
@@ -3440,82 +3447,6 @@ void removeDevices(Boolean all=false) {
     } catch (ex) { logError("Device Removal Failed: ${ex}", false, ex) }
 }
 
-Map sequenceBuilder(cmd, val) {
-    Map seqJson
-    if (cmd instanceof Map) {
-        seqJson = cmd?.sequence ?: cmd
-    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson), status: "ENABLED"]
-    return seqObj
-}
-
-Map multiSequenceBuilder(commands, Boolean parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem-> nodeList.push(createSequenceNode((String)cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType:cmdItem?.type])) }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    Map seqObj = sequenceBuilder(seqJson, null)
-    return seqObj
-}
-
-Map createSequenceNode(String command, value, Map deviceData = [:]) {
-    try {
-        Boolean remDevSpecifics = false
-        Map seqNode = [
-            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-            operationPayload: [
-                deviceType: deviceData?.deviceType ?: null,
-                deviceSerialNumber: deviceData?.serialNumber ?: null,
-                locale: (settings.regionLocale ?: "en-US"),
-                customerId: state.deviceOwnerCustomerId
-            ]
-        ]
-        switch (command) {
-            case "volume":
-                seqNode.type = "Alexa.DeviceControls.Volume"
-                seqNode.operationPayload.value = value
-                break
-            case "speak":
-                seqNode.type = "Alexa.Speak"
-                seqNode.operationPayload.textToSpeak = value as String
-                break
-            case "announcementTest":
-                seqNode.type = "AlexaAnnouncement"
-                seqNode.operationPayload.remove('deviceType')
-                seqNode.operationPayload.remove('deviceSerialNumber')
-                seqNode.operationPayload.remove('locale')
-                seqNode.operationPayload.expireAfter = "PT5S"
-                List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-                seqNode.operationPayload.content = [[
-                    locale: (state.regionLocale ?: "en-US"),
-                    display: [ title: valObj[0], body: valObj[1] as String ],
-                    speak: [ type: "text", value: valObj[1] as String ],
-                ]]
-                List announceDevs = []
-                if(settings.test_announceDevices) {
-                    Map eDevs = getEchoDeviceMap() //state.echoDeviceMap
-                    settings.test_announceDevices.each { String dev->
-                        announceDevs.push([deviceTypeId: eDevs[dev]?.type, deviceSerialNumber: dev])
-                    }
-                }
-                seqNode.operationPayload.target = [ customerId : state.deviceOwnerCustomerId, devices: announceDevs ]
-                break
-            default:
-                return
-        }
-        if(remDevSpecifics) {
-            seqNode.operationPayload.remove('deviceType')
-            seqNode.operationPayload.remove('deviceSerialNumber')
-            seqNode.operationPayload.remove('locale')
-        }
-        // log.debug "seqNode: $seqNode"
-        return seqNode
-    } catch (ex) {
-        logError("createSequenceNode Exception: ${ex}", false, ex)
-    }
-    return [:]
-}
-
 void execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
         String m = method?.toString()?.toLowerCase()
@@ -3560,26 +3491,560 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
     }
 }
 
-void sendSequenceCommand(String type, Map command, value) {
-    // logTrace("sendSequenceCommand($type) | command: $command | value: $value", true)
-    Map seqObj = sequenceBuilder(command, value)
+void sendSpeak(Map cmdMap, String device, String callback){
+    logTrace("sendSpeak cmdMap: $cmdMap  callback: $callback,  device: $device")
+
+    String bodyObj = sNULL
+    Map st=[serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
+    List<Map> seqCmds = []
+    if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume]+st) }
+    seqCmds = seqCmds + msgSeqBuilder((String)cmdMap.message, st)
+    if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume]+st) }
+
+    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, st, cmdMap, device, callback)
+}
+
+void queueSequenceCommand(String type, command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
+    Map item= [
+        t: 'sequence',
+        time: now(),
+        type: type,
+        command: command,
+        value: value,
+        deviceData: deviceData,
+        device: device,
+        callback: callback
+    ]
+    addToQ(item)
+}
+
+void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+    Map item= [
+        t: 'multi',
+        time: now(),
+        commands: commands,
+        srcDesc: srcDesc,
+        parallel: parallel,
+        deviceData: deviceData,
+        cmdMap: cmdMap,
+        device: device,
+        callback: callback
+    ]
+    addToQ(item)
+}
+
+void addToQ(Map item) {
+    String appId=app.getId()
+
+    Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
+    // log.trace "lock wait: ${aa}"
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    String k = 'cmdQ'
+    List<Map> eData = (List)memStore[k] ?: []
+    eData.push(item)
+    updMemStoreItem(k, eData)
+    releaseTheLock(sHMLF)
+
+    //log.debug "item: $item"
+
+    workQ()
+}
+
+@Field volatile static Map<String,Map> workQMapFLD = [:]
+
+void workQ() {
+    log.trace "running workQ"
+    Boolean locked=false
+    String appId=app.getId()
+    Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
+    // log.trace "lock wait: ${aa}"
+
+    locked = true
+
+    Map myMap = workQMapFLD[appId] ?: [:]
+    Boolean active = (Boolean)myMap.active
+    if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap }
+
+    Long nextOk = (Long)myMap.nextOk ?: 0L
+
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    String k = 'cmdQ'
+    List<Map> eData = (List<Map>)memStore[k] ?: []
+
+    Boolean fnd = (eData.size())
+
+// if we are not doing anything grab next item off queue and start it;
+//    Integer lastChkSec = getLastTsValSecs("lastWorkQDt")
+    if(!active && now() > nextOk) {
+
+        List seqList = []
+        Boolean oldParallel
+        List activeD = []
+
+        if(eData.size()){
+            active = true;  myMap.active=active; workQMapFLD[appId]=myMap
+
+            Map item = (Map)eData.remove(0)
+            updMemStoreItem(k, eData)
+
+// save what we are doing to an active list
+            activeD.push(item)
+            updMemStoreItem('active', activeD)
+
+            String t=item.t
+            Long tLong=(Long)item.time
+            Map deviceData = (Map)item.deviceData
+            Map cmdMap
+            String device = item.device
+            String callback = item.callback
+            String srcDesc
+            Boolean parallel = false
+            if(t=='multi') {
+                List<Map> seqCmds = (List<Map>)item.commands
+                srcDesc = (String)item.srcDesc
+                parallel = (Boolean)item.parallel
+                cmdMap = (Map)item.cmdMap
+                //log.debug "seqCmds: $seqCmds"
+                seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
+                //log.debug "seqList: ${seqList}"
+            }
+            if(oldParallel == null) oldParallel = parallel
+            if(t=='sequence') {
+                String type=item.type
+                srcDesc = type + "${device ? " from $device" : sBLANK}"
+                String command=(String)item.command
+                def value = item.value
+                seqList = seqList + [createSequenceNode(command, value, deviceData)]
+            }
+
+            Integer ms = ((cmdMap?.msgDelay ?: 1) * 1000)
+            ms = Math.min(60000, Math.max(ms, 3000))  // at least 3 seconds, max 60
+            nextOk = now() + ms
+            myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
+
+            locked = false
+            releaseTheLock(sHMLF)
+
+            Map seqMap = multiSequenceBuilder(seqList, oldParallel)
+            Map seqObj = sequenceBuilder(seqMap, null, null)
+
+            Map params = [
+                    uri: getAmazonUrl(),
+                    path: "/api/behaviors/preview",
+                    headers: getReqHeaderMap(true),//getCookieMap(),
+                    contentType: sAPPJSON,
+                    timeout: 20,
+                    body: new groovy.json.JsonOutput().toJson(seqObj)
+            ]
+
+            Map extData=[nextOk: nextOk]
+            if(device && callback) {
+                Boolean isSSML = (cmdMap?.message?.toString()?.startsWith("<speak>") && cmdMap?.message?.toString()?.endsWith("</speak>"))
+                Integer msgLen = ((String)cmdMap.message)?.length()
+                extData = [
+                        cmdDt:(cmdMap.cmdDt ?: null),
+                        cmdDesc: (cmdMap.cmdDesc ?: null),
+                        msgLen: msgLen,
+                        isSSML: isSSML,
+                        deviceId: device,
+                        callback: callback,
+                        msgDelay: (cmdMap.msgDelay ?: null),
+                        message: (cmdMap.message ? cmdMap.message : null),
+                        newVolume: (cmdMap.newVolume ?: null),
+                        oldVolume: (cmdMap.oldVolume ?: null),
+                        cmdId: (cmdMap.cmdId ?: null),
+                ]
+            }
+            logInfo("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}")
+            log.trace("workQ params: $params extData: $extData")
+
+            try{
+                execAsyncCmd("post", "finishWorkQ", params, extData)
+                updTsVal("lastWorkQDt")
+            } catch (ex) {
+                respExceptionHandler(ex, "workQ", true)
+                finishWorkQ([status: 500, data: [:]], extData)
+            }
+        }
+    }
+    Long sec = ((nextOk+500L - now())/1000)
+    String mmsg
+    if(!active && fnd && now() < nextOk){
+        runIn(sec, "workQ")
+        mmsg = "workQ wakeup requested in $sec seconds"
+    }
+    if(locked) releaseTheLock(sHMLF)
+    if(mmsg) log.debug(mmsg)
+}
+
+void finishWorkQ(response, extData){
+    String meth = 'finishWorkQ'
+    log.trace "running "+meth
+    Integer statusCode
+    def sData
+    String respMsg
+    try {
+        statusCode = response?.status
+        if(response.hasError()){
+           respMsg = response.getErrorMessage()
+        } else sData = response?.data
+    } catch(ex) {
+        respExceptionHandler(ex, "finishWorkQ", true)
+    }
+
+    if(statusCode == 200) updTsVal("lastSpokeToAmazon")
+    else {
+        logWarn("$meth | ${statusCode} | $respMsg  | $extData")
+        String respMsgLow = respMsg ? respMsg.toLowerCase() : sNULL
+        if((statusCode in [400, 429]) && respMsgLow && (respMsgLow in ["rate exceeded", "too many requests"])) {
+            switch(respMsgLow) {
+                case "rate exceeded":
+                    logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    break
+                case "too many requests":
+                    logWarn("You've sent too many consecutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    break
+            }
+        }
+    }
+
+    String appId=app.getId()
+    Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
+
+    Map myMap = workQMapFLD[appId]
+    Boolean active = false;  myMap.active=active; workQMapFLD[appId]=myMap
+
+    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
+    String k = 'active'
+    List<Map> activeD = (List<Map>)memStore[k] ?: []
+    activeD = []
+    updMemStoreItem(k, activeD)
+
+    releaseTheLock(sHMLF)
+
+    if((String)extData.deviceId && (String)extData.callback) {
+        if(extData != null && statusCode==200) extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
+        def child = getChildDevice((String)extData.deviceId)
+        child."${(String)extData.callback}"(sData, statusCode, extData)
+    }
+    workQ()
+}
+/*
+void sendSequenceCommand(String type, command, value, Map deviceData=[:]) {
+// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
+    // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
+    Map seqObj = sequenceBuilder(command, value, deviceData)
     sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/behaviors/preview",
-        headers: getReqHeaderMap(),//getCookieMap(),
+        headers: getReqHeaderMap(true),//getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20,
         body: new groovy.json.JsonOutput().toJson(seqObj)
     ], [cmdDesc: "SequenceCommand (${type})"])
 }
 
-private sendMultiSequenceCommand(commands, String srcDesc, Boolean parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial, deviceType: cmdItem?.type])) }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+private void sendMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:]) {
+// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
+    List nodeList = multiSequenceListBuilder(commands, deviceData)
+//    List nodeList = []
+//    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial ?: deviceData?.serialNumber, deviceType: cmdItem?.type ?: deviceData?.deviceType])) }
+//    String seqType = parallel ? "ParallelNode" : "SerialNode"
+//    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+    Map seqJson = multiSequenceBuilder(nodeList, parallel)
     sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
+} */
+
+Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
+// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
+    Map seqJson
+    if (cmd instanceof Map) {
+        seqJson = cmd?.sequence ?: cmd
+    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val, deviceData)] }
+    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson), status: "ENABLED"]
+    return seqObj
 }
+
+List multiSequenceListBuilder(List<Map>commands, Map deviceData) {
+    //log.debug "multiSequenceListBuilder commands: $commands"
+    //log.debug "multiSequenceListBuilder deviceData: $deviceData"
+    List nodeList = []
+    commands?.each { cmdItem->
+        //log.debug "multiSequenceListBuilder cmdItem: $cmdItem"
+        if(cmdItem.command instanceof String){
+            nodeList.push(createSequenceNode((String)cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serialNumber ?: deviceData.serialNumber, deviceType:cmdItem?.deviceType ?: deviceData.deviceType]))
+        } else {
+            nodeList.push(cmdItem.command)
+        }
+    }
+    return nodeList
+}
+
+static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
+//Map multiSequenceBuilder(List<Map> commands, Boolean parallel=false) {
+//    List nodeList = multiSequenceListBuilder(commands) {
+    String seqType = parallel ? "ParallelNode" : "SerialNode"
+    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
+//    Map seqObj = sequenceBuilder(seqJson, null)
+//    return seqObj
+    return seqJson
+}
+
+static Integer getStringLen(String str) { return str?.length() ?: 0 }
+
+private static List msgSeqBuilder(String str, Map st) {
+    // log.debug "msgSeqBuilder: $str"
+    List seqCmds = []
+    List strArr = []
+    Boolean isSSML = (str.startsWith("<speak>") && str.endsWith("</speak>"))
+    if(str.length() < 450) {
+        seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str]+st)
+    } else {
+        List<String> msgItems = str.split()
+        msgItems.each { String wd->
+            // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
+            if((getStringLen(strArr.join(" ")) + wd.length()) > 430) {
+                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st)
+                strArr = []
+            }
+            strArr.push(wd)
+            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st) }
+        }
+    }
+    // log.debug "seqCmds: $seqCmds"
+    return seqCmds
+}
+
+String cleanString(String str, Boolean frcTrans=false) {
+    if(!str) { return sNULL }
+    //Cleans up characters from message
+    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, " ")
+    str = textTransform(str, frcTrans)
+    // log.debug "cleanString: $str"
+    return str
+}
+
+private String textTransform(String str, Boolean force=false) {
+    if(!force && (Boolean)settings.disableTextTransform) { return str }
+    // Converts F temp values to readable text "19F"
+    str = str.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
+    str = str.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
+    str = str.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
+    str = str.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
+    str = str.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
+    str = str.replaceAll("%"," percent ")
+    str = str.replaceAll("°"," degrees ")
+    return str
+}
+
+Map createSequenceNode(String command, value, Map deviceData = [:]) {
+    //log.debug "createSequenceNode: command: $command   "
+    //log.debug "createSequenceNode: value:  $value   "
+    //log.debug "createSequenceNode: deviceData:  $deviceDatavalue   "
+    try {
+        Boolean remDevSpecifics = false
+        String deviceType = deviceData?.deviceType ?: null
+        String serialNumber = deviceData?.serialNumber ?: null
+        Map seqNode = [
+                "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+                operationPayload: [
+                        deviceType: deviceType,
+                        deviceSerialNumber: serialNumber,
+                        locale: (settings.regionLocale ?: "en-US"),
+                        customerId: state.deviceOwnerCustomerId
+                ]
+        ]
+
+        String lcmd = command.toLowerCase()
+        switch (lcmd) {
+            case "weather":
+                seqNode.type = "Alexa.Weather.Play"
+                break
+            case "traffic":
+                seqNode.type = "Alexa.Traffic.Play"
+                break
+            case "flashbriefing":
+                seqNode.type = "Alexa.FlashBriefing.Play"
+                break
+            case "goodmorning":
+                seqNode.type = "Alexa.GoodMorning.Play"
+                break
+            case "goodnight":
+                seqNode.type = "Alexa.GoodNight.Play"
+                break
+            case "cleanup":
+                seqNode.type = "Alexa.CleanUp.Play"
+                break
+            case "singasong":
+                seqNode.type = "Alexa.SingASong.Play"
+                break
+            case "tellstory":
+                seqNode.type = "Alexa.TellStory.Play"
+                break
+            case "funfact":
+                seqNode.type = "Alexa.FunFact.Play"
+                break
+            case "joke":
+                seqNode.type = "Alexa.Joke.Play"
+                break
+            case "calendartomorrow":
+                seqNode.type = "Alexa.Calendar.PlayTomorrow"
+                break
+            case "calendartoday":
+                seqNode.type = "Alexa.Calendar.PlayToday"
+                break
+            case "calendarnext":
+                seqNode.type = "Alexa.Calendar.PlayNext"
+                break
+            case "date":
+                seqNode.type = "Alexa.Date.Play"
+                seqNode.skillId = "amzn1.ask.1p.dateandtime"
+                break
+            case "time":
+                seqNode.type = "Alexa.Time.Play"
+                seqNode.skillId = "amzn1.ask.1p.dateandtime"
+                break
+            case "stop":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.DeviceControls.Stop"
+                seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
+                seqNode.operationPayload.devices = [ [deviceType: deviceType, deviceSerialNumber: serialNumber] ]
+                seqNode.operationPayload.isAssociatedDevice = false
+                break
+            case "stopalldevices":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.DeviceControls.Stop"
+                seqNode.operationPayload.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
+                seqNode.operationPayload.isAssociatedDevice = false
+                break
+            case "cannedtts_random":
+            case "cannedtts":
+                List<String> okVals = (List<String>)seqItemsAvail().speech.cannedtts_random //["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
+                String sval = value.toString()
+                if(!(sval in okVals)) { return null }
+                seqNode.type = "Alexa.CannedTts.Speak"
+                List<String> valObj = lcmd == 'cannedtts_random' ?  [sval, 'random'] : (sval?.contains("::") ? sval.split("::") : [sval, sval])
+                seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
+                break
+            case "sound":
+                String sndName =sBLANK
+                if(value?.startsWith("amzn_sfx_")) {
+                    sndName = value
+                } else {
+                    Map sounds = getAvailableSounds()
+                    if(!(sounds[value])) { return null }
+                    sndName = sounds[value]
+                }
+                seqNode.type = "Alexa.Sound"
+                seqNode.operationPayload.soundStringId = sndName
+                break
+            case "wait":
+                remDevSpecifics = true
+                seqNode.operationPayload?.remove('customerId')
+                seqNode.type = "Alexa.System.Wait"
+                seqNode.operationPayload.waitTimeInSeconds = value?.toInteger() ?: 5
+                break
+
+            case "dnd_duration":
+            case "dnd_time":
+            case "dnd_all_duration":
+            case "dnd_all_time":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.DeviceControls.DoNotDisturb"
+                seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
+//                seqNode.operationPayload.customerId = (String)state.deviceOwnerCustomerId
+                if(lcmd in ["dnd_all_time", "dnd_all_duration"]) {
+                    seqNode.operationPayload.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
+                }
+                if(lcmd in ["dnd_time", "dnd_duration"]) {
+                    seqNode.operationPayload.devices = [ [deviceAccountId: (String)state.deviceAccountId, deviceType: deviceType, deviceSerialNumber: serialNumber] ]
+                }
+                seqNode.operationPayload.action = "Enable"
+                if(lcmd in ["dnd_time","dnd_all_time"]) {
+                    seqNode.operationPayload.until = "TIME#T${value}"
+                } else if (lcmd in ["dnd_duration","dnd_all_duration"]) { seqNode?.operationPayload?.duration = "DURATION#PT${value}" }
+//ERS
+                seqNode.operationPayload.timeZoneId = "America/Detroit" //location?.timeZone?.ID ?: null
+                break
+            case "speak":
+                seqNode.type = "Alexa.Speak"
+                value = cleanString(value.toString())
+                seqNode.operationPayload.textToSpeak = (String)value
+                break
+            case "volume":
+                seqNode.type = "Alexa.DeviceControls.Volume"
+                seqNode.operationPayload.value = value
+                break
+            case "ssml":
+            case "announcement":
+            case "announcementall":
+            case "announcement_devices":
+                remDevSpecifics = true
+                seqNode.type = "AlexaAnnouncement"
+                seqNode.operationPayload.expireAfter = "PT5S"
+                List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
+                // log.debug "valObj(size: ${valObj?.size()}): $valObj"
+                // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
+                // log.debug "valObj[1]: ${valObj[1]}"
+                seqNode.operationPayload.content = [[
+                                                            locale: ((String)state.regionLocale ?: "en-US"),
+                                                            display: [ title: valObj[0], body: valObj[1].replaceAll(/<[^>]+>/, '') ],
+                                                            speak: [ type: (lcmd == "ssml" ? "ssml" : "text"), value: valObj[1] ]
+                                                    ]]
+                seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
+                if(!(lcmd in ["announcementall", "announcement_devices"])) {
+                    seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
+                } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
+                    List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
+                    seqNode.operationPayload.target.devices = devObjs
+                }
+                break
+
+            case "pushnotification":
+                remDevSpecifics = true
+                seqNode.type = "Alexa.Notifications.SendMobilePush"
+                seqNode.skillId = "amzn1.ask.1p.alexanotifications"
+                seqNode.operationPayload.notificationMessage = value as String
+                seqNode.operationPayload.alexaUrl = "#v2/behaviors"
+                seqNode.operationPayload.title = "Echo Speaks"
+//                seqNode.operationPayload.remove("deviceType")
+//                seqNode.operationPayload.remove("deviceSerialNumber")
+//                seqNode.operationPayload.remove("locale")
+                break
+            case "email":
+                seqNode.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"
+                seqNode.skillId = "amzn1.ask.1p.email"
+                seqNode.operationPayload.targetDevice = [deviceType: deviceType, deviceSerialNumber: serialNumber ]
+                seqNode.operationPayload.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
+                seqNode.operationPayload.remove('deviceType')
+                seqNode.operationPayload.remove('deviceSerialNumber')
+                break
+            case "goodnews":
+                seqNode.type = "Alexa.GoodNews.Play"
+                seqNode.skillId = "amzn1.ask.1p.goodnews"
+                break
+            case "voicecmdtxt":
+                seqNode.type = "Alexa.TextCommand"
+                seqNode.skillId = "amzn1.ask.1p.tellalexa"
+                seqNode.operationPayload.text = value.toString()
+                break
+
+            default:
+                return null
+        }
+        if(remDevSpecifics) {
+            seqNode.operationPayload.remove('deviceType')
+            seqNode.operationPayload.remove('deviceSerialNumber')
+            seqNode.operationPayload.remove('locale')
+        }
+        // log.debug "seqNode: $seqNode"
+        return seqNode
+    } catch (ex) {
+        logError("createSequenceNode Exception: ${ex}", false, ex)
+    }
+    return [:]
+}
+
 
 /******************************************
 |    Notification Functions
@@ -3618,7 +4083,8 @@ void healthCheck() {
         checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
-    restartSocket()
+    def aa=getAllDeviceVolumes()
+    chkRestartSocket()
 
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
     if(advLogsActive()) { logsDisable() }
@@ -3730,9 +4196,9 @@ Boolean getOk2Notify() {
     Boolean pushOk // (Boolean)settings.usePush
     Boolean notifDevs = (settings.notif_devs?.size())
     Boolean pushOver // ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
-    Boolean daysOk = quietDaysOk(settings.quietDays)
+    Boolean daysOk = quietDaysOk((List)settings.quietDays)
     Boolean timeOk = quietTimeOk()
-    Boolean modesOk = quietModesOk(settings.quietModes)
+    Boolean modesOk = quietModesOk((List)settings.quietModes)
     Boolean result = true
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
@@ -3807,15 +4273,23 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
 
 Boolean childInstallOk() { return (Boolean)state.childInstallOkFlag }
 
-static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
-
-static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
+static String getHEAppImg(String imgName) { return getAppImg(imgName, true) }
+static String getAppImg(String imgName, Boolean frc=false) { return (frc) ? "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" : sBLANK}
 
 static String getHEPublicImg(String imgName) { return getPublicImg(imgName, true) }
+static String getPublicImg(String imgName, Boolean frc=false) { return (frc) ? "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" : sBLANK}
+
+String sTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="42"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
+/* """ */
+
+String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="42"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ? "${st}" : sBLANK}""" }
+/* """ */
 
 static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 
 static String sectH3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
+
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? """<div style="color: $color;">""" : sBLANK}${bold ? "<b>" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 
 public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) { 
     String s = ""
@@ -3823,53 +4297,34 @@ public String paraTS(String title = sNULL, String body = sNULL, String img = sNU
     s += body ? "<div style='${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}'>${body}</div>" : sBLANK
     return s
 }
+/* """ */
 
-static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
-static String sTS(String t, String i = sNULL, Boolean bold=false) { return "<h3>${i ? "<img src='${i}' width='42'> " : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>" }
-static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return "<h3 style='color:${c};font-weight: bold;'>${i ? "<img src='${i}' width='42'> " : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}" }
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+static String inputFooter(str, color=sCLR4D9, noBr=false) {
+    return "${noBr ? sBLANK : "<br>"}<div style='color: ${color}; font-size: small;font-weight: bold;'>${str}</div>"
+}
 
-static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
-static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ").replaceAll("<br>", " "), und), clr, img) }
+static String inTS1(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return inTS(t, getHEAppImg(i), color, under) }
+static String inTS(String t, String i = sNULL, String color=sNULL, Boolean under=true) { return """${color ? """<div style="color: $color;">""" : sBLANK}${i ? """<img src="${i}" width="42"> """ : sBLANK} ${under ? "<u>" : sBLANK}${t?.replaceAll("\\n", " ")}${under ? "</u>" : sBLANK}${color ? "</div>" : sBLANK}""" }
+/* """ */
 
-// Root HTML Objects
-static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String spanImgStr(String img=sNULL) { return (String) img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
-static String divImgStr(String str, String img=sNULL) { return (String) str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
-static String strUnder(String str, Boolean showUnd=true) { return (String) str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
-static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
-static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
-static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
-static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
-static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, false) : sBLANK }
-static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, true) : sBLANK }
-static String optPrefix() { return spanSm(" (Optional)", "violet") }
-//
-
-// Custom versions of the root objects above
-static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
-static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
-static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
-static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "small")                 : sBLANK }
-static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "small", false, true)    : sBLANK }
-static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "small", true)           : sBLANK }
-static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, "small", true) : sBLANK }
-static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "small", true, true)     : sBLANK }
-static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "medium")                : sBLANK }
-static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "medium", false, true)   : sBLANK }
-static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true)          : sBLANK }
-static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true, true)    : sBLANK }
+static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color}; height: 1px; border: 0;'>" }
 
 
-static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
-static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
-static String divBr(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
-static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, "small")              : sBLANK }
-static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", false, true) : sBLANK }
-static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", true)        : sBLANK }
-static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", true, true)  : sBLANK }
+String lineBr(Boolean show=true) {
+    return (String) show ? sLINEBR : sBLANK
+}
 
+String spanWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String divWrap(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) {
+    return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? "<br>" : sBLANK}" : sBLANK
+}
+
+String getOkOrNotSymHTML(Boolean ok) {
+    return (String) ok ? "<span style='color: #43d843;'>(${okSymFLD})</span>" : "<span style='color: #cc2d3b;'>(${notOkSymFLD})</span>"
+}
 
 def appFooter() {
     section() {
@@ -3882,7 +4337,7 @@ static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
 static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP }
+def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP, state: sCOMPLT}
 
 String getAppEndpointUrl(subPath)   { return "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
 
@@ -3924,7 +4379,7 @@ Boolean showChgLogOk() { return ((Boolean) state.isInstalled && !((String) state
 
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: sBLANK, nextPage: "mainPage", install: false) {
-        section(sectTS("Release Notes:", getAppImg("change_log"), true)) { paragraph changeLogData() }
+        section(sectTS("Release Notes:", getAppImg("change_log", true), true)) { paragraph changeLogData() }
         state.curAppVer = appVersionFLD
         updInstData("shownChgLog", true)
     }
@@ -4795,14 +5250,14 @@ String getAppNotifConfDesc() {
     Integer notifDevs = settings.notif_devs?.size()
     if(notifDevs) {
         Boolean ok = getOk2Notify()
-        str += spanSmBld("Send Notifications Allowed:") + getOkOrNotSymHTML(ok)
+        str += spanWrap("Send Notifications Allowed:", sNULL, sNULL, true) + getOkOrNotSymHTML(ok)
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += notifDevs ? lineBr() + spanSmBr(" ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})") : sBLANK
-        str += (ap) ? lineBr(str != sBLANK) + spanSmBldBr("Enabled Alerts:") + ap : sBLANK
+        str += notifDevs ? lineBr() + spanWrap(" ${sBULLET} Sending via: Notification Device${pluralizeStr((List)settings.notif_devs)} (${notifDevs})", sNULL, sNULL, false, true) : sBLANK
+        str += (ap) ? lineBr(str != sBLANK) + spanWrap("Enabled Alerts:", sNULL, sNULL, true, true) + ap : sBLANK
         str += (ap && nd) ? lineBr(str != sBLANK) + lineBr() + nd : sBLANK
     }
-    return str != sBLANK ? divSm(str, sCLR4D9) : sNULL
+    return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sNULL
 }
 
 List getQuietDays() {
@@ -4845,28 +5300,28 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "${spanSm("   ${sBULLET} Restricted Times:")} ${spanSm("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(!timeOk)}" : sBLANK
+    str += (startLbl && stopLbl) ? "${spanWrap("   ${sBULLET} Restricted Times:")} ${spanWrap("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(!timeOk)}" : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? "${lineBr(startLbl || stopLbl)}${spanSm("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanSm(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
-    str += modeInput ? "${lineBr(startLbl || stopLbl || qDays)}${spanSm("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanSm(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
-    str = str ? spanSmBld("Restrictions: ") + getOkOrNotSymHTML(rest) + lineBr() + str : sBLANK
-    return (str != sBLANK) ? divSm(str, sCLR4D9) : sNULL
+    str += dayInput && qDays ? "${lineBr(startLbl || stopLbl)}${spanWrap("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanWrap(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
+    str += modeInput ? "${lineBr(startLbl || stopLbl || qDays)}${spanWrap("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanWrap(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
+    str = str ? "${spanWrap("Restrictions:", sNULL, sNULL, true)} ${getOkOrNotSymHTML(rest)}${lineBr()}${str}" : sBLANK
+    return (str != sBLANK) ? divWrap(str, sCLR4D9, "small") : sNULL
 }
 
 String getServiceConfDesc() {
     String str = sBLANK
-    str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "${spanSmBld("Heroku:")} ${spanSmBr("(Configured)")}" : sBLANK
-    str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanSmBld("Local Server:")} ${spanSmBr("(Configured)")}" : sBLANK
-    str += "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})")}"
-    str += (settings.amazonDomain) ? "${spanSmBld("Domain:", sNULL, sNULL, true)} ${spanSmBr("(${settings?.amazonDomain})")}" : sBLANK
-    return str != sBLANK ? divSm(str, sCLR4D9) : sNULL
+    str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "${spanWrap("Heroku:", sNULL, sNULL, true)} ${spanWrap("(Configured)", sNULL, sNULL, false, true)}" : sBLANK
+    str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanWrap("Local Server:", sNULL, sNULL, true)} ${spanWrap("(Configured)", sNULL, sNULL, false, true)}" : sBLANK
+    str += "${spanWrap("Server:", sNULL, sNULL, true)} ${spanWrap("(${getServerHostURL()})", sNULL, sNULL, false, true)}"
+    str += (settings.amazonDomain) ? "${spanWrap("Domain:", sNULL, sNULL, true)} ${spanWrap("(${settings?.amazonDomain})")}" : sBLANK
+    return str != sBLANK ? divWrap(str, sCLR4D9, "small") : sNULL
 }
 
 String getLoginStatusDesc() {
     String str = sBLANK
-    str += "${spanSm("Login Status:")} ${getOkOrNotSymHTML((Boolean)state.authValid)}"
-    str += (getTsVal("lastCookieRrshDt")) ? "${lineBr()}${spanSm("Cookie Updated:")} ${spanSm("(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})")}" : sBLANK
-    return divSm(str, sCLR4D9)
+    str += "${spanWrap("Login Status:")} ${getOkOrNotSymHTML((Boolean)state.authValid)}"
+    str += (getTsVal("lastCookieRrshDt")) ? "${lineBr()}${spanWrap("Cookie Updated:")} ${spanWrap("(${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})")}" : sBLANK
+    return divWrap(str, sCLR4D9, "small")
 }
 
 String getAppNotifDesc() {
@@ -4879,25 +5334,25 @@ String getAppNotifDesc() {
 }
 
 String getActionsDesc() {
-    List<String> actActs = getActiveActionNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (A)', sBLANK)}") + spanSm(" (Active)", "#43d843") }
-    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (A ❚❚)', sBLANK)}") + spanSm(" (Paused)", sCLRORG) }
+    List<String> actActs = getActiveActionNames()?.sort()?.collect { spanWrap(" ${sBULLET} ${it.replace(' (A)', sBLANK)}") + spanWrap(" (Active)", "#43d843") }
+    List<String> inactActs = getInActiveActionNames()?.sort()?.collect { spanWrap(" ${sBULLET} ${it.replace(' (A ❚❚)', sBLANK)}") + spanWrap(" (Paused)", sCLRORG) }
     List<String> acts = (actActs + inactActs).sort()
     Integer a = acts?.size()
     String str = sBLANK
-    str += a ? divSm("${spanSmBldBr("Action Status:")}${spanSm(acts?.join("<br>"))}", sCLR4D9) : sBLANK
+    str += a ? divWrap("${spanWrap("Action Status:", sNULL, sNULL, true)}${lineBr()}${spanWrap(acts?.join("<br>"))}", sCLR4D9, "small") : sBLANK
     str += a ? inputFooter(sTTM) : inputFooter("Tap to create actions using device/location events to perform advanced actions using your Alexa devices.", sCLRGRY)
     return str
 }
 
 String getZoneDesc() {
-    List<String> actZones = getActiveZoneNames()?.sort()?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanSm(" (Active)", "#43d843") }
+    List<String> actZones = getActiveZoneNames()?.sort()?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanWrap(" (Active)", "#43d843") }
     List<String> inActZones = getInActiveZoneNames()?.sort()
-    List<String> iZones = inActZones.findAll { it.contains(" (Z)") }?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanSm(" (Inactive)", sCLRGRY) }
-    List<String> pZones = inActZones.findAll { it.contains(" (Z ❚❚)") }?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z ❚❚)', sBLANK)}") + spanSm(" (Paused)", sCLRORG) }
+    List<String> iZones = inActZones.findAll { it.contains(" (Z)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z)', sBLANK)}") + spanWrap(" (Inactive)", sCLRGRY) }
+    List<String> pZones = inActZones.findAll { it.contains(" (Z ❚❚)") }?.collect { spanWrap(" ${sBULLET} ${it.replace(' (Z ❚❚)', sBLANK)}") + spanWrap(" (Paused)", sCLRORG) }
     List<String> zones = (actZones + iZones + pZones).sort()
     String str = sBLANK
     Integer a = zones?.size()
-    str += a ? divSm("${spanSmBldBr("Zone Status:")}${spanSm(zones?.join("<br>"))}", sCLR4D9) : sBLANK
+    str += a ? divWrap("${spanWrap("Zone Status:", sNULL, sNULL, true)}${lineBr()}${spanWrap(zones?.join("<br>"))}", sCLR4D9, "small") : sBLANK
     str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", sCLRGRY)
     return str
 }
@@ -4920,18 +5375,17 @@ def appInfoSect() {
     String tStr = sBLANK
     Boolean isNote = false
     if(codeVer && (codeVer.server || codeVer.actionApp || codeVer.echoDevice)) {
-        tStr += spanSmBld("App: ") + spanSmBr("v${appVersionFLD}")
-        tStr += (codeVer.echoDevice) ? spanSmBld("Device: ") + spanSmBr("v${codeVer.echoDevice}") : sBLANK
-        tStr += (codeVer.actionApp) ? spanSmBld("Action: ") + spanSmBr("v${codeVer.actionApp}") : sBLANK
-        tStr += (codeVer.zoneApp) ? spanSmBld("Zone: ") + spanSmBr("v${codeVer.zoneApp}") : sBLANK
-        tStr += (codeVer.wsDevice) ? spanSmBld("Socket: ") + spanSmBr("v${codeVer.wsDevice}") : sBLANK
-        tStr += (codeVer.server) ? spanSmBld("Server: ") + spanSmBr("v${codeVer.server}") : sBLANK
-        tStr = spanSm(tStr, sCLRGRY)
+        tStr += """<small style="color: gray;"><b>App:</b> v${appVersionFLD}</small>"""
+        tStr += (codeVer.echoDevice) ? """<br><small style="color: gray;"><b>Device:</b> v${codeVer.echoDevice}</small>""" : sBLANK
+        tStr += (codeVer.actionApp) ? """<br><small style="color: gray;"><b>Action:</b> v${codeVer.actionApp}</small>""" : sBLANK
+        tStr += (codeVer.zoneApp) ? """<br><small style="color: gray;"><b>Zone:</b> v${codeVer.zoneApp}</small>""" : sBLANK
+        tStr += (codeVer.wsDevice) ? """<br><small style="color: gray;"><b>Socket:</b> v${codeVer.wsDevice}</small>""" : sBLANK
+        tStr += (codeVer.server) ? """<br><small style="color: gray;"><b>Server:</b> v${codeVer.server}</small>""" : sBLANK
     }
 
-    section (sectH3TS(app?.name, tStr, getAppImg("echo_speaks_3.2x"), sCLR4D9)) {
+    section (sectH3TS((String)app?.name, tStr, getAppImg("echo_speaks_3.2x", true), "#1A77C9")) {
         if(!(Boolean)state.isInstalled) {
-            paragraph spanSmBld("--NEW Install--", sCLR4D9)
+            paragraph pTS("--NEW Install--", sNULL, true, sCLR4D9), state: sCOMPLT
         } else {
             if(!state.noticeData) { getNoticeData() }
             Boolean showDocs = false
@@ -4940,39 +5394,38 @@ def appInfoSect() {
             List remDevs = getRemovableDevs()
             if((Boolean)minUpdMap?.updRequired && ((List)minUpdMap.updItems).size()>0) {
                 isNote=true
-                String str3 = spanSmBldBr("Updates Required:")
-                ((List) minUpdMap.updItems).each { item-> str3 += spanSmBr("  ${sBULLET} ${item}") }
-                str3 += lineBr() + spanSmBld("If you just updated the code please press Done/Next to let the app process the changes.")
-                paragraph divSm(str3, sCLRRED)
+                String str3 = """<small style="color: red;"><b>Updates Required:</b></small>"""
+                ((List) minUpdMap.updItems).each { item-> str3 += """<br><small style="color: red;">  ${sBULLET} ${item}</small>""" }
+                str3 += """<br><br><small style="color: red; font-weight: bold;">If you just updated the code please press Done/Next to let the app process the changes.</small>"""
+                paragraph str3
                 showDocs = true
             } else if(codeUpdItems?.size()) {
                 isNote=true
-                String str2 = spanSmBldBr("Code Updates Available:")
-                codeUpdItems?.each { item-> str2 += spanSmBr("  ${sBULLET} ${item}") }
-                paragraph divSm(str2, sCLRRED)
+                String str2 = """<small style="color: red;"><b>Code Updates Available:</b></small>"""
+                codeUpdItems?.each { item-> str2 += """<br><small style="color: red;">  ${sBULLET} ${item}</small>""" }
+                paragraph str2
                 showDocs = true
             }
             if(showDocs) { updateDocsInput() }
             if(!(Boolean) state.authValid && !(Boolean) state.resumeConfig) { 
                 isNote = true; 
-                String str4 = spanSmBld("Login Issue:")
-                str4 += lineBr() + spanSm("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!")
-                paragraph divSm(str4, sCLRORG) 
+                String str4 = """<small style="color: orange;"><b>Login Issue:</b></small>"""
+                str4 += lineBr() + lineBr() + spanWrap("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!", sCLRORG, "small")
+                paragraph str4 
             }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
                 isNote = true; 
-                String str1 = sBLANK
-                state.noticeData.notices.each { String item-> str1 += lineBr() + spanSmBr("  ${sBULLET} ${item}") }
-                paragraph divSm(str1, sCLRRED)
+                String str1 = ""
+                state.noticeData.notices.each { String item-> str1 += """<br><small style="color: red;">  ${sBULLET} ${item}</small>""" }
+                paragraph str1
             }
             if(remDevs?.size()) {
                 isNote = true
-                String str = spanSmBldBr("Device Removal:") + spanSm("(${remDevs?.size()}) devices can be removed")
-                paragraph divSm(str, sCLRRED)
+                paragraph """<small style="color: red;"><b>Device Removal:</b>\n(${remDevs?.size()}) devices can be removed</small>"""
             }
-            if(!isNote) { paragraph inputFooter("No Issues to Report", sCLRGRY, true) }
+            if(!isNote) { paragraph """<small style="color: gray;">No Issues to Report</small>""" }
         }
-        // paragraph htmlLine()
+        paragraph htmlLine()
     }
     List unkDevs = getUnknownDevices()
     if(unkDevs?.size()) {
@@ -5078,7 +5531,7 @@ def renderConfig() {
     <body>
         <div style="margin: 0 auto; max-width: 600px;">
             <form class="p-1">
-                <div class="my-3 text-center"><span><img src="${getAppImg("echo_speaks_3.1x")}"/><p class="h4 text-center">Echo Speaks</p></span></div>
+                <div class="my-3 text-center"><span><img src="${getAppImg("echo_speaks_3.1x", true)}"/><p class="h4 text-center">Echo Speaks</p></span></div>
                 <hr>
                 ${oStr}
 
@@ -5960,7 +6413,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
             if(devModeFLD) log.warn "overriding lock $meth"
         }
     }
-    lockTimesFLD[semaSNum] = now()
+    lockTimesFLD[semaSNum] = (Long)now()
     lockTimesFLD = lockTimesFLD
     lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
@@ -5990,7 +6443,7 @@ public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
     ],
 //
     ends: [
-        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone"],
+        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause"],
         enum: ["_cmd", "_type", "_routineExecuted",
                "_EchoDevices",
                "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type",
