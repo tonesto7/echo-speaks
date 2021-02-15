@@ -17,12 +17,12 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-12"
+@Field static final String appModifiedFLD = "2021-02-15"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4070, zoneApp: 4050, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4050, wsDevice: 4050, actionApp: 4070, zoneApp: 4070, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -42,6 +42,8 @@ import groovy.transform.Field
 @Field static final String sARM_AWAY      = 'ARMED_AWAY'
 @Field static final String sARM_STAY      = 'ARMED_STAY'
 @Field static final String sCOMPLT        = 'complete'
+@Field static final String sMEDIUM        = 'medium'
+@Field static final String sSMALL         = 'small'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
 @Field static final String sCLRRED2       = '#cc2d3b'
@@ -710,7 +712,7 @@ def viewZoneHistory() {
                 List<String> items = z.getZoneHistory(true)
                 items = items ?: []
                 items.each { String v->
-                    paragraph pTS(v)
+                    paragraph spanSm(v)
                 }
             }
         }
@@ -724,7 +726,7 @@ def viewActionHistory() {
             section(sectHead(a.getLabel())) {
                 List<String> items = (List<String>)a.getActionHistory(true)
                 items.each { String v->
-                    paragraph pTS(v)
+                    paragraph spanSm(v)
                 }
             }
         }
@@ -3851,24 +3853,24 @@ static String optPrefix() { return spanSm(" (Optional)", "violet") }
 static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
 static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
 static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
-static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "small")                 : sBLANK }
-static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "small", false, true)    : sBLANK }
-static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "small", true)           : sBLANK }
-static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, "small", true) : sBLANK }
-static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "small", true, true)     : sBLANK }
-static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "medium")                : sBLANK }
-static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "medium", false, true)   : sBLANK }
-static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true)          : sBLANK }
-static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true, true)    : sBLANK }
+static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
+static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
+static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
+static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
+static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
+static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
+static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
+static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
+static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
 
 
 static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
 static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
 static String divBr(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
-static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, "small")              : sBLANK }
-static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", false, true) : sBLANK }
-static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", true)        : sBLANK }
-static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", true, true)  : sBLANK }
+static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
+static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
+static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
+static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 
 
 def appFooter() {
@@ -5819,26 +5821,26 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
     releaseTheLock(sHMLF)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
-private void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info " "+addHead(msg) } }
-private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { logPrefix(msg, "purple") } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError) {
-        log.error addHead(msg)
+        log.error logPrefix(msg, sCLRRED)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error addHead(a)
+        if(a) log.error logPrefix(a, sCLRRED)
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
 }
 
-static String addHead(String msg) {
-    return "EchoApp (v"+appVersionFLD+") | "+msg
+static String logPrefix(String msg, String color = sNULL) {
+    return span("EchoApp (v" + appVersionFLD + ") | ", sCLRGRY) + span(msg, color)
 }
 
 void clearDiagLogs(String type="all") {

@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-12"
+@Field static final String appModifiedFLD = "2021-02-15"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -47,6 +47,8 @@ import groovy.transform.Field
 @Field static final String sTIME          = 'time'
 @Field static final String sMODE          = 'mode'
 @Field static final String sCOMPLT        = 'complete'
+@Field static final String sMEDIUM        = 'medium'
+@Field static final String sSMALL         = 'small'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
 @Field static final String sCLRRED2       = '#cc2d3b'
@@ -120,7 +122,7 @@ def startPage() {
         else {
 //            state.isParent = false
             List aa = settings.act_EchoDevices
-            List devIt = aa.collect { it ? it.toInteger():null }
+            List devIt = aa.collect { it ? it.toInteger() : null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
             return (minVersionFailed()) ? codeUpdatePage() : mainPage() }
     } else { return uhOhPage() }
@@ -144,7 +146,7 @@ def appInfoSect()	{
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBldBr(app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
-    section() { paragraph divSm(str, sCLRGRY) } // + htmlLine(sCLRGRY) }
+    section() { paragraph divSm(str, sCLRGRY) }
 }
 
 List cleanedTriggerList() {
@@ -210,7 +212,7 @@ def mainPage() {
 
         if(paused) {
             section() {
-                paragraph pTS("This Action is currently in a paused state...\nTo edit the please un-pause", getAppImg("pause_orange"), false, sCLRRED)
+                paragraph spanSmBlr("This Action is currently in a paused state...<br>To edit the please un-pause", sCLRRED, "pause_orange")
             }
         } else {
             if(settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
@@ -293,7 +295,7 @@ def prefsPage() {
             input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: spanSm("Auto disables after 6 hours", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: spanSm("Only enable when asked to.<br>(Auto disables after 6 hours)", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: spanSm("Only enable when asked to (Auto disables after 6 hours)", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
         }
         if((Boolean)state.isInstalled) {
             if(advLogsActive()) { logsEnabled() }
@@ -320,7 +322,7 @@ def actionHistoryPage() {
         }
         if( ((List)getMemStoreItem("actionHistory")).size() ) {
             section(sBLANK) {
-                input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", "reset"), description: spanSm("Clears Stored Action History.", sCLRGRY), defaultValue: false, submitOnChange: true
+                input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", sRESET), description: spanSm("Clears Stored Action History.", sCLRGRY), defaultValue: false, submitOnChange: true
                 //private List getMemStoreItem(String key){
                 if(settings.clearActionHistory) {
                     settingUpdate("clearActionHistory", sFALSE, sBOOL)
@@ -1814,14 +1816,14 @@ def actNotifPage() {
 
 def actNotifTimePage() {
     return dynamicPage(name:"actNotifTimePage", title: sBLANK, install: false, uninstall: false) {
-        String a = getNotifSchedDesc()
-         if(a) {
-             section() {
-                 paragraph spanSmBldBr("Restrictions Status:", sCLR4D9) + spanSm(a, sCLR4D9)
-                 paragraph spanSmBldBr("NOTICE: All selected restrictions must be ${strUnder("INACTIVE")} for notifications to be sent.", sCLRORG)
-                 paragraph htmlLine()
-             }
-         }
+        // String a = getNotifSchedDesc()
+        //  if(a) {
+        //      section() {
+        //          paragraph spanSmBldBr("Restrictions Status:", sCLR4D9) + spanSm(a, sCLR4D9)
+        //          paragraph spanSmBldBr("NOTICE: All selected restrictions must be ${strUnder("INACTIVE")} for notifications to be sent.", sCLRORG)
+        //          paragraph htmlLine()
+        //      }
+        //  }
         String pre = "notif"
         Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
         section(sectHead("Quiet Start Time:")) {
@@ -1927,7 +1929,7 @@ private echoDevicesInputByPerm(String type) {
     section(sectHead("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
         if(echoZones?.size()) {
             if(!settings.act_EchoZones) { paragraph pTS("Zones are used to direct the speech output based on the conditions in the zone (Motion, presence, etc).\nWhen both Zones and Echo devices are selected, the zone will take priority over the echo device setting.", sNULL, false) }
-            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: "Select the Zone(s)", options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true
+            input "act_EchoZones", sENUM, title: inTS1("Zone(s) to Use", "es_groups"), description: spanSm("Select the Zone(s)", sCLRGRY), options: echoZones?.collectEntries { [(it?.key): it?.value?.name as String] }, multiple: true, required: (!settings.act_EchoDevices), submitOnChange: true
         }
         if(settings.act_EchoZones?.size() && echoDevs?.size() && !settings.act_EchoDevices?.size()) {
             paragraph pTS("There may be scenarios when none of your zones are active at the triggered action execution.\nYou have the option to select echo devices to use when no zones are available.", sNULL, false, sCLR4D9)
@@ -1935,11 +1937,11 @@ private echoDevicesInputByPerm(String type) {
         if(echoDevs?.size()) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
-            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices", "echo_gen1") + (devsOpt ? spanSm(" (Optional Zone Backup)", "violet") : sBLANK), description: (devsOpt ? "These devices are used when all zones are inactive." : "Select your devices"), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true
+            input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices", "echo_gen1") + (devsOpt ? spanSm(" (Optional Zone Backup)", "violet") : sBLANK), description: spanSm(devsOpt ? "These devices are used when all zones are inactive." : "Select your devices", sCLRGRY), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true
             List aa = settings.act_EchoDevices
             List devIt = aa.collect { it ? it.toInteger() : null }
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
-        } else { paragraph pTS("No devices were found with support for ($type)", sNULL, true, sCLRRED) }
+        } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
     }
     //updateZoneSubscriptions()
 }
@@ -3696,7 +3698,7 @@ public getActionHistory(Boolean asObj=false) {
         }
     } else { output.push("No History Items Found...") }
     if(!asObj) {
-        output.each { String i-> paragraph pTS(i) }
+        output.each { String i-> paragraph spanSm(i) }
     } else {
         return output
     }
@@ -4852,7 +4854,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                     if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water", "thermostatMode", "thermostatOperatingState" ]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity", "coolingSetpoint", "heatingSetpoint", "thermostatTemperature"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings."${sPre}${evt}"     ? spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) " + getOkOrNotSymHTML(condOk)) : sBLANK
+                    str += settings."${sPre}${evt}" ? spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) " + getOkOrNotSymHTML(condOk)) : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
@@ -4929,7 +4931,7 @@ String getActionDesc(Boolean addFoot=true) {
         String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
         str += trigTasks ? spanSm(trigTasks) : sBLANK
         str += addFoot ? inputFooter(sTTM) : sBLANK
-        // return div(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, "small")
+        // return div(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9, sSMALL)
     }
     str += !confd && addFoot ? inputFooter("Tap to configure (Required!)", sCLRRED, true) : sBLANK
     return divSm(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9)
@@ -5032,24 +5034,24 @@ static String optPrefix() { return spanSm(" (Optional)", "violet") }
 static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
 static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
 static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
-static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "small")                 : sBLANK }
-static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "small", false, true)    : sBLANK }
-static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "small", true)           : sBLANK }
-static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, "small", true) : sBLANK }
-static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "small", true, true)     : sBLANK }
-static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, "medium")                : sBLANK }
-static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, "medium", false, true)   : sBLANK }
-static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true)          : sBLANK }
-static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, "medium", true, true)    : sBLANK }
+static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
+static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
+static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
+static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
+static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
+static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
+static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
+static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
+static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
 
 
 static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
 static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
 static String divBr(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
-static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, "small")              : sBLANK }
-static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", false, true) : sBLANK }
-static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", true)        : sBLANK }
-static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, "small", true, true)  : sBLANK }
+static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
+static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
+static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
+static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 
 def appFooter() {
 	section() {
@@ -5099,26 +5101,26 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     releaseTheLock(sHMLF)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(span(msg, "purple")) } }
-private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE+logPrefix(span(msg, "blue")) } }
-private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(span(msg, sCLRGRY)) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE+logPrefix(span(msg, sCLRORG)) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError != false) {
-        log.error logPrefix(msg)
+        log.error logPrefix(msg, sCLRRED)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error logPrefix(span(a, sCLRRED))
+        if(a) log.error logPrefix(a, sCLRRED)
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, 15) }
 }
 
-static String logPrefix(String msg) {
-    return "Action (v" + appVersionFLD + ") | " + msg
+static String logPrefix(String msg, String color = sNULL) {
+    return span("Action (v" + appVersionFLD + ") | ", sCLRGRY) + span(msg, color)
 }
 
 Map getLogHistory() {
