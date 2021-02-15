@@ -3542,12 +3542,14 @@ void addToQ(Map item) {
     String k = 'cmdQ'
     List<Map> eData = (List)memStore[k] ?: []
     eData.push(item)
+    Integer qsiz = eData.size()
     updMemStoreItem(k, eData)
     releaseTheLock(sHMLF)
 
     //log.debug "item: $item"
 
-    workQ()
+    if(qsiz == 1) runInMillis(600L, "workQ")
+//    else workQ()
 }
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
