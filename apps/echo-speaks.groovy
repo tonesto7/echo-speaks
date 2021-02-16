@@ -1564,7 +1564,7 @@ void webSocketStatus(Boolean active) {
     logTrace "webSocketStatus... | Active: ${active}"
     state.websocketActive = active
     if(active) remTsVal('bluetoothUpdDt') // healthcheck will re-read
-    runIn(3, "updChildSocketStatus")
+    runIn(6, "updChildSocketStatus")
 }
 
 void updChildSocketStatus() {
