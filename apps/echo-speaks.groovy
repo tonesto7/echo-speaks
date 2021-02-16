@@ -3697,7 +3697,7 @@ void workQ() {
                     body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-            log.trace("workQ params: $params extData: $extData")
+            logTrace("workQ params: $params extData: $extData")
 
             try{
                 execAsyncCmd("post", "finishWorkQ", params, extData)
