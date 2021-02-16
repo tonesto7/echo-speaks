@@ -848,7 +848,9 @@ def settingsPage() {
             input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
         }
         if(advLogsActive()) { logsEnabled() }
-        input "disableTextTransform", sBOOL, required: false, title: "Disable Text Transform?", description: "This will disable attempts to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false, submitOnChange: true
+        section(sectHead("Text Transforms:")) {
+            input "disableTextTransform", sBOOL, title: "Disable Text Transform?", description: "This will disable attempts to convert items in text like temp units and directions like `WSW` to west southwest", required: false, defaultValue: false, submitOnChange: true
+        }
         showDevSharePrefs()
         section(sectHead("Diagnostic Data:")) {
             paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", sNULL, false, sCLRGRY)
@@ -1083,7 +1085,7 @@ def alexaRoutinesTestPage() {
                     str += spanBldBr(rv)
                     str += spanSmBld("Routine ID: ") + spanSmBr(rk)
                     paragraph divSm(str, sCLR4D9)
-                    input "executeRoutine::${rk}", "button", title: spanSmBld("Run Routine: ", sCLRGRY) + spanSm("(${rv})", sCLRGRY), width: 4
+                    input "executeRoutine::${rk}", "button", title: spanSmBld("Run Routine: ", sCLRGRY) + spanSm("(${rv})", sCLRGRY), width: 4, submitOnChange: true
                     paragraph htmlLine()
                 }
             } else {
@@ -1101,14 +1103,14 @@ def returnHomeBtn() {
 }
 
 def appButtonHandler(btn) {
-    // log.debug "appButton: $btn"
+     log.debug "appButton: $btn"
 	switch (btn) {
 		case "btnMainMenu":
 			state.mainMenu = true
 			break
-        case ~/^executeRoutine(\d+)/:
+/*        case ~/^executeRoutine(\d+)/:
 			// executeRoutineTest(Matcher.lastMatcher[0][1].toInteger())
-			break
+			break */
         default:
             if(btn.startsWith("executeRoutine::")) {
                 List rt = btn.tokenize("::")
@@ -2695,7 +2697,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
             if(rtList.size()) {
                 if(autoId) {
                     rtResp = rtList.find { it?.automationId.toString() == autoId } ?: [:]
-                    // log.debug "rtResp: ${rtResp}"
+                    //log.debug "rtResp: ${rtResp}"
                     return rtResp
                 } else {
                     rtList.findAll { it?.status == "ENABLED" }?.each { Map item ->
@@ -2733,7 +2735,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
     } catch (ex) {
         respExceptionHandler(ex, "getAlexaRoutines", true)
     }
-    // log.debug "routines: $rtResp"
+    //log.debug "routines: $rtResp"
     return rtResp
 }
 
@@ -2750,7 +2752,7 @@ public getAlexaRoutineByNameOrID(String nameOrId) {
 Boolean executeRoutineById(String routineId) {
     Long execDt = now()
     Map routineData = getAlexaRoutines(routineId)
-    // log.debug "routineData: ${routineData.sequence}"
+    //log.debug "routineData: ${routineData.sequence}"
     if(routineData && routineData.sequence) {
         //sendSequenceCommand("ExecuteRoutine", routineData, null)
         List seqList =  []
@@ -3591,6 +3593,8 @@ void workQ() {
         Boolean oldParallel
         Boolean parallel = false
 
+        String srcDesc
+        Map seqMap
 // lets try to join commands in single request to Alexa
 
         while(eData.size()>0){
@@ -3604,17 +3608,20 @@ void workQ() {
             Map cmdMap
             String device = item.device
             String callback = item.callback
-            String srcDesc
+            srcDesc = sNULL
 
             if(t=='multi') {
-                List<Map> seqCmds = (List<Map>)item.commands
                 srcDesc = (String)item.srcDesc
-                Boolean nparallel = item.parallel
-                parallel = nparallel != null ? nparallel : parallel
-                cmdMap = (Map)item.cmdMap
-                //log.debug "seqCmds: $seqCmds"
-                seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
-                //log.debug "seqList: ${seqList}"
+                List<Map> seqCmds = (List<Map>)item.commands
+                if(srcDesc == 'ExecuteRoutine') seqMap = seqCmds[0].command
+                else {
+                    Boolean nparallel = item.parallel
+                    parallel = nparallel != null ? nparallel : parallel
+                    cmdMap = (Map)item.cmdMap
+                    //log.debug "seqCmds: $seqCmds"
+                    seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
+                    //log.debug "seqList: ${seqList}"
+                }
             }
 
             if(t=='sequence') {
@@ -3661,9 +3668,10 @@ void workQ() {
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             ms = Math.min(60000, Math.max(ms, 0))  // at least 0 seconds, max 60
             msSum += ms
+            if(srcDesc == 'ExecuteRoutine') { break } // if parallel changes we are done this set of command
         }
 
-        if(seqList.size() > 0){
+        if(seqList.size() > 0 || seqMap){
             msSum = Math.min(60000, Math.max(msSum, 3000))
             nextOk = (Long)now() + msSum.toLong()
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
@@ -3675,7 +3683,9 @@ void workQ() {
 
             extData = extData + [nextOk: nextOk]
 
-            Map seqMap = multiSequenceBuilder(seqList, oldParallel)
+            if(srcDesc != 'ExecuteRoutine') {
+                seqMap = multiSequenceBuilder(seqList, oldParallel)
+            }
             Map seqObj = sequenceBuilder(seqMap, null, null)
 
             Map params = [
@@ -3687,7 +3697,7 @@ void workQ() {
                     body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-            log.trace("workQ params: $params extData: $extData")
+            logTrace("workQ params: $params extData: $extData")
 
             try{
                 execAsyncCmd("post", "finishWorkQ", params, extData)
