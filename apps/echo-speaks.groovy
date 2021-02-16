@@ -1125,8 +1125,7 @@ def appButtonHandler(btn) {
 }
 
 void executeRoutineTest(String rtId) {
-    if(rtId) {
-        executeRoutineById(rtId)
+    if(rtId && executeRoutineById(rtId) ) {
     } else {
         logError("Valid Routine ID not received for Routine Test!!!")
     }
@@ -6379,7 +6378,7 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
     releaseTheLock(sHMLF)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug) { logPrefix(msg, "purple") } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
 private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
