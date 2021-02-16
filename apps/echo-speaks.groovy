@@ -78,6 +78,7 @@ import groovy.transform.Field
 //@Field static Map<String,          Map> guardDataFLD     = [:]
 @Field volatile static Map<String, Map> zoneStatusMapFLD = [:]
 @Field volatile static Map<String, Map> bluetoothDataFLD = [:]
+@Field volatile static Map<String, Map> alexaRoutinesDataFLD = [:]
 @Field volatile static Map<String, Map> dndDataFLD       = [:]
 
 definition(
@@ -2675,79 +2676,96 @@ Boolean getDndEnabled(String serialNumber) {
 }
 
 public Map getAlexaRoutines(String autoId=sNULL) {
-    if(!isAuthValid("getAlexaRoutines")) { return [:]}
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/behaviors/v2/automations",
-        query: [ limit: 100 ],
-        headers: getReqHeaderMap(true),
-        contentType: sAPPJSON,
-        timeout: 20
-    ]
+    if(!isAuthValid("getAlexaRoutines")) { return [:] }
+
+    String myId=app.getId()
+    Integer lastU = getLastTsValSecs("alexaRoutinesUpdDt")
+    List rtList = []
     Map rtResp = [:]
-    try {
-        logTrace("getAlexaRoutines($autoId)")
-        httpGet(params) { response ->
-            if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            List rtList = response?.data ?: []
-            // log.debug "alexaRoutines: $listOrMap"
-            Map items = [:]
-            Integer cnt = 1
-            if(rtList.size()) {
-                if(autoId) {
-                    rtResp = rtList.find { it?.automationId.toString() == autoId } ?: [:]
-                    //log.debug "rtResp: ${rtResp}"
-                    return rtResp
+
+    if(alexaRoutinesDataFLD[myId] && ( (autoId && lastU < 90) || (!autoId && lastU < 180) )) { rtList = alexaRoutinesDataFLD[myId] }
+    else {
+        Map params = [
+            uri: getAmazonUrl(),
+            path: "/api/behaviors/v2/automations",
+            query: [ limit: 100 ],
+            headers: getReqHeaderMap(true),
+            contentType: sAPPJSON,
+            timeout: 20
+        ]
+
+        try {
+            logTrace("getAlexaRoutines($autoId)")
+            httpGet(params) { response ->
+                if(response?.status != 200) logWarn("${response?.status} $params")
+                if(response?.status == 200){
+                    rtList = response?.data ?: []
+                    updTsVal("lastSpokeToAmazon")
+                    updTsVal("alexaRoutinesUpdDt")
+                    alexaRoutinesDataFLD[myId] = rtList
+                    alexaRoutinesDataFLD=alexaRoutinesDataFLD
+                }
+            }
+        } catch (ex) {
+            respExceptionHandler(ex, "getAlexaRoutines", true)
+        }
+    }
+
+    if(!rtList && alexaRoutinesDataFLD[myId]) { rtList = alexaRoutinesDataFLD[myId] }
+
+    // log.debug "alexaRoutines: $rtList"
+    Map items = [:]
+    Integer cnt = 1
+    if(rtList.size()) {
+        if(autoId) {
+            rtResp = rtList.find { it?.automationId.toString() == autoId } ?: [:]
+            //log.debug "rtResp: ${rtResp}"
+            return rtResp
+        } else {
+            rtList.findAll { it?.status == "ENABLED" }?.each { Map item ->
+                String myK = item.automationId.toString()
+                if(item.name != null) {
+                    items[myK] = item.name.toString()
                 } else {
-                    rtList.findAll { it?.status == "ENABLED" }?.each { Map item ->
-                        String myK = item.automationId.toString()
-                        if(item.name != null) {
-                            items[myK] = item.name.toString()
-                        } else {
-                            if(item.triggers?.size()) {
-                                item.triggers.each { trg->
-                                    if(trg.payload?.containsKey("utterance") && trg.payload?.utterance != null) {
-                                        items[myK] = (String)trg.payload.utterance
-                                    } else if(trg.type != null) {
-                                        // log.debug "trg: $trg"
-                                        String pt = trg.type.toString()
-                                        if(pt?.toLowerCase().contains('guard')) {
-                                            items[myK] = "Unlabeled Guard Routine ($cnt)"
-                                            cnt++
-                                        } else {
-                                            items[myK] = "Unlabeled Routine ($cnt)"
-                                            cnt++
-                                        }
-                                    }
-                                     else {
-                                        items[myK] = "Unlabeled Routine ($cnt)"
-                                        cnt++
-                                    }
+                    if(item.triggers?.size()) {
+                        item.triggers.each { trg->
+                            if(trg.payload?.containsKey("utterance") && trg.payload?.utterance != null) {
+                                items[myK] = (String)trg.payload.utterance
+                            } else if(trg.type != null) {
+                                // log.debug "trg: $trg"
+                                String pt = trg.type.toString()
+                                if(pt?.toLowerCase().contains('guard')) {
+                                    items[myK] = "Unlabeled Guard Routine ($cnt)"
+                                    cnt++
+                                } else {
+                                    items[myK] = "Unlabeled Routine ($cnt)"
+                                    cnt++
                                 }
+                            }
+                             else {
+                                items[myK] = "Unlabeled Routine ($cnt)"
+                                cnt++
                             }
                         }
                     }
                 }
-                rtResp = items
             }
         }
-    } catch (ex) {
-        respExceptionHandler(ex, "getAlexaRoutines", true)
+        rtResp = items
     }
+
     //log.debug "routines: $rtResp"
     return rtResp
 }
 
-public getAlexaRoutineByNameOrID(String nameOrId) {
+/*public getAlexaRoutineByNameOrID(String nameOrId) {
     // TODO: This doesn't work yet...
-
     Map routines = getAlexaRoutines()
     if(routines.size()) {
         Map match = routines.find { it.name == nameOrId || it.automationId == nameOrId }
         if(match) return match
     }
-}
+} */
 
 Boolean executeRoutineById(String routineId) {
     Long execDt = now()
@@ -2759,7 +2777,7 @@ Boolean executeRoutineById(String routineId) {
         seqList.push([command: routineData])
         queueMultiSequenceCommand(seqList, "ExecuteRoutine", false)
         String rtName = routineData && routineData.name ? routineData.name : sBLANK
-        log.debug("Executed Alexa Routine | Process Time: (${(now()-execDt)}ms) | Label: ${rtName} | RoutineId: ${routineId}")
+        logDebug("Queued Alexa Routine | Process Time: (${(now()-execDt)}ms) | Label: ${rtName} | RoutineId: ${routineId}")
         return true
     } else {
         logError("No Routine Data Returned for ID: (${routineId})")
@@ -3699,7 +3717,7 @@ void workQ() {
                     body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-            logTrace("workQ params: $params extData: $extData")
+//            log.trace("workQ params: $params extData: $extData")
 
             try{
                 execAsyncCmd("post", "finishWorkQ", params, extData)
@@ -3735,6 +3753,7 @@ void finishWorkQ(response, extData){
         respExceptionHandler(ex, "finishWorkQ", true)
     }
 
+    Boolean retry=false
     if(statusCode == 200) updTsVal("lastSpokeToAmazon")
     else {
         logWarn("$meth | ${statusCode} | $respMsg  | $extData")
@@ -3743,9 +3762,11 @@ void finishWorkQ(response, extData){
             switch(respMsgLow) {
                 case "rate exceeded":
                     logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    retry=true
                     break
                 case "too many requests":
                     logWarn("You've sent too many consecutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    retry=true
                     break
             }
         }
@@ -3760,11 +3781,22 @@ void finishWorkQ(response, extData){
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'active'
     List<Map> activeD = (List<Map>)memStore[k] ?: []
-    activeD = []
+    if(retry) {
+        log.warn "wanted to retry but did not"
+//        String kk = 'cmdQ'
+//        List<Map> eData = (List<Map>)memStore[kk] ?: []
+//        List<Map> newL = activeD + eData
+//        activeD = newL
+// TODO delays
+        activeD = []
+    } else {
+        activeD = []
+    }
     updMemStoreItem(k, activeD)
 
     releaseTheLock(sHMLF)
 
+//    if(!retry) {
     extData?.extList?.each  { extItem ->
         if(extItem && (String)extItem.deviceId && (String)extItem.callback) {
             if(extItem != null && statusCode==200) extItem["amznReqId"] = response?.headers["x-amz-rid"] ?: null
@@ -3772,6 +3804,7 @@ void finishWorkQ(response, extData){
             child."${(String)extItem.callback}"(sData, statusCode, extItem)
         }
     }
+//    }
     workQ()
 }
 /*
