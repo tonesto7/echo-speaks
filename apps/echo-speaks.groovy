@@ -1464,7 +1464,11 @@ def initialize() {
             runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             getOtherData()
-            remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
+
+            Long newD = now() - 999000
+            Date d = new Date(newD)
+            updTsVal("lastDevDataUpdDt", formatDt(d))
+           // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
             if(advLogsActive()) { logsEnabled() }
         } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
@@ -4204,26 +4208,33 @@ public void logsDisable() {
 }
 
 void missPollNotify(Boolean on, Integer wait) {
-    Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt")
+    Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt", 1000000)
     Integer lastMissPollM = getLastTsValSecs("lastMissedPollMsgDt")
     if(devModeFLD) logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
     if(lastDataUpd <= ((settings.misPollNotifyWaitVal as Integer ?: 2700)+10800)) {
         state.missPollRepair = false
         return
     } else {
-        if(!(Boolean)state.missPollRepair) {
-            state.missPollRepair = true
-            initialize()
-            return
+        if(lastDataUpd != 1000000) {
+            String msg = sBLANK
+            if((Boolean)state.authValid) {
+                msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue network access."
+            } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
+            logWarn("${msg.toString().replaceAll("\n", " ")}")
+
+            if(lastMissPollM < wait?.toInteger()) { on = false }
+            if(on && sendMsg("${app.name} ${(Boolean)state.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
+                updTsVal("lastMissedPollMsgDt")
+            }
         }
-        if(!(lastMissPollM > wait?.toInteger())) { on = false }
-        String msg = sBLANK
-        if((Boolean)state.authValid) {
-            msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue with the scheduling.  Please open the app and press Done/Save."
-        } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
-        logWarn("${msg.toString().replaceAll("\n", " ")}")
-        if(on && sendMsg("${app.name} ${(Boolean)state.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
-            updTsVal("lastMissedPollMsgDt")
+        if(!(Boolean)state.missPollRepair) {
+            if((Boolean)state.authValid){
+                if(lastDataUpd == 1000000) logTrace("code reload or system restart, calling initialize")
+                else logTrace("calling initialize to attempt recovery")
+                state.missPollRepair = true
+                initialize()
+                return
+            }
         }
 /*        if((Boolean)state.authValid) {
             (getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
