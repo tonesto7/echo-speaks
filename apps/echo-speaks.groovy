@@ -1741,7 +1741,7 @@ Boolean checkIfCodeUpdated() {
     Boolean codeUpdated = false
     List chgs = []
     Map codeVer = (Map)state.codeVersions ?: [:]
-    logTrace("Code versions: ${codeVer}")
+    if(devModeFLD) logTrace("Code versions: ${codeVer}")
     if(codeVer.mainApp != appVersionFLD) {
         checkVersionData(true)
         chgs.push("mainApp")
@@ -4206,7 +4206,7 @@ public void logsDisable() {
 void missPollNotify(Boolean on, Integer wait) {
     Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt")
     Integer lastMissPollM = getLastTsValSecs("lastMissedPollMsgDt")
-    logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
+    if(devModeFLD) logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
     if(lastDataUpd <= ((settings.misPollNotifyWaitVal as Integer ?: 2700)+10800)) {
         state.missPollRepair = false
         return
@@ -4264,7 +4264,7 @@ void appUpdateNotify() {
     state.updateAvailable = res
     String msg="appUpdateNotify() RESULT: ${res} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}"
     if(res) logDebug(msg)
-    else logTrace(msg)
+    else if(devModeFLD) logTrace(msg)
 }
 
 private List codeUpdateItems(Boolean shrt=false) {
@@ -4297,7 +4297,7 @@ Boolean getOk2Notify() {
     Boolean result = true
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
-    logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    if(devModeFLD) logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     return result
 }
 
@@ -4323,7 +4323,7 @@ Boolean quietTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime()
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
-        logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
+        if(devModeFLD) logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
     } else { return true }
 }
