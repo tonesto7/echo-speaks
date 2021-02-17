@@ -3682,9 +3682,11 @@ void workQ() {
                 if(command in ['announcement_devices']){
                     seqMap = seqList[0]
                     seqList = []
+                }
+                if(command in ['announcement_devices', 'announcement', 'announcementall']){
                     Integer msgLen = ((String)value)?.length()
                     Integer del = getRecheckDelay(msgLen)
-                    cmdMap = [ msgDelay: del ]
+                    if(!cmdMap) cmdMap = [ msgDelay: del ]
                 }
                 else if(type.startsWith('play')) cmdMap = [ msgDelay: 18 ]
                 else if(type.startsWith('say')) cmdMap = [ msgDelay: 3 ]
