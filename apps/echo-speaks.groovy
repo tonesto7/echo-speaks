@@ -3517,10 +3517,10 @@ void sendSpeak(Map cmdMap, String device, String callback){
     logTrace("sendSpeak cmdMap: $cmdMap  callback: $callback,  device: $device")
 
     String bodyObj = sNULL
-    Map st=[serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
+    Map st = [serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
     List<Map> seqCmds = []
     if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume]+st) }
-    seqCmds = seqCmds + msgSeqBuilder((String)cmdMap.message, st)
+    seqCmds = seqCmds + msgSeqBuilder((String)cmdMap.message, st+[cmdType: 'sendSpeak'])
     if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume]+st) }
 
     queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, st, cmdMap, device, callback)
@@ -3641,16 +3641,19 @@ void workQ() {
                 } else {
                     Boolean nparallel = item.parallel
                     parallel = nparallel != null ? nparallel : parallel
-                    cmdMap = (Map)item.cmdMap
+                    cmdMap = (Map)item.cmdMap ?: [:]
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
                     Integer mdelay = 0
-                    if(!cmdMap){
+//                    if(!cmdMap){
                         seqCmds?.each { cmdItem->
                             //log.debug "cmdItem: $cmdItem"
                             if(cmdItem.command instanceof String){
                                 String type=cmdItem?.cmdType ?: sBLANK
-                                if(type == 'playAnnouncement') {
+            //case "ssml":
+            //case "speak":
+                //seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st)
+                                if(type in ['playAnnouncement', 'sendSpeak']) {
                                     Integer msgLen = ((String)cmdItem?.value)?.length()
                                     Integer del = getRecheckDelay(msgLen)
                                     mdelay += del
@@ -3658,9 +3661,9 @@ void workQ() {
                                 else if(type.startsWith('play')) mdelay += 18
                                 else if(type.startsWith('say')) mdelay += 3
                             }
-                            if(mdelay) cmdMap = [ msgDelay: mdelay ]
+                            if(mdelay) cmdMap.msgDelay= mdelay
                         }
-                    }
+//                    }
                     //log.debug "seqList: ${seqList}"
                 }
             }
@@ -3679,6 +3682,7 @@ void workQ() {
 
                 def value = item.value
                 seqList = seqList + [createSequenceNode(command, value, deviceData)]
+
                 if(command in ['announcement_devices']){
                     seqMap = seqList[0]
                     seqList = []
@@ -3723,8 +3727,9 @@ void workQ() {
             extList.push(t_extData)
             extData.extList = extList
 
+            //Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
-            ms = Math.min(60000, Math.max(ms, 0))  // at least 0 seconds, max 60
+            ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
             msSum += ms
             lmsg.push("workQ ms delay is $msSum")
             if(srcDesc == 'ExecuteRoutine' || command in ['announcement_devices']) { break } // runs by itself
@@ -3733,7 +3738,7 @@ void workQ() {
         if(seqList.size() > 0 || seqMap){
 
             Integer mymin = lastChkSec > 5 ? 1000 : 3000
-            msSum = Math.min(60000, Math.max(msSum, mymin))
+            msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
 
