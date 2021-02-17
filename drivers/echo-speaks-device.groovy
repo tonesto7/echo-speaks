@@ -1111,9 +1111,9 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
     return sNULL
 }
 
-private void sendSequenceCommand(String type, String command, value=null) {
+private void sendSequenceCommand(String type, String command, value=null, String callback=sNULL) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
-    parent.queueSequenceCommand(type, command, value, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], device.deviceNetworkId) //, "finishSendSpeak")
+    parent.queueSequenceCommand(type, command, value, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], device.deviceNetworkId, callback)
 //ERS
 /*
     Map seqObj = sequenceBuilder(command, value)
@@ -1127,10 +1127,10 @@ private void sendSequenceCommand(String type, String command, value=null) {
     ], [cmdDesc: "SequenceCommand (${type})"]) */
 }
 
-private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false) {
+private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false, String callback=sNULL) {
 //    String serial = (String)state.serialNumber
 //    String type = (String)state.deviceType
-    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], null, device.deviceNetworkId) //, "finishSendSpeak")
+    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], null, device.deviceNetworkId, callback)
 /*
     List nodeList = []
     String seqType = parallel ? "ParallelNode" : "SerialNode"
@@ -2549,13 +2549,42 @@ void speechTest(String ttsMsg=sNULL) {
 void speak(String msg) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
-        if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
+        if(!msg) { logWarn("No Message sent with speak($msg) command", true); return }
         // msg = cleanString(msg, true)
         speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
         return
     }
     logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
 }
+
+private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
+
+    if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
+    String healthStatus = getHealthStatus()
+    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }
+
+    if(settings.logTrace){
+        String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${cmdMap.message}"
+        tr += cmdMap.newVolume ? " | SetVolume: (${cmdMap.newVolume})" :sBLANK
+        tr += cmdMap.oldVolume ? " | Restore Volume: (${cmdMap.oldVolume})" :sBLANK
+        tr += cmdMap.msgDelay  ? " | Expected runtime: (${(Integer)cmdMap.msgDelay})" :sBLANK
+        tr += cmdMap.cmdDt     ? " | CmdDt: (${cmdMap.cmdDt})" :sBLANK
+        logTrace("${tr}")
+    }
+
+    Integer msgLen = ((String)cmdMap.message)?.length()
+    Integer recheckDelay = getRecheckDelay(msgLen)
+    cmdMap["msgDelay"] = recheckDelay
+    Random random = new Random()
+    Integer randCmdId = random.nextInt(300)
+    cmdMap["cmdId"] = randCmdId
+    cmdMap["serialNumber"] = (String)state.serialNumber
+    cmdMap["deviceType"] = (String)state.deviceType
+
+//private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false) {
+    parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
+}
+
 /*
 String cleanString(String str, Boolean frcTrans=false) {
     if(!str) { return sNULL }
@@ -2826,65 +2855,12 @@ public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Bo
 }
 */
 private void queueCheck(data) {
-
     return
-/*
-    // log.debug "queueCheck | ${data}"
-    Integer qSize = getQueueSize()
-    Boolean qEmpty = (qSize == 0)
-    state.q_lastCheckDt = getDtNow()
-    if(!qEmpty) {
-        if(qSize && qSize >= 10) {
-            state.q_blocked = true
-            if (qSize < 20) {
-                logWarn("queueCheck | Queue Item Count (${qSize}) is filling up... Blocking Queue Additions Until Queue Size Drops below 10!!!", true)
-                schedQueueCheck(delay, true, null, "queueCheck(filling)")
-            } else {
-                logWarn("queueCheck | Queue Item Count (${qSize}) is abnormally high... Resetting Queue", true)
-                resetQueue("queueCheck | High Item Count")
-                return
-            }
-        } else { state.q_blocked = false }
-        if(data && data?.rateLimited == true) {
-            Integer delay = data?.delay as Integer ?: getRecheckDelay((Integer)state.q_curMsgLen)
-            schedQueueCheck(delay, true, null, "queueCheck(rate-limit)")
-            logDebug("queueCheck | Scheduling Queue Check for (${delay} sec) | Recheck for RateLimiting")
-        }
-        processCmdQueue()
-    } else {
-        logDebug("queueCheck | Nothing in the Queue | Performing Queue Reset...")
-        resetQueue("queueCheck | Queue Empty")
-    } */
 }
 
-    //state."qItem_${qIndNum}" = [type: type, headers: headers, body: body, newVolume: (headers.newVolume ?: null), oldVolume: (headers.oldVolume ?: null)]
 void processCmdQueue() {
-/*
-    state.q_cmdWorking = true
-    Integer q_cmdCycleCnt = (Integer)state.q_cmdCycleCnt
-    state.q_cmdCycleCnt = q_cmdCycleCnt ? q_cmdCycleCnt+1 : 1
-    Map cmdQueue = getQueueItems()
-    if(cmdQueue?.size()) {
-        state.q_recheckScheduled = false
-        String cmdKey = cmdQueue.keySet()?.sort(false) { it.tokenize('_')[-1] as Integer }?.first()
-        Map cmdData = state[cmdKey]
-        // logDebug("processCmdQueue | Key: ${cmdKey} | Queue Items: (${getQueueItems()})")
-        cmdData.headers["queueKey"] = cmdKey
-        Integer q_loopChkCnt = (Integer)state.q_loopChkCnt ?: 0
-        if(state.q_lastTtsMsg == cmdData.headers?.message && (getLastTtsCmdSec() <= 10)) { state.q_loopChkCnt = (q_loopChkCnt >= 1) ? q_loopChkCnt+1 : 1 }
-        // log.debug "q_loopChkCnt: ${state.q_loopChkCnt}"
-        if((Integer)state.q_loopChkCnt && ((Integer)state.q_loopChkCnt > 4) && (getLastTtsCmdSec() <= 10)) {
-            state.remove(cmdKey as String)
-            logWarn("processCmdQueue | Possible loop detected... Last message was the same as message sent <10 seconds ago. This message will be removed from the queue")
-            schedQueueCheck(2, true, null, "processCmdQueue(removed duplicate)")
-            state.q_cmdWorking = false
-        } else {
-            state.q_lastMsg = cmdData?.headers?.message
-            speechCmd((Map)cmdData.headers, true)
-        }
-    } else { state.q_cmdWorking = false } */
 }
-
+/*
 Integer getAdjCmdDelay(Integer elap, Integer reqDelay) {
     if((elap >= 0) && (reqDelay >= 0)) {
         Integer res = (elap - reqDelay)?.abs()
@@ -2892,12 +2868,12 @@ Integer getAdjCmdDelay(Integer elap, Integer reqDelay) {
         return res < 3 ? 3 : res+3
     }
     return reqDelay //del
-}
+} */
 
 def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
-
+/*
 private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
 
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
@@ -2925,97 +2901,7 @@ private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
 
 //private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false) {
     parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
-
-/*
-cmdMap is new headers
-    Map queryMap = [:]
-    List logItems = []
-
-    Integer lastTtsCSec = getLastTtsCmdSec()
-    if(!settings.disableQueue) {
-        logItems.push("│ Last TTS Sent: (${lastTtsCSec} seconds) ")
-
-        Boolean isFirstCmd = ((Boolean)state.q_firstCmdFlag != true)
-        if(isFirstCmd) {
-            logItems.push("│ First Command: (${isFirstCmd})")
-            headers["queueKey"] = "qItem_1"
-            state.q_firstCmdFlag = true
-        }
-        Boolean sendToQueue = (isFirstCmd || (lastTtsCSec < 3) ) // ||  (!isQueueCmd && (Boolean)state.q_speakingNow) )
-        if(!isQueueCmd) { logItems.push("│ SentToQueue: (${sendToQueue})") }
-        // log.warn "speechCmd - QUEUE DEBUG | sendToQueue: (${sendToQueue?.toString()?.capitalize()}) | isQueueCmd: (${isQueueCmd?.toString()?.capitalize()}) | QueueSize: (${getQueueSize()}) | lastTtsCSec: [${lastTtsCSec}] | isFirstCmd: (${isFirstCmd?.toString()?.capitalize()}) | q_speakingNow: (${state.q_speakingNow?.toString()?.capitalize()}) | RecheckDelay: [${recheckDelay}]"
-        if(sendToQueue) {
-            queueEchoCmd("Speak", msgLen, headers, null, isFirstCmd)
-            runIn((settings?.autoResetQueue ?: 180), "resetQueue")
-            if(!isFirstCmd) {
-                // log.debug "lastTtsCSec: ${getLastTtsCmdSec()} | Last Delay: ${state.q_lastTtsCmdDelay}"
-                if((Integer)state.q_lastTtsCmdDelay && getLastTtsCmdSec() > (Integer)state.q_lastTtsCmdDelay + 15) schedQueueCheck(3, true, null, "speechCmd(QueueStuck)")
-                return
-            }
-        }
-    }
-    try {
-        Map headerMap = getCookieMap()
-        headers.each { k,v-> headerMap[k] = v }
-        Integer qSize = getQueueSize()
-        logItems.push("│ Queue Items: (${qSize>=1 ? qSize-1 : 0}) │ Working: (${(Boolean)state.q_cmdWorking})")
-
-        if(headers.message) {
-            state.q_curMsgLen = msgLen
-            state.q_lastTtsCmdDelay = recheckDelay
-            schedQueueCheck(recheckDelay, true, null, "speechCmd(sendCloudCommand)")
-            logItems.push("│ Rechecking: (${recheckDelay} seconds)")
-            logItems.push("│ Message(${msgLen} char): ${headers?.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}")
-            state.q_lastTtsMsg = headers.message
-            // state?.lastTtsCmdDt = getDtNow()
-        }
-        if(headerMap.oldVolume) {logItems.push("│ Restore Volume: (${headerMap.oldVolume}%)") }
-        if(headerMap.newVolume) {logItems.push("│ New Volume: (${headerMap.newVolume}%)") }
-        logItems.push("│ Current Volume: (${device?.currentValue("volume")}%)")
-        Boolean isSSML = (headers?.message?.toString()?.startsWith("<speak>") && headers?.message?.toString()?.endsWith("</speak>"))
-        logItems.push("│ Command: (SpeakCommand)${isSSML ? " | (SSML)" : sBLANK}")
-
-        String bodyObj = sNULL
-        List seqCmds = []
-        if(headerMap.newVolume) { seqCmds.push([command: "volume", value: headerMap.newVolume]) }
-        seqCmds = seqCmds + msgSeqBuilder((String)headerMap.message)
-        if(headerMap.oldVolume) { seqCmds.push([command: "volume", value: headerMap.oldVolume]) }
-        bodyObj = new groovy.json.JsonOutput().toJson(multiSequenceBuilder(seqCmds))
-
-        Map params = [
-            uri: getAmazonUrl(),
-            path: "/api/behaviors/preview",
-            headers: headerMap,
-            contentType: sAPPJSON,
-            timeout: 20,
-            body: bodyObj
-        ]
-        Map extData = [
-            cmdDt:(headerMap.cmdDt ?: null), queueKey: (headerMap.queueKey ?: null), cmdDesc: (headerMap.cmdDesc ?: null), msgLen: msgLen, isSSML: isSSML, deviceId: device?.getDeviceNetworkId(), msgDelay: (headerMap.msgDelay ?: null),
-            message: (headerMap.message ? headerMap.message : null), newVolume: (headerMap.newVolume ?: null), oldVolume: (headerMap.oldVolume ?: null), cmdId: (headerMap.cmdId ?: null),
-            qId: (headerMap.qId ?: null)
-        ]
-        logItems.push("┌─────── Echo Command ${isQueueCmd && !settings.disableQueue ? " (From Queue) " : sBLANK} ────────")
-        processLogItems("debug", logItems)
-        try {
-            state.q_speakingNow = true
-            httpPost(params) { response->
-                def sData = response?.data ?: null
-                extData["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-                postCmdProcess(sData, response?.status, extData)
-            }
-        } catch (ex) {
-            if(ex instanceof groovyx.net.http.HttpResponseException ) {
-                Integer sCode = ex?.getResponse()?.getStatus()
-                def respData = ex?.getResponse()?.getData()
-//                String errMsg = ex?.getMessage()
-                postCmdProcess(respData, sCode, extData)
-            } else respExceptionHandler(ex, "speechCmd")
-        }
-    } catch (ex) {
-        logError("speechCmd Exception: ${ex}", false, ex)
-    } */
-}
+} */
 
 def finishSendSpeak(Map resp, Integer statusCode, Map data){
     postCmdProcess(resp, statusCode, data)
@@ -3054,7 +2940,6 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
                     sendEvent(name: "level", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
                     sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
                 }
-//                schedQueueCheck(getAdjCmdDelay(getLastTtsCmdSec(), (Integer)data.msgDelay), true, null, "postCmdProcess(adjDelay)")
                 logSpeech((String)data?.message, statusCode, sNULL)
             }
         } else if((statusCode?.toInteger() in [400, 429]) && respMsgLow && (respMsgLow in ["rate exceeded", "too many requests"])) {
