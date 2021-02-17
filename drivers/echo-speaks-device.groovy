@@ -1111,7 +1111,7 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
     return sNULL
 }
 
-private void sendSequenceCommand(String type, command, value=null) {
+private void sendSequenceCommand(String type, String command, value=null) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     parent.queueSequenceCommand(type, command, value, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], device.deviceNetworkId) //, "finishSendSpeak")
 //ERS
@@ -1537,7 +1537,7 @@ public restoreLastVolume() {
 
 void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
     if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: cmd, value: val]]
+        List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
         if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs, cmdType)
     } else { sendSequenceCommand(cmdType, cmd, val) }
@@ -1582,7 +1582,7 @@ def executeRoutineId(String rId) {
 
 void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
     if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: cmd]]
+        List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType]]
         if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
         sendMultiSequenceCommand(seqs, cmdType)
     } else { sendSequenceCommand(cmdType, cmd) }
@@ -2899,19 +2899,16 @@ def testMultiCmd() {
 }
 
 private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
-    // if(isQueueCmd) log.warn "QueueBlocked: ${state.q_blocked} | cycleCnt: ${state.q_cmdCycleCnt} | isQCmd: ${isQueueCmd}"
 
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
     String healthStatus = getHealthStatus()
     if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }
 
-//    state.q_speakingNow = true
     if(settings.logTrace){
         String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${cmdMap.message}"
         tr += cmdMap.newVolume ? " | SetVolume: (${cmdMap.newVolume})" :sBLANK
         tr += cmdMap.oldVolume ? " | Restore Volume: (${cmdMap.oldVolume})" :sBLANK
         tr += cmdMap.msgDelay  ? " | RecheckSeconds: (${(Integer)cmdMap.msgDelay})" :sBLANK
-//        tr += cmdMap.queueKey  ? " | QueueItem: [${cmdMap.queueKey}]" :sBLANK
         tr += cmdMap.cmdDt     ? " | CmdDt: (${cmdMap.cmdDt})" :sBLANK
         logTrace("${tr}")
     }
