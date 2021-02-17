@@ -1212,15 +1212,21 @@ def sequencePage() {
     }
 }
 
-/*
-static Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
-    def random = new Random()
-    Integer randomInt = random?.nextInt(5) //Was using 7
+Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     if(!msgLen) { return 30 }
-    def v = (msgLen <= 14 ? 1 : (msgLen / 14)) as Integer
-    // logTrace("getRecheckDelay($msgLen) | delay: $v + $randomInt")
-    return addRandom ? (v + randomInt) : (v < 5 ? 5 : v)
-} */
+    //Integer twd = ttsWordDelay ? ttsWordDelay?.toInteger() : 2
+    Integer twd = 2
+    Integer v = (msgLen <= 14 ? 1 : (msgLen / 14)) * twd
+    Integer res=v
+    Integer randomInt
+    if(addRandom){
+        def random = new Random()
+        randomInt = random?.nextInt(5) //Was using 7
+        res=v + randomInt
+    }
+    logTrace("getRecheckDelay($msgLen) | res:$res | twd: $twd | delay: $v ${addRandom ? '+ '+randomInt.toString() : sBLANK}")
+    return res //+2
+}
 
 void executeSpeechTest() {
     settingUpdate("test_speechRun", sFALSE, sBOOL)
@@ -3644,8 +3650,13 @@ void workQ() {
                             //log.debug "cmdItem: $cmdItem"
                             if(cmdItem.command instanceof String){
                                 String type=cmdItem?.cmdType ?: sBLANK
-                                if(type.startsWith('play')) mdelay += 18
-                                if(type.startsWith('say')) mdelay += 3
+                                if(type == 'playAnnouncement') {
+                                    Integer msgLen = ((String)cmdItem?.value)?.length()
+                                    Integer del = getRecheckDelay(msgLen)
+                                    mdelay += del
+                                }
+                                else if(type.startsWith('play')) mdelay += 18
+                                else if(type.startsWith('say')) mdelay += 3
                             }
                             if(mdelay) cmdMap = [ msgDelay: mdelay ]
                         }
@@ -3664,7 +3675,6 @@ void workQ() {
             //case "announcementall":
                 if(command in ['announcement_devices']){
                     if(seqList.size() > 0) break // runs by itself
-                    seqMap = seqCmds[0].command
                 }
 
                 def value = item.value
@@ -3673,8 +3683,13 @@ void workQ() {
                     seqMap = seqList[0]
                     seqList = []
                 }
-                if(type.startsWith('play')) cmdMap = [ msgDelay: 18 ]
-                if(type.startsWith('say')) cmdMap = [ msgDelay: 3 ]
+                if(command in ['announcement_devices', 'announcement', 'announcementall']){
+                    Integer msgLen = ((String)value)?.length()
+                    Integer del = getRecheckDelay(msgLen)
+                    if(!cmdMap) cmdMap = [ msgDelay: del ]
+                }
+                else if(type.startsWith('play')) cmdMap = [ msgDelay: 18 ]
+                else if(type.startsWith('say')) cmdMap = [ msgDelay: 3 ]
             }
 
             if(oldParallel == null) oldParallel = parallel
@@ -3711,6 +3726,7 @@ void workQ() {
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             ms = Math.min(60000, Math.max(ms, 0))  // at least 0 seconds, max 60
             msSum += ms
+            lmsg.push("workQ ms delay is $msSum")
             if(srcDesc == 'ExecuteRoutine' || command in ['announcement_devices']) { break } // runs by itself
         }
 
