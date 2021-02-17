@@ -3520,7 +3520,7 @@ void sendSpeak(Map cmdMap, String device, String callback){
     queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, st, cmdMap, device, callback)
 }
 
-void queueSequenceCommand(String type, command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
+void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
     Map item= [
         t: 'sequence',
         time: now(),
@@ -3638,6 +3638,18 @@ void workQ() {
                     cmdMap = (Map)item.cmdMap
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
+                    Integer mdelay = 0
+                    if(!cmdMap){
+                        seqCmds?.each { cmdItem->
+                            //log.debug "cmdItem: $cmdItem"
+                            if(cmdItem.command instanceof String){
+                                String type=cmdItem?.cmdType ?: sBLANK
+                                if(type.startsWith('play')) mdelay += 12
+                                if(type.startsWith('say')) mdelay += 2
+                            }
+                            if(mdelay) cmdMap = [ msgDelay: mdelay ]
+                        }
+                    }
                     //log.debug "seqList: ${seqList}"
                 }
             }
@@ -3648,17 +3660,21 @@ void workQ() {
                 Boolean nparallel = item.parallel
                 parallel = nparallel != null ? nparallel : false
                 command=(String)item.command
+
             //case "announcementall":
                 if(command in ['announcement_devices']){
                     if(seqList.size() > 0) break // runs by itself
                     seqMap = seqCmds[0].command
                 }
+
                 def value = item.value
                 seqList = seqList + [createSequenceNode(command, value, deviceData)]
                 if(command in ['announcement_devices']){
                     seqMap = seqList[0]
                     seqList = []
                 }
+                if(type.startsWith('play')) cmdMap = [ msgDelay: 12 ]
+                if(type.startsWith('say')) cmdMap = [ msgDelay: 2 ]
             }
 
             if(oldParallel == null) oldParallel = parallel
