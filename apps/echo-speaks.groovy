@@ -216,11 +216,6 @@ def mainPage() {
             href "changeLogPage", title: inTS1("View Change Logs", "change_log"), description: inputFooter(sTTVD, sCLRGRY, true)
         }
 
-//        if((Boolean)state.isInstalled) {
-//        } else {
-//            paragraph pTS("New Install Detected!!!\n\n1. Press Done to Finish the Install.\n2. Goto the Automations Tab at the Bottom\n3. Tap on the Apps Tab above\n4. Select ${app?.getLabel()} and Resume configuration", getHEAppImg("info"), false, sCLR4D9)
-//        }
-        // getCustomerHistoryRecords(10, true)
         if(!newInstall) {
             section(sectHead("Experimental Functions")) {
                 href "deviceTestPage", title: inTS1("Device Testing", "testing"), description: spanSm("Test Speech, Announcements, and Sequences Builder", sCLRGRY) + inputFooter(sTTP, sCLRGRY)
@@ -242,7 +237,7 @@ def mainPage() {
         } else {
             showDevSharePrefs()
             section(sectHead("Important Step:")) {
-                paragraph spanSmBld("Notice", sCLRRED) + spanSmBr("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sCLRRED)
+                paragraph spanSmBldBr("Notice", sCLRRED) + spanSmBr("Please complete the install (hit done below) and then return to the Echo Speaks App to resume deployment and configuration of the server.", sCLRRED)
                 state.resumeConfig = true
             }
         }
@@ -274,7 +269,7 @@ def authStatusPage() {
                 paragraph divSm(stat, sCLR4D9)
             }
 
-            section(sectHead("Cookie Tools: (Tap to show)", getHEAppImg("cookie")), hideable: true, hidden: true) {
+            section(sectHead("Cookie Tools: (Tap to show)", getAppImg("cookie")), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
                 input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
                 if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
@@ -305,8 +300,6 @@ def servPrefPage() {
     Boolean newInstall = !(Boolean)state.isInstalled
     Boolean resumeConf = (Boolean)state.resumeConfig
     return dynamicPage(name: "servPrefPage", install: (newInstall || resumeConf), nextPage: (!(newInstall || resumeConf) ? "mainPage" : sBLANK), uninstall: !(Boolean)state.serviceConfigured) {
-//        Boolean hasChild = (getChildDevices())?.size()
-//        Boolean onHeroku = ((Boolean)settings.useHeroku != false)
         Boolean authValid = (Boolean)state.authValid
 
         if(settings.useHeroku == null) settingUpdate("useHeroku", sTRUE, sBOOL)
@@ -316,9 +309,9 @@ def servPrefPage() {
         if(!(Boolean)state.serviceConfigured) {
             section(sectHead("Cookie Server Deployment Option:")) {
                 input "useHeroku", sBOOL, title: inTS1("Deploy server to Heroku?", sHEROKU), description: spanSm("Turn Off to allow local server deployment"), required: false, defaultValue: true, submitOnChange: true
-                if(!(Boolean)settings.useHeroku) { paragraph """<p style="color: red;">Local Server deployments are only allowed on Hubitat and are something that can be very difficult for me to support.  I highly recommend Heroku deployments for most users.</p>""" }
+                if((Boolean)settings.useHeroku == false) { paragraph spanSmBldBr("NOTICE:", sCLRRED) + spanSmBld("I highly recommend Heroku deployments for most users. Local Server deployments are something that can be very difficult for me to support remotely.", sCLRRED) }
             }
-            section() { paragraph pTS("To proceed with the server setup.\nTap on 'Begin Server Setup' below", sNULL, true, sCLR4D9) }
+            section() { paragraph spanSmBld("To proceed with the server setup.<br>Tap on 'Begin Server Setup below", sCLR4D9) }
             srvcPrefOpts(true)
             section(sectHead("Deploy the Server:")) {
                 href url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP
@@ -348,10 +341,6 @@ def servPrefPage() {
             paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY)
             if(settings.resetService) { clearCloudConfig() }
         }
-/*        section(sectHead("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: sTTP
-            href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: sTTM
-        } */
         state.resumeConfig = false
     }
 }
@@ -365,7 +354,7 @@ def srvcPrefOpts(Boolean req=false) {
             String s = sBLANK
             s += settings.amazonDomain ? "Amazon Domain: (${settings.amazonDomain})" : sBLANK
             s += settings.regionLocale ? "\nLocale Region: (${settings.regionLocale})" : sBLANK
-            paragraph spanSm(s, sCLR4D9, getHEAppImg(sAMAZONORNG))
+            paragraph spanSm(s, sCLR4D9, getAppImg(sAMAZONORNG))
         }
     }
 }
@@ -4325,7 +4314,7 @@ static String sectH3TS(String t, String st, String i = sNULL, String c=sCLR4D9) 
 
 public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) { 
     String s = ""
-    s += title ? "<div style='${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}'>${img != sNULL ? """<img src=${getHEAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
+    s += title ? "<div style='${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}'>${img != sNULL ? """<img src=${getAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
     s += body ? "<div style='${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}'>${body}</div>" : sBLANK
     return s
 }
@@ -5364,7 +5353,7 @@ String getServiceConfDesc() {
     str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "${spanSmBld("Heroku:")} ${spanSmBr("(Configured)")}" : sBLANK
     str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanSmBld("Local Server:")} ${spanSmBr("(Configured)")}" : sBLANK
     str += "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})")}"
-    str += (settings.amazonDomain) ? "${spanSmBld("Domain:", sNULL, sNULL, true)} ${spanSmBr("(${settings?.amazonDomain})")}" : sBLANK
+    str += (settings.amazonDomain) ? spanSmBld("Domain:") + spanSmBr(" (${settings?.amazonDomain})") : sBLANK
     return str != sBLANK ? divSm(str, sCLR4D9) : sNULL
 }
 
@@ -5435,7 +5424,7 @@ def appInfoSect() {
         tStr = spanSm(tStr, sCLRGRY)
     }
 
-    section (sectH3TS(app?.name, tStr, getAppImg("echo_speaks_3.2x"), sCLR4D9)) {
+    section(sectH3TS(app?.name, tStr, getAppImg("echo_speaks_3.2x"), sCLR4D9)) {
         if(!(Boolean)state.isInstalled) {
             paragraph spanSmBld("--NEW Install--", sCLR4D9)
         } else {
