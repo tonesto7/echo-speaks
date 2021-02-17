@@ -3592,9 +3592,9 @@ void workQ() {
     Boolean fnd = (eData.size())
 
 // if we are not doing anything grab next item off queue and start it;
-//    Integer lastChkSec = getLastTsValSecs("lastWorkQDt")
     if(!active && now() > nextOk) {
 
+        Integer lastChkSec = getLastTsValSecs("lastWorkQDt")
         List<String> lmsg = []
         Double msSum = 0.0D
         List seqList = []
@@ -3609,6 +3609,7 @@ void workQ() {
 
         String srcDesc
         Map seqMap
+        String command
 // lets try to join commands in single request to Alexa
 
         while(eData.size()>0){
@@ -3623,6 +3624,7 @@ void workQ() {
             String device = item.device
             String callback = item.callback
             srcDesc = sNULL
+            command = sNULL
 
             if(t=='multi') {
                 srcDesc = (String)item.srcDesc
@@ -3645,20 +3647,29 @@ void workQ() {
                 srcDesc = type + "${device ? " from $device" : sBLANK}"
                 Boolean nparallel = item.parallel
                 parallel = nparallel != null ? nparallel : false
-                String command=(String)item.command
+                command=(String)item.command
+            //case "announcementall":
+                if(command in ['announcement_devices']){
+                    if(seqList.size() > 0) break // runs by itself
+                    seqMap = seqCmds[0].command
+                }
                 def value = item.value
                 seqList = seqList + [createSequenceNode(command, value, deviceData)]
+                if(command in ['announcement_devices']){
+                    seqMap = seqList[0]
+                    seqList = []
+                }
             }
 
             if(oldParallel == null) oldParallel = parallel
-            if(parallel != oldParallel) { seqList = svSeqList; break } // if parallel changes we are done this set of command
+            if(parallel != oldParallel) { seqList = svSeqList; break } // if parallel changes we are done this set of commands
 
             Map titem = (Map)eData.remove(0) // pop the command if we are going to do it
             updMemStoreItem(k, eData)
             activeD.push(titem) // save what we are doing to an active list
             updMemStoreItem('active', activeD)
 
-            lmsg.push("workQ adding ${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}")
+            lmsg.push("workQ adding ${srcDesc} | ${seqList ? "MultiSequence" : "Sequence"} ${seqList ? "${parallel ? ": Parallel" : ": Sequential"}" : sBLANK}")
 
             Map t_extData =[:]
             if(device && callback) {
@@ -3684,11 +3695,13 @@ void workQ() {
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             ms = Math.min(60000, Math.max(ms, 0))  // at least 0 seconds, max 60
             msSum += ms
-            if(srcDesc == 'ExecuteRoutine') { break } // execute runs by itself
+            if(srcDesc == 'ExecuteRoutine' || command in ['announcement_devices']) { break } // runs by itself
         }
 
         if(seqList.size() > 0 || seqMap){
-            msSum = Math.min(60000, Math.max(msSum, 3000))
+
+            Integer mymin = lastChkSec > 5 ? 1000 : 3000
+            msSum = Math.min(60000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
 
@@ -3699,7 +3712,7 @@ void workQ() {
 
             extData = extData + [nextOk: nextOk]
 
-            if(srcDesc != 'ExecuteRoutine') {
+            if(srcDesc != 'ExecuteRoutine' && command != 'announcement_devices') {
                 seqMap = multiSequenceBuilder(seqList, oldParallel)
             }
             Map seqObj = sequenceBuilder(seqMap, null, null)
@@ -3716,8 +3729,8 @@ void workQ() {
 //            log.trace("workQ params: $params extData: $extData")
 
             try{
-                execAsyncCmd("post", "finishWorkQ", params, extData)
                 updTsVal("lastWorkQDt")
+                execAsyncCmd("post", "finishWorkQ", params, extData)
             } catch (ex) {
                 respExceptionHandler(ex, "workQ", true)
                 finishWorkQ([status: 500, data: [:]], extData)
