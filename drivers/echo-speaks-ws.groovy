@@ -101,7 +101,7 @@ def updated() {
 
 def initialize() {
     logInfo("initialize() called")
-    close()
+    runIn(1,"close")
     if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return }
     state.remove('warnHistory'); state.remove('errorHistory')
 
@@ -117,7 +117,7 @@ def initialize() {
             }
             state.messageId = state.messageId ?: Math.floor(1E9 * Math.random()) as BigInteger
             state.remove('messageInitCnt') // state.messageInitCnt = 0
-            runIn(2,"connect")
+            runIn(3,"connect")
         } else {
             logInfo("Skipping Socket Open... Cookie Data is Missing $cookS   $state.cookie")
         }
@@ -155,8 +155,8 @@ def connect() {
 
 def close() {
     logInfo("close() called")
-    interfaces.webSocket.close()
     updSocketStatus(false)
+    interfaces.webSocket.close()
 }
 
 def reconnectWebSocket() {
