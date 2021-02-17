@@ -1560,6 +1560,10 @@ private findEchoDevice(String serial) {
     return a ?: null
 }
 
+Boolean getWWebSocketStatus(){
+    return (Boolean)state.websocketActive
+}
+
 void webSocketStatus(Boolean active) {
     logTrace "webSocketStatus... | Active: ${active}"
     state.websocketActive = active
