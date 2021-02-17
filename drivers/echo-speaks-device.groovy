@@ -231,8 +231,8 @@ def initialize() {
     stateCleanup()
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
     schedDataRefresh(true)
-    parent?.updChildSocketStatus()
     if(advLogsActive()) { runIn(1800, "logsOff") }
+    state.websocketActive = parent?.getWWebSocketStatus()
     refreshData(true)
     //TODO: Have the queue validated based on the last time it was processed and have it cleanup if it's been too long
 }
