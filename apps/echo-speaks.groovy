@@ -3644,8 +3644,8 @@ void workQ() {
                             //log.debug "cmdItem: $cmdItem"
                             if(cmdItem.command instanceof String){
                                 String type=cmdItem?.cmdType ?: sBLANK
-                                if(type.startsWith('play')) mdelay += 12
-                                if(type.startsWith('say')) mdelay += 2
+                                if(type.startsWith('play')) mdelay += 18
+                                if(type.startsWith('say')) mdelay += 3
                             }
                             if(mdelay) cmdMap = [ msgDelay: mdelay ]
                         }
@@ -3673,8 +3673,8 @@ void workQ() {
                     seqMap = seqList[0]
                     seqList = []
                 }
-                if(type.startsWith('play')) cmdMap = [ msgDelay: 12 ]
-                if(type.startsWith('say')) cmdMap = [ msgDelay: 2 ]
+                if(type.startsWith('play')) cmdMap = [ msgDelay: 18 ]
+                if(type.startsWith('say')) cmdMap = [ msgDelay: 3 ]
             }
 
             if(oldParallel == null) oldParallel = parallel
