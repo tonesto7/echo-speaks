@@ -187,7 +187,6 @@ metadata {
             input "ignoreTimeoutErrors", "bool", required: false, title: "Don't show errors in the logs for request timeouts?", description: sBLANK, defaultValue: true
 
             input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
-//            input "disableTextTransform", "bool", required: false, title: "Disable Text Transform?", description: "This will attempt to convert items in text like temp units and directions like `WSW` to west southwest", defaultValue: false
             input "sendDevNotifAsAnnouncement", "bool", required: false, title: "Send Device Notifications as Announcements?", description: sBLANK, defaultValue: false
 // maxVolume not used
 //            input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
@@ -223,8 +222,6 @@ def updated() {
 
 def initialize() {
     logInfo("${device?.displayName} Executing initialize()")
-//    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online", display: false, displayed: false)
-//    sendEvent(name: "DeviceWatch-Enroll", value: new groovy.json.JsonOutput().toJson([protocol: "cloud", scheme:"untracked"]), display: false, displayed: false)
     unschedule()
     state.refreshScheduled = false
     resetQueue()
@@ -639,7 +636,6 @@ private getPlaybackState(Boolean isGroupResponse=false) {
     Map playerInfo = [:]
     try {
         logTrace('getPlaybackState')
-//private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
         httpGet(params) { response->
             Map sData = response?.data ?: [:]
             playerInfo = sData?.playerInfo ?: [:]
@@ -758,7 +754,6 @@ private getAlarmVolume() {
     ]
     try {
         logTrace('getAlarmVolume')
-//private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
         httpGet(params) { response->
             def sData = response?.data ?: null
             // logTrace("getAlarmVolume: $sData")
@@ -783,7 +778,6 @@ private getWakeWord() {
     ]
     try {
         logTrace('getWakeWord')
-//private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
         httpGet(params) { response->
             def sData = response?.data ?: null
             // log.debug "sData: $sData"
@@ -813,7 +807,6 @@ private getDeviceSettings() {
     ]
     try {
         logTrace('getDeviceSettings')
-//private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
         httpGet(params) { response->
             Map sData = response?.data ?: null
             // log.debug "sData: $sData"
@@ -865,7 +858,6 @@ void getBluetoothDevices() {
     Map btObjs = (Map)btData?.btObjs ?: [:]
     // logDebug("Current Bluetooth Device: ${curConnName} | Bluetooth Objects: ${btObjs}")
     state.bluetoothObjs = btObjs
-//    String pairedNames = (btData.pairedNames) ? btData.pairedNames.join(",") : (String)null
     Map btMap = [:]
     btMap.names = (btData.pairedNames && btData.pairedNames.size()) ? btData.pairedNames.collect { it as String } : []
     String btPairedJson = new groovy.json.JsonOutput().toJson(btMap)
@@ -882,7 +874,6 @@ void getBluetoothDevices() {
 
 void updGuardStatus(String val=sNULL) {
     //TODO: Update this because it's not working
-//    String t0 = val ?: (state?.permissions?.guardSupported ? parent?.getAlexaGuardStatus() : sNULL)
     Boolean guardSup = (Boolean)state.permissions?.guardSupported
     String t0 = guardSup ? (val ?: parent?.getAlexaGuardStatus() ) : "Not Supported"
     String gState = t0 ?: "Unknown"
@@ -971,9 +962,6 @@ private List getNotifications(String type="Reminder", all=false) {
                     newList?.push(li)
                 }
             }
-            // if(isStateChange(device, "alexaNotifications", newList?.toString())) {
-            //     sendEvent(name: "alexaNotifications", value: newList, display: false, displayed: false)
-            // }
             // log.trace "notifications: $newList"
             return newList
         }
@@ -1030,7 +1018,7 @@ String getCookieVal() {
 }
 
 String getCsrfVal() {
-    String myId=parent.getId() //device.getId()
+    String myId = parent.getId()
     Map cookieData = cookieDataFLD[myId]
     if(cookieData && cookieData.cookie) { return (String)cookieData.cookie.csrf }
     else {
@@ -1077,7 +1065,6 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
         logTrace("sendAmazonCommand($method, $params")
         switch(method) {
             case "POST":
-//private execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
                 httpPostJson(params) { response->
                     rData = response?.data ?: null
                     rStatus = response?.status
