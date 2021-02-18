@@ -1,3 +1,23 @@
+## _**(February 18th, 2021)**_
+### _**Echo Speaks App (v4.0.7.0)**_
+- [NEW] Moved to a centralized queue for all speech commands to eliminate Amazon rate limiting.
+- [NEW] Control Alexa Guard with the state of a single switch (On=Armed | Off=Disarmed).
+- [FIX] Lot's of UI design updates
+
+### _**Echo Speaks Actions (v4.0.7.0)**_
+- [FIX] Fixed getAlexaRoutines Command.
+- [NEW] Added per zone volume when multiple zones are selected in the Action.
+
+### _**Echo Speaks Zones (v4.0.7.0)**_
+- [FIX] bug fixes.
+
+### _**Echo Speaks Device (v4.0.7.0)**_
+- [NEW] Moved the individual device queue to a centralized queue.
+- [FIX] bug fixes.
+
+### _**Echo Speaks WebSocket (v4.0.7.0)**_
+- [FIX] bug fixes.
+  
 ## _**(February 5th, 2021)**_
 ### _**Echo Speaks App (v4.0.6.0)**_
 - [NEW] Alexa Routines page for viewing name/ID + Execute the routine right on the page

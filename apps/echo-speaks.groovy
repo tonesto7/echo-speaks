@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-16"
+@Field static final String appModifiedFLD = "2021-02-18"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -3992,13 +3992,13 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
         String deviceType = deviceData?.deviceType ?: null
         String serialNumber = deviceData?.serialNumber ?: null
         Map seqNode = [
-                "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-                operationPayload: [
-                        deviceType: deviceType,
-                        deviceSerialNumber: serialNumber,
-                        locale: (settings.regionLocale ?: "en-US"),
-                        customerId: state.deviceOwnerCustomerId
-                ]
+            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            operationPayload: [
+                deviceType: deviceType,
+                deviceSerialNumber: serialNumber,
+                locale: (settings.regionLocale ?: "en-US"),
+                customerId: state.deviceOwnerCustomerId
+            ]
         ]
 
         String lcmd = command.toLowerCase()
