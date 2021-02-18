@@ -22,7 +22,6 @@ import groovy.transform.Field
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
-
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -553,16 +552,16 @@ private void processDuplication() {
            if((String)v.type in [sENUM]) settingRemove(k)
 
            if((String)v.type in [sMODE]){
-              String msg = "Found mode settings $k is type $v.type value is ${v.value}, this setting needs to be updated to work properly"
-              logWarn(msg)
-              state.badMode=msg
+                String msg = "Found mode settings $k is type $v.type value is ${v.value}, this setting needs to be updated to work properly"
+                logWarn(msg)
+                state.badMode=msg
 
-              settingRemove(k)
-              List modeIt= v.value?.collect { String vit ->
-                  location.getModes()?.find { (String)it.name == vit ? it.toString() : null }
-              }
-//              log.warn "new settings $k is $modeIt"
-              if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
+                settingRemove(k)
+                List modeIt= v.value?.collect { String vit ->
+                    location.getModes()?.find { (String)it.name == vit ? it.toString() : null }
+                }
+                // log.warn "new settings $k is $modeIt"
+                if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
 
            } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
@@ -584,18 +583,7 @@ private void updAppLabel() {
     String newLbl = "${settings.appLbl} (Z${isPaused() ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s",sSPACE)
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl); sendZoneStatus() } 
 }
-/*
-public guardEventHandler(guardState) {
-    if(!state.alexaGuardState || state.alexaGuardState != guardState) {
-        state.alexaGuardState = guardState
-        def evt = [name: "guard", displayName: "Alexa Guard", value: state.alexaGuardState, date: new Date(), deviceId: null]
-        logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
-        if(state.handleGuardEvents) {
-            executeAction(evt, false, "guardEventHandler", false, false)
-        }
-    }
-}
-*/
+
 private void updConfigStatusMap() {
     Map sMap = state.configStatusMap
     sMap = sMap ?: [:]
@@ -1299,6 +1287,7 @@ public Map getZoneMetrics() {
     out.inactiveSwitchesOffCnt = settings.zone_inactive_switches_off ?: []
     return out
 }
+
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
@@ -1326,11 +1315,6 @@ static Boolean isDateToday(Date dt) { return (dt && dt.clearTime().compareTo(new
 static String strCapitalize(String str) { return str ? str.toString().capitalize() : sNULL }
 
 static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
-/*
-String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
-    Date newDt = Date.parse(pFormat, dt)
-    return formatDt(newDt, tzFmt)
-} */
 
 String getDtNow() {
     Date now = new Date()
@@ -1340,14 +1324,6 @@ String getDtNow() {
 String epochToTime(Date dt) {
     return dateTimeFmt(dt, "h:mm a")
 }
-/*
-String time2Str(String time) {
-    if(time) {
-        Date t = timeToday(time, location?.timeZone)
-        return dateTimeFmt(t, "h:mm a")
-    }
-    return sNULL
-} */
 
 String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
