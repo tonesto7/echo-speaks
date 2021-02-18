@@ -1651,6 +1651,12 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
         sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
     }
 }
+/*void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
+    if(volume != null) {
+        List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
+        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+        sendMultiSequenceCommand(seqs, cmdType)
+    } else { sendSequenceCommand(cmdType, cmd, val) } */
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
     String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
@@ -1666,15 +1672,18 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
         if(volume != null) {
             List mainSeq = []
             devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+            mainSeq.push([command: "announcement_devices", value: msg, cmdType: 'playAnnouncement'])
+/*
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
 
             sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg)
-
+*/
             if(restoreVolume!=null) {
-                mainSeq = []
+//                mainSeq = []
                 devObj.each { dev-> mainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-                sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeRestore",true)
+//                sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeRestore",true)
             }
+            sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
             // log.debug "mainSeq: $mainSeq"
         } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg) }
     }
