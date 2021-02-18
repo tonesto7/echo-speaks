@@ -964,9 +964,7 @@ def notifPrefPage() {
         settingRemove('pushoverPriority')
         settingRemove('pushoverSound')
 
-        //if(settings?.smsNumbers?.toString()?.length()>=10 || settings.notif_devs || (Boolean)settings.usePush || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) {
         if(settings.notif_devs) {
-            //if(((Boolean)settings.usePush || settings.notif_devs || ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)) && !state.pushTested && state.pushoverManager) {
             if((settings.notif_devs) && !state.pushTested) {
                 if(sendMsg("Info", "Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
@@ -1214,7 +1212,6 @@ def sequencePage() {
 
 Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     if(!msgLen) { return 30 }
-    //Integer twd = ttsWordDelay ? ttsWordDelay?.toInteger() : 2
     Integer twd = 2
     Integer v = (msgLen <= 14 ? 1 : (msgLen / 14)) * twd
     Integer res=v
@@ -1626,6 +1623,7 @@ void checkZoneData() {
 public Map getZones() {
     checkZoneData()
     Map a = zoneStatusMapFLD
+    log.debug "getZones: $a"
     return a
 }
 
@@ -1639,19 +1637,12 @@ List getInActiveZones() {
     return zones.size() ? zones.findAll { !(Boolean)it?.isActive() || (Boolean)it?.isPaused() } : []
 }
 
-static List getMyZNames(Map zones) {
-    zones = zones ?: [:]
-    return zones.size() ? zones?.collect { (String)it?.value?.name } : []
-}
-
 List getActiveZoneNames() {
     return getActiveZones()?.collect { it.getLabel() }
-    // return getMyZNames(getActiveZones())
 }
 
 List getInActiveZoneNames() {
     return getInActiveZones()?.collect { it.getLabel() }
-    // return getMyZNames(getInActiveZones())
 }
 
 List getZoneApps() {

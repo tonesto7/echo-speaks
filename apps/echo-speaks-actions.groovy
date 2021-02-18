@@ -2395,13 +2395,14 @@ public updZones(Map zoneMap) {
     zoneStatusMapFLD = zoneStatusMapFLD
 }
 
-public Map getZones() {
+public Map getZones(Boolean noCache = false) {
     Map a = zoneStatusMapFLD
-    if(!a) {
+    if(noCache || !a) {
         a = parent.getZones()
     }
     String i = 'initialized'
     if(a.containsKey(i))a.remove(i)
+    log.debug "getZones: $a"
     return a
 }
 
@@ -3349,8 +3350,6 @@ private executeActTest() {
     }
 }
 
-
-
 Map getRandomTrigEvt() {
     String trig = getRandomItem((List)settings.triggerEvents)
     List trigItems = settings."trig_${trig}" ?: null
@@ -3364,8 +3363,8 @@ Map getRandomTrigEvt() {
         door: getRandomItem(lOPNCLS+["opening", "closing"]),
         contact: getRandomItem(lOPNCLS),
         acceleration: getRandomItem(lACTINACT),
-        lock: getRandomItem(["locked", "unlocked", "unlocked with timeout", "unknown"]),
-        securityKeypad: getRandomItem(["disarmed", "armed home", "armed away", "unknown"]),
+        lock: getRandomItem(["locked", "unlocked", "unlocked with timeout"]),
+        securityKeypad: getRandomItem(["disarmed", "armed home", "armed away"]),
         water: getRandomItem(["wet", "dry"]),
         presence: getRandomItem(["present", "not present"]),
         motion: getRandomItem(lACTINACT),
@@ -3395,11 +3394,10 @@ Map getRandomTrigEvt() {
     if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
     Map evt = [:]
     if(attVal.containsKey(trig)) {
-        evt = [name: trig, displayName: trigItem?.displayName ?: sBLANK,
-               value: attVal[trig], date: new Date(),
-               deviceId: trigItem?.id?.toString() ?: null]
+        evt = [ name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
     }
     if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
+    log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 
@@ -3425,7 +3423,6 @@ String decodeVariables(evt, String str) {
             }
         }
         str = (str.contains("%name%")) ? str.replaceAll("%name%", (String)evt.displayName) : str
-
         str = (str.contains("%unit%") && (String)evt.name) ? str.replaceAll("%unit%", getAttrPostfix((String)evt.name)) : str
         str = (str.contains("%value%") && evt.value) ? str.replaceAll("%value%", evt.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
         if(!(evt instanceof com.hubitat.hub.domain.Event) && evt.totalDur) {
@@ -3446,12 +3443,12 @@ String decodeVariables(evt, String str) {
 
 static Integer durationToMinutes(dur) {
     if(dur && dur>=60) return (dur/60)?.toInteger()
-    return 0 // dur?.toInteger()
+    return 0
 }
 
 static Integer durationToHours(dur) {
     if(dur && dur>= (60*60)) return (dur / 60 / 60)?.toInteger()
-    return 0 // dur?.toInteger()
+    return 0
 }
 
 private List decamelizeStr(String str) {
@@ -4032,36 +4029,30 @@ static Map getAlarmTrigOpts() {
 
 private static Map getAlarmSystemAlertOptions(){
     return [
-        intrusion:              "Intrusion Away",
-        "intrusion-home":       "Intrusion Home",
-        "intrusion-night":      "Intrusion Night",
-        smoke:                  "Smoke",
-        water:                  "Water",
-        rule:                   "Rule",
-        cancel:                 "Alerts cancelled",
-        arming:                 "Arming failure"
+        intrusion        : "Intrusion Away",
+        "intrusion-home" : "Intrusion Home",
+        "intrusion-night": "Intrusion Night",
+        smoke            : "Smoke",
+        water            : "Water",
+        rule             : "Rule",
+        cancel           : "Alerts cancelled",
+        arming           : "Arming failure"
     ]
 }
 
 private static Map getAlarmSystemStatusActions(){
     return [
-        armAway:                "Arm Away",
-        armHome:                "Arm Home",
-        armNight:               "Arm Night",
-        disarm:                 "Disarm",
-        armRules:               "Arm Monitor Rules",
-        disarmRules:            "Disarm Monitor Rules",
-        disarmAll:              "Disarm All",
-        armAll:                 "Arm All",
-        cancelAlerts:           "Cancel Alerts"
+        armAway     : "Arm Away",
+        armHome     : "Arm Home",
+        armNight    : "Arm Night",
+        disarm      : "Disarm",
+        armRules    : "Arm Monitor Rules",
+        disarmRules : "Disarm Monitor Rules",
+        disarmAll   : "Disarm All",
+        armAll      : "Arm All",
+        cancelAlerts: "Cancel Alerts"
     ]
 }
-
-/*
-def getShmIncidents() {
-    Long incidentThreshold = now() - 604800000L
-    return location.activeIncidents.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
-}*/
 
 public Map getActionMetrics() {
     Map out = [:]
@@ -4078,7 +4069,6 @@ public Map getActionMetrics() {
     return out
 }
 
-// String pushStatus() { return (settings.notif_sms_numbers?.toString()?.length()>=10 || settings.notif_send_push || settings.notif_pushover) ? ((settings.notif_send_push || (settings.notif_pushover && settings.notif_pushover_devices)) ? "Push Enabled" : "Enabled") : sNULL }
 
 Integer getLastNotifMsgSec() { return getLastTsValSec("lastNotifMsgDt") }
 //Integer getLastChildInitRefreshSec() { return getLastTsValSec("lastChildInitRefreshDt", 3600) }
@@ -4146,7 +4136,7 @@ public sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt=
         String flatMsg = newMsg.replaceAll("\n", sSPACE)
         if(!getOk2Notify()) {
             logInfo( "sendNotifMsg: Notification not configured or Message Skipped During Quiet Time ($flatMsg)")
-//            if(showEvt) { sendNotificationEvent(newMsg) }
+            // if(showEvt) { sendNotificationEvent(newMsg) }
         } else {
             if((List)settings.notif_devs) {
                 sentSrc.push("Notification Devices")
@@ -4416,11 +4406,6 @@ static Boolean isDateToday(Date dt) { return (dt && dt.clearTime().compareTo(new
 static String strCapitalize(str) { return str ? str.toString().capitalize() : sNULL }
 
 static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
-/*
-String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
-    Date newDt = Date.parse(pFormat, dt)
-    return formatDt(newDt, tzFmt)
-} */
 
 String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
@@ -4435,14 +4420,6 @@ String getDtNow() {
 String epochToTime(Date dt) {
     return dateTimeFmt(dt, "h:mm a")
 }
-/*
-String time2Str(String time, String fmt="h:mm a") {
-    if(time) {
-        Date t = timeToday(time, location?.timeZone)
-        return dateTimeFmt(t, fmt)
-    }
-    return sNULL
-} */
 
 String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
