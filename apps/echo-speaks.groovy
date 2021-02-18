@@ -264,7 +264,7 @@ def authStatusPage() {
                 stat += spanSm(" ${sBULLET} Cookie:") + spanSmBr(getOkOrNotSymHTML(chk1))
                 stat += spanSm(" ${sBULLET} CSRF Value:") + spanSmBr(getOkOrNotSymHTML(chk2))
                 stat += lineBr()
-                stat += spanSm("Cookie Refresh:", sNULL, sNULL, true) + spanSmBr(getOkOrNotSymHTML(chk3))
+                stat += spanSmBld("Cookie Refresh:") + spanSmBr(getOkOrNotSymHTML(chk3))
                 stat += spanSm(" ${sBULLET} Last Refresh:") + spanSmBr(" (${seconds2Duration(getLastTsValSecs("lastCookieRrshDt"))})", (!chk3 ? sCLRRED : sNULL))
                 stat += spanSm(" ${sBULLET} Next Refresh:") + spanSmBr(" (${nextCookieRefreshDur()})")
                 paragraph divSm(stat, sCLR4D9)
@@ -4434,7 +4434,7 @@ static String sectTS(String t, String i = sNULL, Boolean bold=false) { return ""
 
 static String sectH3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
 
-public String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) {
+public static String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) {
     String s = ""
     s += title ? "<div style='${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}'>${img != sNULL ? """<img src=${getAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
     s += body ? "<div style='${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}'>${body}</div>" : sBLANK
@@ -4455,9 +4455,9 @@ static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=fal
 static String spanImgStr(String img=sNULL) { return (String) img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
 static String divImgStr(String str, String img=sNULL) { return (String) str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
 static String strUnder(String str, Boolean showUnd=true) { return (String) str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
-static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
+static String getOkOrNotSymHTML(Boolean ok) { return ok ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
-static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
+static String lineBr(Boolean show=true) { return show ? sLINEBR : sBLANK }
 static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? lineBr(!noBr) + divSmBld(str, clr) : sBLANK }
 static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, true) : sBLANK }
 static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, false) : sBLANK }
@@ -4709,7 +4709,8 @@ Boolean zoneUpdAvail()      { return (state.appData?.versions && state.codeVersi
 Boolean echoDevUpdAvail()   { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
 Boolean socketUpdAvail()    { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
 Boolean serverUpdAvail()    { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
-Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
+
+static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHub with version numbers
     Integer lastUpd = getLastTsValSecs("lastAppDataUpdDt")
@@ -4726,7 +4727,7 @@ void getConfigData() {
         contentType: sAPPJSON,
         timeout: 20,
     ]
-    Map data = getWebData(params, "appData", false)
+    Map data = (Map)getWebData(params, "appData", false)
     if(data) {
         state.appData = data
         updTsVal("lastAppDataUpdDt")
@@ -4740,7 +4741,7 @@ void getNoticeData() {
         contentType: sAPPJSON,
         timeout: 20,
     ]
-    Map data = getWebData(params, "noticeData", false)
+    Map data = (Map)getWebData(params, "noticeData", false)
     if(data) {
         state.noticeData = data
         logDebug("Successfully Retrieved Developer Notices from GitHub Repo...")
@@ -4767,7 +4768,7 @@ private getWebData(Map params, String desc, Boolean text=true) {
 }
 
 
-Map getAvailableSounds() {
+static Map getAvailableSounds() {
     return getAvailableSoundsFLD
 }
 
@@ -5132,9 +5133,9 @@ String formatDt(Date dt, Boolean tzChg=true) {
     return (String)tf.format(dt)
 }
 
-String strCapitalize(String str) { return str ? str?.toString().capitalize() : sNULL }
-String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
-String pluralize(Integer itemVal, String str) { return (itemVal > 1) ? str+"s" : str }
+static String strCapitalize(String str) { return str ? str.toString().capitalize() : sNULL }
+static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
+static String pluralize(Integer itemVal, String str) { return (itemVal > 1) ? str+"s" : str }
 
 String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
     Date newDt = Date.parse(pFormat, dt)
@@ -5182,13 +5183,13 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     }
 }
 
-String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk=2 /*, Boolean asMap=false */) {
-    Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000;
-    Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000;
-    Integer days = Math.floor(timeSec / 86400); timeSec -= days * 86400;
-    Integer hours = Math.floor(timeSec / 3600); timeSec -= hours * 3600;
-    Integer minutes = Math.floor(timeSec / 60); timeSec -= minutes * 60;
-    Integer seconds = Integer.parseInt((timeSec % 60) as String, 10);
+static String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk=2 /*, Boolean asMap=false */) {
+    Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000
+    Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000
+    Integer days = Math.floor(timeSec / 86400); timeSec -= days * 86400
+    Integer hours = Math.floor(timeSec / 3600); timeSec -= hours * 3600
+    Integer minutes = Math.floor(timeSec / 60); timeSec -= minutes * 60
+    Integer seconds = Integer.parseInt((timeSec % 60) as String, 10)
     Map d = [y: years, mn: months, d: days, h: hours, m: minutes, s: seconds]
 //    if(asMap) { return d }
     List l = []
@@ -5211,12 +5212,15 @@ String nextCookieRefreshDur() {
     // log.debug "now: ${now} | lastDt: ${lastDt} | nextDt: ${nextDt} | Days: $days | Wait: $diff | Dur: ${dur}"
     return dur
 }
-List weekDaysEnum() {
-    return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+@Field static final List<String> weekDaysEnumFLD = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+static List<String> weekDaysEnum() {
+    return weekDaysEnumFLD
 }
 
-List monthEnum() {
-    return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+@Field static final List<String> monthEnumFLD = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+static List<String> monthEnum() {
+    return monthEnumFLD
 }
 
 /******************************************
@@ -5255,12 +5259,13 @@ private void remTsVal(key) {
     if(key) {
         if(key instanceof List) {
                 key.each { String k->
-                    if(data?.containsKey(k)) { data?.remove(k) }
+                    if(data.containsKey(k)) { data.remove(k) }
                     if(k == "lastCookieRrshDt") { remServerItem(k) }
                 }
         } else {
-            if(data?.containsKey((String)key)) { data?.remove((String)key) }
-            if((String)key == "lastCookieRrshDt") { remServerItem((String)key) }
+            String sKey = (String)key
+            if(data.containsKey(sKey)) { data.remove(sKey) }
+            if(sKey == "lastCookieRrshDt") { remServerItem(sKey) }
         }
         tsDtMapFLD[appId]=data
         tsDtMapFLD=tsDtMapFLD
@@ -5357,15 +5362,15 @@ void stateMapMigration() {
         "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt", "lastMisPollMsgDt":"lastMissedPollMsgDt",
         "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
     ]
-    tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, state[k]); state.remove(k); } }
+    tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, (String)state[k]); state.remove(k) } }
 
     //App Flag Migrations
     Map flagItems = [:]
-    flagItems?.each { String k, String v-> if(state.containsKey(k)) { updAppFlag(v, state[k]); state.remove(k); } }
+    flagItems?.each { String k, String v-> if(state.containsKey(k)) { updAppFlag(v, (Boolean)state[k]); state.remove(k) } }
 
     //Server Data Migrations
     Map servItems = ["onHeroku":"onHeroku", "serverHost":"serverHost", "isLocal":"isLocal", "lastCookieRefresh":"lastCookieRrshDt" ]
-    servItems?.each { String k, String v-> if(state.containsKey(k)) { updServerItem(v, state[k]); state.remove(k); } }
+    servItems?.each { String k, String v-> if(state.containsKey(k)) { updServerItem(v, state[k]); state.remove(k) } }
     if(state.generatedHerokuName) { state.herokuName = state.generatedHerokuName; state.remove("generatedHerokuName") }
     updAppFlag("stateMapConverted", true)
 }
@@ -5519,7 +5524,7 @@ String getZoneDesc() {
     return str
 }
 
-String getInputToStringDesc(List inpt, Boolean addSpace=false) {
+static String getInputToStringDesc(List inpt, Boolean addSpace=false) {
     Integer cnt = 0
     String str = sBLANK
     if(inpt) {
@@ -6439,7 +6444,7 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15); } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, 15) } }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError) {
@@ -6595,7 +6600,7 @@ void releaseTheLock(String qname){
     sema.release()
 }
 
-public Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
+public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
