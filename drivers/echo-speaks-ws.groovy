@@ -659,12 +659,6 @@ String getDtNow() {
 	Date now = new Date()
 	return formatDt(now, false)
 }
-/*
-String getIsoDtNow() {
-    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf.format(new Date());
-}*/
 
 String formatDt(Date dt, Boolean mdy = true) {
 	String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
@@ -672,24 +666,6 @@ String formatDt(Date dt, Boolean mdy = true) {
 	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
 	return (String)tf.format(dt)
 }
-/*
-Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
-    try {
-        if(lastDate?.contains("dtNow")) { return 10000 }
-        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
-        Long start = lastDt.getTime()
-        Long stop = now()
-        Long diff = (stop - start) / 1000L
-        return diff.abs()
-    } catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}")
-        return 10000L
-    }
-} */
-/*
-Date parseDt(dt, String dtFmt) {
-    return Date.parse(dtFmt, dt)
-} */
 
 private void addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
     Boolean ssOk = true //(stateSizePerc() <= 70)
@@ -737,20 +713,6 @@ public clearLogHistory() {
     updMemStoreItem("errorHistory",[])
     mb()
 }
-/*
-Map getLogHistory() {
-    return [ warnings: state.warnHistory ?: [], errors: state.errorHistory ?: [], speech: state.speechHistory ?: [] ]
-}
-public clearLogHistory() {
-    state.warnHistory = []
-    state.errorHistory = []
-}*/
-/*
-private incrementCntByKey(String key) {
-	Long evtCnt = state?."${key}" ?: 0L
-	evtCnt++
-	state."${key}" = evtCnt?.toLong()
-} */
 
 String getObjType(obj) {
     if(obj instanceof String) {return "String"}
@@ -784,17 +746,6 @@ public Map getDeviceMetrics() {
     }
     return out
 }
-
-/*private getPlatform() {
-    String p = "SmartThings"
-    if(state.hubPlatform == null) {
-        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        // if (location?.hubs[0]?.id?.toString()?.length() > 5) { p = "SmartThings" } else { p = "Hubitat" }
-        state.hubPlatform = p
-        logDebug("hubPlatform: (${state.hubPlatform})")
-    }
-    return state.hubPlatform
-}*/
 
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
