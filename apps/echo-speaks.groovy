@@ -1051,7 +1051,7 @@ def speechPage() {
             if(((List) settings.test_speechDevices)?.size() >= 3) {
                 paragraph spanSmBldBr("NOTICE:", sCLRRED) + spanSm("Amazon often rate limits when 3 or more device commands are sent at a time.<br>There may be a delay in the other devices but they should play the test after a few seconds", sCLRRED)
             }
-            input "test_speechVolume", "number", title: inTS1("Speak at this volume (0% - 100%)"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+            input "test_speechVolume", "number", title: inTS1("Speak at this volume (0% - 100%)"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
             input "test_speechRestVolume", "number", title: inTS1("Restore to this volume after (0% - 100%)"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
             input "test_speechMessage", "text", title: inTS1("Message to Speak"), defaultValue: "This is a speech test for your Echo speaks device!!!", required: true, submitOnChange: true
         }
@@ -1132,7 +1132,7 @@ def announcePage() {
                 input "test_announceDevices", sENUM, title: inTS1("Select Devices to Test the Announcement"), description: sTTS, options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
             }
             if((Boolean)settings.test_announceAllDevices || settings.test_announceDevices) {
-                input "test_announceVolume", "number", title: inTS1("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: 30, required: false, submitOnChange: true
+                input "test_announceVolume", "number", title: inTS1("Announce at this volume"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
                 input "test_announceRestVolume", "number", title: inTS1("Restore to this volume after"), description: "Enter number", range: "0..100", defaultValue: null, required: false, submitOnChange: true
                 input "test_announceMessage", "text", title: inTS1("Message to announce"), defaultValue: "This is a test of the Echo speaks announcement system!!!", required: true, submitOnChange: true
             }
@@ -3665,7 +3665,7 @@ void workQ() {
 //                            if(type in ['playAnnouncement', 'sendSpeak', 'AnnouncementAll']) {
 //                                Integer msgLen = ((String)cmdItem?.value)?.length()
                             if(mcommand in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
-                                List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
+                                List<String> valObj = (cmdItem?.value?.toString()?.contains("::")) ? cmdItem.value.split("::") : ["Echo Speaks", (String)cmdItem?.value]
                                 Integer msgLen = valObj[1]?.length()
                                 Integer del = getRecheckDelay(msgLen)
                                 mdelay += del
