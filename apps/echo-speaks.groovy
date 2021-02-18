@@ -3520,7 +3520,8 @@ void sendSpeak(Map cmdMap, String device, String callback){
     Map st = [serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
     List<Map> seqCmds = []
     if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume]+st) }
-    seqCmds = seqCmds + msgSeqBuilder((String)cmdMap.message, st+[cmdType: 'sendSpeak'])
+    //seqCmds = seqCmds + msgSeqBuilder((String)cmdMap.message, st+[cmdType: 'sendSpeak'])
+    seqCmds.push([command: 'sendspeak', value:cmdMap.message])
     if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume]+st) }
 
     queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, st, cmdMap, device, callback)
@@ -3541,10 +3542,21 @@ void queueSequenceCommand(String type, String command, value, Map deviceData=[:]
 }
 
 void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+// expand speak commands and handle ssml
+    List<Map> newCmds = []
+    List<Map> seqCmds = commands
+    seqCmds?.each { cmdItem->
+        //log.debug "cmdItem: $cmdItem"
+        if(cmdItem.command instanceof String){
+             if((String)cmdItem.command in ['sendspeak']){
+                  newCmds = newCmds + msgSeqBuilder((String)cmdItem.value, deviceData+[cmdType:'sendSpeak'])
+             } else newCmds.push(cmdItem)
+        } else newCmds.push(cmdItem)
+    }
     Map item= [
         t: 'multi',
         time: now(),
-        commands: commands,
+        commands: newCmds,
         srcDesc: srcDesc,
         parallel: parallel,
         deviceData: deviceData,
@@ -3616,8 +3628,8 @@ void workQ() {
         String srcDesc
         Map seqMap
         String command
-// lets try to join commands in single request to Alexa
 
+// lets try to join commands in single request to Alexa
         while(eData.size()>0){
 
             svSeqList = seqList
@@ -3645,25 +3657,24 @@ void workQ() {
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
                     Integer mdelay = 0
-//                    if(!cmdMap){
-                        seqCmds?.each { cmdItem->
-                            //log.debug "cmdItem: $cmdItem"
-                            if(cmdItem.command instanceof String){
-                                String type=cmdItem?.cmdType ?: sBLANK
-            //case "ssml":
-            //case "speak":
-                //seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st)
-                                if(type in ['playAnnouncement', 'sendSpeak']) {
-                                    Integer msgLen = ((String)cmdItem?.value)?.length()
-                                    Integer del = getRecheckDelay(msgLen)
-                                    mdelay += del
-                                }
-                                else if(type.startsWith('play')) mdelay += 18
-                                else if(type.startsWith('say')) mdelay += 3
+                    seqCmds?.each { cmdItem->
+                        //log.debug "cmdItem: $cmdItem"
+                        if(cmdItem.command instanceof String){
+                            String mcommand = cmdItem.command
+                            String type=cmdItem?.cmdType ?: sBLANK
+//                            if(type in ['playAnnouncement', 'sendSpeak', 'AnnouncementAll']) {
+//                                Integer msgLen = ((String)cmdItem?.value)?.length()
+                            if(mcommand in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
+                                List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
+                                Integer msgLen = valObj[1]?.length()
+                                Integer del = getRecheckDelay(msgLen)
+                                mdelay += del
                             }
-                            if(mdelay) cmdMap.msgDelay= mdelay
+                            else if(type.startsWith('play')) mdelay += 18
+                            else if(type.startsWith('say')) mdelay += 3
                         }
-//                    }
+                        if(mdelay) cmdMap.msgDelay= mdelay
+                    }
                     //log.debug "seqList: ${seqList}"
                 }
             }
@@ -3675,20 +3686,12 @@ void workQ() {
                 parallel = nparallel != null ? nparallel : false
                 command=(String)item.command
 
-            //case "announcementall":
-                if(command in ['announcement_devices']){
-                    if(seqList.size() > 0) break // runs by itself
-                }
-
                 def value = item.value
                 seqList = seqList + [createSequenceNode(command, value, deviceData)]
 
-                if(command in ['announcement_devices']){
-                    seqMap = seqList[0]
-                    seqList = []
-                }
                 if(command in ['announcement_devices', 'announcement', 'announcementall']){
-                    Integer msgLen = ((String)value)?.length()
+                    List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
+                    Integer msgLen = valObj[1]?.length()
                     Integer del = getRecheckDelay(msgLen)
                     if(!cmdMap) cmdMap = [ msgDelay: del ]
                 }
@@ -3727,17 +3730,17 @@ void workQ() {
             extList.push(t_extData)
             extData.extList = extList
 
-            //Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
             msSum += ms
             lmsg.push("workQ ms delay is $msSum")
-            if(srcDesc == 'ExecuteRoutine' || command in ['announcement_devices']) { break } // runs by itself
+            if(srcDesc == 'ExecuteRoutine') { break } // runs by itself
+            if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
         }
 
         if(seqList.size() > 0 || seqMap){
 
-            Integer mymin = lastChkSec > 5 ? 1000 : 3000
+            Integer mymin = lastChkSec > 7 ? 1000 : 3000
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
@@ -3749,7 +3752,7 @@ void workQ() {
 
             extData = extData + [nextOk: nextOk]
 
-            if(srcDesc != 'ExecuteRoutine' && command != 'announcement_devices') {
+            if(srcDesc != 'ExecuteRoutine') {
                 seqMap = multiSequenceBuilder(seqList, oldParallel)
             }
             Map seqObj = sequenceBuilder(seqMap, null, null)
@@ -4129,10 +4132,11 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
+                Boolean isSSML = (valObj[1].startsWith("<speak>") && valObj[1].endsWith("</speak>"))
                 seqNode.operationPayload.content = [[
                                                             locale: ((String)state.regionLocale ?: "en-US"),
                                                             display: [ title: valObj[0], body: valObj[1].replaceAll(/<[^>]+>/, '') ],
-                                                            speak: [ type: (lcmd == "ssml" ? "ssml" : "text"), value: valObj[1] ]
+                                                            speak: [ type: (lcmd == "ssml" || isSSML ? "ssml" : "text"), value: valObj[1] ]
                                                     ]]
                 seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
                 if(!(lcmd in ["announcementall", "announcement_devices"])) {
