@@ -2441,17 +2441,6 @@ def playTrackAndResume(String uri, volume=null) {
         doSearchMusicCmd(nuri, "CLOUDPLAYER", volume)
         return
     }
-/*    if(isCommandTypeAllowed("TTS")) {
-        String tts = uriTrackParser(uri)
-        if (tts) {
-            logDebug("playTrackAndResume($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
-            if(volume) {
-                Integer restVolume // = device?.currentValue("level")?.toInteger()
-                setVolumeSpeakAndRestore(volume as Integer, tts, restVolume)
-            } else { speak(tts) }
-            return
-        }
-    } */
     logWarn("Uh-Oh... The playTrackAndResume($uri, $volume) Command is NOT Supported by this Device!!!")
 }
 
@@ -2472,17 +2461,6 @@ def playTrackAndRestore(String uri, volume=null) {
         doSearchMusicCmd(nuri, "CLOUDPLAYER", volume)
         return
     }
-/*    if(isCommandTypeAllowed("TTS")) {
-        String tts = uriTrackParser(uri)
-        if (tts) {
-            logDebug("playTrackAndRestore($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
-            if(volume) {
-                Integer restVolume // = device?.currentValue("level")?.toInteger()
-                setVolumeSpeakAndRestore(volume as Integer, tts, restVolume)
-            } else { speak(tts) }
-            return
-        }
-    } */
     logWarn("Uh-Oh... The playTrackAndRestore(uri: $uri, volume: $volume) Command is NOT Supported by this Device!!!")
 }
 
@@ -2546,7 +2524,6 @@ void speak(String msg) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true); return }
-        // msg = cleanString(msg, true)
         speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
         return
     }
@@ -2577,7 +2554,6 @@ private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
     cmdMap["serialNumber"] = (String)state.serialNumber
     cmdMap["deviceType"] = (String)state.deviceType
 
-//private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false) {
     parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
 }
 
@@ -2747,9 +2723,9 @@ private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=tru
 }
 
 @Field static final List<String> clnItemsFLD = [
-        "qBlocked", "qCmdCycleCnt", "useThisVolume", "lastVolume", "lastQueueCheckDt", "loopChkCnt", "speakingNow",
-        "cmdQueueWorking", "firstCmdFlag", "recheckScheduled", "cmdQIndexNum", "curMsgLen", "lastTtsCmdDelay",
-        "lastQueueMsg", "lastTtsMsg",
+    "qBlocked", "qCmdCycleCnt", "useThisVolume", "lastVolume", "lastQueueCheckDt", "loopChkCnt", "speakingNow",
+    "cmdQueueWorking", "firstCmdFlag", "recheckScheduled", "cmdQIndexNum", "curMsgLen", "lastTtsCmdDelay",
+    "lastQueueMsg", "lastTtsMsg",
     "q_blocked",
     "q_cmdCycleCnt",
     "q_lastCheckDt",
@@ -3003,10 +2979,6 @@ Long GetTimeDiffSeconds(String strtDate, String stpDate=sNULL) {
         return diff
     } else { return null }
 }
-/*
-Date parseDt(String dt, String dtFmt) {
-    return Date.parse(dtFmt, dt)
-} */
 
 String parseFmtDt(String parseFmt, String newFmt, String dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
