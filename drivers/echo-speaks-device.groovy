@@ -2224,7 +2224,7 @@ private transormRecurString(String type, String opt, String tm, String dt) {
             rd?.flexibleRecurringPatternType = "X_TIMES_A_WEEK"
             rd?.frequency = null
             rd?.intervals = []
-            rd?.nextTriggerTimes = ["${parseFmtDt("HH:mm", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", time)}"]
+            rd?.nextTriggerTimes = ["${parseFmtDt("HH:mm", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "${time[0]}:${time[1]}")}"]
             rd?.notificationTimes = ["${dt}T${time[0]}:${time[1]}:00.000-05:00"]
             rd?.recurEndDate = null
             rd?.recurEndTime = null
