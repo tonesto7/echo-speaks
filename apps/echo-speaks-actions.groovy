@@ -4836,12 +4836,10 @@ Map getZoneStatus() {
 
 String getZoneVolDesc(zone, volMap) {
     String str = sBLANK
-    str += spanSmBr(" ${sBULLET} ${zone?.value?.name} ${zone?.value?.active == true ? spanSm(" (Active)", sCLRGRN2) : spanSm(" (Inactive)", sCLRGRY)}")
+    str += spanSm(" ${sBULLET} ${zone?.value?.name} ${zone?.value?.active == true ? spanSm(" (Active)", sCLRGRN2) : spanSm(" (Inactive)", sCLRGRY)}")
     if(settings.act_EchoZones_vol_per_zone && volMap && volMap[zone.key]) {
-        List s2 = []
-        if(volMap[zone.key].change) s2.push(spanSm("    - New Volume: ${volMap[zone.key].change}"))
-        if(volMap[zone.key].restore) s2.push(spanSm("    - Restore Volume: ${volMap[zone.key].restore}"))
-        str += s2.size() ? s2.join(sLINEBR) : sBLANK
+        str += volMap[zone.key].change ? lineBr() + spanSm("    - New Volume: ${volMap[zone.key].change}") : sBLANK
+        str += volMap[zone.key].restore ? lineBr() + spanSm("    - Restore Volume: ${volMap[zone.key].restore}") : sBLANK
     }
     return str
 }
