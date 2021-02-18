@@ -25,7 +25,6 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -161,7 +160,6 @@ String selTriggerTypes(type) {
 }
 
 private Map buildTriggerEnum() {
-//    List enumOpts = []
     Map<String,Map> buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
     buildItems["Location"] = [(sMODE):"Modes", "pistonExecuted":"Pistons"]?.sort{ it?.key }
@@ -178,7 +176,6 @@ private Map buildTriggerEnum() {
 }
 
 private static Map buildActTypeEnum() {
-//    List enumOpts = []
     Map<String, Map> buildItems = [:]
     buildItems["Speech"] = ["speak":"Speak", "announcement":"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
     buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"]?.sort{ it?.key }
@@ -662,10 +659,8 @@ def handleCodeSect(String typ, String lbl) {
     Map<String, Map> lockCodes = getCodes((List)settings."trig_${typ}")
     log.debug "lockCodes: ${lockCodes}"
     if(lockCodes) {
-//        section (sectHead("Filter ${lbl} Code Events"), hideable: true) {
-            Map codeOpts = lockCodes.collectEntries { [((String)it.key): it.value?.name ? "Name: "+ (String)it.value.name : "Code Number ${(String)it.key}: (${(String)it.value?.code})"] }
-            input "trig_${typ}_Codes", sENUM, title: inTS1("Filter ${lbl} codes...", sCOMMAND), options: codeOpts, multiple: true, required: false, submitOnChange: true
-//        }
+        Map codeOpts = lockCodes.collectEntries { [((String)it.key): it.value?.name ? "Name: "+ (String)it.value.name : "Code Number ${(String)it.key}: (${(String)it.value?.code})"] }
+        input "trig_${typ}_Codes", sENUM, title: inTS1("Filter ${lbl} codes...", sCOMMAND), options: codeOpts, multiple: true, required: false, submitOnChange: true
     }
 }
 
@@ -1460,8 +1455,6 @@ def actionsPage() {
                             }
                         }
                         actionExecMap.config.wakeword = [ devices: devsObj]
-                        // def aCnt = settings.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }
-                        // log.debug "aCnt: ${aCnt} | devsCnt: ${devsCnt}"
                         done = settings.findAll { it?.key?.startsWith("act_wakeword_device_") && it?.value }?.size() == devsCnt
                     } else { done = false }
                     break
@@ -1530,8 +1523,6 @@ def actionsPage() {
         logDebug("actionExecMap: ${t1}")
     }
 }
-
-
 
 def actTrigTasksPage(params) {
     String t = params?.type
@@ -1865,24 +1856,6 @@ def ssmlInfoSection() {
         href url: ssmlTestUrl, style: sEXTNRL, required: false, title: inTS1("SSML Designer and Tester", "www"), description: inactFoot("Tap to open browser")
     }
 }
-/*
-private void cleanupDevSettings(prefix) {
-    List cDevs = settings.act_EchoDevices
-    List sets = settings.findAll { it?.key?.startsWith(prefix) }?.collect { it?.key as String }
-    log.debug "cDevs: $cDevs | sets: $sets"
-    List rem = []
-    if(sets?.size()) {
-        if(cDevs?.size()) {
-            cDevs.each {
-                if(!sets?.contains("${prefix}${it}")) {
-                    rem.push("${prefix}${it}")
-                }
-            }
-        } else { rem = rem + sets }
-    }
-    log.debug "rem: $rem"
-    // rem?.each { sI-> if(settings.containsKey(sI as String)) { settingRemove(sI as String) } }
-} */
 
 Map customTxtItems() {
     Map items = [:]
@@ -1916,12 +1889,7 @@ Boolean executionConfigured() {
     Boolean devs = (settings.act_EchoDevices || settings.act_EchoZones)
     return (opts && devs)
 }
-/*
-private getLastEchoSpokenTo() {
-    def a = parent?.getChildDevicesByCap("TTS")?.find { (it?.currentWasLastSpokenToDevice?.toString() == sTRUE) }
-    return a ?: null
-}
-*/
+
 private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     Boolean capOk = (type in ["TTS", "announce"])
@@ -1944,7 +1912,6 @@ private echoDevicesInputByPerm(String type) {
             app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
         } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
     }
-    //updateZoneSubscriptions()
 }
 
 private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmVol=false) {
@@ -2103,20 +2070,18 @@ private void processDuplication() {
 
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
-           if((String)v.type in [sENUM]) settingRemove(k)
+            if((String)v.type in [sENUM]) settingRemove(k)
+            if((String)v.type in [sMODE]) {
+                String msg = "Found mode settings $k is type $v.type value is ${v.value}, this setting needs to be updated to work properly"
+                logWarn(msg)
+                state.badMode=msg
 
-           if((String)v.type in [sMODE]){
-              String msg = "Found mode settings $k is type $v.type value is ${v.value}, this setting needs to be updated to work properly"
-              logWarn(msg)
-              state.badMode=msg
-
-              settingRemove(k)
-              List modeIt= v.value?.collect { String vit ->
-                  location.getModes()?.find { (String)it.name == vit ? it.toString() : null }
-              }
-//              log.warn "new settings $k is $modeIt"
-              if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
-
+                settingRemove(k)
+                List modeIt= v.value?.collect { String vit ->
+                    location.getModes()?.find { (String)it.name == vit ? it.toString() : null }
+                }
+                // log.warn "new settings $k is $modeIt"
+                if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
            } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
     }
@@ -2141,18 +2106,6 @@ String getObjType(obj) {
     else { return "unknown"}
 }
 
-/*
-private void updateZoneSubscriptions() {
-    if(settings.act_EchoZones) {
-        if(state.zoneEvtsActive != true) {
-            subscribe(location, "es3ZoneState", zoneStateHandler)
-            subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
-            state.zoneEvtsActive = true
-            runIn(6, requestZoneRefresh)
-        }
-    }
-}
-*/
 String getActionName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
@@ -2198,13 +2151,7 @@ private void actionCleanup() {
     tierItemCleanup()
     if((String)settings.actionType) {
         Boolean isTierAct = isTierAction()
-        //ERS
-//  isTierAct      return ((String)settings.actionType in ["speak_tiered", "announcement_tiered"])
-//                case "act_tier_start_":
-//                case "act_tier_stop_":
-//        if(isTierAct) {
         ["act_lights", "act_locks", "act_securityKeypads", "act_doors", "act_sirens"]?.each { String it -> settings.each { sI -> if(sI.key.startsWith(it)) { isTierAct ? setItems.push(sI.key as String) : setIgn.push(sI.key as String) } } }
-//        }
         ["act_tier_start_", "act_tier_stop_"]?.each { String it -> settings.each { sI -> if(sI.key.startsWith(it)) { isTierAct ? setIgn.push(sI.key as String) : setItems.push(sI.key as String) } } }
         settings.each { si->
             if(!(si.key in setIgn) && si.key.startsWith("act_") && !si.key.startsWith("act_${(String)settings.actionType}") && (!isTierAct && si.key.startsWith("act_tier_item_"))) { setItems.push(si?.key as String) }
@@ -2397,7 +2344,6 @@ void subscribeToEvts() {
                 case "alarm":
                     // Location Alarm Events
                     subscribe(location, "hsmStatus", alarmEvtHandler)
-    // ["armedAway":"Armed Away", "armingAway":"Arming Away Pending exit delay","armedHome":"Armed Home","armingHome":"Arming Home pending exit delay", "armedNight":"Armed Night", "armingNight":"Arming Night pending exit delay","disarm":"Disarmed", "allDisarmed":"All Disarmed","alerts":"Alerts"]
                     if("alerts" in settings.trig_alarm) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                     break
                 case sMODE:
@@ -2444,13 +2390,6 @@ def zoneRemovedHandler(evt) {
     // This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
 }
 
-// private requestZoneRefresh() {
-//    zoneStatusMapFLD =  [:]
-//    sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
-// }
-
-//updateZoneSubscriptions()
-
 public updZones(Map zoneMap) {
     zoneStatusMapFLD = zoneMap
     zoneStatusMapFLD = zoneStatusMapFLD
@@ -2495,12 +2434,10 @@ def scheduleTrigEvt(evt=null) {
     Long evtDelay = now() - ((Date)evt.date).getTime()
     logTrace( "${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
-    //List schedTypes = ["One-Time", "Recurring", "Sunrise", "Sunset"]
     String schedType = (String)settings.trig_scheduled_type
     Boolean recur = schedType == 'Recurring'
     Map dateMap = getDateMap()
     // log.debug "dateMap: $dateMap"
-    //List recurOpts = ["Daily", "Weekly", "Monthly"] // "Yearly"
     String srecur = recur ? settings.trig_scheduled_recurrence : sNULL
     List days = recur ? settings.trig_scheduled_weekdays : null
     List daynums = recur ? settings.trig_scheduled_daynums : null
@@ -2510,8 +2447,6 @@ def scheduleTrigEvt(evt=null) {
     //ERS
     Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
     // log.trace "lock wait: ${aa}"
-//    Map t0 = atomicState.schedTrigMap
-//    Map sTrigMap = t0 ?: [:]
     Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
     if(!sTrigMap) sTrigMap = state.schedTrigMap ?: [:]
 
@@ -2519,12 +2454,11 @@ def scheduleTrigEvt(evt=null) {
     Boolean mdOk = daynums ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
     Boolean wOk = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
     Boolean mOk = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
-    // Boolean yOk = (sTrigMap.lastRun && srecur in ["Yearly"]) ? (sTrigMap?.lastRun?.year != dateMap.year) : true
     if(wdOk && mdOk && wOk && mOk) {
         sTrigMap.lastRun = dateMap
         updMemStoreItem("schedTrigMap", sTrigMap)
         state.schedTrigMap = sTrigMap
-//        atomicState.schedTrigMap = sTrigMap
+
         releaseTheLock(sHMLF)
         executeAction(evt, false, "scheduleTrigEvt", false, false)
     } else {
@@ -2539,10 +2473,6 @@ def alarmEvtHandler(evt) {
     def eV = evt?.value
     logTrace( "${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
     if(!settings.trig_alarm) return
-    // Boolean dco = (settings.trig_alarm_once == true)
-    // Integer dcw = settings.trig_alarm_wait ?: null
-    // Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "alarm", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
-    // if(!evtWaitOk) { return }
     Boolean ok2Run = true
     switch(eN) {
         case "hsmStatus":
@@ -2566,17 +2496,10 @@ def alarmEvtHandler(evt) {
 }
 
 public guardEventHandler(String guardState) {
-//    state.alexaGuardState = guardState
     def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), deviceId: null]
     logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
     if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
-//        if((Boolean)state.handleGuardEvents) {
-            // Boolean dco = (settings.trig_guard_once == true)
-            // Integer dcw = settings.trig_guard_wait ?: null
-            // Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
-            // if(!evtWaitOk) { return }
-            executeAction(evt, false, "guardEventHandler", false, false)
-//        }
+        executeAction(evt, false, "guardEventHandler", false, false)
     }
 }
 
@@ -2596,11 +2519,6 @@ def webcoreEvtHandler(evt) {
         Boolean dco = (settings.trig_pistonExecuted_once == true)
         Integer dcw = settings.trig_pistonExecuted_wait ?: null
         eventCompletion(evt, "pistonExecuted", dco, dcw, "webcoreEvtHandler", disN, disN)
-/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "pistonExecuted", value: disN, name: evt?.name, displayName: disN], dco, dcw) : true)
-        if(!evtWaitOk) { return }
-        if(getConfStatusItem("tiers")) {
-            processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "webcoreEvtHandler", false, false) } */
     }
 }
 
@@ -2609,11 +2527,6 @@ def sceneEvtHandler(evt) {
     Boolean dco = (settings.trig_scene_once == true)
     Integer dcw = settings.trig_scene_wait ?: null
     eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, (String)evt?.displayName)
-/*    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: "scene", value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
-    if(!evtWaitOk) { return }
-    if(getConfStatusItem("tiers")) {
-        processTierTrigEvt(evt, true)
-    } else { executeAction(evt, false, "sceneEvtHandler", false, false) } */
 }
 
 def modeEvtHandler(evt) {
@@ -2622,11 +2535,6 @@ def modeEvtHandler(evt) {
         Boolean dco = (settings.trig_mode_once == true)
         Integer dcw = settings.trig_mode_wait ?: null
         eventCompletion(evt, sMODE, dco, dcw, "modeEvtHandler", evt?.value, (String)evt?.displayName)
-/*        Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: sMODE, value: evt?.value, name: evt?.name, displayName: evt?.displayName], dco, dcw) : true)
-        if(!evtWaitOk) { return }
-        if(getConfStatusItem("tiers")) {
-            processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "modeEvtHandler", false, false) } */
     }
 }
 
