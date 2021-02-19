@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-18"
+@Field static final String appModifiedFLD = "2021-02-19"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -974,7 +974,7 @@ def actVariableDesc(String actType, Boolean hideUserTxt=false) {
             if(txtItems?.size()) {
                 String str = "NOTICE: (Custom Text Defined)"
                 txtItems?.each { i->
-                    i?.value?.each { i2-> str += lineBr() + "${sBULLET} ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()}: (${i2?.value?.size()} Responses)" }
+                    i?.value?.each { i2-> str += lineBr() + "${sBULLET} ${i?.key?.toString()?.capitalize()} ${i2?.key?.toString()?.capitalize()}: (${i2?.value?.size()} Response${i2?.value?.size() > 1 ? "s" : sBLANK})" }
                 }
                 paragraph spanSmBld(str, sCLR4D9)
                 paragraph spanSmBld("WARNING:<br>Entering text below will override the text you defined for the trigger types under Step 2.", sCLRRED)
@@ -4744,7 +4744,7 @@ String getActionDesc(Boolean addFoot=true) {
         String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
         str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) : sBLANK
         str += zones?.size() ? spanSmBr(zones?.collect { getZoneVolDesc(it, znVolMap) }?.join(sLINEBR)) + (eDevs?.size() ? sLINEBR : sBLANK) : sBLANK
-        str += eDevs?.size() ? spanSm(strUnder("Alexa Devices:")) + spanSmBr(zones?.size() ? " (Inactive Zone Default)" : sLINEBR, sCLRGRY) + spanSmBr(eDevs?.collect { " ${sBULLET} ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join(sLINEBR)) : sBLANK
+        str += eDevs?.size() ? spanSm(strUnder("Alexa Devices:")) + (zones?.size() ? spanSm(" (Inactive Zone Default)", sCLRGRY) : sBLANK) + lineBr() + spanSmBr(eDevs?.collect { " ${sBULLET} ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join(sLINEBR)) : sBLANK
         str += tierDesc ? sLINEBR + spanSm(tierDesc) + (tierStart || tierStop ? sBLANK : sLINEBR) : sBLANK
         str += tierStart ? spanSmBr(tierStart) : sBLANK
         str += tierStop ? spanSmBr(tierStop) : sBLANK
