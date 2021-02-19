@@ -22,7 +22,7 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-18"
+@Field static final String appModifiedFLD = "2021-02-19"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -1651,26 +1651,26 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
 }
 
 def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volume=null, restoreVolume=null) {
-    // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
+    log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
         String devJson = new groovy.json.JsonOutput().toJson(devObj)
         msg = "${title ?: "Echo Speaks"}::${msg}::${devJson}"
         // log.debug "sendAnnouncementToDevices | msg: ${msg}"
         if(volume != null) {
-            List mainSeq = []
-            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-//            mainSeq.push([command: "announcement_devices", value: msg, cmdType: 'playAnnouncement'])
+            List mainSeq1 = []
+            devObj.each { dev-> mainSeq1.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+            mainSeq1.push([command: "announcement_devices", value: msg, cmdType: 'playAnnouncement'])
+            sendMultiSequenceCommand(mainSeq1, "sendAnnouncementToDevices", true)
+            // sendMultiSequenceCommand(mainSeq1, "sendAnnouncementToDevices-VolumeSet", true)
 
-            sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
-
-            sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg)
+            // sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg)
 
             if(restoreVolume!=null) {
-                mainSeq = []
-                devObj.each { dev-> mainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-                sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeRestore",true)
+                List mainSeq2 = []
+                devObj.each { dev-> mainSeq2.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                sendMultiSequenceCommand(mainSeq2, "sendAnnouncementToDevices-VolumeRestore", true)
             }
-//            sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
+        //    sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
             // log.debug "mainSeq: $mainSeq"
         } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg) }
     }
@@ -1684,7 +1684,7 @@ def voiceCmdAsText(String cmd) {
 }
 
 public playAnnouncementAll(String msg, String title=sNULL) {
-    // if(isCommandTypeAllowed("announce")) {bvxdsa
+    // if(isCommandTypeAllowed("announce")) {
         msg = title ? title+"::"+msg : msg
         sendSequenceCommand("AnnouncementAll", "announcementall", msg)
     // }
@@ -3335,68 +3335,3 @@ static void mb(String meth=sNULL){
         theMBLockFLD.release()
     }
 }
-/*
-@Field static final String sHMLF = 'theHistMapLockFLD'
-@Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
-
-private Integer getSemaNum(String name) {
-    if(name == sHMLF) return 0 
-    log.warn "unrecognized lock name..."
-    return 0
-	// Integer stripes=22
-	// if(name.isNumber()) return name.toInteger()%stripes
-	// Integer hash=smear(name.hashCode())
-	// return Math.abs(hash)%stripes
-    // log.info "sema $name # $sema"
-}
-
-java.util.concurrent.Semaphore getSema(Integer snum) {
-	switch(snum) {
-		case 0: return histMapLockFLD
-		default: log.error "bad hash result $snum"
-			return null
-	}
-}
-
-@Field volatile static Map<String,Long> lockTimesFLD = [:]
-@Field volatile static Map<String,String> lockHolderFLD = [:]
-
-Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
-    Long waitT = longWait ? 1000L : 60L
-    Boolean wait = false
-    Integer semaNum = getSemaNum(qname)
-    String semaSNum = semaNum.toString()
-    def sema = getSema(semaNum)
-    while(!((Boolean)sema.tryAcquire())) {
-        // did not get the lock
-        Long timeL = lockTimesFLD[semaSNum]
-        if(timeL == null){
-            timeL = now()
-            lockTimesFLD[semaSNum] = timeL
-            lockTimesFLD = lockTimesFLD
-        }
-        if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
-        pauseExecution(waitT)
-        wait = true
-        if((now() - timeL) > 30000L) {
-            releaseTheLock(qname)
-            if(devModeFLD) log.warn "overriding lock $meth"
-        }
-    }
-    lockTimesFLD[semaSNum] = now()
-    lockTimesFLD = lockTimesFLD
-    lockHolderFLD[semaSNum] = "${device.getId()} ${meth}".toString()
-    lockHolderFLD = lockHolderFLD
-    return wait
-}
-
-void releaseTheLock(String qname){
-    Integer semaNum=getSemaNum(qname)
-    String semaSNum=semaNum.toString()
-    def sema=getSema(semaNum)
-    lockTimesFLD[semaSNum]=null
-    lockTimesFLD=lockTimesFLD
-    lockHolderFLD[semaSNum]=(String)null
-    lockHolderFLD=lockHolderFLD
-    sema.release()
-} */
