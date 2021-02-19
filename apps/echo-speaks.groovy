@@ -738,7 +738,6 @@ void executeZoneUnpause() {
     getZoneApps()?.findAll { it?.isPaused() == true }?.each { it?.updatePauseState(false) }
 }
 void executeZoneUpdate() {
-    zoneStatusMapFLD = [:]
     getZoneApps()?.each { it?.updated() }
 }
 
@@ -1486,7 +1485,8 @@ void updateZoneSubscriptions() {
         subscribe(location, "es3ZoneState", zoneStateHandler)
         subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         state.zoneEvtsActive = true
-        zoneStatusMapFLD =  [:]
+        zoneStatusMapFLD = [:]
+        checkZoneData()
         runIn(6, "requestZoneRefresh")
     }
 }
@@ -1575,16 +1575,20 @@ def zoneStateHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData
     // log.trace "zone: ${id} | Data: $data"
+    String myId=app.getId()
+    checkZoneData()
     if(data && id) {
         Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
-        Map t0 = zoneStatusMapFLD
+
+        Map t0 = zoneStatusMapFLD[myId]
         Map zoneMap = t0 ?: [:]
         zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused, t: now()]
-        zoneStatusMapFLD = zoneMap
+        zoneStatusMapFLD[myId] = zoneMap
         zoneStatusMapFLD = zoneStatusMapFLD
+
         releaseTheLock(sHMLF)
-        List cApps = getActionApps()
-        if(cApps?.size()) cApps[0].updZones(zoneMap)
+
+        getActionApps()?.each { it?.updZones(zoneMap) }
     }
 }
 
@@ -1592,17 +1596,26 @@ def zoneRemovedHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData
     log.trace "zone removed: ${id} | Data: $data"
+    String myId=app.getId()
     if(data && id) {
         Boolean aa = getTheLock(sHMLF, "zoneRemoveHandler")
-        Map t0 = zoneStatusMapFLD
+
+        Map t0 = zoneStatusMapFLD[myId]
         Map zoneMap = t0 ?: [:]
         zoneMap = zoneMap ?: [:]
-        if(zoneMap.containsKey(id)) { zoneMap.remove(id) }
-        zoneStatusMapFLD = zoneMap
-        zoneStatusMapFLD = zoneStatusMapFLD
+        Boolean fnd=false
+        if(zoneMap.containsKey(id)) {
+            fnd = true
+            zoneMap.remove(id)
+            zoneStatusMapFLD[myId] = zoneMap
+            zoneStatusMapFLD = zoneStatusMapFLD
+        }
+
         releaseTheLock(sHMLF)
-        List cApps = getActionApps()
-        if(cApps?.size()) cApps[0].updZones(zoneMap)
+
+        if(fnd){
+            getActionApps()?.each { it?.updZones(zoneMap) }
+        }
     }
 }
 
@@ -1611,7 +1624,8 @@ private requestZoneRefresh() {
 }
 
 void checkZoneData() {
-    if(!zoneStatusMapFLD) {
+    String myId=app.getId()
+    if(!zoneStatusMapFLD[myId]) {
         Boolean aa = getTheLock(sHMLF, "getZones")
 
         Map newField = [:]
@@ -1622,19 +1636,19 @@ void checkZoneData() {
             newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, t: now()]
         }
         newField.initialized = [a:true]
-        zoneStatusMapFLD = newField
+        zoneStatusMapFLD[myId] = newField
         zoneStatusMapFLD = zoneStatusMapFLD
 
         releaseTheLock(sHMLF)
 
-        List cApps = getActionApps()
-        if(cApps?.size()) cApps[0].updZones(zoneMap)
+        getActionApps()?.each { it?.updZones(zoneMap) }
     }
 }
 
 public Map getZones(Boolean chld=false) {
+    String myId=app.getId()
     checkZoneData()
-    Map a = zoneStatusMapFLD
+    Map a = zoneStatusMapFLD[myId]
 
     if(!chld) {
         String i = 'initialized'

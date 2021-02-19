@@ -2391,12 +2391,14 @@ def zoneRemovedHandler(evt) {
 }
 
 public updZones(Map zoneMap) {
-    zoneStatusMapFLD = zoneMap
+    String myId=app.getId()
+    zoneStatusMapFLD[myId] = zoneMap
     zoneStatusMapFLD = zoneStatusMapFLD
 }
 
 public Map getZones(Boolean noCache = false) {
-    Map a = zoneStatusMapFLD
+    String myId=app.getId()
+    Map a = zoneStatusMapFLD[myId]
     if(noCache || !a) {
         a = parent.getZones(true)
     }
