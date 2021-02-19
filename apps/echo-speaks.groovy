@@ -1623,7 +1623,6 @@ void checkZoneData() {
 public Map getZones() {
     checkZoneData()
     Map a = zoneStatusMapFLD
-    log.debug "getZones: $a"
     return a
 }
 
@@ -3571,7 +3570,19 @@ void addToQ(Map item) {
     updMemStoreItem(k, eData)
     releaseTheLock(sHMLF)
 
-    //log.debug "item: $item"
+    log.debug "addToQ (${item.t}) | CmdMap: ${item.cmdMap}"
+    log.debug "addToQ (${item.t}) | Time: ${item.time}"
+    log.debug "addToQ (${item.t}) | DeviceData: ${item.deviceData}"
+    log.debug "addToQ (${item.t}) | Device: ${item.device}"
+    log.debug "addToQ (${item.t}) | Parallel: ${item.parallel}"
+    if(item.commands?.size()) {
+        Integer cnt = 1
+        item.commands.each { cmd -> 
+            log.debug "addToQ (${item.t}) | Command(${cnt}): ${cmd}"
+            cnt++
+        }
+    }
+    log.debug "addToQ (${item.t}) | Source: ${item.srcDesc}"
 
     if(qsiz == 1) runInMillis(600L, "workQ")
 //    else workQ()

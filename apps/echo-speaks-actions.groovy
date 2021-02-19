@@ -1894,7 +1894,7 @@ private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     Boolean capOk = (type in ["TTS", "announce"])
     Boolean zonesOk = ((String)settings.actionType in ["speak", "speak_tiered", "announcement", "announcement_tiered", "voicecmd", "sequence", "weather", "calendar", "music", "sounds", "builtin"])
-    Map echoZones = (capOk && zonesOk) ? getZones() : [:]
+    Map echoZones = (capOk && zonesOk) ? getZones(true) : [:]
     section(sectHead("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
         if(echoZones?.size()) {
             if(!settings.act_EchoZones) { paragraph spanSmBldBr("What are Zones?") + spanSm("Zones are used to direct the speech output based on the conditions in the zone (Motion, presence, etc).<br>When both Zones and Echo devices are selected, the zone will take priority over the echo device setting.") }
@@ -2402,7 +2402,6 @@ public Map getZones(Boolean noCache = false) {
     }
     String i = 'initialized'
     if(a.containsKey(i))a.remove(i)
-    log.debug "getZones: $a"
     return a
 }
 
