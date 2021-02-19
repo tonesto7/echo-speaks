@@ -1486,6 +1486,7 @@ void updateZoneSubscriptions() {
         subscribe(location, "es3ZoneState", zoneStateHandler)
         subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         state.zoneEvtsActive = true
+        zoneStatusMapFLD =  [:]
         runIn(6, "requestZoneRefresh")
     }
 }
@@ -1578,7 +1579,7 @@ def zoneStateHandler(evt) {
         Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
         Map t0 = zoneStatusMapFLD
         Map zoneMap = t0 ?: [:]
-        zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused]
+        zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused, t: now()]
         zoneStatusMapFLD = zoneMap
         zoneStatusMapFLD = zoneStatusMapFLD
         releaseTheLock(sHMLF)
@@ -1606,43 +1607,62 @@ def zoneRemovedHandler(evt) {
 }
 
 private requestZoneRefresh() {
-    zoneStatusMapFLD =  [:]
     sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
 }
 
 void checkZoneData() {
     if(!zoneStatusMapFLD) {
         Boolean aa = getTheLock(sHMLF, "getZones")
-        zoneStatusMapFLD.initialized = [a:true]
+
+        Map newField = [:]
+        List zones = getZoneApps()
+        zones?.each { 
+            Map zoneMap = it?.myZoneStatus()
+            String id = zoneMap.id
+            newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, t: now()]
+        }
+        newField.initialized = [a:true]
+        zoneStatusMapFLD = newField
         zoneStatusMapFLD = zoneStatusMapFLD
+
         releaseTheLock(sHMLF)
-        requestZoneRefresh()
+
+        List cApps = getActionApps()
+        if(cApps?.size()) cApps[0].updZones(zoneMap)
     }
 }
 
-public Map getZones() {
+public Map getZones(Boolean chld=false) {
     checkZoneData()
     Map a = zoneStatusMapFLD
+
+    if(!chld) {
+        String i = 'initialized'
+        if(a.containsKey(i))a.remove(i)
+    }
     return a
 }
 
-List getActiveZones() {
-    List zones = getZoneApps()
-    return zones.size() ? zones.findAll { (Boolean)it?.isActive() && !(Boolean)it?.isPaused() } : []
+Map getActiveZones() {
+    Map zones = getZones()
+    return zones.size() ? zones.findAll { (Boolean)it?.value?.active && !(Boolean)it?.value?.paused } : [:]
 }
 
-List getInActiveZones() {
-    List zones = getZoneApps()
-    return zones.size() ? zones.findAll { !(Boolean)it?.isActive() || (Boolean)it?.isPaused() } : []
+Map getInActiveZones() {
+    Map zones = getZones()
+    return zones.size() ? zones.findAll { !(Boolean)it?.value?.active || (Boolean)it?.value?.paused } : [:]
 }
 
-List getActiveZoneNames() {
-    return getActiveZones()?.collect { it.getLabel() }
+List<String> getActiveZoneNames() {
+    Map t0 = getActiveZones()
+    return t0.size() ? t0.collect { (String)it?.value?.name } : []
 }
 
-List getInActiveZoneNames() {
-    return getInActiveZones()?.collect { it.getLabel() }
+List<String> getInActiveZoneNames() {
+    Map t0 = getInActiveZones()
+    return t0.size() ? t0.collect { (String)it?.value?.name } : []
 }
+
 
 List getZoneApps() {
     return getAllChildApps()?.findAll { (String)it?.name == zoneChildName() }
@@ -3663,8 +3683,6 @@ void workQ() {
                         if(cmdItem.command instanceof String){
                             String mcommand = cmdItem.command
                             String type=cmdItem?.cmdType ?: sBLANK
-//                            if(type in ['playAnnouncement', 'sendSpeak', 'AnnouncementAll']) {
-//                                Integer msgLen = ((String)cmdItem?.value)?.length()
                             if(mcommand in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
                                 List<String> valObj = (cmdItem?.value?.toString()?.contains("::")) ? cmdItem.value.split("::") : ["Echo Speaks", (String)cmdItem?.value]
                                 Integer msgLen = valObj[1]?.length()
@@ -3689,7 +3707,6 @@ void workQ() {
 
                 def value = item.value
 
-                //if(command in ['announcement_devices'] && seqList.size() > 0) break // this command runs alone so finish off what we are planning to do
                 if(command in ['announcement_devices'] ) {
                     if(seqList.size() > 0) break // this command runs alone so finish off what we are planning to do
                     seqObj = sequenceBuilder(command, value, deviceData)
@@ -3742,7 +3759,6 @@ void workQ() {
             ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
             msSum += ms
             lmsg.push("workQ ms delay is $msSum")
-            //if(srcDesc == 'ExecuteRoutine' || command in ['announcement_devices']) { break } // runs by itself
             if(seqObj) { break } // runs by itself
             if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
         }
@@ -5527,7 +5543,7 @@ String getZoneDesc() {
     List<String> pZones = inActZones.findAll { it.contains(" (Z ❚❚)") }?.collect { spanSm(" ${sBULLET} ${it.replace(' (Z ❚❚)', sBLANK)}") + spanSm(" (Paused)", sCLRORG) }
     List<String> zones = (actZones + iZones + pZones).sort()
     String str = sBLANK
-    Integer a = zones?.size()
+    Integer a = zones.size()
     str += a ? divSm("${spanSmBldBr("Zone Status:")}${spanSm(zones?.join("<br>"))}", sCLR4D9) : sBLANK
     str += a ? inputFooter(sTTM) : inputFooter("Tap to create alexa device zones based on motion, presence, and other criteria.", sCLRGRY)
     return str
