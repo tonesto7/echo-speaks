@@ -1014,8 +1014,12 @@ void checkZoneStatus(evt) {
     }
 }
 
+Map myZoneStatus(){
+    return [name: app?.getLabel(), active: isActive(), paused: isPaused(), id: app?.getId()]
+}
+
 void sendZoneStatus() {
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data:[name: app?.getLabel(), active: isActive(), paused: isPaused()], isStateChange: true, display: false, displayed: false)
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: myZoneStatus(), isStateChange: true, display: false, displayed: false)
 }
 
 void sendZoneRemoved() {
