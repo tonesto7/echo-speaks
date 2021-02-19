@@ -1659,18 +1659,18 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
         if(volume != null) {
             List mainSeq = []
             devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-            mainSeq.push([command: "announcement_devices", value: msg, cmdType: 'playAnnouncement'])
-/*
+//            mainSeq.push([command: "announcement_devices", value: msg, cmdType: 'playAnnouncement'])
+
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
 
             sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg)
-*/
+
             if(restoreVolume!=null) {
-//                mainSeq = []
+                mainSeq = []
                 devObj.each { dev-> mainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-//                sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeRestore",true)
+                sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeRestore",true)
             }
-            sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
+//            sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
             // log.debug "mainSeq: $mainSeq"
         } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg) }
     }
