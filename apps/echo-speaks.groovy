@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-18"
+@Field static final String appModifiedFLD = "2021-02-19"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -3570,14 +3570,14 @@ void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean paral
     List<Map> newCmds = []
     List<Map> seqCmds = commands
     seqCmds?.each { cmdItem->
-        //log.debug "cmdItem: $cmdItem"
+        // log.debug "cmdItem: $cmdItem"
         if(cmdItem.command instanceof String){
              if((String)cmdItem.command in ['sendspeak']){
                   newCmds = newCmds + msgSeqBuilder((String)cmdItem.value, deviceData+[cmdType:'sendSpeak'])
              } else newCmds.push(cmdItem)
         } else newCmds.push(cmdItem)
     }
-    Map item= [
+    Map item = [
         t: 'multi',
         time: now(),
         commands: newCmds,
@@ -3779,7 +3779,7 @@ void workQ() {
 
         if(seqList.size() > 0 || seqObj) { //seqMap){
 
-            Integer mymin = lastChkSec > 7 ? 1000 : 3000
+            Integer mymin = lastChkSec > 8 ? 1000 : 3000
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
@@ -3795,17 +3795,17 @@ void workQ() {
                 Map seqMap = multiSequenceBuilder(seqList, oldParallel)
                 seqObj = sequenceBuilder(seqMap, null, null)
             }
-
+            
             Map params = [
-                    uri: getAmazonUrl(),
-                    path: "/api/behaviors/preview",
-                    headers: getReqHeaderMap(true),//getCookieMap(),
-                    contentType: sAPPJSON,
-                    timeout: 20,
-                    body: new groovy.json.JsonOutput().toJson(seqObj)
+                uri: getAmazonUrl(),
+                path: "/api/behaviors/preview",
+                headers: getReqHeaderMap(true),
+                contentType: sAPPJSON,
+                timeout: 20,
+                body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-//            log.trace("workQ params: $params extData: $extData")
+           log.trace spanSm("workQ params: $params extData: $extData", sCLRGRN)
 
             try{
                 updTsVal("lastWorkQDt")
@@ -4044,42 +4044,55 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
         switch (lcmd) {
             case "weather":
                 seqNode.type = "Alexa.Weather.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "traffic":
                 seqNode.type = "Alexa.Traffic.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "flashbriefing":
                 seqNode.type = "Alexa.FlashBriefing.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "goodmorning":
                 seqNode.type = "Alexa.GoodMorning.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "goodnight":
                 seqNode.type = "Alexa.GoodNight.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "cleanup":
                 seqNode.type = "Alexa.CleanUp.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "singasong":
                 seqNode.type = "Alexa.SingASong.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "tellstory":
                 seqNode.type = "Alexa.TellStory.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "funfact":
                 seqNode.type = "Alexa.FunFact.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "joke":
                 seqNode.type = "Alexa.Joke.Play"
+                seqNode.skillId = "amzn1.ask.1p.saysomething"
                 break
             case "calendartomorrow":
                 seqNode.type = "Alexa.Calendar.PlayTomorrow"
+                seqNode.skillId = "amzn1.ask.1p.calendar"
                 break
             case "calendartoday":
                 seqNode.type = "Alexa.Calendar.PlayToday"
+                seqNode.skillId = "amzn1.ask.1p.calendar"
                 break
             case "calendarnext":
                 seqNode.type = "Alexa.Calendar.PlayNext"
+                seqNode.skillId = "amzn1.ask.1p.calendar"
                 break
             case "date":
                 seqNode.type = "Alexa.Date.Play"
@@ -4158,6 +4171,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 break
             case "volume":
                 seqNode.type = "Alexa.DeviceControls.Volume"
+                seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
                 seqNode.operationPayload.value = value
                 break
             case "ssml":
@@ -4166,6 +4180,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
             case "announcement_devices":
                 remDevSpecifics = true
                 seqNode.type = "AlexaAnnouncement"
+                seqNode.skillId = "amzn1.ask.1p.routines.messaging"
                 seqNode.operationPayload.expireAfter = "PT5S"
                 List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
@@ -4181,6 +4196,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 if(!(lcmd in ["announcementall", "announcement_devices"])) {
                     seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
                 } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
+                    log.debug spanSm("valObj: ${valObj}", sCLRGRN2)
                     List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
                     seqNode.operationPayload.target.devices = devObjs
                 }
