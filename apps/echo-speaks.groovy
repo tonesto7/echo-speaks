@@ -3570,11 +3570,13 @@ void addToQ(Map item) {
     updMemStoreItem(k, eData)
     releaseTheLock(sHMLF)
 
-    log.debug "addToQ (${item.t}) | CmdMap: ${item.cmdMap}"
-    log.debug "addToQ (${item.t}) | Time: ${item.time}"
-    log.debug "addToQ (${item.t}) | DeviceData: ${item.deviceData}"
-    log.debug "addToQ (${item.t}) | Device: ${item.device}"
-    log.debug "addToQ (${item.t}) | Parallel: ${item.parallel}"
+    if(qsiz == 1) runInMillis(600L, "workQ")
+
+    String t = item.t
+    ['cmdMap', 'time', 'deviceData', 'device', 'callback', 'parallel', 'command', 'value', 'srcDesc', 'type'].each { String s ->
+        def ss = item."${s}"
+        if(ss) log.debug "addToQ (${t}) | ${s}: ${ss}"
+    }
     if(item.commands?.size()) {
         Integer cnt = 1
         item.commands.each { cmd -> 
@@ -3582,10 +3584,6 @@ void addToQ(Map item) {
             cnt++
         }
     }
-    log.debug "addToQ (${item.t}) | Source: ${item.srcDesc}"
-
-    if(qsiz == 1) runInMillis(600L, "workQ")
-//    else workQ()
 }
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
@@ -3628,7 +3626,7 @@ void workQ() {
         Boolean parallel = false
 
         String srcDesc
-        Map seqMap
+        Map seqObj
         String command
 
 // lets try to join commands in single request to Alexa
@@ -3651,7 +3649,8 @@ void workQ() {
                 List<Map> seqCmds = (List<Map>)item.commands
                 if(srcDesc == 'ExecuteRoutine'){
                     if(seqList.size() > 0) break // execute runs by itself
-                    seqMap = seqCmds[0].command
+                    Map seqMap = seqCmds[0].command // already have a sequence map
+                    seqObj = sequenceBuilder(seqMap, null, null)
                 } else {
                     Boolean nparallel = item.parallel
                     parallel = nparallel != null ? nparallel : parallel
@@ -3689,7 +3688,14 @@ void workQ() {
                 command=(String)item.command
 
                 def value = item.value
-                seqList = seqList + [createSequenceNode(command, value, deviceData)]
+
+                //if(command in ['announcement_devices'] && seqList.size() > 0) break // this command runs alone so finish off what we are planning to do
+                if(command in ['announcement_devices'] ) {
+                    if(seqList.size() > 0) break // this command runs alone so finish off what we are planning to do
+                    seqObj = sequenceBuilder(command, value, deviceData)
+                } else {
+                    seqList = seqList + [createSequenceNode(command, value, deviceData)]
+                }
 
                 if(command in ['announcement_devices', 'announcement', 'announcementall']){
                     List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
@@ -3716,17 +3722,17 @@ void workQ() {
                 Boolean isSSML = (cmdMap?.message?.toString()?.startsWith("<speak>") && cmdMap?.message?.toString()?.endsWith("</speak>"))
                 Integer msgLen = ((String)cmdMap.message)?.length()
                 t_extData = [
-                        cmdDt:(cmdMap.cmdDt ?: null),
-                        cmdDesc: (cmdMap.cmdDesc ?: null),
-                        msgLen: msgLen,
-                        isSSML: isSSML,
-                        deviceId: device,
-                        callback: callback,
-                        msgDelay: (cmdMap.msgDelay ?: null),
-                        message: (cmdMap.message ? cmdMap.message : null),
-                        newVolume: (cmdMap.newVolume ?: null),
-                        oldVolume: (cmdMap.oldVolume ?: null),
-                        cmdId: (cmdMap.cmdId ?: null),
+                    cmdDt:(cmdMap.cmdDt ?: null),
+                    cmdDesc: (cmdMap.cmdDesc ?: null),
+                    msgLen: msgLen,
+                    isSSML: isSSML,
+                    deviceId: device,
+                    callback: callback,
+                    msgDelay: (cmdMap.msgDelay ?: null),
+                    message: (cmdMap.message ? cmdMap.message : null),
+                    newVolume: (cmdMap.newVolume ?: null),
+                    oldVolume: (cmdMap.oldVolume ?: null),
+                    cmdId: (cmdMap.cmdId ?: null),
                 ]
             }
             extList.push(t_extData)
@@ -3736,11 +3742,12 @@ void workQ() {
             ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
             msSum += ms
             lmsg.push("workQ ms delay is $msSum")
-            if(srcDesc == 'ExecuteRoutine') { break } // runs by itself
+            //if(srcDesc == 'ExecuteRoutine' || command in ['announcement_devices']) { break } // runs by itself
+            if(seqObj) { break } // runs by itself
             if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
         }
 
-        if(seqList.size() > 0 || seqMap){
+        if(seqList.size() > 0 || seqObj) { //seqMap){
 
             Integer mymin = lastChkSec > 7 ? 1000 : 3000
             msSum = Math.min(240000, Math.max(msSum, mymin))
@@ -3754,10 +3761,10 @@ void workQ() {
 
             extData = extData + [nextOk: nextOk]
 
-            if(srcDesc != 'ExecuteRoutine') {
-                seqMap = multiSequenceBuilder(seqList, oldParallel)
+            if(!seqObj) { //srcDesc != 'ExecuteRoutine') {
+                Map seqMap = multiSequenceBuilder(seqList, oldParallel)
+                seqObj = sequenceBuilder(seqMap, null, null)
             }
-            Map seqObj = sequenceBuilder(seqMap, null, null)
 
             Map params = [
                     uri: getAmazonUrl(),
