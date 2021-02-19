@@ -1651,28 +1651,27 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
 }
 
 def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volume=null, restoreVolume=null) {
-    log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
+    // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
         String devJson = new groovy.json.JsonOutput().toJson(devObj)
-        msg = "${title ?: "Echo Speaks"}::${msg}::${devJson}"
-        // log.debug "sendAnnouncementToDevices | msg: ${msg}"
+// TODO check if message is too big
+        String newmsg = "${title ?: "Echo Speaks"}::${msg}::${devJson}"
+        // log.debug "sendAnnouncementToDevices | msg: ${newmsg}"
         if(volume != null) {
-            List mainSeq1 = []
-            devObj.each { dev-> mainSeq1.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-            mainSeq1.push([command: "announcement_devices", value: msg, cmdType: 'playAnnouncement'])
-            sendMultiSequenceCommand(mainSeq1, "sendAnnouncementToDevices", true)
-            // sendMultiSequenceCommand(mainSeq1, "sendAnnouncementToDevices-VolumeSet", true)
+            List mainSeq = []
+            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+            mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement'])
 
-            // sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg)
+            //sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
+            sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet")
 
             if(restoreVolume!=null) {
-                List mainSeq2 = []
-                devObj.each { dev-> mainSeq2.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-                sendMultiSequenceCommand(mainSeq2, "sendAnnouncementToDevices-VolumeRestore", true)
+                List amainSeq = []
+                devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore",true)
             }
-        //    sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices")
             // log.debug "mainSeq: $mainSeq"
-        } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", msg) }
+        } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg) }
     }
 }
 
