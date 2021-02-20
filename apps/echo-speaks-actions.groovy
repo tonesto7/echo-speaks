@@ -3651,7 +3651,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     if(actZonesSiz) {
                         String mCmd = actType.replaceAll("_tiered", sBLANK)
                         sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        log.debug("Sending Speech Text: (${txt}) to Zones (${activeZones.collect { it?.value?.name }})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                           logDebug("Sending ${mCmd} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
 
                     } else {
                         if(actType in ["speak", "speak_tiered"]) {
