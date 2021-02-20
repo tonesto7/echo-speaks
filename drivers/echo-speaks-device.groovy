@@ -28,6 +28,7 @@ import groovy.transform.Field
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
+@Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
 @Field static final String sTRUE          = 'true'
 @Field static final String sFALSE         = 'false'
@@ -3017,7 +3018,7 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info logPrefix(msg, "#0299b1") } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn logPrefix(sSPACE + msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
 static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
