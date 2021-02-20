@@ -3604,20 +3604,26 @@ void addToQ(Map item) {
     updMemStoreItem(k, eData)
     releaseTheLock(sHMLF)
 
-    if(qsiz == 1) runInMillis(600L, "workQ")
+    if(qsiz == 1) runInMillis(300L, "workQ")
 
+    List<String> lmsg = []
     String t = item.t
+    Boolean fir=true
     ['cmdMap', 'time', 'deviceData', 'device', 'callback', 'parallel', 'command', 'value', 'srcDesc', 'type'].each { String s ->
         def ss = item."${s}"
-        if(ss) log.debug "addToQ (${t}) | ${s}: ${ss}"
+        if(ss) {
+             if(fir) { fir=false; lmsg.push(spanSm("addToQ NEW COMMAND", sCLRGRN2)) }
+             lmsg.push("addToQ (${t}) | ${s}: ${ss}")
+        }
     }
     if(item.commands?.size()) {
         Integer cnt = 1
         item.commands.each { cmd -> 
-            log.debug "addToQ (${item.t}) | Command(${cnt}): ${cmd}"
+            lmsg.push("addToQ (${item.t}) | Command(${cnt}): ${cmd}")
             cnt++
         }
     }
+    lmsg.each { String msg -> log.debug(msg) }
 }
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
@@ -3688,6 +3694,10 @@ void workQ() {
                 } else {
                     Boolean nparallel = item.parallel
                     parallel = nparallel != null ? nparallel : parallel
+
+                    if(oldParallel == null) oldParallel = parallel
+                    if(parallel != oldParallel) { break } // if parallel changes we are done this set of commands
+
                     cmdMap = (Map)item.cmdMap ?: [:]
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
@@ -3717,6 +3727,10 @@ void workQ() {
                 srcDesc = type + "${device ? " from $device" : sBLANK}"
                 Boolean nparallel = item.parallel
                 parallel = nparallel != null ? nparallel : false
+
+                if(oldParallel == null) oldParallel = parallel
+                if(parallel != oldParallel) { break } // if parallel changes we are done this set of commands
+
                 command=(String)item.command
 
                 def value = item.value
@@ -3737,9 +3751,6 @@ void workQ() {
                 else if(type.startsWith('play')) cmdMap = [ msgDelay: 18 ]
                 else if(type.startsWith('say')) cmdMap = [ msgDelay: 3 ]
             }
-
-            if(oldParallel == null) oldParallel = parallel
-            if(parallel != oldParallel) { seqList = svSeqList; break } // if parallel changes we are done this set of commands
 
             Map titem = (Map)eData.remove(0) // pop the command if we are going to do it
             updMemStoreItem(k, eData)
@@ -3779,9 +3790,10 @@ void workQ() {
 
         if(seqList.size() > 0 || seqObj) { //seqMap){
 
-            Integer mymin = lastChkSec > 8 ? 1000 : 3000
+            Integer mymin = lastChkSec > 8 ? 3000 : 3000
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
+            lmsg.push("workQ FINAL ms delay is $msSum")
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
 
             locked = false
@@ -3816,11 +3828,11 @@ void workQ() {
             }
         }
     }
-    Long sec = ((nextOk+500L - (Long)now())/1000L)
+    Long ms = ((nextOk+200L - (Long)now()))
     String mmsg
     if(!active && fnd && now() < nextOk){
-        runIn(sec, "workQ")
-        mmsg = "workQ wakeup requested in $sec seconds"
+        runInMillis(ms, "workQ")
+        mmsg = "workQ wakeup requested in $ms ms ${now()}  ${nextOk}"
     }
     if(locked) releaseTheLock(sHMLF)
     if(mmsg) log.debug(mmsg)
@@ -3922,6 +3934,7 @@ private void sendMultiSequenceCommand(List<Map> commands, String srcDesc, Boolea
 } */
 
 Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
+//log.debug "sequenceBuilder: $cmd   val: $val"
 // this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
     Map seqJson
     if (cmd instanceof Map) {
@@ -3948,7 +3961,7 @@ List multiSequenceListBuilder(List<Map>commands, Map deviceData) {
         //log.debug "multiSequenceListBuilder cmdItem: $cmdItem"
         if(cmdItem.command instanceof String){
             nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem.value,
-                                          [serialNumber: cmdItem?.serialNumber ?: deviceData.serialNumber, deviceType:cmdItem?.deviceType ?: deviceData.deviceType]) )
+                                          [serialNumber: cmdItem?.devSerial ?: deviceData.serialNumber, deviceType:cmdItem?.devType ?: deviceData.deviceType]) )
         } else {
             nodeList.push(cmdItem.command)
         }
@@ -3956,7 +3969,8 @@ List multiSequenceListBuilder(List<Map>commands, Map deviceData) {
     return nodeList
 }
 
-static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
+Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
+//log.debug "multiSequenceBuilder: $nodeList"
 //Map multiSequenceBuilder(List<Map> commands, Boolean parallel=false) {
 //    List nodeList = multiSequenceListBuilder(commands) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
