@@ -3609,13 +3609,13 @@ void addToQ(Map item) {
             cnt++
         }
     }
-    lmsg.each { String msg -> log.debug(msg) }
+    if((Boolean)settings.logDebug) lmsg.each { String msg -> log.debug(msg) }
 }
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
 
 void workQ() {
-    log.trace "running workQ"
+    logTrace "running workQ"
     Boolean locked=false
     String appId=app.getId()
     Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
@@ -3780,7 +3780,7 @@ void workQ() {
             locked = false
             releaseTheLock(sHMLF)
 
-            lmsg.each { String msg -> logInfo(msg) }
+            lmsg.each { String msg -> logDebug(msg) }
 
             extData = extData + [nextOk: nextOk]
 
@@ -3798,7 +3798,7 @@ void workQ() {
                 body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-            log.trace spanSm("workQ params: $params extData: $extData", sCLRGRN)
+            //log.trace spanSm("workQ params: $params extData: $extData", sCLRGRN)
 
 //            updTsVal("lastWorkQDt")
             try{
@@ -3849,7 +3849,7 @@ Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
 
 void finishWorkQ(response, extData){
     String meth = 'finishWorkQ'
-    log.trace "running "+meth
+    logTrace "running "+meth
     Integer statusCode
     def sData
     String respMsg
@@ -4194,7 +4194,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 if(!(lcmd in ["announcementall", "announcement_devices"])) {
                     seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
                 } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
-                    log.debug spanSm("valObj: ${valObj}", sCLRGRN2)
+//                    log.debug spanSm("valObj: ${valObj}", sCLRGRN2)
                     List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
                     seqNode.operationPayload.target.devices = devObjs
                 }
