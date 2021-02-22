@@ -2546,8 +2546,8 @@ private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
     }
 
     Integer msgLen = ((String)cmdMap.message)?.length()
-    Integer recheckDelay = getRecheckDelay(msgLen)
-    cmdMap["msgDelay"] = recheckDelay
+//    Integer recheckDelay = getRecheckDelay(msgLen)
+//    cmdMap["msgDelay"] = recheckDelay
     Random random = new Random()
     Integer randCmdId = random.nextInt(300)
     cmdMap["cmdId"] = randCmdId
@@ -2683,7 +2683,7 @@ def executeSequenceCommand(String seqStr) {
             Speech Queue Logic
 *******************************************************************/
 
-Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
+/*Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     if(!msgLen) { return 30 }
     Integer twd = ttsWordDelay ? ttsWordDelay?.toInteger() : 2
     Integer v = (msgLen <= 14 ? 1 : (msgLen / 14)) * twd
@@ -2696,22 +2696,8 @@ Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
     }
     logTrace("getRecheckDelay($msgLen) | res:$res | twd: $twd | delay: $v ${addRandom ? '+ '+randomInt.toString() : sBLANK}")
     return res //+2
-}
-
-//Integer getLastTtsCmdSec() { return !state.lastTtsCmdDt ? 1000 : GetTimeDiffSeconds((String)state.lastTtsCmdDt).toInteger() }
-//Integer getLastQueueCheckSec() { return !state.q_lastCheckDt ? 1000 : GetTimeDiffSeconds((String)state.q_lastCheckDt).toInteger() }
-//Integer getCmdExecutionSec(String timeVal) { return !timeVal ? null : GetTimeDiffSeconds(timeVal).toInteger() }
-
-/*private Integer getQueueSize() {
-    Map cmdQueue = ((Map<String,Object>)state).findAll { it?.key?.toString()?.startsWith("qItem_") }
-    Integer t0 = cmdQueue.size()
-    return (t0 ?: 0)
-}
-
-private String getQueueSizeStr() {
-    Integer size = getQueueSize()
-    return "($size) Item${size>1 || size==0 ? "s" : sBLANK}"
 } */
+
 
 private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=true) {
     if(t && ll?.size() && settings?.logDebug) {
@@ -2768,112 +2754,18 @@ void resetQueue(String src=sBLANK) {
     state.q_lastMsg = null */
 }
 
-//Integer getNextQueueIndex() { return state.q_cmdIndexNum ? (Integer)state.q_cmdIndexNum+1 : 1 }
-//Integer getCurrentQueueIndex() { return (Integer)state.q_cmdIndexNum ?: 1 }
 String getAmazonDomain() { return (String)state.amazonDomain ?: (String)parent?.settings?.amazonDomain } // does this work for parent call on HE?
 String getAmazonUrl() {return "https://alexa.${getAmazonDomain()}".toString() }
-//Map getQueueItems() { return ((Map<String,Object>)state).findAll { it?.key?.toString()?.startsWith("qItem_") } }
-/*
-private void queueCheckSchedHealth() {
-    Integer cmdCnt = (Integer)state.q_cmdCycleCnt
-    Integer lastChk = getLastQueueCheckSec()
-    Integer qSize = getQueueSize()
-    logDebug("queueCheckSchedHealth | Qsize: ${qSize} | LastChk: ${lastChk}")
-    if(qSize >= 2 && lastChk > 120) {
-        schedQueueCheck(4, true, null, "queueCheck(missed schedule)")
-        logDebug("queueCheck | Scheduling Queue Check for (4 sec) | Possible Lost Recheck Schedule")
-    }
-}
-
-private void schedQueueCheck(Integer delay=30, Boolean overwrite=true, data=null, String src) {
-    Map opts = [:]
-    opts["overwrite"] = overwrite
-    if(data) { opts["data"] = data }
-    runIn(delay, "queueCheck", opts)
-    state.q_recheckScheduled = true
-    logDebug("Scheduled Queue Check for (${delay}sec) | Overwrite: (${overwrite}) | q_recheckScheduled: (${(Boolean)state.q_recheckScheduled}) | Source: (${src})")
-} */
-
-/*
-            //queueEchoCmd("Speak", msgLen, headers, body, isFirstCmd)
-public void queueEchoCmd(String type, Integer msgLen, Map headers, body=null, Boolean firstRun=false) {
-    Integer qSize = getQueueSize()
-    if((Boolean)state.q_blocked) { log.warn "│ Queue Temporarily Blocked (${qSize} Items): | Working: (${(Boolean)state.q_cmdWorking}) | Recheck: (${(Boolean)state.q_recheckScheduled})"; return }
-    List<String> logItems = []
-    Map dupItems = state?.findAll { it?.key?.toString()?.startsWith("qItem_") && it?.value?.type == type && it?.value?.headers && it?.value?.headers?.message == headers.message }
-    logItems.push("│ Queue Active: (${(Boolean)state.q_cmdWorking}) | Recheck: (${(Boolean)state.q_recheckScheduled}) ".toString())
-    if(dupItems?.size()) {
-        if(headers.message) { logItems.push("│ Message(${msgLen} char): ${headers.message?.take(190)?.trim()}${msgLen > 190 ? "..." : sBLANK}".toString()) }
-        logItems.push("│ Ignoring (${headers.cmdType}) Command... It Already Exists in QUEUE!!!".toString())
-        logItems.push("┌────────── Echo Queue Warning ──────────")
-        processLogItems("warn", logItems, true, true)
-        return
-    }
-    Integer qIndNum = getNextQueueIndex()
-    // log.debug "qIndexNum: $qIndNum"
-    state.q_cmdIndexNum = qIndNum
-    headers.qId = qIndNum
-    state."qItem_${qIndNum}" = [type: type, headers: headers, body: body, newVolume: (headers.newVolume ?: null), oldVolume: (headers.oldVolume ?: null)]
-    state.newVolume = null
-    state.oldVolume = null
-    if(headers.volume)  {  logItems.push("│ Volume (${headers.volume})".toString()) }
-    if(headers.message) {  logItems.push("│ Message(Len: ${headers.message?.toString()?.length()}): ${headers.message?.take(200)?.trim()}${headers.message?.toString()?.length() > 200 ? "..." : sBLANK}".toString()) }
-    if(headers.cmdType) {  logItems.push("│ CmdType: (${headers.cmdType})".toString()) }
-                            logItems.push("┌───── Added Echo Queue Item (${(Integer)state.q_cmdIndexNum}) ─────".toString())
-    // queueCheckSchedHealth()
-    if(!firstRun) {
-        processLogItems("trace", logItems, false, true)
-    }
-}
-*/
 private void queueCheck(data) {
     return
 }
 
 void processCmdQueue() {
 }
-/*
-Integer getAdjCmdDelay(Integer elap, Integer reqDelay) {
-    if((elap >= 0) && (reqDelay >= 0)) {
-        Integer res = (elap - reqDelay)?.abs()
-        logTrace("getAdjCmdDelay | reqDelay: $reqDelay | elap: $elap | del: ${res < 3 ? 3 : res+3}")
-        return res < 3 ? 3 : res+3
-    }
-    return reqDelay //del
-} */
 
 def testMultiCmd() {
     sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
 }
-/*
-private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
-
-    if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
-    String healthStatus = getHealthStatus()
-    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }
-
-    if(settings.logTrace){
-        String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${cmdMap.message}"
-        tr += cmdMap.newVolume ? " | SetVolume: (${cmdMap.newVolume})" :sBLANK
-        tr += cmdMap.oldVolume ? " | Restore Volume: (${cmdMap.oldVolume})" :sBLANK
-        tr += cmdMap.msgDelay  ? " | RecheckSeconds: (${(Integer)cmdMap.msgDelay})" :sBLANK
-        tr += cmdMap.cmdDt     ? " | CmdDt: (${cmdMap.cmdDt})" :sBLANK
-        logTrace("${tr}")
-    }
-
-    // cmdMap?.message = cleanString(cmdMap?.message)
-    Integer msgLen = ((String)cmdMap.message)?.length()
-    Integer recheckDelay = getRecheckDelay(msgLen)
-    cmdMap["msgDelay"] = recheckDelay
-    Random random = new Random()
-    Integer randCmdId = random.nextInt(300)
-    cmdMap["cmdId"] = randCmdId
-    cmdMap["serialNumber"] = (String)state.serialNumber
-    cmdMap["deviceType"] = (String)state.deviceType
-
-//private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false) {
-    parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
-} */
 
 def finishSendSpeak(Map resp, Integer statusCode, Map data){
     postCmdProcess(resp, statusCode, data)
@@ -2885,10 +2777,6 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
         String respMsgLow = respMsg ? respMsg?.toLowerCase() : sNULL
         if(statusCode == 200) {
             Long execTime = (Long)data.cmdDt ? (now()-(Long)data.cmdDt) : 0L
-/*            if((String)data.queueKey) {
-                logDebug("Command Completed | Removing Queue Item: ${data.queueKey}")
-                state.remove((String)data.queueKey)
-            } */
             if ((Boolean)settings.logInfo != false) {
                 String pi = data.cmdDesc ?: "Command"
                 pi += data.isSSML ? " (SSML)" :sBLANK
@@ -2898,8 +2786,6 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
                 pi += data.msgDelay ? " | Expected Runtime: (${(Integer)data.msgDelay} sec)" :sBLANK
                 pi += execTime ? " | Execution Time: (${execTime}ms)" : sBLANK
                 pi += (Boolean)settings.logDebug && data.amznReqId ? " | Amazon Request ID: ${data.amznReqId}" :sBLANK
-//                pi += (Boolean)settings.logDebug && data.qId ? " | QueueID: (${data.qId})" :sBLANK
-//                pi += " | QueueItems: (${getQueueSize()})"
                 logInfo(pi)
             }
 
@@ -2919,19 +2805,16 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
                 case "rate exceeded":
                     Integer rDelay = 3
                     logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
-//                    schedQueueCheck(rDelay, true, [rateLimited: true, delay: (Integer)data.msgDelay], "postCmdProcess(Rate-Limited)")
                     break
                 case "too many requests":
                     Integer rDelay = 5
                     logWarn("You've sent too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
-//                    schedQueueCheck(rDelay, true, [rateLimited: false, delay: (Integer)data.msgDelay], "postCmdProcess(Too-Many-Requests)")
                     break
             }
             logSpeech((String)data?.message, statusCode, respMsg)
         } else {
             logError("postCmdProcess Error | status: ${statusCode} | Msg: ${respMsg}")
             logSpeech((String)data?.message, statusCode, respMsg)
-//            resetQueue("postCmdProcess | Error")
         }
     }
 }
@@ -3088,228 +2971,6 @@ public Map getDeviceMetrics() {
     }
     return out
 }
-/*
-Map sequenceBuilder(cmd, val) {
-    Map seqJson
-    if (cmd instanceof Map) {
-        seqJson = (Map)cmd?.sequence ?: cmd
-    } else { seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": createSequenceNode(cmd, val)] }
-    Map seqObj = [behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"), sequenceJson: new groovy.json.JsonOutput().toJson(seqJson) as String, status: "ENABLED"]
-    return seqObj
-}
-
-Map multiSequenceBuilder(List commands, Boolean parallel=false) {
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    List nodeList = []
-    commands.each { cmdItem-> nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem.value)) }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    Map seqObj = sequenceBuilder(seqJson, null)
-    return seqObj
-}
-
-Map createSequenceNode(String command, value, String devType=sNULL, String devSerial=sNULL) {
-    try {
-        Boolean remDevSpecifics = false
-        Map seqNode = [
-            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
-            "operationPayload": [
-                "deviceType": devType ?: (String)state.deviceType,
-                "deviceSerialNumber": devSerial ?: (String)state.serialNumber,
-                "locale": ((String)state.regionLocale ?: "en-US"),
-                "customerId": (String)state.deviceOwnerCustomerId
-            ]
-        ]
-        String lcmd = command.toLowerCase()
-        switch (lcmd) {
-            case "weather":
-                seqNode.type = "Alexa.Weather.Play"
-                break
-            case "traffic":
-                seqNode.type = "Alexa.Traffic.Play"
-                break
-            case "flashbriefing":
-                seqNode.type = "Alexa.FlashBriefing.Play"
-                break
-            case "goodmorning":
-                seqNode.type = "Alexa.GoodMorning.Play"
-                break
-            case "goodnight":
-                seqNode.type = "Alexa.GoodNight.Play"
-                break
-            case "cleanup":
-                seqNode.type = "Alexa.CleanUp.Play"
-                break
-            case "singasong":
-                seqNode.type = "Alexa.SingASong.Play"
-                break
-            case "tellstory":
-                seqNode.type = "Alexa.TellStory.Play"
-                break
-            case "funfact":
-                seqNode.type = "Alexa.FunFact.Play"
-                break
-            case "joke":
-                seqNode.type = "Alexa.Joke.Play"
-                break
-            case "calendartomorrow":
-                seqNode.type = "Alexa.Calendar.PlayTomorrow"
-                break
-            case "calendartoday":
-                seqNode.type = "Alexa.Calendar.PlayToday"
-                break
-            case "calendarnext":
-                seqNode.type = "Alexa.Calendar.PlayNext"
-                break
-            case "date":
-                seqNode.type = "Alexa.Date.Play"
-                seqNode.skillId = "amzn1.ask.1p.dateandtime"
-                break
-            case "time":
-                seqNode.type = "Alexa.Time.Play"
-                seqNode.skillId = "amzn1.ask.1p.dateandtime"
-                break
-            case "stop":
-                remDevSpecifics = true
-                seqNode.type = "Alexa.DeviceControls.Stop"
-                seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
-                seqNode.operationPayload.devices = [ [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber] ]
-                seqNode.operationPayload.isAssociatedDevice = false
-                break
-            case "stopalldevices":
-                remDevSpecifics = true
-                seqNode.type = "Alexa.DeviceControls.Stop"
-                seqNode.operationPayload?.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
-                seqNode.operationPayload?.isAssociatedDevice = false
-                break
-            case "cannedtts_random":
-            case "cannedtts":
-                String sval = value.toString()
-                List<String> okVals = ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
-                if(!(sval in okVals)) { return null }
-                seqNode.type = "Alexa.CannedTts.Speak"
-                if(lcmd == 'cannedtts_random'){
-                    seqNode.operationPayload?.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${sval/alexa.cannedtts.speak.curatedtts-random"
-                } else {
-                    List<String> valObj = (sval?.contains("::")) ? sval.split("::") : [sval, sval]
-                    seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
-                }
-                break
-//            case "cannedtts":
-//                List okVals = ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
-//                if(!(value in okVals)) { return null }
-//                seqNode.type = "Alexa.CannedTts.Speak"
-//                List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : [value as String, value as String]
-//                seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
-//                break
-            case "sound":
-                String sndName =sBLANK
-                if(value?.startsWith("amzn_sfx_")) {
-                    sndName = value
-                } else {
-                    Map sounds = (Map)parent?.getAvailableSounds()
-                    if(!(sounds[value])) { return null }
-                    sndName = sounds[value]
-                }
-                seqNode.type = "Alexa.Sound"
-                seqNode.operationPayload.soundStringId = sndName
-                break
-            case "wait":
-                remDevSpecifics = true
-                seqNode.operationPayload?.remove('customerId')
-                seqNode.type = "Alexa.System.Wait"
-                seqNode.operationPayload.waitTimeInSeconds = value?.toInteger() ?: 5
-                break
-            case "volume":
-                seqNode.type = "Alexa.DeviceControls.Volume"
-                seqNode.operationPayload.value = value
-                break
-            case "dnd_duration":
-            case "dnd_time":
-            case "dnd_all_duration":
-            case "dnd_all_time":
-                remDevSpecifics = true
-                seqNode.type = "Alexa.DeviceControls.DoNotDisturb"
-                seqNode.skillId = "amzn1.ask.1p.alexadevicecontrols"
-                seqNode.operationPayload?.customerId = (String)state.deviceOwnerCustomerId
-                if(command == "dnd_all_time" || command == "dnd_all_duration") {
-                    seqNode.operationPayload?.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
-                }
-                if(command == "dnd_time" || command == "dnd_duration") {
-                    seqNode.operationPayload?.devices = [ [deviceAccountId: (String)state.deviceAccountId, deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber] ]
-                }
-                seqNode?.operationPayload?.action = "Enable"
-                if(command == "dnd_time" || command == "dnd_all_time") {
-                    seqNode.operationPayload?.until = "TIME#T${value}"
-                } else if (command == "dnd_duration" || command == "dnd_all_duration") { seqNode?.operationPayload?.duration = "DURATION#PT${value}" }
-                seqNode.operationPayload?.timeZoneId = "America/Detroit" //location?.timeZone?.ID ?: null
-                break
-            case "speak":
-                seqNode.type = "Alexa.Speak"
-                value = cleanString(value.toString())
-                seqNode.operationPayload.textToSpeak = (String)value
-                break
-            case "ssml":
-            case "announcement":
-            case "announcementall":
-            case "announcement_devices":
-                remDevSpecifics = true
-                seqNode.type = "AlexaAnnouncement"
-                seqNode.operationPayload.expireAfter = "PT5S"
-                List valObj = (value?.toString()?.contains("::")) ? value?.split("::") : ["Echo Speaks", value as String]
-                // log.debug "valObj(size: ${valObj?.size()}): $valObj"
-                // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
-                // log.debug "valObj[1]: ${valObj[1]}"
-                seqNode.operationPayload.content = [[ locale: ((String)state.regionLocale ?: "en-US"), display: [ title: valObj[0], body: valObj[1]?.toString().replaceAll(/<[^>]+>/, '') ], speak: [ type: (command == "ssml" ? "ssml" : "text"), value: valObj[1] as String ] ] ]
-                seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
-                if(!(command in ["announcementall", "announcement_devices"])) {
-                    seqNode.operationPayload.target.devices = [ [ deviceTypeId: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ] ]
-                } else if(command == "announcement_devices" && valObj?.size() && valObj[2] != null) {
-                    List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
-                    seqNode.operationPayload.target.devices = devObjs
-                }
-                break
-            case "pushnotification":
-                remDevSpecifics = true
-                seqNode.type = "Alexa.Notifications.SendMobilePush"
-                seqNode.skillId = "amzn1.ask.1p.alexanotifications"
-                seqNode.operationPayload.notificationMessage = value as String
-                seqNode.operationPayload.alexaUrl = "#v2/behaviors"
-                seqNode.operationPayload.title = "Echo Speaks"
-                seqNode.operationPayload.remove("deviceType")
-                seqNode.operationPayload.remove("deviceSerialNumber")
-                seqNode.operationPayload.remove("locale")
-                break
-            case "email":
-                seqNode.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"
-                seqNode.skillId = "amzn1.ask.1p.email"
-                seqNode.operationPayload.targetDevice = [deviceType: (String)state.deviceType, deviceSerialNumber: (String)state.serialNumber ]
-                seqNode.operationPayload.connectionRequest = [uri: "connection://AMAZON.Read.EmailSummary/amzn1.alexa-speechlet-client.DOMAIN:ALEXA_CONNECT", input: [:] ]
-                seqNode.operationPayload.remove('deviceType')
-                seqNode.operationPayload.remove('deviceSerialNumber')
-                break
-            case "goodnews":
-                seqNode.type = "Alexa.GoodNews.Play"
-                seqNode.skillId = "amzn1.ask.1p.goodnews"
-                break
-            case "voicecmdtxt":
-                seqNode.type = "Alexa.TextCommand"
-                seqNode.skillId = "amzn1.ask.1p.tellalexa"
-                seqNode.operationPayload.text = value.toString()
-                break
-            default:
-                return null
-        }
-        if(remDevSpecifics) {
-            seqNode.operationPayload.remove('deviceType')
-            seqNode.operationPayload.remove('deviceSerialNumber')
-            seqNode.operationPayload.remove('locale')
-        }
-        return seqNode
-    } catch (ex) {
-        logError("createSequenceNode Exception: ${ex}")
-        return [:]
-    }
-}*/
 
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
