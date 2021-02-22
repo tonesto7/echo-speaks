@@ -2044,6 +2044,7 @@ def initialize() {
         logInfo(dupMSGFLD)
         return
     }
+    fixDeviceInputs()
     unsubscribe()
     unschedule()
     state.isInstalled = true
