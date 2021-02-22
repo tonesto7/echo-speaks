@@ -1507,7 +1507,7 @@ def actionsPage() {
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
                 actionExecMap.config.zoneVolume = getZoneVolumeMap()
-                log.debug "zoneVolume: ${actionExecMap.config.zoneVolume}"
+                // log.debug "zoneVolume: ${actionExecMap.config.zoneVolume}"
                 actionExecMap.delay = settings.act_delay
                 actionExecMap.configured = true
                 actionCleanup()
@@ -3395,7 +3395,6 @@ Map getRandomTrigEvt() {
         evt = [ name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
     }
     if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
-    log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 
@@ -4922,6 +4921,21 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     }
     releaseTheLock(sHMLF)
 }
+
+public Map getLogConfigs() {
+    return [
+        info: (Boolean) settings.logInfo,
+        warn: (Boolean) settings.logWarn,
+        error: (Boolean) settings.logError,
+        debug: (Boolean) settings.logDebug,
+        trace: (Boolean) settings.logTrace,
+    ]
+}
+
+public void enableDebugLog() { settingUpdate("logDebug", sTRUE, sBOOL); logInfo("Debug Logs Enabled From Main App..."); }
+public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInfo("Debug Logs Disabled From Main App..."); }
+public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App..."); }
+public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App..."); }
 
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE + logPrefix(msg, "#0299b1") } }

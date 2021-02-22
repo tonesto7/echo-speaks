@@ -836,9 +836,20 @@ def settingsPage() {
             input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
             input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
         }
+
+        // if(devModeFLD) {
+        section(sectHead("Child Logging:")) {
+            input "childAppLogDebug", sBOOL, title: inTS1("Enable Debug Logs for All Child Apps?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
+            input "childAppLogTrace", sBOOL, title: inTS1("Enable Trace Logs for All Child Apps?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
+            input "childDeviceLogDebug", sBOOL, title: inTS1("Enable Debug Logs for All Child Devices?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
+            input "childDeviceLogTrace", sBOOL, title: inTS1("Enable Trace Logs for All Child Devices?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
+            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) { activateChildAdvLogs() }
+        }
+        // }
+
         if(advLogsActive()) { logsEnabled() }
         section(sectHead("Text Transforms:")) {
-            input "disableTextTransform", sBOOL, title: "Disable Text Transform?", description: "This will disable attempts to convert items in text like temp units and directions like `WSW` to west southwest", required: false, defaultValue: false, submitOnChange: true
+            input "disableTextTransform", sBOOL, title: inTS1("Disable Text Transform?", "question"), description: "This will disable attempts to convert items in speech text like temp units and directions like `WSW` to west southwest", required: false, defaultValue: false, submitOnChange: true
         }
         showDevSharePrefs()
         section(sectHead("Diagnostic Data:")) {
@@ -4290,7 +4301,7 @@ void healthCheck() {
     missPollNotify((Boolean)settings.sendMissedPollMsg, (settings.misPollNotifyMsgWaitVal as Integer ?: 3600))
 }
 
-Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
+Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace || (Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) }
 public void logsEnabled() { if(advLogsActive() && !getTsVal("logsEnabled")) { logTrace("enabling logging timer"); updTsVal("logsEnabled") } }
 public void logsDisable() {
     if(advLogsActive()) {
@@ -4298,10 +4309,52 @@ public void logsDisable() {
         if(dtSec && (dtSec > 3600*6)) {
             settingUpdate("logDebug", sFALSE, sBOOL)
             settingUpdate("logTrace", sFALSE, sBOOL)
+            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) {
+                settingUpdate("childAppLogDebug", sFALSE, sBOOL)
+                settingUpdate("childAppLogTrace", sFALSE, sBOOL)
+                settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
+                settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
+                // runIn('disableAdvChldLogs', 12)
+            }
             remTsVal("logsEnabled")
             log.debug "Disabling debug logs"
         }
     }
+}
+
+public void activateChildAdvLogs() {
+    if((Boolean)settings.childAppLogDebug) {
+        settingUpdate("childAppLogDebug", sFALSE, sBOOL)
+        manAllZonesDbgLogs(true)
+        manAllActsDbgLogs(true)
+    }
+    if((Boolean)settings.childAppLogTrace) {
+        settingUpdate("childAppLogTrace", sFALSE, sBOOL)
+        manAllZonesTrcLogs(true)
+        manAllActsTrcLogs(true)
+    }
+    if((Boolean)settings.childDeviceLogDebug) {
+        settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
+        manAllEchosDbgLogs(true)
+    }
+    if((Boolean)settings.childDeviceLogTrace) {
+        settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
+        manAllEchosTrcLogs(true)
+    }
+}
+
+private void manAllZonesDbgLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
+private void manAllZonesTrcLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
+private void manAllActsDbgLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
+private void manAllActsTrcLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
+private void manAllEchosDbgLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
+private void manAllEchosTrcLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
+
+
+private void disableAdvChldLogs() {
+    getActionApps()?.each { ca-> ca?.logsDisable() }
+    getZoneApps()?.each { ca-> ca?.logsDisable() }
+    getChildDevices()?.each { cd-> cd?.logsOff() }
 }
 
 void missPollNotify(Boolean on, Integer wait) {
@@ -4333,9 +4386,6 @@ void missPollNotify(Boolean on, Integer wait) {
                 return
             }
         }
-/*        if((Boolean)state.authValid) {
-            (getChildDevices())?.each { cd-> cd?.sendEvent(name: "DeviceWatch-DeviceStatus", value: "offline", displayed: true, isStateChange: true) }
-        } */
     }
 }
 
@@ -4664,7 +4714,11 @@ void processFirebaseResponse(resp, Map data) {
 
 def renderMetricData() {
     try {
-        String json = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
+        String jsonIn = createMetricsDataJson()
+        String json = "Not Data Found"
+        if(jsonIn) {
+            json = new groovy.json.JsonOutput().prettyPrint(jsonIn)
+        }
         render contentType: sAPPJSON, data: json, status: 200
     } catch (ex) { logError("renderMetricData Exception: ${ex}", false, ex) }
 }
@@ -4676,7 +4730,7 @@ private Map getSkippedDevsAnon() {
     return res
 }
 
-String createMetricsDataJson() {
+private String createMetricsDataJson() {
     try {
         generateGuid()
         Map swVer = (Map)state.codeVersions
@@ -4684,14 +4738,14 @@ String createMetricsDataJson() {
         Map deviceErrorMap = [:]
         getChildDevices()?.each { d->
             Map obj = d?.getDeviceMetrics()
-            if(obj?.usage?.size()) { obj?.usage?.each { k,v-> deviceUsageMap[k as String] = (deviceUsageMap[k as String] ? deviceUsageMap[k as String] + v : v) } }
-            if(obj?.errors?.size()) { obj?.errors?.each { k,v-> deviceErrorMap[k as String] = (deviceErrorMap[k as String] ? deviceErrorMap[k as String] + v : v) } }
+            if(obj?.usage?.size()) { obj?.usage?.each { String k, v-> deviceUsageMap[k] = (deviceUsageMap[k] ? deviceUsageMap[k] + v : v) } }
+            if(obj?.errors?.size()) { obj?.errors?.each { String k, v-> deviceErrorMap[k] = (deviceErrorMap[k] ? deviceErrorMap[k] + v : v) } }
         }
         Map actData = [:]
-        def actCnt = 0
+        Integer actCnt = 0
         getActionApps()?.each { a-> actData[actCnt] = a?.getActionMetrics(); actCnt++ }
         Map zoneData = [:]
-        def zoneCnt = 0
+        Integer zoneCnt = 0
         getZoneApps()?.each { a-> zoneData[zoneCnt] = a?.getZoneMetrics(); zoneCnt++ }
         Map dataObj = [
             guid: (String)state.appGuid,
@@ -4717,7 +4771,9 @@ String createMetricsDataJson() {
                 deviceUsage: deviceUsageMap ?: [:]
             ]
         ]
+        
         String json = new groovy.json.JsonOutput().toJson(dataObj)
+        log.debug "dataObj: $dataObj"
         return json
     } catch (ex) {
         logError("createMetricsDataJson: Exception: ${ex}", false, ex)
@@ -4727,7 +4783,6 @@ String createMetricsDataJson() {
 void incrementCntByKey(String key) {
     Long evtCnt = (Long)state."${key}"
     evtCnt = evtCnt != null ? evtCnt : 0L
-    // evtCnt = evtCnt?.toLong()+1
     evtCnt++
     // logTrace("${key?.toString()?.capitalize()}: $evtCnt", true)
     state."${key}" = evtCnt
@@ -4863,10 +4918,6 @@ static Map getAvailableSounds() {
 /******************************************
 |    Diagnostic Data
 *******************************************/
-
-//ERS
-//@Field volatile static Map<String,Map> echoDeviceMapFLD  = [:]
-//@Field volatile static Map<String,Map> devActivityMapFLD = [:]
 
 private getDiagDataJson(Boolean asObj = false) {
     try {
@@ -5042,7 +5093,7 @@ private getDiagDataJson(Boolean asObj = false) {
 private getDiagDataText() {
     String jsonIn = getDiagDataJson(true)
     if(jsonIn) {
-        String o = new groovy.json.JsonOutput().prettyPrint(createMetricsDataJson())
+        String o = new groovy.json.JsonOutput().prettyPrint(jsonIn)
         render contentType: "text/plain", data: o, status: 200
     }
 }
