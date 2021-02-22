@@ -64,8 +64,7 @@ import groovy.transform.Field
 @Field static final String sSWITCH        = 'switch'
 @Field static final String sCHKBOX        = 'checkbox'
 @Field static final String sCOMMAND       = 'command'
-
-@Field static final String zoneHisFLD    = 'zoneHistory'
+@Field static final String zoneHistFLD    = 'zoneHistory'
 
 static String appVersion()  { return appVersionFLD }
 
@@ -100,9 +99,7 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            List aa = settings.zone_EchoDevices
-            List devIt = aa.collect { it ? it.toInteger() : null }
-            app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
+            fixDeviceInputs()
             return (minVersionFailed()) ? codeUpdatePage() : mainPage()
         }
     } else { return uhOhPage() }
@@ -208,9 +205,7 @@ private echoDevicesInputByPerm(String type) {
         Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
         input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: spanSm("Select the devices", sCLRGRY), options: moptions, multiple: true, required: true, submitOnChange: true
 
-        List aa = settings.zone_EchoDevices
-        List devIt = aa.collect { it ? it.toInteger() : null }
-        app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIt.unique()]) // this won't take effect until next execution
+        fixDeviceInputs()
     } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
 }
 
@@ -219,11 +214,11 @@ def zoneHistoryPage() {
         section() {
             getZoneHistory()
         }
-        List eData = (List)getMemStoreItem(zoneHisFLD) ?: []
+        List eData = (List)getMemStoreItem(zoneHistFLD) ?: []
         if(eData.size()) {
             section(sBLANK) {
                 input "clearZoneHistory", sBOOL, title: inTS1("Clear Zone History?", sRESET), description: spanSm("Clears Stored Zone History.", sCLRGRY), defaultValue: false, submitOnChange: true
-                if(settings.clearZoneHistory) { settingUpdate("clearZoneHistory", sFALSE, sBOOL); updMemStoreItem(zoneHisFLD, []) }
+                if(settings.clearZoneHistory) { settingUpdate("clearZoneHistory", sFALSE, sBOOL); updMemStoreItem(zoneHistFLD, []) }
             }
         }
     }
@@ -256,6 +251,21 @@ def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section(sBLANK) { paragraph spanSmBld("This will delete this Echo Speaks Zone.", sCLRORG) }
     }
+}
+
+private void fixDeviceInputs() {
+    List aa = settings.zone_EchoDevices
+    List devIds = []
+    Boolean updList = false
+    try {
+        updList = (aa.size() && aa[0].id != null)
+        devIds = aa.collect { it?.id } 
+    } catch (ex) {
+        // log.debug "ex: $ex"
+        devIds = aa.collect { it?.toInteger() } 
+    }
+    if(updList) app.updateSetting( "zone_EchoDevices", [type: "enum", value: devIds.unique()])
+    if(devIds) app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIds.unique()]) // this won't take effect until next execution
 }
 
 /******************************************************************************
@@ -987,11 +997,11 @@ def zoneStartHandler(evt) {
 
 private void addToZoneHistory(Map evt, Map condStatus, Integer max=10) {
     Boolean ssOk = true //(stateSizePerc() <= 70)
-    List eData = getMemStoreItem(zoneHisFLD) ?: []
+    List eData = getMemStoreItem(zoneHistFLD) ?: []
     eData.push([dt: getDtNow(), active: (condStatus.ok == true), evtName: evt.name, evtDevice: evt.displayName, blocks: condStatus.blocks, passed: condStatus.passed])
     Integer lsiz = eData.size()
     if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max)+1 ) }
-    updMemStoreItem(zoneHisFLD, eData)
+    updMemStoreItem(zoneHistFLD, eData)
 }
 
 void checkZoneStatus(evt) {
@@ -1058,7 +1068,7 @@ void updateZoneStatus(Map data) {
 }
 
 public getZoneHistory(Boolean asObj=false) {
-    List<Map> zHist = (List)getMemStoreItem(zoneHisFLD) ?: []
+    List<Map> zHist = (List)getMemStoreItem(zoneHistFLD) ?: []
     List<String> output = []
     if(zHist?.size()) {
         zHist.each { h->
@@ -1420,6 +1430,11 @@ public void logsDisable() {
         }
     }
 }
+
+public void enableDebugLog() { settingUpdate("logDebug", sTRUE, sBOOL); logInfo("Debug Logs Enabled From Main App..."); }
+public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInfo("Debug Logs Disabled From Main App..."); }
+public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App..."); }
+public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App..."); }
 
 @Field volatile static Map<String,Map> tsDtMapFLD=[:]
 
@@ -1908,6 +1923,16 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     Integer lsiz = eData.size()
     if(!ssOk || lsiz > max) { eData = eData?.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
+}
+
+public Map getLogConfigs() {
+    return [
+        info: (Boolean) settings.logInfo,
+        warn: (Boolean) settings.logWarn,
+        error: (Boolean) settings.logError,
+        debug: (Boolean) settings.logDebug,
+        trace: (Boolean) settings.logTrace,
+    ]
 }
 
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }

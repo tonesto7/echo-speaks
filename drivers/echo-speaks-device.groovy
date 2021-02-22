@@ -187,12 +187,12 @@ metadata {
             input "logTrace", "bool", title: "Show Detailed Logs?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false
             input "ignoreTimeoutErrors", "bool", required: false, title: "Don't show errors in the logs for request timeouts?", description: sBLANK, defaultValue: true
 
-            input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
+            // input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "sendDevNotifAsAnnouncement", "bool", required: false, title: "Send Device Notifications as Announcements?", description: sBLANK, defaultValue: false
 // maxVolume not used
 //            input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
-            input "ttsWordDelay", "number", required: true, title: "Speech queue delay (per 14 characters)", description: "Default - 2 second delay per every 14 characters.", defaultValue: 2
-            input "autoResetQueue", "number", required: false, title: "Auto reset queue (xx seconds) after last speak command", description: "This will reset the queue 180 seconds after last message sent.", defaultValue: 180
+            // input "ttsWordDelay", "number", required: true, title: "Speech queue delay (per 14 characters)", description: "Default - 2 second delay per every 14 characters.", defaultValue: 2
+            // input "autoResetQueue", "number", required: false, title: "Auto reset queue (xx seconds) after last speak command", description: "This will reset the queue 180 seconds after last message sent.", defaultValue: 180
         }
     }
 }
@@ -2897,6 +2897,21 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
     if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
 }
+
+public Map getLogConfigs() {
+    return [
+        info: (Boolean) settings.logInfo,
+        warn: (Boolean) settings.logWarn,
+        error: (Boolean) settings.logError,
+        debug: (Boolean) settings.logDebug,
+        trace: (Boolean) settings.logTrace,
+    ]
+}
+
+public void enableDebugLog() { device.updateSetting("logDebug",[value:sTRUE,type:"bool"]); logInfo("Debug Logs Enabled From Main App..."); }
+public void disableDebugLog() { device.updateSetting("logDebug",[value:sFALSE,type:"bool"]); logInfo("Debug Logs Disabled From Main App..."); }
+public void enableTraceLog() { device.updateSetting("logTrace",[value:sTRUE,type:"bool"]); logInfo("Trace Logs Enabled From Main App..."); }
+public void disableTraceLog() { device.updateSetting("logTrace",[value:sFALSE,type:"bool"]); logInfo("Trace Logs Disabled From Main App..."); }
 
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info logPrefix(msg, "#0299b1") } }

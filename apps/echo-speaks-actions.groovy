@@ -116,9 +116,7 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            List aa = settings.act_EchoDevices
-            List devIt = aa.collect { it ? it.toInteger() : null }
-            app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
+            fixDeviceInputs()
             return (minVersionFailed()) ? codeUpdatePage() : mainPage() }
     } else { return uhOhPage() }
 }
@@ -1507,7 +1505,7 @@ def actionsPage() {
                 }
                 actionExecMap.config.volume = [change: settings.act_volume_change, restore: settings.act_volume_restore, alarm: settings.act_alarm_volume]
                 actionExecMap.config.zoneVolume = getZoneVolumeMap()
-                log.debug "zoneVolume: ${actionExecMap.config.zoneVolume}"
+                // log.debug "zoneVolume: ${actionExecMap.config.zoneVolume}"
                 actionExecMap.delay = settings.act_delay
                 actionExecMap.configured = true
                 actionCleanup()
@@ -1904,9 +1902,7 @@ private echoDevicesInputByPerm(String type) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
             input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices", "echo_gen1") + (devsOpt ? spanSm(" (Optional Zone Backup)", "violet") : sBLANK), description: spanSm(devsOpt ? "These devices are used when all zones are inactive." : "Select your devices", sCLRGRY), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true
-            List aa = settings.act_EchoDevices
-            List devIt = aa.collect { it ? it.toInteger() : null }
-            app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIt?.unique()]) // this won't take effect until next execution
+            fixDeviceInputs()
         } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
     }
 }
@@ -1989,6 +1985,21 @@ def uninstallPage() {
     return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
         section(sBLANK) { paragraph spanSmBld("This will delete this Echo Speaks Action.", sCLRORG) }
     }
+}
+
+private void fixDeviceInputs() {
+    List aa = settings.act_EchoDevices
+    List devIds = []
+    Boolean updList = false
+    try {
+        updList = (aa.size() && aa[0].id != null)
+        devIds = aa.collect { it?.id } 
+    } catch (ex) {
+        // log.debug "ex: $ex"
+        devIds = aa.collect { it?.toInteger() } 
+    }
+    if(updList) app.updateSetting( "act_EchoDevices", [type: "enum", value: devIds.unique()])
+    if(devIds) app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIds.unique()]) // this won't take effect until next execution
 }
 
 static Boolean wordInString(String findStr, String fullStr) {
@@ -3395,7 +3406,6 @@ Map getRandomTrigEvt() {
         evt = [ name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
     }
     if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
-    log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
 
@@ -4922,6 +4932,21 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     }
     releaseTheLock(sHMLF)
 }
+
+public Map getLogConfigs() {
+    return [
+        info: (Boolean) settings.logInfo,
+        warn: (Boolean) settings.logWarn,
+        error: (Boolean) settings.logError,
+        debug: (Boolean) settings.logDebug,
+        trace: (Boolean) settings.logTrace,
+    ]
+}
+
+public void enableDebugLog() { settingUpdate("logDebug", sTRUE, sBOOL); logInfo("Debug Logs Enabled From Main App..."); }
+public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInfo("Debug Logs Disabled From Main App..."); }
+public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App..."); }
+public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App..."); }
 
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
