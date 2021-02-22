@@ -1209,21 +1209,6 @@ def sequencePage() {
     }
 }
 
-Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
-    if(!msgLen) { return 30 }
-    Integer twd = 2
-    Integer v = (msgLen <= 14 ? 1 : (msgLen / 14)) * twd
-    Integer res=v
-    Integer randomInt
-    if(addRandom){
-        def random = new Random()
-        randomInt = random?.nextInt(5) //Was using 7
-        res=v + randomInt
-    }
-    logTrace("getRecheckDelay($msgLen) | res:$res | twd: $twd | delay: $v ${addRandom ? '+ '+randomInt.toString() : sBLANK}")
-    return res //+2
-}
-
 void executeSpeechTest() {
     settingUpdate("test_speechRun", sFALSE, sBOOL)
     String testMsg = (String)settings.test_speechMessage
@@ -3593,15 +3578,16 @@ void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean paral
 
 void addToQ(Map item) {
     String appId=app.getId()
-
     Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
     // log.trace "lock wait: ${aa}"
+
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'cmdQ'
     List<Map> eData = (List)memStore[k] ?: []
     eData.push(item)
     Integer qsiz = eData.size()
     updMemStoreItem(k, eData)
+
     releaseTheLock(sHMLF)
 
     if(qsiz == 1) runInMillis(300L, "workQ")
@@ -3652,7 +3638,7 @@ void workQ() {
 // if we are not doing anything grab next item off queue and start it;
     if(!active && now() > nextOk) {
 
-        Integer lastChkSec = getLastTsValSecs("lastWorkQDt")
+//        Integer lastWQSec = getLastTsValSecs("lastWorkQDt")
         List<String> lmsg = []
         Double msSum = 0.0D
         List seqList = []
@@ -3687,18 +3673,21 @@ void workQ() {
             if(t=='multi') {
                 srcDesc = (String)item.srcDesc
                 List<Map> seqCmds = (List<Map>)item.commands
+
                 if(srcDesc == 'ExecuteRoutine'){
                     if(seqList.size() > 0) break // execute runs by itself
                     Map seqMap = seqCmds[0].command // already have a sequence map
                     seqObj = sequenceBuilder(seqMap, null, null)
+
                 } else {
+
                     Boolean nparallel = item.parallel
                     parallel = nparallel != null ? nparallel : parallel
-
                     if(oldParallel == null) oldParallel = parallel
                     if(parallel != oldParallel) { break } // if parallel changes we are done this set of commands
 
                     cmdMap = (Map)item.cmdMap ?: [:]
+
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
                     Integer mdelay = 0
@@ -3707,14 +3696,9 @@ void workQ() {
                         if(cmdItem.command instanceof String){
                             String mcommand = cmdItem.command
                             String type=cmdItem?.cmdType ?: sBLANK
-                            if(mcommand in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
-                                List<String> valObj = (cmdItem?.value?.toString()?.contains("::")) ? cmdItem.value.split("::") : ["Echo Speaks", (String)cmdItem?.value]
-                                Integer msgLen = valObj[1]?.length()
-                                Integer del = getRecheckDelay(msgLen)
-                                mdelay += del
-                            }
-                            else if(type.startsWith('play')) mdelay += 18
-                            else if(type.startsWith('say')) mdelay += 3
+                            String tv  = cmdItem?.value?.toString()
+                            Integer del = getMsgDur(mcommand, type, tv)
+                            if(del) mdelay += del
                         }
                         if(mdelay) cmdMap.msgDelay= mdelay
                     }
@@ -3725,9 +3709,9 @@ void workQ() {
             if(t=='sequence') {
                 String type=item.type
                 srcDesc = type + "${device ? " from $device" : sBLANK}"
+
                 Boolean nparallel = item.parallel
                 parallel = nparallel != null ? nparallel : false
-
                 if(oldParallel == null) oldParallel = parallel
                 if(parallel != oldParallel) { break } // if parallel changes we are done this set of commands
 
@@ -3742,17 +3726,12 @@ void workQ() {
                     seqList = seqList + [createSequenceNode(command, value, deviceData)]
                 }
 
-                if(command in ['announcement_devices', 'announcement', 'announcementall']){
-                    List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
-                    Integer msgLen = valObj[1]?.length()
-                    Integer del = getRecheckDelay(msgLen)
-                    if(!cmdMap) cmdMap = [ msgDelay: del ]
-                }
-                else if(type.startsWith('play')) cmdMap = [ msgDelay: 18 ]
-                else if(type.startsWith('say')) cmdMap = [ msgDelay: 3 ]
+                String tv  = value?.toString()
+                Integer del = getMsgDur(command, type, tv)
+                if(del && !cmdMap) cmdMap = [ msgDelay: del ]
             }
 
-            Map titem = (Map)eData.remove(0) // pop the command if we are going to do it
+            Map titem = (Map)eData.remove(0) // pop the command as we are going to do it
             updMemStoreItem(k, eData)
             activeD.push(titem) // save what we are doing to an active list
             updMemStoreItem('active', activeD)
@@ -3784,13 +3763,15 @@ void workQ() {
             ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
             msSum += ms
             lmsg.push("workQ ms delay is $msSum")
+
             if(seqObj) { break } // runs by itself
             if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
         }
 
-        if(seqList.size() > 0 || seqObj) { //seqMap){
+        if(seqList.size() > 0 || seqObj) {
 
-            Integer mymin = lastChkSec > 8 ? 3000 : 3000
+//            Integer mymin = lastWQkSec > 8 ? 3000 : 3000
+            Integer mymin = 3000 // min ms between Alexa commands
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             lmsg.push("workQ FINAL ms delay is $msSum")
@@ -3803,7 +3784,7 @@ void workQ() {
 
             extData = extData + [nextOk: nextOk]
 
-            if(!seqObj) { //srcDesc != 'ExecuteRoutine') {
+            if(!seqObj) { //'ExecuteRoutine'
                 Map seqMap = multiSequenceBuilder(seqList, oldParallel)
                 seqObj = sequenceBuilder(seqMap, null, null)
             }
@@ -3817,10 +3798,10 @@ void workQ() {
                 body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-           log.trace spanSm("workQ params: $params extData: $extData", sCLRGRN)
+            log.trace spanSm("workQ params: $params extData: $extData", sCLRGRN)
 
+//            updTsVal("lastWorkQDt")
             try{
-                updTsVal("lastWorkQDt")
                 execAsyncCmd("post", "finishWorkQ", params, extData)
             } catch (ex) {
                 respExceptionHandler(ex, "workQ", true)
@@ -3836,6 +3817,34 @@ void workQ() {
     }
     if(locked) releaseTheLock(sHMLF)
     if(mmsg) log.debug(mmsg)
+}
+
+Integer getMsgDur(String command, String type, String tv){
+    Integer del
+    if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
+        List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
+        Integer msgLen = valObj[1]?.length()
+        del = getRecheckDelay(msgLen)
+    }
+    else if(type.startsWith('play')) del = 18
+    else if(type.startsWith('say')) del = 3
+    logTrace("getMsgDur($command, $type, $tv) | res: $del")
+    return del
+}
+
+Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
+    if(!msgLen) { return 30 }
+    Integer twd = 2
+    Integer v = (msgLen <= 14 ? 1 : (msgLen / 14)) * twd
+    Integer res=v
+    Integer randomInt
+    if(addRandom){
+        def random = new Random()
+        randomInt = random?.nextInt(5) //Was using 7
+        res=v + randomInt
+    }
+//    logTrace("getRecheckDelay($msgLen) | res:$res | twd: $twd | delay: $v ${addRandom ? '+ '+randomInt.toString() : sBLANK}")
+    return res //+2
 }
 
 void finishWorkQ(response, extData){
@@ -3907,31 +3916,6 @@ void finishWorkQ(response, extData){
 //    }
     workQ()
 }
-/*
-void sendSequenceCommand(String type, command, value, Map deviceData=[:]) {
-// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
-    // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
-    Map seqObj = sequenceBuilder(command, value, deviceData)
-    sendAmazonCommand("POST", [
-        uri: getAmazonUrl(),
-        path: "/api/behaviors/preview",
-        headers: getReqHeaderMap(true),//getCookieMap(),
-        contentType: sAPPJSON,
-        timeout: 20,
-        body: new groovy.json.JsonOutput().toJson(seqObj)
-    ], [cmdDesc: "SequenceCommand (${type})"])
-}
-
-private void sendMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:]) {
-// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
-    List nodeList = multiSequenceListBuilder(commands, deviceData)
-//    List nodeList = []
-//    commands?.each { cmdItem-> nodeList.push(createSequenceNode(cmdItem?.command, cmdItem?.value, [serialNumber: cmdItem?.serial ?: deviceData?.serialNumber, deviceType: cmdItem?.type ?: deviceData?.deviceType])) }
-//    String seqType = parallel ? "ParallelNode" : "SerialNode"
-//    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    Map seqJson = multiSequenceBuilder(nodeList, parallel)
-    sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null)
-} */
 
 Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
 //log.debug "sequenceBuilder: $cmd   val: $val"
@@ -4223,9 +4207,6 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.operationPayload.notificationMessage = value as String
                 seqNode.operationPayload.alexaUrl = "#v2/behaviors"
                 seqNode.operationPayload.title = "Echo Speaks"
-//                seqNode.operationPayload.remove("deviceType")
-//                seqNode.operationPayload.remove("deviceSerialNumber")
-//                seqNode.operationPayload.remove("locale")
                 break
             case "email":
                 seqNode.type = "Alexa.Operation.SkillConnections.Email.EmailSummary"
