@@ -5592,12 +5592,20 @@ def appInfoSect() {
     String tStr = sBLANK
     Boolean isNote = false
     if(codeVer && (codeVer.server || codeVer.actionApp || codeVer.echoDevice)) {
-        tStr += spanSmBld("App: ") + spanSmBr("v${appVersionFLD}")
-        tStr += (codeVer.echoDevice) ? spanSmBld("Device: ") + spanSmBr("v${codeVer.echoDevice}") : sBLANK
-        tStr += (codeVer.actionApp) ? spanSmBld("Action: ") + spanSmBr("v${codeVer.actionApp}") : sBLANK
-        tStr += (codeVer.zoneApp) ? spanSmBld("Zone: ") + spanSmBr("v${codeVer.zoneApp}") : sBLANK
-        tStr += (codeVer.wsDevice) ? spanSmBld("Socket: ") + spanSmBr("v${codeVer.wsDevice}") : sBLANK
-        tStr += (codeVer.server) ? spanSmBld("Server: ") + spanSmBr("v${codeVer.server}") : sBLANK
+        List verMap = []
+        verMap.push([name: "App:", ver: "v${appVersionFLD}"])
+        if(codeVer.echoDevice) verMap.push([name: "Device:", ver: "v${codeVer.echoDevice}"])
+        if(codeVer.actionApp) verMap.push([name: "Action:", ver: "v${codeVer.actionApp}"])
+        if(codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${codeVer.zoneApp}"])
+        if(codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${codeVer.wsDevice}"])
+        if(codeVer.server) verMap.push([name: "Server:", ver: "v${codeVer.server}"])
+        if(verMap?.size()) {
+            tStr += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
+            verMap.each { it->  
+                tStr += "<tr style='border: 1px solid ${sCLRGRY};'><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBld(it.name)}</td><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.ver}")}</td></tr>"
+            }
+            tStr += "</table>"
+        }
         tStr = spanSm(tStr, sCLRGRY)
     }
 
@@ -5627,8 +5635,8 @@ def appInfoSect() {
             if(showDocs) { updateDocsInput() }
             if(!(Boolean) state.authValid && !(Boolean) state.resumeConfig) {
                 isNote = true
-                String str4 = spanSmBld("Login Issue:")
-                str4 += lineBr() + spanSm("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!")
+                String str4 = spanSmBldBr("Login Issue:")
+                str4 += spanSm("You are no longer logged in to Amazon.  Please complete the Authentication Process on the Server Login Page!")
                 paragraph divSm(str4, sCLRORG)
             }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
@@ -5654,6 +5662,10 @@ def appInfoSect() {
             href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: spanSm("Tap to open browser", sCLRGRY)
         }
     }
+}
+
+String htmlRowVerStr(String name, String ver) {
+
 }
 
 String UrlParamBuilder(Map items) {
