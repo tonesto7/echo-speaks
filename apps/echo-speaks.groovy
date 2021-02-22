@@ -843,7 +843,8 @@ def settingsPage() {
             input "childAppLogTrace", sBOOL, title: inTS1("Enable Trace Logs for All Child Apps?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
             input "childDeviceLogDebug", sBOOL, title: inTS1("Enable Debug Logs for All Child Devices?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
             input "childDeviceLogTrace", sBOOL, title: inTS1("Enable Trace Logs for All Child Devices?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
-            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) { activateChildAdvLogs() }
+            input "disableAllChildAdvLogs", sBOOL, title: inTS1("Disable All Advanced Logging on Child Apps/Devices?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
+            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace || (Boolean)settings.disableAllChildAdvLogs) { activateChildAdvLogs() }
         }
         // }
 
@@ -4340,6 +4341,15 @@ public void activateChildAdvLogs() {
     if((Boolean)settings.childDeviceLogTrace) {
         settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
         manAllEchosTrcLogs(true)
+    }
+    if((Boolean)settings.disableAllChildAdvLogs) {
+        settingUpdate("disableAllChildAdvLogs", sFALSE, sBOOL)
+        manAllZonesDbgLogs(false)
+        manAllActsDbgLogs(false)
+        manAllEchosDbgLogs(false)
+        manAllEchosTrcLogs(false)
+        manAllZonesTrcLogs(false)
+        manAllActsTrcLogs(false)
     }
 }
 
