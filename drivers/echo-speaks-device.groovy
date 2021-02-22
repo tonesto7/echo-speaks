@@ -1669,7 +1669,7 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
             if(restoreVolume!=null) {
                 List amainSeq = []
                 devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-                sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore",true)
+                sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore")
             }
             // log.debug "mainSeq: $mainSeq"
         } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg) }
