@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-19"
+@Field static final String appModifiedFLD = "2021-02-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -59,9 +59,6 @@ import groovy.transform.Field
 @Field static final String sTTC           = 'Tap to configure...'
 @Field static final String sTTCR          = 'Tap to configure (Required)'
 @Field static final String sTTP           = 'Tap to proceed...'
-//@Field static final String sTTS           = 'Tap to select...'
-//@Field static final String sSETTINGS      = 'settings'
-//@Field static final String sRESET         = 'reset'
 @Field static final String sEXTNRL        = 'external'
 @Field static final String sDEBUG         = 'debug'
 @Field static final String sSWITCH        = 'switch'

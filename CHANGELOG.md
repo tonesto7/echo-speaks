@@ -5,11 +5,13 @@
 - [FIX] Lot's of UI design updates
 
 ### _**Echo Speaks Actions (v4.0.7.0)**_
+- [FIX] Lot's of UI design updates
 - [FIX] Fixed getAlexaRoutines Command.
 - [NEW] Added per zone volume when multiple zones are selected in the Action.
 
 ### _**Echo Speaks Zones (v4.0.7.0)**_
 - [FIX] bug fixes.
+- - [FIX] Lot's of UI design updates
 
 ### _**Echo Speaks Device (v4.0.7.0)**_
 - [NEW] Moved the individual device queue to a centralized queue.
