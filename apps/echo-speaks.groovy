@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-22"
+@Field static final String appModifiedFLD = "2021-02-23"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -1571,7 +1571,7 @@ void updChildSocketStatus() {
 def zoneStateHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData
-    // log.trace "zone: ${id} | Data: $data"
+    log.trace "zone: ${id} | Data: $data"
     String myId=app.getId()
     checkZoneData()
     if(data && id) {
@@ -1596,7 +1596,6 @@ def zoneRemovedHandler(evt) {
     String myId=app.getId()
     if(data && id) {
         Boolean aa = getTheLock(sHMLF, "zoneRemoveHandler")
-
         Map t0 = zoneStatusMapFLD[myId]
         Map zoneMap = t0 ?: [:]
         zoneMap = zoneMap ?: [:]
@@ -1607,9 +1606,7 @@ def zoneRemovedHandler(evt) {
             zoneStatusMapFLD[myId] = zoneMap
             zoneStatusMapFLD = zoneStatusMapFLD
         }
-
         releaseTheLock(sHMLF)
-
         if(fnd){
             getActionApps()?.each { it?.updZones(zoneMap) }
         }
@@ -1630,7 +1627,7 @@ void checkZoneData() {
         zones?.each { 
             Map zoneMap = it?.myZoneStatus()
             String id = zoneMap.id
-            newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, t: now()]
+            newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, zoneDevices:(Map)zoneMap.zoneDevices, t: now()]
         }
         newField.initialized = [a:true]
         zoneStatusMapFLD[myId] = newField
@@ -1652,6 +1649,14 @@ public Map getZones(Boolean chld=false) {
         if(a.containsKey(i))a.remove(i)
     }
     return a
+}
+
+private Map getZoneState(Integer znId) {
+    Map zones = getZones()
+    if(zones) {
+        return zones[znId]
+    }
+    return null
 }
 
 Map getActiveZones() {
@@ -3534,6 +3539,10 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
     }
 }
 
+void sendZoneCmd(Map cmdData) {
+    log.trace span("sendZoneCmd | cmdData: $cmdData", "purple")
+}
+
 void sendSpeak(Map cmdMap, String device, String callback){
     logTrace("sendSpeak cmdMap: $cmdMap  callback: $callback,  device: $device")
 
@@ -4783,7 +4792,7 @@ private String createMetricsDataJson() {
         ]
         
         String json = new groovy.json.JsonOutput().toJson(dataObj)
-        log.debug "dataObj: $dataObj"
+        // log.debug "dataObj: $dataObj"
         return json
     } catch (ex) {
         logError("createMetricsDataJson: Exception: ${ex}", false, ex)

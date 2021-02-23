@@ -18,7 +18,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-22"
+@Field static final String appModifiedFLD = "2021-02-23"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -99,7 +99,7 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            fixDeviceInputs()
+            updDeviceInputs()
             return (minVersionFailed()) ? codeUpdatePage() : mainPage()
         }
     } else { return uhOhPage() }
@@ -181,6 +181,7 @@ def mainPage() {
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
+        log.debug "myZoneStatus: ${myZoneStatus()}"
         if((Boolean) state.isInstalled) {
             section(sectHead("Name this Zone:")) {
                 input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true
@@ -205,7 +206,7 @@ private echoDevicesInputByPerm(String type) {
         Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
         input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: spanSm("Select the devices", sCLRGRY), options: moptions, multiple: true, required: true, submitOnChange: true
 
-        fixDeviceInputs()
+        // updDeviceInputs()
     } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
 }
 
@@ -253,19 +254,22 @@ def uninstallPage() {
     }
 }
 
-private void fixDeviceInputs() {
+private void updDeviceInputs() {
+    log.trace "updDeviceInputs..."
     List aa = settings.zone_EchoDevices
     List devIds = []
     Boolean updList = false
     try {
         updList = (aa.size() && aa[0].id != null)
-        devIds = aa.collect { it?.id } 
+        devIds = aa.collect { it?.id.toInteger() }
+        log.debug "updList(try): ${devIds.unique()}"
     } catch (ex) {
         // log.debug "ex: $ex"
-        devIds = aa.collect { it?.toInteger() } 
+        devIds = aa.collect { it?.toInteger() }
+        log.debug "updList(catch): ${devIds.unique()}"
     }
-    if(updList) app.updateSetting( "zone_EchoDevices", [type: "enum", value: devIds.unique()])
-    if(devIds) app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIds.unique()]) // this won't take effect until next execution
+    if(updList) { app.updateSetting( "zone_EchoDevices", [type: "enum", value: devIds.unique()]) }
+    if(devIds) { app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIds.unique()]) } // this won't take effect until next execution
 }
 
 /******************************************************************************
@@ -531,7 +535,7 @@ def initialize() {
         logInfo(dupMSGFLD)
         return
     }
-    fixDeviceInputs()
+    updDeviceInputs()
     unsubscribe()
     unschedule()
     state.isInstalled = true
@@ -1025,8 +1029,10 @@ void checkZoneStatus(evt) {
     }
 }
 
-Map myZoneStatus(){
-    return [name: app?.getLabel(), active: isActive(), paused: isPaused(), id: app?.getId()]
+Map myZoneStatus() {
+    Map zoneDevs = getZoneDevices()
+    log.debug "zoneDevs: $zoneDevs"
+    return [name: app?.getLabel(), active: isActive(), paused: isPaused(), id: app?.getId(), zoneDevices: null]
 }
 
 void sendZoneStatus() {
@@ -1089,8 +1095,10 @@ public getZoneHistory(Boolean asObj=false) {
 }
 
 Map getZoneDevices() {
+    // updDeviceInputs()
     List devObj = []
     List devices = parent?.getDevicesFromList(settings.zone_EchoDevices)
+    log.debug "devices: $devices"
     devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
     return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
@@ -1854,7 +1862,7 @@ Boolean isActive() {
     return st != null ? st : (Boolean)conditionStatus().ok
 }
 
-Boolean isPaused() { return (Boolean)settings.zonePause }
+Boolean isPaused() { return (Boolean)settings.zonePause == true }
 
 static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
 

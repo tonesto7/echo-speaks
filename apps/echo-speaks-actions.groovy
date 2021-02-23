@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-22"
+@Field static final String appModifiedFLD = "2021-02-23"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -116,7 +116,7 @@ def startPage() {
     if(parent != null) {
         if(!(Boolean)state.isInstalled && !(Boolean)parent?.childInstallOk()) { return uhOhPage() }
         else {
-            fixDeviceInputs()
+            updDeviceInputs()
             return (minVersionFailed()) ? codeUpdatePage() : mainPage() }
     } else { return uhOhPage() }
 }
@@ -285,8 +285,8 @@ def prefsPage() {
             input "logInfo",  sBOOL, title: inTS1("Show Info Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logWarn",  sBOOL, title: inTS1("Show Warning Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
             input "logError", sBOOL, title: inTS1("Show Error Logs?", sDEBUG), required: false, defaultValue: true, submitOnChange: true
-            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), description: spanSm("Auto disables after 6 hours", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
-            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), description: spanSm("Only enable when asked to (Auto disables after 6 hours)", sCLRGRY), required: false, defaultValue: false, submitOnChange: true
+            input "logDebug", sBOOL, title: inTS1("Show Debug Logs?", sDEBUG), required: false, defaultValue: false, submitOnChange: true
+            input "logTrace", sBOOL, title: inTS1("Show Detailed Logs?", sDEBUG), required: false, defaultValue: false, submitOnChange: true
         }
         if((Boolean)state.isInstalled) {
             if(advLogsActive()) { logsEnabled() }
@@ -1902,7 +1902,7 @@ private echoDevicesInputByPerm(String type) {
             Boolean devsOpt = (settings.act_EchoZones?.size())
             def eDevsMap = echoDevs?.collectEntries { [(it?.getId()): [label: it?.getLabel(), lsd: (it?.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
             input "act_EchoDevices", sENUM, title: inTS1("Echo Speaks Devices", "echo_gen1") + (devsOpt ? spanSm(" (Optional Zone Backup)", "violet") : sBLANK), description: spanSm(devsOpt ? "These devices are used when all zones are inactive." : "Select your devices", sCLRGRY), options: eDevsMap?.collectEntries { [(it?.key): "${it?.value?.label}${(it?.value?.lsd == true) ? "\n(Last Spoken To)" : sBLANK}"] }, multiple: true, required: (!settings.act_EchoZones), submitOnChange: true
-            fixDeviceInputs()
+            updDeviceInputs()
         } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
     }
 }
@@ -1987,19 +1987,22 @@ def uninstallPage() {
     }
 }
 
-private void fixDeviceInputs() {
+private void updDeviceInputs() {
+    log.trace "updDeviceInputs..."
     List aa = settings.act_EchoDevices
     List devIds = []
     Boolean updList = false
     try {
         updList = (aa.size() && aa[0].id != null)
-        devIds = aa.collect { it?.id } 
+        devIds = aa.collect { it?.id }
+        log.debug "updList(try): ${devIds.unique()}"
     } catch (ex) {
         // log.debug "ex: $ex"
-        devIds = aa.collect { it?.toInteger() } 
+        devIds = aa.collect { it?.toInteger() }
+        log.debug "updList(catch): ${devIds.unique()}"
     }
-    if(updList) app.updateSetting( "act_EchoDevices", [type: "enum", value: devIds.unique()])
-    if(devIds) app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIds.unique()]) // this won't take effect until next execution
+    if(updList) { app.updateSetting( "act_EchoDevices", [type: "enum", value: devIds.unique()]) }
+    if(devIds) { app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIds.unique()]) } // this won't take effect until next execution
 }
 
 static Boolean wordInString(String findStr, String fullStr) {
@@ -2044,7 +2047,7 @@ def initialize() {
         logInfo(dupMSGFLD)
         return
     }
-    fixDeviceInputs()
+    updDeviceInputs()
     unsubscribe()
     unschedule()
     state.isInstalled = true
@@ -3659,7 +3662,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     if(actZonesSiz) {
                         String mCmd = actType.replaceAll("_tiered", sBLANK)
                         sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                           logDebug("Sending ${mCmd} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        // parent?.sendZoneCmd([zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs])
+                        logDebug("Sending ${mCmd} Command: (${txt}) to Zones via Parent (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
 
                     } else {
                         if(actType in ["speak", "speak_tiered"]) {
