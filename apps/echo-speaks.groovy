@@ -1579,7 +1579,7 @@ def zoneStateHandler(evt) {
 
         Map t0 = zoneStatusMapFLD[myId]
         Map zoneMap = t0 ?: [:]
-        zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused, t: now()]
+        zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused, zoneDevices: data.zoneDevices, t: now()]
         zoneStatusMapFLD[myId] = zoneMap
         zoneStatusMapFLD = zoneStatusMapFLD
 
@@ -1627,7 +1627,7 @@ void checkZoneData() {
         zones?.each { 
             Map zoneMap = it?.myZoneStatus()
             String id = zoneMap.id
-            newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, zoneDevices:(Map)zoneMap.zoneDevices, t: now()]
+            newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, zoneDevices: zoneMap.zoneDevices ?: null, t: now()]
         }
         newField.initialized = [a:true]
         zoneStatusMapFLD[myId] = newField
@@ -1646,17 +1646,9 @@ public Map getZones(Boolean chld=false) {
 
     if(!chld) {
         String i = 'initialized'
-        if(a.containsKey(i))a.remove(i)
+        if(a.containsKey(i)) a.remove(i)
     }
     return a
-}
-
-private Map getZoneState(Integer znId) {
-    Map zones = getZones()
-    if(zones) {
-        return zones[znId]
-    }
-    return null
 }
 
 Map getActiveZones() {
@@ -3540,7 +3532,67 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 void sendZoneCmd(Map cmdData) {
+    // TODO: Since we are bypassing the device we need to add checks that the device is ok to speak (Ex. DND)
     log.trace span("sendZoneCmd | cmdData: $cmdData", "purple")
+    if(cmdData && cmdData.cmd) {
+        String zoneDevJson = sNULL
+        if(cmdData.zones) {
+            zoneDevJson = getZoneDeviceJson(cmdData.zones)
+        }
+        switch(cmdData.cmd) {
+            case "announcement":
+                String newmsg = "${cmdData.title ?: "Echo Speaks"}::${cmdData.message}::${zoneDevJson}"
+                log.debug "sendAnnouncementToDevices | msg: ${newmsg}"
+                if(volume != null) {
+                    List mainSeq = []
+                    devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                    mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement'])
+
+                    //sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
+                    // sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet")
+
+                    if(restoreVolume!=null) {
+                        List amainSeq = []
+                        devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                        // sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore")
+                    }
+                    log.debug "mainSeq: $mainSeq"
+                } else { 
+                    // sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg) 
+                }
+
+                // parent.queueMultiSequenceCommand(commands, srcDesc, parallel, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], null, device.deviceNetworkId, callback)
+                break
+            case "speak":
+
+                break
+        }
+    }
+}
+
+private String getZoneDeviceJson(List znList) {
+    log.trace "getZoneDeviceJson | $znList"
+    List devObjs = []
+    if(znList && znList.size()) {
+        znList.each { znId ->
+            // log.debug "znId: $znId"
+            Map znData = getZoneState(znId.toString())
+            // log.trace "znData: $znData"
+            if(znData && znData.zoneDevices) {
+                List devices = getDevicesFromList(znData.zoneDevices)
+                devices?.each { devObjs?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+            }
+        }
+    }
+    return (String) (devObjs.size()) ? new groovy.json.JsonOutput().toJson(devObjs) : sNULL
+}
+
+private Map getZoneState(String znId) {
+    Map zones = getZones()
+    if(zones) {
+        return zones[znId]
+    }
+    return null
 }
 
 void sendSpeak(Map cmdMap, String device, String callback){

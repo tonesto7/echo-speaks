@@ -255,20 +255,22 @@ def uninstallPage() {
 }
 
 private void updDeviceInputs() {
-    log.trace "updDeviceInputs..."
+    // log.trace "updDeviceInputs..."
     List aa = settings.zone_EchoDevices
     List devIds = []
     Boolean updList = false
     try {
         updList = (aa.size() && aa[0].id != null)
-        devIds = aa.collect { it?.id.toInteger() }
-        log.debug "updList(try): ${devIds.unique()}"
+        devIds = aa.collect { it?.id.toString() }
+        // log.debug "updList(try): ${devIds.unique()}"
     } catch (ex) {
         // log.debug "ex: $ex"
-        devIds = aa.collect { it?.toInteger() }
-        log.debug "updList(catch): ${devIds.unique()}"
+        devIds = aa.collect { it?.toString() }
     }
-    if(updList) { app.updateSetting( "zone_EchoDevices", [type: "enum", value: devIds.unique()]) }
+    if(updList && devIds) { 
+        log.debug "updList: $devIds"
+        app.updateSetting( "zone_EchoDevices", [type: "enum", value: devIds.unique()]) 
+    }
     if(devIds) { app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIds.unique()]) } // this won't take effect until next execution
 }
 
@@ -1031,8 +1033,8 @@ void checkZoneStatus(evt) {
 
 Map myZoneStatus() {
     Map zoneDevs = getZoneDevices()
-    log.debug "zoneDevs: $zoneDevs"
-    return [name: app?.getLabel(), active: isActive(), paused: isPaused(), id: app?.getId(), zoneDevices: null]
+    // log.debug "zoneDevs: $zoneDevs"
+    return [name: app?.getLabel(), active: isActive(), paused: isPaused(), id: app?.getId(), zoneDevices: (List)zoneDevs.devIds ?: []]
 }
 
 void sendZoneStatus() {
@@ -1097,10 +1099,10 @@ public getZoneHistory(Boolean asObj=false) {
 Map getZoneDevices() {
     // updDeviceInputs()
     List devObj = []
+    List devIds = []
     List devices = parent?.getDevicesFromList(settings.zone_EchoDevices)
-    log.debug "devices: $devices"
-    devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
-    return [devices: devices, devObj: devObj]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
+    devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]); devIds.push(it?.getId()); }
+    return [devices: devices, devObj: devObj, devIds: devIds]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
 
 public zoneRefreshHandler(evt) {

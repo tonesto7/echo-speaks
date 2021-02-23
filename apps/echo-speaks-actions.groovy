@@ -1988,20 +1988,22 @@ def uninstallPage() {
 }
 
 private void updDeviceInputs() {
-    log.trace "updDeviceInputs..."
+    // log.trace "updDeviceInputs..."
     List aa = settings.act_EchoDevices
     List devIds = []
     Boolean updList = false
     try {
         updList = (aa.size() && aa[0].id != null)
-        devIds = aa.collect { it?.id }
-        log.debug "updList(try): ${devIds.unique()}"
+        devIds = aa.collect { it?.id.toString() }
+        // log.debug "updList(try): ${devIds.unique()}"
     } catch (ex) {
         // log.debug "ex: $ex"
-        devIds = aa.collect { it?.toInteger() }
-        log.debug "updList(catch): ${devIds.unique()}"
+        devIds = aa.collect { it?.toString() }
     }
-    if(updList) { app.updateSetting( "act_EchoDevices", [type: "enum", value: devIds.unique()]) }
+    if(updList && devIds) { 
+        log.debug "updList: $devIds"
+        app.updateSetting( "act_EchoDevices", [type: "enum", value: devIds.unique()]) 
+    }
     if(devIds) { app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIds.unique()]) } // this won't take effect until next execution
 }
 
@@ -2417,6 +2419,14 @@ public Map getZones(Boolean noCache = false) {
     String i = 'initialized'
     if(a.containsKey(i))a.remove(i)
     return a
+}
+
+private Map getZoneState(Integer znId) {
+    Map zones = getZones()
+    if(zones) {
+        return zones[znId]
+    }
+    return null
 }
 
 public Map getActiveZones() {
@@ -3661,8 +3671,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 
                     if(actZonesSiz) {
                         String mCmd = actType.replaceAll("_tiered", sBLANK)
-                        sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        // parent?.sendZoneCmd([zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs])
+                        // sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        parent?.sendZoneCmd([zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs])
                         logDebug("Sending ${mCmd} Command: (${txt}) to Zones via Parent (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
 
                     } else {
