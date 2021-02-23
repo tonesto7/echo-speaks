@@ -401,27 +401,36 @@ void updateDeviceStatus(Map devData) {
         // }
         state.isSupportedDevice = (devData.unsupported != true)
         state.remove('isEchoDevice') //        state.isEchoDevice = (devData?.permissionMap?.isEchoDevice == true)
-        state.serialNumber = (String)devData.serialNumber
-        state.deviceType = (String)devData.deviceType
+
+        String devSerial = (String)devData.serialNumber
+        state.serialNumber = devSerial
+
+        String devType = devData.deviceType ?: sBLANK
+        state.deviceType = devType
+
         state.deviceOwnerCustomerId = (String)devData.deviceOwnerCustomerId
-        state.deviceAccountId = (String)devData?.deviceAccountId
-        state.softwareVersion = devData?.softwareVersion
-        // state?.mainAccountCommsId = devData?.mainAccountCommsId ?: null
-        // log.debug "mainAccountCommsId: ${state?.mainAccountCommsId}"
+        state.deviceAccountId = (String)devData.deviceAccountId
+
+        String firmwareVer = devData.softwareVersion ?: "Not Set"
+        state.softwareVersion = firmwareVer
+
+        // state?.mainAccountCommsId = devData.mainAccountCommsId ?: null
+        // log.debug "mainAccountCommsId: ${state.mainAccountCommsId}"
         if(!state.cookie) {
-            state.cookie = devData?.cookie
+            state.cookie = devData.cookie
             cookieDataFLD = [:]
         }
-        state.authValid = (devData?.authValid == true)
-        state.amazonDomain = (String)devData?.amazonDomain
-        state.regionLocale = (String)devData?.regionLocale
+        state.authValid = (devData.authValid == true)
+        state.amazonDomain = (String)devData.amazonDomain
+        state.regionLocale = (String)devData.regionLocale
+
         Map permissions = state.permissions ?: [:]
         devData.permissionMap?.each {String k,v -> permissions[k] = v }
         state.permissions = permissions
-        state.hasClusterMembers = devData?.hasClusterMembers
-        state.isWhaDevice = (devData?.permissionMap?.isMultiroomDevice == true)
-        // log.trace "hasClusterMembers: ${ state?.hasClusterMembers}"
-        // log.trace "permissions: ${state?.permissions}"
+        state.hasClusterMembers = devData.hasClusterMembers
+        state.isWhaDevice = (devData.permissionMap?.isMultiroomDevice == true)
+        // log.trace "hasClusterMembers: ${state.hasClusterMembers}"
+        // log.trace "permissions: ${state.permissions}"
 
         Boolean chg=false
 
@@ -431,49 +440,48 @@ void updateDeviceStatus(Map devData) {
             chg=true
         }
 
-        Map deviceStyle = devData?.deviceStyle
-        state.deviceStyle = devData?.deviceStyle
-        // logInfo("deviceStyle (${devData?.deviceFamily}): ${devData?.deviceType} | Desc: ${deviceStyle?.name}")
-        state.deviceImage = deviceStyle?.image as String
-        if(isStateChange(device, "deviceStyle", deviceStyle?.name?.toString())) {
-            sendEvent(name: "deviceStyle", value: deviceStyle?.name?.toString(), descriptionText: "Device Style is ${deviceStyle?.name}", display: true, displayed: true)
+        Map deviceStyle = (Map)devData.deviceStyle
+        state.deviceStyle = deviceStyle
+
+        String devFamily = devData.deviceFamily ?: sBLANK
+        String devName = (String)deviceStyle?.name
+
+        // logInfo("deviceStyle (${devFamily}): ${devType} | Desc: ${devName}")
+
+        state.remove('deviceImage') //        state.deviceImage = (String)deviceStyle?.image
+
+        if(isStateChange(device, "deviceStyle", devName)) {
+            sendEvent(name: "deviceStyle", value: devName, descriptionText: "Device Style is ${devName}", display: true, displayed: true)
             chg=true
         }
-
-        String firmwareVer = devData?.softwareVersion ?: "Not Set"
-        if(isStateChange(device, "firmwareVer", firmwareVer?.toString())) {
-            sendEvent(name: "firmwareVer", value: firmwareVer?.toString(), descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
+        if(isStateChange(device, "firmwareVer", firmwareVer)) {
+            sendEvent(name: "firmwareVer", value: firmwareVer, descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
             chg=true
         }
-
-        String devFamily = devData?.deviceFamily ?: sBLANK
         if(isStateChange(device, "deviceFamily", devFamily)) {
             sendEvent(name: "deviceFamily", value: devFamily, descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
             chg=true
         }
-
-        if(isStateChange(device, "deviceSerial", devData?.serialNumber?.toString())) {
-            sendEvent(name: "deviceSerial", value: devData?.serialNumber?.toString(), descriptionText: "Echo Device SerialNumber is ${devData?.serialNumber}", display: true, displayed: true)
+        if(isStateChange(device, "deviceSerial", devSerial)) {
+            sendEvent(name: "deviceSerial", value: devSerial, descriptionText: "Echo Device SerialNumber is ${devSerial}", display: true, displayed: true)
+            chg=true
+        }
+        if(isStateChange(device, "deviceType", devType)) {
+            sendEvent(name: "deviceType", value: devType, display: false, displayed: false)
             chg=true
         }
 
-        String devType = devData?.deviceType ?: sBLANK
-        if(isStateChange(device, "deviceType", devType?.toString())) {
-            sendEvent(name: "deviceType", value: devType?.toString(), display: false, displayed: false)
-            chg=true
-        }
-
-        Map musicProviders = devData?.musicProviders ?: [:]
+        Map musicProviders = (Map)devData.musicProviders ?: [:]
         String lItems = ""
         musicProviders.each { String k, String v ->
             if(v.size() > 0) lItems = lItems + (lItems.size() > 0 ? ", "+v : v)
         }
 //log.warn "musicProviders is $musicProviders   lItems is $lItems"
-        if(isStateChange(device, "supportedMusic", lItems?.toString())) {
-            sendEvent(name: "supportedMusic", value: lItems?.toString(), display: false, displayed: false)
+        if(isStateChange(device, "supportedMusic", lItems)) {
+            sendEvent(name: "supportedMusic", value: lItems, display: false, displayed: false)
             chg=true
         }
-        // if(devData?.guardStatus) { updGuardStatus(devData?.guardStatus) }
+        // if(devData.guardStatus) { updGuardStatus(devData.guardStatus) }
         if(!isOnline) {
             sendEvent(name: "mute", value: "unmuted")
             sendEvent(name: "status", value: "stopped")
@@ -1199,8 +1207,8 @@ def play() {
         sendAmazonBasicCommand("PlayCommand")
         if(isStateChange(device, "status", "playing")) {
             sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
-            // log.debug "deviceStatus: playing_${state?.deviceStyle?.image}"
-            sendEvent(name: "deviceStatus", value: "playing_${state?.deviceStyle?.image}", display: false, displayed: false)
+            // log.debug "deviceStatus: playing_${state.deviceStyle?.image}"
+            sendEvent(name: "deviceStatus", value: "playing_${state.deviceStyle?.image}", display: false, displayed: false)
         }
         return
     }
@@ -1238,8 +1246,8 @@ def pause() {
         sendAmazonBasicCommand("PauseCommand")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
-            // log.debug "deviceStatus: stopped_${state?.deviceStyle?.image}"
-            sendEvent(name: "deviceStatus", value: "stopped_${state?.deviceStyle?.image}", display: false, displayed: false)
+            // log.debug "deviceStatus: stopped_${state.deviceStyle?.image}"
+            sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.image}", display: false, displayed: false)
         }
         return
     }
