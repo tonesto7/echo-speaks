@@ -1127,12 +1127,12 @@ def actTextOrTiersInput(String type) {
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
-        // String a = getActionDesc(false)
-        // if(a) {
-        //     section() {
-        //         paragraph spanSm(a, sCLR4D9)
-        //     }
-        // }
+        String a = getActionDesc(false)
+        if(a) {
+            section() {
+                paragraph spanSm(a, sCLR4D9)
+            }
+        }
         Boolean done = false
         Map actionExecMap = [configured: false]
         String myactionType = (String)settings.actionType
@@ -2420,14 +2420,14 @@ public Map getZones(Boolean noCache = false) {
     if(a.containsKey(i))a.remove(i)
     return a
 }
-
+/*
 private Map getZoneState(Integer znId) {
     Map zones = getZones()
     if(zones) {
         return zones[znId]
     }
     return null
-}
+} */
 
 public Map getActiveZones() {
     Map t0 = getZones()
@@ -3180,11 +3180,11 @@ Boolean timeCondOk() {
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime = formatDt(startTime)
             state.stopTime = formatDt(stopTime)
-            logTrace("TimeCheck ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
+            logTrace("timeCondOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
             return isBtwn
         }
     }
-    logTrace("TimeCheck | (null)")
+    logTrace("timeCondOk | (null)")
     state.startTime = sNULL
     state.stopTime = sNULL
     return null
@@ -3200,7 +3200,7 @@ Boolean dateCondOk() {
         mOk = settings.cond_months ? (isMonthOfYear(settings.cond_months)) : reqAll //true
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
-//    logTrace("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
+    logTrace("dateCondOk | $result | monthOk: $mOk | daysOk: $dOk")
     return result
 }
 
@@ -3214,7 +3214,7 @@ Boolean locationCondOk() {
         aOk = settings.cond_alarm ? isInAlarmMode(settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
-//    logTrace("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
+    logTrace("locationCondOk | $result | modeOk: $mOk | alarmOk: $aOk")
     return result
 }
 
@@ -3279,7 +3279,7 @@ Boolean deviceCondOk() {
     Integer cndSize = (passed.size() + failed.size())
     Boolean result = null
     if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
-//    logTrace("DeviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    logTrace("deviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return result
 }
 
@@ -3296,7 +3296,7 @@ Map conditionStatus() {
     Boolean reqAll = reqAllCond()
     Boolean ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
     if(cndSize == 0) ok = true
-    logTrace("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    logTrace("conditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
 
@@ -3626,8 +3626,9 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
     addToActHistory(evt, [status: condStatus, test: testMode, src: src, isRepeat: isRptAct, isTier: (tierData != null)] )
     Map actMap = state.actionExecMap
 
-    List actDevices = settings.act_EchoDevices ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
-    Integer actDevSiz = actDevices.size()
+    Integer actDevSiz = settings.act_EchoDevices ? settings.act_EchoDevices.size() : 0
+//    List actDevices  // = settings.act_EchoDevices ? parent?.getDevicesFromList(settings.act_EchoDevices) : []
+//    Integer actDevSiz = actDevices.size()
 
     Map activeZones = settings.act_EchoZones ? getActiveZones() : [:]
     activeZones = activeZones.size() ? activeZones.findAll { it?.key in settings.act_EchoZones } : [:]
@@ -3641,7 +3642,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
     Boolean lastTierMsg = (tierData && tierData.isLast == true)
     Boolean actOk = getConfStatusItem("actions")
     if(actOk && actType) {
-        def alexaMsgDev = actDevSiz && (Boolean)settings.notif_alexa_mobile ? actDevices[0] : null
+//        def alexaMsgDev = actDevSiz && (Boolean)settings.notif_alexa_mobile ? actDevices[0] : null
         if(!(Boolean)condStatus.ok) { logWarn("executeAction | Skipping execution because ${condStatus.blocks} conditions have not been met", true); return }
         if(!actMap || !actMap?.size()) { logError("executeAction Error | The ActionExecutionMap is not found or is empty", true); return }
         if(settings.act_EchoZones && actZonesSiz == 0 && actDevSiz == 0) { logWarn("executeAction | No Active Zones Available and No Alternate Echo Devices Selected.", true); return }
@@ -3669,16 +3670,36 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     if(!txt) { txt = "Invalid Text Received... Please verify Action configuration..." }
                     actMsgTxt = txt
 
+                    String mCmd = actType.replaceAll("_tiered", sBLANK)
                     if(actZonesSiz) {
-                        String mCmd = actType.replaceAll("_tiered", sBLANK)
                         // sendLocationEvent(name: "es3ZoneCmd", value: mCmd, data:[ zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         parent?.sendZoneCmd([zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs])
                         logDebug("Sending ${mCmd} Command: (${txt}) to Zones via Parent (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
 
                     } else {
+                        if(actDevSiz) {
+                            List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
+                            List devObjs = []
+
+                            String cmd = mCmd=='speak' ? "TTS" : "announce"
+                            actDevices?.each {
+                                Map devInfo = it?.getEchoDevInfo(cmd)
+                                if(devInfo) {
+                                    Boolean dnd = false //chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
+                                    if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
+                                }
+                            }
+                            parent?.sendDevObjCmd(devObjs, mCmd, getActionName(), txt, changeVol, restoreVol)
+                            logDebug("Sending ${mCmd} Command: (${txt}) to devices via Parent (${devObjs})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        }
+                    }
+
+
+/*
                         if(actType in ["speak", "speak_tiered"]) {
                             //Speak Command Logic
                             if(actDevSiz) {
+                                List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                                 if(changeVol!=null || restoreVol!=null) {
                                     actDevices.each { dev-> dev?.setVolumeSpeakAndRestore(changeVol, txt, restoreVol) }
                                 } else {
@@ -3700,7 +3721,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                             }
                             logDebug("Sending Announcement Command: (${txt}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                         }
-                    }
+                    } */
                 }
                 break
             case "voicecmd":
@@ -3712,6 +3733,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, message: mText, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType.capitalize()} Command: (${mText}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
+                        List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${mCmd}"(mText)
                         }
@@ -3727,6 +3749,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones.collect { it?.key as String }, cmd: mCmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
+                        List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             if(mCmd != "volume") dev?."${mCmd}"()
                             else if(mCmd == "volume" && changeVol != null) dev?.setVolume(changeVol)
@@ -3744,6 +3767,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
+                        List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol)
                         }
@@ -3758,6 +3782,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
+                        List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name, changeVol, restoreVol)
                         }
@@ -3769,6 +3794,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             case "alarm":
             case "reminder":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
+                    List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                     actDevices?.each { dev->
                         dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time)
                         // dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
@@ -3782,8 +3808,9 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                     log.debug "musicProvider: ${actConf[actType]?.provider} | ${convMusicProvider(actConf[actType]?.provider)}"
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider(actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
-                        logDebug("Sending ${actType.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
+                        List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider(actConf[actType]?.provider), changeVol, restoreVol)
                         }
@@ -3794,6 +3821,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 
             case "alexaroutine":
                 if(actConf[actType] && actConf[actType].cmd && actConf[actType].routineId) {
+                    List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                     actDevices[0]?."${actConf[actType].cmd}"((String)actConf[actType].routineId)
                     logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) | RoutineId: ${actConf[actType].routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                 }
@@ -3802,6 +3830,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             case "wakeword":
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
+                        List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
                             aDev?."${d?.cmd}"(d?.wakeword)
@@ -3814,6 +3843,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             case "bluetooth":
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
+                        List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
                             if(d?.cmd == "disconnectBluetooth") {
@@ -3832,6 +3862,11 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             if(customMsgConfigured()) { actMsgTxt = settings.notif_custom_message }
             if(customMsgRequired() && !customMsgConfigured()) { ok2SendNotif = false }
             if(ok2SendNotif && actMsgTxt) {
+                def alexaMsgDev
+                if(actDevSiz && (Boolean)settings.notif_alexa_mobile){
+                    List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
+                    alexaMsgDev = actDevices[0]
+                }
                 if(sendNotifMsg(getActionName(), actMsgTxt, alexaMsgDev, false)) { logTrace("Sent Action Notification...") }
             }
         }
@@ -4863,42 +4898,42 @@ static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und
 
 // Root HTML Objects
 static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
-static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String spanImgStr(String img=sNULL) { return (String) img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
-static String divImgStr(String str, String img=sNULL) { return (String) str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
-static String strUnder(String str, Boolean showUnd=true) { return (String) str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
-static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String spanImgStr(String img=sNULL) { return img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
+static String divImgStr(String str, String img=sNULL) { return str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
+static String strUnder(String str, Boolean showUnd=true) { return str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
+static String getOkOrNotSymHTML(Boolean ok) { return ok ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
-static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
-static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
-static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, true) : sBLANK }
-static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, false) : sBLANK }
+static String lineBr(Boolean show=true) { return show ? sLINEBR : sBLANK }
+static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
+static String inactFoot(String str) { return str ? inputFooter(str, sCLRGRY, true) : sBLANK }
+static String actFoot(String str) { return str ? inputFooter(str, sCLR4D9, false) : sBLANK }
 static String optPrefix() { return spanSm(" (Optional)", "violet") }
 //
 
 // Custom versions of the root objects above
-static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
-static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
-static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
-static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
-static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
-static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
-static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
-static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
-static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
-static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
-static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
-static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
+static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
+static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
+static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
+static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
+static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
+static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
+static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
+static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
+static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
+static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
+static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
+static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
 
 
-static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
-static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
-static String divBr(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
-static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
-static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
-static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
-static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
+static String divBld(String str, String clr=sNULL, String img=sNULL)        { return str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
+static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
+static String divBr(String str, String clr=sNULL, String img=sNULL)         { return str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
+static String divSm(String str, String clr=sNULL, String img=sNULL)         { return str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
+static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
+static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
+static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 
 def appFooter() {
 	section() {
