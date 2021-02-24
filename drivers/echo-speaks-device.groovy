@@ -1533,8 +1533,8 @@ public restoreLastVolume() {
     if(lastVol && permissionOk("volumeControl")) {
         logTrace(msg+" received...")
         setVolume(lastVol as Integer)
-        sendEvent(name: "level", value: lastVol, display: false, displayed: false)
-        sendEvent(name: "volume", value: lastVol, display: false, displayed: false)
+//        sendEvent(name: "level", value: lastVol, display: false, displayed: false)
+//        sendEvent(name: "volume", value: lastVol, display: false, displayed: false)
     } else { logWarn(msg+" previous value not found...", true) }
 }
 
