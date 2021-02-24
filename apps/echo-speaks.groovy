@@ -3820,7 +3820,10 @@ void workQ() {
                             String type=cmdItem?.cmdType ?: sBLANK
                             String tv  = cmdItem?.value?.toString()
                             Integer del = getMsgDur(mcommand, type, tv)
-                            if(del) mdelay += del
+                            if(del) {
+                                if(!parallel) mdelay += del
+                                else mdelay = del > mdelay ? del : mdelay
+                            }
                         }
                         if(mdelay) cmdMap.msgDelay= mdelay
                     }
