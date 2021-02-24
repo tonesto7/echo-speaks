@@ -3549,6 +3549,7 @@ void sendZoneCmd(Map cmdData) {
 }
 
 void sendDevObjCmd(List devObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
+        String origMsg = newmsg
         switch(myCmd) {
             case "announcement":
                 String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
@@ -3582,7 +3583,7 @@ void sendDevObjCmd(List devObj, String myCmd, String title, String newmsg, Integ
                     queueMultiSequenceCommand(mainSeq, myMsg)
                     devObj.each { dev-> 
                         def child = getChildDevice((String)dev.dni)
-                        child.finishAnnounce(cmd.message)
+                        child.finishAnnounce(origMsg)
                     }
                 }
 
