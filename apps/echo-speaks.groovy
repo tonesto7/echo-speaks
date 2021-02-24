@@ -3548,7 +3548,8 @@ void sendZoneCmd(Map cmdData) {
     }
 }
 
-void sendDevObjCmd(List devObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
+void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
+	List<Map> devObj = odevObj.unique() // remove any duplicate devices
         String origMsg = newmsg
         switch(myCmd) {
             case "announcement":
