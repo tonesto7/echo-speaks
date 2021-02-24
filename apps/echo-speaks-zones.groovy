@@ -280,12 +280,12 @@ private void updDeviceInputs() {
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
-        // String a = getConditionsDesc(false)
-        // if(a) {
-        //     section() {
-        //         paragraph pTS(a, sNULL, false, sCLR4D9)
-        //     }
-        // }
+        String a = getConditionsDesc(false)
+        if(a) {
+            section() {
+                paragraph pTS(a, sNULL, false, sCLR4D9)
+            }
+        }
         Boolean multiConds = multipleConditions()
         section() {
             if(multiConds) {
@@ -544,7 +544,7 @@ def initialize() {
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
     runIn(3, "zoneCleanup")
-    if(!isPaused()) {
+    if(!isPaused(true)) {
         runIn(7, "subscribeToEvts")
         runEvery1Hour("healthCheck")
         updConfigStatusMap()
@@ -597,7 +597,7 @@ def uninstalled() {
 String getZoneName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (Z${isPaused() ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s",sSPACE)
+    String newLbl = "${settings.appLbl} (Z${isPaused(true) ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s",sSPACE)
     if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl); sendZoneStatus() } 
 }
 
@@ -642,7 +642,7 @@ private healthCheck() {
 //private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
 void scheduleCondition() {
-    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
+    if(isPaused(true)) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     Boolean tC = timeCondConfigured()
     Boolean dC = dateCondConfigured()
     if (tC || dC) {
@@ -700,7 +700,7 @@ void scheduleCondition() {
 void subscribeToEvts() {
 //    state.handleGuardEvents = false
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
-    if(isPaused()) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
+    if(isPaused(true)) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     List subItems = [sMODE, "alarm", "presence", "motion", "water", "humidity", "temperature", "illuminance", "power", "lock", "securityKeypad", "shade", "valve", "door", "contact", "acceleration", sSWITCH, "battery", "level"]
 
     //SCHEDULING
@@ -777,11 +777,11 @@ Boolean timeCondOk() {
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime =  formatDt(startTime)
             state.stopTime =  formatDt(stopTime)
-            logTrace("TimeCheck ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
+            logTrace("timeCondOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
             return isBtwn
         }
     }
-    logTrace("TimeCheck | (null)")
+    logTrace("timeCondOk | (null)")
     state.startTime = sNULL
     state.stopTime = sNULL
     return null
@@ -797,7 +797,7 @@ Boolean dateCondOk() {
         mOk = (List)settings.cond_months ? (isMonthOfYear((List)settings.cond_months)) : reqAll //true
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
-    logTrace("dateConditions | $result | monthOk: $mOk | daysOk: $dOk")
+    logTrace("dateCondOk | $result | monthOk: $mOk | daysOk: $dOk")
     return result
 }
 
@@ -811,7 +811,7 @@ Boolean locationCondOk() {
         aOk = (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
-    logTrace("locationConditions | $result | modeOk: $mOk | alarmOk: $aOk")
+    logTrace("locationCondOk | $result | modeOk: $mOk | alarmOk: $aOk")
     return result
 }
 
@@ -906,17 +906,18 @@ Map conditionStatus() {
     List skipped = []
     Boolean ok = true
     if((Boolean)state.dupPendingSetup) ok = false
+    Integer cndSize
     if(ok) {
         [sTIME, "date", "location", "device"]?.each { i->
             Boolean s = "${i}CondOk"()
             if(s == null) { skipped.push(i); return }
             s ? passed.push(i) : failed.push(i)
         }
-        Integer cndSize = passed.size() + failed.size()
+        cndSize = passed.size() + failed.size()
         ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
         if(cndSize == 0) ok = true
     }
-    logTrace("ConditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    logTrace("conditionStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
 
@@ -1034,7 +1035,7 @@ void checkZoneStatus(evt) {
 Map myZoneStatus() {
     Map zoneDevs = getZoneDevices()
     // log.debug "zoneDevs: $zoneDevs"
-    return [name: app?.getLabel(), active: isActive(), paused: isPaused(), id: app?.getId(), zoneDevices: (List)zoneDevs.devIds ?: []]
+    return [name: app?.getLabel(), active: isActive(), paused: isPaused(true), id: app?.getId(), zoneDevices: (List)zoneDevs.devIds ?: []]
 }
 
 void sendZoneStatus() {
@@ -1602,7 +1603,7 @@ String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
     if(confd) {
-        String str = spanSmBldBr("Zone is Active: " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+        String str = spanSmBldBr("Zone is " + (Boolean)conditionStatus().ok ? "Active" : "Inactive")
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if((Boolean)timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
@@ -1767,7 +1768,7 @@ Boolean getOk2Notify() {
     Boolean result = true
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
     if(!(daysOk && modesOk && timeOk)) { result = false }
-    logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    logDebug("getOk2Notify() RESULT: $result | notifDevsOk: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     return result
 }
 
@@ -1864,7 +1865,7 @@ Boolean isActive() {
     return st != null ? st : (Boolean)conditionStatus().ok
 }
 
-Boolean isPaused() { return (Boolean)settings.zonePause == true }
+Boolean isPaused(Boolean chkAll = false) { return (Boolean)settings.zonePause && (chkAll ? !(state.dupPendingSetup == true) : true) }
 
 static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
 
@@ -1881,42 +1882,42 @@ static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und
 
 // Root HTML Objects
 static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
-static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String spanImgStr(String img=sNULL) { return (String) img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
-static String divImgStr(String str, String img=sNULL) { return (String) str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
-static String strUnder(String str, Boolean showUnd=true) { return (String) str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
-static String getOkOrNotSymHTML(Boolean ok) { return (String) (ok) ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String spanImgStr(String img=sNULL) { return img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
+static String divImgStr(String str, String img=sNULL) { return str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
+static String strUnder(String str, Boolean showUnd=true) { return str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
+static String getOkOrNotSymHTML(Boolean ok) { return ok ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
-static String lineBr(Boolean show=true) { return (String) show ? sLINEBR : sBLANK }
-static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
-static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, true) : sBLANK }
-static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, false) : sBLANK }
+static String lineBr(Boolean show=true) { return show ? sLINEBR : sBLANK }
+static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return str ? ((noBr ? sBLANK : lineBr()) + divSmBld(str, clr)) : sBLANK }
+static String inactFoot(String str) { return str ? inputFooter(str, sCLRGRY, true) : sBLANK }
+static String actFoot(String str) { return str ? inputFooter(str, sCLR4D9, false) : sBLANK }
 static String optPrefix() { return spanSm(" (Optional)", "violet") }
 //
 
 // Custom versions of the root objects above
-static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
-static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
-static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
-static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
-static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
-static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
-static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
-static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
-static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
-static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
-static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
-static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
+static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
+static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
+static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
+static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
+static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
+static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
+static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
+static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
+static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
+static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
+static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
+static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
 
 
-static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
-static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
-static String divBr(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
-static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
-static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
-static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
-static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
+static String divBld(String str, String clr=sNULL, String img=sNULL)        { return str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
+static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
+static String divBr(String str, String clr=sNULL, String img=sNULL)         { return str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
+static String divSm(String str, String clr=sNULL, String img=sNULL)         { return str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
+static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
+static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
+static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"}"+sSPACE+sBULLET+sSPACE+strVal }
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - "+strVal }
 
