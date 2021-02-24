@@ -251,6 +251,13 @@ public triggerInitialize() { runIn(3, "initialize") }
 String getEchoDeviceType() { return (String)state.deviceType ?: sNULL }
 String getEchoSerial() { return (String)state.serialNumber ?: sNULL }
 
+Map getEchoDevInfo(cmd) {
+    if(isCommandTypeAllowed(cmd)) {
+	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), dni: device.deviceNetworkId ]
+    }
+   return null
+}
+
 String getHealthStatus(Boolean lower=false) {
     String res = device?.getStatus()
     if(lower) { return res?.toLowerCase() }
@@ -982,16 +989,18 @@ private List getNotifications(String type="Reminder", all=false) {
 
 private getDeviceActivity() {
     try {
-        Map actData = parent?.getDeviceActivity((String) state.serialNumber)
+        Map actData = parent?.getDeviceActivity((String)state.serialNumber)
         actData = actData ?: null
-        Boolean wasLastDevice = (actData != null && (String) actData?.serialNumber == (String) state.serialNumber)
-        if(actData != null && (Boolean) wasLastDevice) {
-            if(isStateChange(device, "lastVoiceActivity", (String) actData?.spokenText)) {
-                logDebug("lastVoiceActivity: ${actData?.spokenText}")
-                sendEvent(name: "lastVoiceActivity", value: (String) actData?.spokenText, display: false, displayed: false)
-            }
-            if(isStateChange(device, "lastSpokenToTime", (String) actData?.lastSpokenDt)) {
-                sendEvent(name: "lastSpokenToTime", value: (String) actData?.lastSpokenDt, display: false, displayed: false)
+        Boolean wasLastDevice = (actData != null && (String)actData?.serialNumber == (String)state.serialNumber)
+        if(actData != null && wasLastDevice) {
+            if((String)actData.spokeText) {
+                if(isStateChange(device, "lastVoiceActivity", (String)actData?.spokenText)) {
+                    logDebug("lastVoiceActivity: ${actData?.spokenText}")
+                    sendEvent(name: "lastVoiceActivity", value: (String) actData?.spokenText, display: false, displayed: false)
+                }
+                if(isStateChange(device, "lastSpokenToTime", (String) actData?.lastSpokenDt)) {
+                    sendEvent(name: "lastSpokenToTime", value: (String) actData?.lastSpokenDt, display: false, displayed: false)
+                }
             }
         }
         if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
@@ -1501,7 +1510,8 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
             volChg = true
         }
         speak(msg)
-        if(volChg && stored) state.oldVolume = null 
+//        state.newVolume = null
+//        if(volChg && stored) state.oldVolume = null 
     }
 }
 
@@ -1644,9 +1654,14 @@ def playSoundByName(String name, volume=null, restoreVolume=null) {
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     if(isCommandTypeAllowed("announce")) {
         seqHelper_a("announcement", msg, "playAnnouncement", volume, restoreVolume)
-        sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
+        finishAnnounce(msg)
     }
 }
+
+def finishAnnounce(String msg){ 
+        sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
+}
+
 /*void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
     if(volume != null) {
         List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
@@ -2535,6 +2550,8 @@ void speak(String msg) {
         speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
         return
     }
+    state.newVolume = null
+    state.oldVolume = null
     logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
 }
 
