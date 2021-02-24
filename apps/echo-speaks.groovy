@@ -1228,7 +1228,7 @@ void executeSpeechTest() {
     selectedDevs?.each { String devSerial->
         def childDev = getChildDeviceBySerial(devSerial)
         if(childDev && childDev?.hasCommand('setVolumeSpeakAndRestore')) {
-            childDev?.setVolumeSpeakAndRestore((Integer)settings.test_speechVolume, testMsg, ((Integer)settings.test_speechRestVolume ?: 30))
+            childDev?.setVolumeSpeakAndRestore((Integer)settings.test_speechVolume, testMsg, (Integer)settings.test_speechRestVolume )
         } else {
             logError("Speech Test device with serial# (${devSerial} was not located!!! or does not support speakAndRestore")
         }
@@ -3532,46 +3532,83 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 void sendZoneCmd(Map cmdData) {
-    // TODO: Since we are bypassing the device we need to add checks that the device is ok to speak (Ex. DND)
     log.trace span("sendZoneCmd | cmdData: $cmdData", "purple")
-    if(cmdData && cmdData.cmd) {
-        String zoneDevJson = sNULL
+    String myCmd = cmdData ? (String)cmdData.cmd : sNULL
+    if(myCmd && cmdData.zones) {
+        List devObj = []
         if(cmdData.zones) {
-            zoneDevJson = getZoneDeviceJson(cmdData.zones)
+            devObj = getZoneDevices((List)cmdData.zones, myCmd=='speak' ? "TTS" : "announce")
         }
-        switch(cmdData.cmd) {
-            case "announcement":
-                String newmsg = "${cmdData.title ?: "Echo Speaks"}::${cmdData.message}::${zoneDevJson}"
-                log.debug "sendAnnouncementToDevices | msg: ${newmsg}"
-                if(volume != null) {
-                    List mainSeq = []
-                    devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-                    mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement'])
 
-                    //sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
-                    // sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet")
-
-                    if(restoreVolume!=null) {
-                        List amainSeq = []
-                        devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-                        // sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore")
-                    }
-                    log.debug "mainSeq: $mainSeq"
-                } else { 
-                    // sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg) 
-                }
-
-                // parent.queueMultiSequenceCommand(commands, srcDesc, parallel, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], null, device.deviceNetworkId, callback)
-                break
-            case "speak":
-
-                break
-        }
+        String newmsg = (String)cmdData.message
+        String title = (String)cmdData.title
+        Integer volume = cmdData.changeVol
+        Integer restoreVolume = cmdData.restoreVol
+        sendDevObjCmd(devObj, myCmd, title, newmsg, volume, restoreVolume)
     }
 }
 
-private String getZoneDeviceJson(List znList) {
-    log.trace "getZoneDeviceJson | $znList"
+void sendDevObjCmd(List devObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
+        switch(myCmd) {
+            case "announcement":
+                String zoneDevJson = devObjs.size() ? new groovy.json.JsonOutput().toJson(devObjs) : sNULL
+                newmsg = "${title ?: "Echo Speaks"}::${newmsg}::${zoneDevJson}"
+            case "speak":
+                log.debug "sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume"
+                String myMsg = "sendDevObjCmd ${myCmd}"
+                if(volume != null) {
+                    List mainSeqa = []
+                    devObj.each { dev-> mainSeqa.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                    queueMultiSequenceCommand(mainSeqa, myMsg+"-VolumeSet")
+                }
+                List mainSeq = []
+                if (myCmd == 'speak') {
+                    devObj.each { dev-> 
+                        //mainSeq.push([command: 'sendspeak', value:cmdData.message, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber])
+                        Map cmdMap = [
+                            cmdDt: now(),
+                            cmdDesc: "SpeakCommand",
+                            message: newmsg,
+                            msgLen: newmsg.length(),
+                            oldVolume: restoreVolume,
+                            newVolume: volume
+                        ] 
+                        queueMultiSequenceCommand(
+                            [[command: 'sendspeak', value:newmsg ]],
+                            myMsg+" to device ${dev.dni}", false, [serialNumber : dev.deviceSerialNumber, deviceType: dev.deviceTypeId], cmdMap, dev.dni, "finishSendSpeak")
+                    }
+                } else if (myCmd == 'announcement') {
+                    mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement'])
+                    queueMultiSequenceCommand(mainSeq, myMsg)
+                    devObj.each { dev-> 
+                        def child = getChildDevice((String)dev.dni)
+                        child.finishAnnounce(cmd.message)
+                    }
+                }
+
+                if(restoreVolume!=null) {
+                    List amainSeq = []
+                    devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                    queueMultiSequenceCommand(amainSeq, myMsg+"-VolumeRestore")
+                }
+//                    log.debug "mainSeq: $mainSeq"
+/*                } else { 
+                    List mainSeq = []
+                    if(cmdData.cmd == 'speak') {
+                        devObj.each { dev-> mainSeq.push([command: 'sendspeak', value:cmdData.message, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                        queueMultiSequenceCommand(mainSeq, myMsg)
+                    }
+                    else if (cmdData.cmd == 'announcement') queueSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg)
+                } */
+//void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
+
+// void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+                break
+        }
+}
+
+private List getZoneDevices(List znList, String cmd, Boolean chkDnd=false) {
+    log.trace "getZoneDevices | $znList"
     List devObjs = []
     if(znList && znList.size()) {
         znList.each { znId ->
@@ -3580,11 +3617,19 @@ private String getZoneDeviceJson(List znList) {
             // log.trace "znData: $znData"
             if(znData && znData.zoneDevices) {
                 List devices = getDevicesFromList(znData.zoneDevices)
-                devices?.each { devObjs?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+                //devices?.each { devObjs?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
+                devices?.each {
+                    Map devInfo = it?.getEchoDevInfo(cmd)
+                    if(devInfo) {
+                        Boolean dnd = chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
+                        if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
+                    }
+                }
             }
         }
     }
-    return (String) (devObjs.size()) ? new groovy.json.JsonOutput().toJson(devObjs) : sNULL
+    //return (String) (devObjs.size()) ? new groovy.json.JsonOutput().toJson(devObjs) : sNULL
+    return devObjs
 }
 
 private Map getZoneState(String znId) {
@@ -3624,6 +3669,7 @@ void queueSequenceCommand(String type, String command, value, Map deviceData=[:]
 }
 
 void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+//log.warn "commands: $commands   srcDesc: $srcDesc  parallel: $parallel  devicData: $deviceData   cmdMap: $cmdMap  device: $device"
 // expand speak commands and handle ssml
     List<Map> newCmds = []
     List<Map> seqCmds = commands
@@ -3631,7 +3677,8 @@ void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean paral
         // log.debug "cmdItem: $cmdItem"
         if(cmdItem.command instanceof String){
              if((String)cmdItem.command in ['sendspeak']){
-                  newCmds = newCmds + msgSeqBuilder((String)cmdItem.value, deviceData+[cmdType:'sendSpeak'])
+                  Map st = cmdItem.devType ? [serialNumber: cmdItem.devSerial, deviceType: cmdItem.devType] : deviceData
+                  newCmds = newCmds + msgSeqBuilder((String)cmdItem.value, st+[cmdType:'sendSpeak'])
              } else newCmds.push(cmdItem)
         } else newCmds.push(cmdItem)
     }
@@ -4621,42 +4668,42 @@ static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean un
 static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ").replaceAll("<br>", " "), und), clr, img) }
 
 // Root HTML Objects
-static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
-static String spanImgStr(String img=sNULL) { return (String) img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
-static String divImgStr(String str, String img=sNULL) { return (String) str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
-static String strUnder(String str, Boolean showUnd=true) { return (String) str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String div(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<div ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</div>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String spanImgStr(String img=sNULL) { return img ? span("<img src='${(!img.startsWith("http://") && !img.startsWith("https://")) ? getAppImg(img) : img}' width='42'> ") : sBLANK }
+static String divImgStr(String str, String img=sNULL) { return str ? div(img ? spanImg(img) + span(str) : str) : sBLANK }
+static String strUnder(String str, Boolean showUnd=true) { return str ? (showUnd ? "<u>${str}</u>" : str) : sBLANK }
 static String getOkOrNotSymHTML(Boolean ok) { return ok ? span("(${okSymFLD})", sCLRGRN2) : span("(${notOkSymFLD})", sCLRRED2) }
 static String htmlLine(String color=sCLR4D9) { return "<hr style='background-color:${color};height:1px;border:0;margin-top:0;margin-bottom:0;'>" }
 static String lineBr(Boolean show=true) { return show ? sLINEBR : sBLANK }
-static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return (String) str ? lineBr(!noBr) + divSmBld(str, clr) : sBLANK }
-static String inactFoot(String str) { return (String) str ? inputFooter(str, sCLRGRY, true) : sBLANK }
-static String actFoot(String str) { return (String) str ? inputFooter(str, sCLR4D9, false) : sBLANK }
+static String inputFooter(String str, String clr=sCLR4D9, Boolean noBr=false) { return str ? lineBr(!noBr) + divSmBld(str, clr) : sBLANK }
+static String inactFoot(String str) { return str ? inputFooter(str, sCLRGRY, true) : sBLANK }
+static String actFoot(String str) { return str ? inputFooter(str, sCLR4D9, false) : sBLANK }
 static String optPrefix() { return spanSm(" (Optional)", "violet") }
 //
 
 // Custom versions of the root objects above
-static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
-static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
-static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
-static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
-static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
-static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
-static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return (String) str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
-static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
-static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
-static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
-static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
-static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return (String) str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
+static String spanBld(String str, String clr=sNULL, String img=sNULL)      { return str ? spanImgStr(img) + span(str, clr, sNULL, true)             : sBLANK }
+static String spanBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sNULL, true, true)       : sBLANK }
+static String spanBr(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sNULL, false, true)      : sBLANK }
+static String spanSm(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sSMALL)                 : sBLANK }
+static String spanSmBr(String str, String clr=sNULL, String img=sNULL)     { return str ? spanImgStr(img) + span(str, clr, sSMALL, false, true)    : sBLANK }
+static String spanSmBld(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sSMALL, true)           : sBLANK }
+static String spanSmBldUnd(String str, String clr=sNULL, String img=sNULL) { return str ? spanImgStr(img) + span(strUnder(str), clr, sSMALL, true) : sBLANK }
+static String spanSmBldBr(String str, String clr=sNULL, String img=sNULL)  { return str ? spanImgStr(img) + span(str, clr, sSMALL, true, true)     : sBLANK }
+static String spanMd(String str, String clr=sNULL, String img=sNULL)       { return str ? spanImgStr(img) + span(str, clr, sMEDIUM)                : sBLANK }
+static String spanMdBr(String str, String clr=sNULL, String img=sNULL)     { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, false, true)   : sBLANK }
+static String spanMdBld(String str, String clr=sNULL, String img=sNULL)    { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, true)          : sBLANK }
+static String spanMdBldBr(String str, String clr=sNULL, String img=sNULL)  { return str ? spanImgStr(img) + span(str, clr, sMEDIUM, true, true)    : sBLANK }
 
 
-static String divBld(String str, String clr=sNULL, String img=sNULL)        { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
-static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
-static String divBr(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
-static String divSm(String str, String clr=sNULL, String img=sNULL)         { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
-static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
-static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
-static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return (String) str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
+static String divBld(String str, String clr=sNULL, String img=sNULL)        { return str ? div(spanImgStr(img) + span(str), clr, sNULL, true, false)   : sBLANK }
+static String divBldBr(String str, String clr=sNULL, String img=sNULL)      { return str ? div(spanImgStr(img) + span(str), clr, sNULL, true, true)    : sBLANK }
+static String divBr(String str, String clr=sNULL, String img=sNULL)         { return str ? div(spanImgStr(img) + span(str), clr, sNULL, false, true)   : sBLANK }
+static String divSm(String str, String clr=sNULL, String img=sNULL)         { return str ? div(spanImgStr(img) + span(str), clr, sSMALL)              : sBLANK }
+static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, false, true) : sBLANK }
+static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
+static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 
 
 def appFooter() {
