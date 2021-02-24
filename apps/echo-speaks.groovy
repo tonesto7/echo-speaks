@@ -1395,7 +1395,7 @@ def donationPage() {
             str += spanSmBr("<br>If you are just not interested in donating please ignore this message")
             str += spanSm("<br>Thanks again for using Echo Speaks")
             paragraph divSm(str, sCLRRED)
-            href url: textDonateLink(), style: sEXTNRL, required: false, title: "Donations", description: inputFooter("Tap to open in browser", sCLRGRY, true)
+            href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open in browser", sCLRGRY, true)
         }
         updInstData("shownDonation", true)
     }

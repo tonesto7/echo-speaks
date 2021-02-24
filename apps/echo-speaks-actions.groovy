@@ -3560,24 +3560,19 @@ public getActionHistory(Boolean asObj=false) {
     if(eHist.size()) {
         eHist.each { Map h->
             String str = sBLANK
-            List hMap = []
-            hMap.push([name: "Trigger:", val: h?.evtName])
-            hMap.push([name: "Device:", val: h?.evtDevice])
-            hMap.push([name: "Condition Status:", val: (h?.active ? "Passed" : "Failed")])
-            hMap.push([name: "Conditions Passed:", val: h?.passed])
-            hMap.push([name: "Conditions Blocks:", val: h?.blocks])
-            if(h?.test) hMap.push([name: "Test Mode:", val: true])
-            if(h?.isRepeat) hMap.push([name: "Repeat:", val: true])
-            hMap.push([name: "Source:", val: h?.src])
-            hMap.push([name: "DateTime:", val: h?.dt])
-            if(hMap?.size()) {
-                str += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
-                hMap.each { it->  
-                    str += "<tr style='border: 1px solid ${sCLRGRY};'><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBld(it.name)}</td><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.val}")}</td></tr>"
-                }
-                str += "</table>"
+            List hList = []
+            hList.push([name: "Trigger:", val: h?.evtName])
+            hList.push([name: "Device:", val: h?.evtDevice])
+            hList.push([name: "Condition Status:", val: (h?.active ? "Passed" : "Failed")])
+            hList.push([name: "Conditions Passed:", val: h?.passed])
+            hList.push([name: "Conditions Blocks:", val: h?.blocks])
+            if(h?.test) hList.push([name: "Test Mode:", val: true])
+            if(h?.isRepeat) hList.push([name: "Repeat:", val: true])
+            hList.push([name: "Source:", val: h?.src])
+            hList.push([name: "DateTime:", val: h?.dt])
+            if(hList.size()) {
+                output.push(spanSm(kvListToHtmlTable(hList, sCLR4D9), sCLRGRY)) 
             }
-            output.push(spanSm(str, sCLRGRY)) 
         }
     } else { output.push("No History Items Found...") }
     if(!asObj) {
@@ -3585,6 +3580,18 @@ public getActionHistory(Boolean asObj=false) {
     } else {
         return output
     }
+}
+
+private String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
+    String str = sBLANK
+    if(tabList?.size()) {
+        str += "<table style='border: 1px solid ${color};border-collapse: collapse;'>"
+        tabList.each { it->  
+            str += "<tr style='border: 1px solid ${color};'><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBld(it.name)}</td><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.val}")}</td></tr>"
+        }
+        str += "</table>"
+    }
+    return str
 }
 
 private addToActHistory(evt, data, Integer max=10) {
