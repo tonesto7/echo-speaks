@@ -4305,10 +4305,13 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
                 Boolean isSSML = (valObj[1].startsWith("<speak>") && valObj[1].endsWith("</speak>"))
+                String mtype = lcmd == "ssml" || isSSML ? "ssml" : "text"
+                String mval = lcmd == "ssml" || isSSML ? valObj[1] : cleanString(valObj[1])
+                String mtitle = cleanString(lcmd == "ssml" || isSSML ?  valObj[1].replaceAll(/<[^>]+>/, '') : valObj[1])
                 seqNode.operationPayload.content = [[
                                                             locale: ((String)state.regionLocale ?: "en-US"),
-                                                            display: [ title: valObj[0], body: valObj[1].replaceAll(/<[^>]+>/, '') ],
-                                                            speak: [ type: (lcmd == "ssml" || isSSML ? "ssml" : "text"), value: valObj[1] ]
+                                                            display: [ title: cleanString(valObj[0]), body: mtitle ], //valObj[1].replaceAll(/<[^>]+>/, '') ],
+                                                            speak: [ type: mtype, value: mval ] //(lcmd == "ssml" || isSSML ? "ssml" : "text"), value: valObj[1] ]
                                                     ]]
                 seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
                 if(!(lcmd in ["announcementall", "announcement_devices"])) {
