@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-23"
+@Field static final String appModifiedFLD = "2021-02-24"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -694,7 +694,7 @@ def zonesPage() {
 }
 
 def viewZoneHistory() {
-    return dynamicPage(name: "viewZoneHistory", uninstall: false, install: false) {
+    return dynamicPage(name: "viewZoneHistory", title: div("<h2>Zone Event History</h2>", sNULL, sNULL, true), uninstall: false, install: false) {
         List zApps = getZoneApps()
         zApps?.each { z->
             section(sectHead((String)z.getLabel())) {
@@ -709,7 +709,7 @@ def viewZoneHistory() {
 }
 
 def viewActionHistory() {
-    return dynamicPage(name: "viewActionHistory", uninstall: false, install: false) {
+    return dynamicPage(name: "viewActionHistory", title: div("<h2>Action Event History</h2>", sNULL, sNULL, true), uninstall: false, install: false) {
         List actApps = getActionApps()
         actApps?.each { a->
             section(sectHead(a.getLabel())) {

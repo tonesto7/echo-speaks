@@ -18,7 +18,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-23"
+@Field static final String appModifiedFLD = "2021-02-24"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -1083,13 +1083,21 @@ public getZoneHistory(Boolean asObj=false) {
     if(zHist?.size()) {
         zHist.each { h->
             String str = sBLANK
-            str += "Trigger: [${h?.evtName}]"
-            str += "\nDevice: [${h?.evtDevice}]"
-            str += "\nZone Status: ${h?.active ? "Activate" : "Deactivate"}"
-            str += "\nConditions Passed: ${h?.passed}"
-            str += "\nConditions Blocks: ${h?.blocks}"
-            str += "\nDateTime: ${h?.dt}"
-            output.push(str)
+            List hMap = []
+            hMap.push([name: "Trigger:", val: h?.evtName])
+            hMap.push([name: "Device:", val: h?.evtDevice])
+            hMap.push([name: "Zone Status:", val: (h?.active ? "Activate" : "Deactivate")])
+            hMap.push([name: "Conditions Passed:", val: h?.passed])
+            hMap.push([name: "Conditions Blocks:", val: h?.blocks])
+            hMap.push([name: "DateTime:", val: h?.dt])
+            if(hMap?.size()) {
+                str += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
+                hMap.each { it->  
+                    str += "<tr style='border: 1px solid ${sCLRGRY};'><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBld(it.name)}</td><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.val}")}</td></tr>"
+                }
+                str += "</table>"
+            }
+            output.push(spanSm(str, sCLRGRY)) 
         }
     } else { output.push("No History Items Found...") }
     if(!asObj) {

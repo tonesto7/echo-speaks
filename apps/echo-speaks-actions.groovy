@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-23"
+@Field static final String appModifiedFLD = "2021-02-24"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -3560,17 +3560,24 @@ public getActionHistory(Boolean asObj=false) {
     if(eHist.size()) {
         eHist.each { Map h->
             String str = sBLANK
-            str += "Trigger: [${h?.evtName}]"
-            str += "\nDevice: [${h?.evtDevice}]"
-            str += "\nCondition Status: ${h?.active ? "Passed" : "Failed"}"
-            str += "\nConditions Passed: ${h?.passed}"
-            str += "\nConditions Blocks: ${h?.blocks}"
-            str += h?.test ? "\nTest Mode: true" : sBLANK
-            str += h?.isTier ? "\nTest Cmd: true" : sBLANK
-            str += h?.isRepeat ? "\nRepeat: true" : sBLANK
-            str += "\nSource: ${h?.src}"
-            str += "\nDateTime: ${h?.dt}"
-            output.push(str)
+            List hMap = []
+            hMap.push([name: "Trigger:", val: h?.evtName])
+            hMap.push([name: "Device:", val: h?.evtDevice])
+            hMap.push([name: "Condition Status:", val: (h?.active ? "Passed" : "Failed")])
+            hMap.push([name: "Conditions Passed:", val: h?.passed])
+            hMap.push([name: "Conditions Blocks:", val: h?.blocks])
+            if(h?.test) hMap.push([name: "Test Mode:", val: true])
+            if(h?.isRepeat) hMap.push([name: "Repeat:", val: true])
+            hMap.push([name: "Source:", val: h?.src])
+            hMap.push([name: "DateTime:", val: h?.dt])
+            if(hMap?.size()) {
+                str += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
+                hMap.each { it->  
+                    str += "<tr style='border: 1px solid ${sCLRGRY};'><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBld(it.name)}</td><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.val}")}</td></tr>"
+                }
+                str += "</table>"
+            }
+            output.push(spanSm(str, sCLRGRY)) 
         }
     } else { output.push("No History Items Found...") }
     if(!asObj) {
