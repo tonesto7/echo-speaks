@@ -1496,49 +1496,46 @@ def setVolumeAndSpeak(volume, String msg) {
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, $restVolume) command received...")
-    Boolean volChg = false
-    Boolean stored = false
     if(msg) {
         if(volume != null && permissionOk("volumeControl")) {
             state.newVolume = volume?.toInteger()
             if(restVolume != null) {
                 state.oldVolume = restVolume as Integer
-                stored = true
             } else {
-                stored = mstoreCurrentVolume()
+                Boolean stored = mstoreCurrentVolume()
             }
-            volChg = true
         }
         speak(msg)
-//        state.newVolume = null
-//        if(volChg && stored) state.oldVolume = null 
     }
 }
 
 def storeCurrentVolume() {
-    Boolean a= mstoreCurrentVolume()
+    Boolean a= mstoreCurrentVolume(true)
 }
 
-Boolean mstoreCurrentVolume() {
+Boolean mstoreCurrentVolume(Boolean user=false) {
     Integer t0 = device?.currentValue("level")
     Integer curVol = t0 //  ?: 1
+    String msg = "storeCurrentVolume($user, $curVol)"
     if(curVol != null) {
-        state.oldVolume = curVol
-        logTrace("storeCurrentVolume(${curVol}) command received...")
+        if(user) state.svVolume = curVol
+        else state.oldVolume = curVol
+        logTrace(msg+" received...")
         return true
     }
-    logTrace("storeCurrentVolume(${curVol}) command failed...")
+    logWarn(msg+" failed...", true)
     return false
 }
 
 public restoreLastVolume() {
-    Integer lastVol = state.oldVolume
-    logTrace("restoreLastVolume(${lastVol}) command received...")
+    Integer lastVol = state.svVolume
+    String msg = "restoreLastVolume($lastVol)"
     if(lastVol && permissionOk("volumeControl")) {
+        logTrace(msg+" received...")
         setVolume(lastVol as Integer)
         sendEvent(name: "level", value: lastVol, display: false, displayed: false)
         sendEvent(name: "volume", value: lastVol, display: false, displayed: false)
-    } else { logWarn("Unable to restore Last Volume!!! restoreVolume State Value not found...", true) }
+    } else { logWarn(msg+" previous value not found...", true) }
 }
 
 void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
@@ -2571,8 +2568,6 @@ private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
     }
 
     Integer msgLen = ((String)cmdMap.message)?.length()
-//    Integer recheckDelay = getRecheckDelay(msgLen)
-//    cmdMap["msgDelay"] = recheckDelay
     Random random = new Random()
     Integer randCmdId = random.nextInt(300)
     cmdMap["cmdId"] = randCmdId
@@ -2581,52 +2576,6 @@ private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
 
     parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
 }
-
-/*
-String cleanString(String str, Boolean frcTrans=false) {
-    if(!str) { return sNULL }
-    //Cleans up characters from message
-    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, " ")
-    str = textTransform(str, frcTrans)
-    // log.debug "cleanString: $str"
-    return str
-}
-
-private String textTransform(String str, Boolean force=false) {
-    if(!force && (Boolean)settings.disableTextTransform) { return str }
-    // Converts F temp values to readable text "19F"
-    str = str.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
-    str = str.replaceAll(/(\sWSW\s)/, " west southwest ")?.replaceAll(/(\sWNW\s)/, " west northwest ")?.replaceAll(/(\sESE\s)/, " east southeast ")?.replaceAll(/(\sENE\s)/, " east northeast ")
-    str = str.replaceAll(/(\sSSE\s)/, " south southeast ")?.replaceAll(/(\sSSW\s)/, " south southwest ")?.replaceAll(/(\sNNE\s)/, " north northeast ")?.replaceAll(/(\sNNW\s)/, " north northwest ")
-    str = str.replaceAll(/(\sNW\s)/, " northwest ")?.replaceAll(/(\sNE\s)/, " northeast ")?.replaceAll(/(\sSW\s)/, " southwest ")?.replaceAll(/(\sSE\s)/, " southeast ")
-    str = str.replaceAll(/(\sE\s)/," east ")?.replaceAll(/(\sS\s)/," south ")?.replaceAll(/(\sN\s)/," north ")?.replaceAll(/(\sW\s)/," west ")
-    str = str.replaceAll("%"," percent ")
-    str = str.replaceAll("°"," degrees ")
-    return str
-}*/
-
-//Integer getStringLen(str) { return (str && str?.toString()?.length()) ? str?.toString()?.length() : 0 }
-/*
-private List msgSeqBuilder(String str) {
-    // log.debug "msgSeqBuilder: $str"
-    List seqCmds = []
-    List strArr = []
-    Boolean isSSML = (str.startsWith("<speak>") && str.endsWith("</speak>"))
-    if(str.length() < 450) {
-        seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str])
-    } else {
-        List msgItems = str.split()
-        msgItems.each { String wd->
-            if((getStringLen(strArr.join(" ")) + wd.length()) <= 430) {
-                // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
-                strArr.push(wd)
-            } else { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]); strArr = []; strArr.push(wd) }
-            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]) }
-        }
-    }
-    // log.debug "seqCmds: $seqCmds"
-    return seqCmds
-} */
 
 def sendTestAnnouncement() {
     playAnnouncement("Echo Speaks announcement test on ${device?.label?.replace("Echo - ", sBLANK)}")
