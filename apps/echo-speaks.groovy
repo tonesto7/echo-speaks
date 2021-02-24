@@ -3551,7 +3551,7 @@ void sendZoneCmd(Map cmdData) {
 void sendDevObjCmd(List devObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
         switch(myCmd) {
             case "announcement":
-                String zoneDevJson = devObjs.size() ? new groovy.json.JsonOutput().toJson(devObjs) : sNULL
+                String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
                 newmsg = "${title ?: "Echo Speaks"}::${newmsg}::${zoneDevJson}"
             case "speak":
                 log.debug "sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume"
