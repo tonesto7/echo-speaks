@@ -762,6 +762,9 @@ private List getMemStoreItem(String key){
     return (List)memStore[key] ?: []
 }
 
+// Memory Barrier	
+@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+
 static void mb(String meth=sNULL){
     if((Boolean)theMBLockFLD.tryAcquire()){
         theMBLockFLD.release()
