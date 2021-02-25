@@ -1,7 +1,7 @@
 ## _**(February 25th, 2021)**_
 ### _**Echo Speaks App (v4.0.7.0)**_
 - [NEW] Moved to a centralized queue for all speech commands to eliminate Amazon rate limiting.
-- - [FIX] Optimizations to allow for grouping of commands to multiple zones
+- [FIX] Optimizations to allow for grouping of commands to multiple zones
 - [NEW] Control Alexa Guard with the state of a single switch (On=Armed | Off=Disarmed).
 - [FIX] Lot's of UI design updates
 
