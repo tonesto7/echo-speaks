@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-24"
+@Field static final String appModifiedFLD = "2021-02-25"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -1571,7 +1571,7 @@ void updChildSocketStatus() {
 def zoneStateHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData
-    log.trace "zone: ${id} | Data: $data"
+    logTrace("zoneStateHandler: ${id} | Data: $data")
     String myId=app.getId()
     checkZoneData()
     if(data && id) {
@@ -1592,7 +1592,7 @@ def zoneStateHandler(evt) {
 def zoneRemovedHandler(evt) {
     String id = evt?.value?.toString()
     Map data = evt?.jsonData
-    log.trace "zone removed: ${id} | Data: $data"
+    logTrace("zone removed: ${id} | Data: $data")
     String myId=app.getId()
     if(data && id) {
         Boolean aa = getTheLock(sHMLF, "zoneRemoveHandler")
@@ -3610,7 +3610,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
 }
 
 private List getZoneDevices(List znList, String cmd, Boolean chkDnd=false) {
-    log.trace "getZoneDevices | $znList"
+    // logTrace("getZoneDevices | $znList")
     List devObjs = []
     if(znList && znList.size()) {
         znList.each { znId ->
