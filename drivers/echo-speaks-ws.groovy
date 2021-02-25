@@ -20,17 +20,27 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.5.0"
-@Field static final String appModifiedFLD = "2021-02-04"
+@Field static final String devVersionFLD  = "4.0.7.0"
+@Field static final String appModifiedFLD = "2021-02-25"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
+@Field static final String sSPACE         = ' '
+@Field static final String sLINEBR        = '<br>'
+@Field static final String sMEDIUM        = 'medium'
+@Field static final String sSMALL         = 'small'
+@Field static final String sCLR4D9        = '#2784D9'
+@Field static final String sCLRRED        = 'red'
+@Field static final String sCLRRED2       = '#cc2d3b'
+@Field static final String sCLRGRY        = 'gray'
+@Field static final String sCLRGRN        = 'green'
+@Field static final String sCLRGRN2       = '#43d843'
+@Field static final String sCLRORG        = 'orange'
 @Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-// @Field volatile static Map<String,Map> cookieDataFLD = [:]
 @Field volatile static Map<String,Map> historyMapFLD = [:]
 
 static String devVersion()  { return devVersionFLD }
@@ -53,7 +63,7 @@ preferences {
     input "autoConnectWs", "bool", required: false, title: "Auto Connect on Initialize?", defaultValue: true
 }
 
-def isSocketActive() { return (state.connectionActive == true) }
+Boolean isSocketActive() { return (Boolean)state.connectionActive }
 
 public updateCookies(Map cookies) {
     logInfo("Cookies Update by Parent.  Re-Initializing Device in 10 Seconds...")
@@ -90,7 +100,7 @@ def updated() {
 
 def initialize() {
     logInfo("initialize() called")
-    close()
+    runIn(1,"close")
     if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return }
     state.remove('warnHistory'); state.remove('errorHistory')
 
@@ -106,7 +116,7 @@ def initialize() {
             }
             state.messageId = state.messageId ?: Math.floor(1E9 * Math.random()) as BigInteger
             state.remove('messageInitCnt') // state.messageInitCnt = 0
-            runIn(2,"connect")
+            runIn(3,"connect")
         } else {
             logInfo("Skipping Socket Open... Cookie Data is Missing $cookS   $state.cookie")
         }
@@ -144,8 +154,8 @@ def connect() {
 
 def close() {
     logInfo("close() called")
-    interfaces.webSocket.close()
     updSocketStatus(false)
+    interfaces.webSocket.close()
 }
 
 def reconnectWebSocket() {
@@ -648,12 +658,6 @@ String getDtNow() {
 	Date now = new Date()
 	return formatDt(now, false)
 }
-/*
-String getIsoDtNow() {
-    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf.format(new Date());
-}*/
 
 String formatDt(Date dt, Boolean mdy = true) {
 	String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
@@ -661,24 +665,6 @@ String formatDt(Date dt, Boolean mdy = true) {
 	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
 	return (String)tf.format(dt)
 }
-/*
-Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
-    try {
-        if(lastDate?.contains("dtNow")) { return 10000 }
-        Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
-        Long start = lastDt.getTime()
-        Long stop = now()
-        Long diff = (stop - start) / 1000L
-        return diff.abs()
-    } catch (ex) {
-        logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}")
-        return 10000L
-    }
-} */
-/*
-Date parseDt(dt, String dtFmt) {
-    return Date.parse(dtFmt, dt)
-} */
 
 private void addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
     Boolean ssOk = true //(stateSizePerc() <= 70)
@@ -694,26 +680,27 @@ private void addToLogHistory(String logKey, String msg, statusData, Integer max=
     updMemStoreItem(logKey, eData)
 }
 
-private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug addHead(msg) } }
-private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info " "+addHead(msg) } }
-private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace addHead(msg) } }
-private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn " "+addHead(msg) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
+private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
+private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
+private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn sSPACE + logPrefix(msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError != false) {
-        log.error addHead(msg)
+        log.error logPrefix(msg, sCLRRED)
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
         } catch (e) {
         }
-        if(a) log.error addHead(a)
+        if(a) log.error logPrefix(a, sCLRRED)
     }
     if(!noHist) { addToLogHistory("errorHistory", msg, null, 15) }
 }
 
-static String addHead(String msg) {
-    return "Socket ("+devVersionFLD+") | "+msg
+static String logPrefix(String msg, String color = sNULL) {
+    return span("Socket (v" + devVersionFLD + ") | ", sCLRGRY) + span(msg, color)
 }
 
 Map getLogHistory() {
@@ -725,20 +712,6 @@ public clearLogHistory() {
     updMemStoreItem("errorHistory",[])
     mb()
 }
-/*
-Map getLogHistory() {
-    return [ warnings: state.warnHistory ?: [], errors: state.errorHistory ?: [], speech: state.speechHistory ?: [] ]
-}
-public clearLogHistory() {
-    state.warnHistory = []
-    state.errorHistory = []
-}*/
-/*
-private incrementCntByKey(String key) {
-	Long evtCnt = state?."${key}" ?: 0L
-	evtCnt++
-	state."${key}" = evtCnt?.toLong()
-} */
 
 String getObjType(obj) {
     if(obj instanceof String) {return "String"}
@@ -773,17 +746,6 @@ public Map getDeviceMetrics() {
     return out
 }
 
-/*private getPlatform() {
-    String p = "SmartThings"
-    if(state.hubPlatform == null) {
-        try { [dummy: "dummyVal"]?.encodeAsJson(); } catch (e) { p = "Hubitat" }
-        // if (location?.hubs[0]?.id?.toString()?.length() > 5) { p = "SmartThings" } else { p = "Hubitat" }
-        state.hubPlatform = p
-        logDebug("hubPlatform: (${state.hubPlatform})")
-    }
-    return state.hubPlatform
-}*/
-
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
     String appId = device.getId()
@@ -800,12 +762,8 @@ private List getMemStoreItem(String key){
     return (List)memStore[key] ?: []
 }
 
-// Memory Barrier
-@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
-
 static void mb(String meth=sNULL){
     if((Boolean)theMBLockFLD.tryAcquire()){
         theMBLockFLD.release()
     }
 }
-
