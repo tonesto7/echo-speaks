@@ -16,7 +16,7 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.7.1"
+@Field static final String appVersionFLD  = "4.0.8.0"
 @Field static final String appModifiedFLD = "2021-02-26"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
@@ -71,15 +71,16 @@ import groovy.transform.Field
 @Field static final String sTSTR          = 't'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field volatile static Map<String, Map> historyMapFLD    = [:]
-@Field volatile static Map<String, Map> cookieDataFLD    = [:]
-@Field volatile static Map<String, Map> echoDeviceMapFLD = [:]
-@Field volatile static Map<String, Map> childDupMapFLD   = [:]
-//@Field static Map<String,          Map> guardDataFLD     = [:]
-@Field volatile static Map<String, Map> zoneStatusMapFLD = [:]
-@Field volatile static Map<String, Map> bluetoothDataFLD = [:]
+@Field volatile static Map<String, Map> historyMapFLD        = [:]
+@Field volatile static Map<String, Map> cookieDataFLD        = [:]
+@Field volatile static Map<String, Map> echoDeviceMapFLD     = [:]
+@Field volatile static Map<String, Map> childDupMapFLD       = [:]
+//@Field static Map<String,          Map> guardDataFLD       = [:]
+@Field volatile static Map<String, Map> zoneStatusMapFLD     = [:]
+@Field volatile static Map<String, Map> bluetoothDataFLD     = [:]
 @Field volatile static Map<String, Map> alexaRoutinesDataFLD = [:]
-@Field volatile static Map<String, Map> dndDataFLD       = [:]
+@Field volatile static Map<String, Map> dndDataFLD           = [:]
+@Field volatile static Boolean guardArmPendingFLD            = false
 
 definition(
     name        : "Echo Speaks",
@@ -508,7 +509,13 @@ def guardTriggerEvtHandler(evt) {
             if(!inAlarmAway && inAlarmHome) { newState = sARM_STAY }
             break
     }
-    if(curState == newState) { logDebug("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
+    if(guardArmPendingFLD && curState == sARM_STAY) {
+        unschedule("setGuardAway")
+        logInfo("New Guard State is Now STAY... Scheduled Arming Has Been Cancelled...")
+        guardArmPendingFLD = false
+        return
+    }
+    if(curState == newState) { logInfo("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
     if(newState && curState != newState) {
         if (newState == sARM_STAY) {
             unschedule("setGuardAway")
@@ -516,7 +523,12 @@ def guardTriggerEvtHandler(evt) {
             setGuardHome()
         }
         if(newState == sARM_AWAY) {
-            if(settings.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings.guardAwayDelay} seconds)", true); runIn(settings.guardAwayDelay, "setGuardAway") }
+            if(settings.guardAwayDelay) {
+                guardArmPendingFLD = true
+                logWarn("Setting Alexa Guard Mode to Away in (${settings.guardAwayDelay} seconds)", true)
+                runIn(settings.guardAwayDelay, "setGuardAway")
+                
+            }
             else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away...", true) }
         }
     }
@@ -3101,6 +3113,7 @@ public setGuardHome() {
 
 public setGuardAway() {
     setGuardState(sARM_AWAY)
+    guardArmPendingFLD = false
 }
 
 Map isFamilyAllowed(String family) {
