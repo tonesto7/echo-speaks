@@ -2702,7 +2702,9 @@ private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=tru
 ]
 
 private void stateCleanup() {
-    if(state.lastVolume) { state?.oldVolume = state?.lastVolume }
+    state.newVolume = null
+    state.oldVolume = null
+//    if(state.lastVolume) { state?.oldVolume = state?.lastVolume }
     clnItemsFLD.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 }
 
