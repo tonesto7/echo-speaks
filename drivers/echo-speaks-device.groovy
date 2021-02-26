@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-25"
+@Field static final String devVersionFLD  = "4.0.8.0"
+@Field static final String appModifiedFLD = "2021-02-26"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -49,6 +49,7 @@ import groovy.transform.Field
 
 static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return false }
+static Boolean isZone()     { return false }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy") {
@@ -98,7 +99,7 @@ metadata {
         // attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
 	    
-	attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
+	    attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
 /* // these are part of audioNotification
         command "playText", ["STRING"] //This command is deprecated in ST but will work

@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-25"
+@Field static final String appVersionFLD  = "4.0.8.0"
+@Field static final String appModifiedFLD = "2021-02-26"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -178,6 +178,7 @@ def mainPage() {
             href "prefsPage", title: inTS1("Logging Preferences", sSETTINGS), description: sBLANK
             if((Boolean)state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true
+                input "createZoneDevice", sBOOL, title: inTS1("Create a Virtual Device for this Zone?", "question"), defaultValue: false, submitOnChange: true
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
@@ -1032,10 +1033,14 @@ void checkZoneStatus(evt) {
     }
 }
 
+public Boolean isZoneDeviceEnabled() {
+    return (Boolean) settings.createZoneDevice
+}
+
 Map myZoneStatus() {
     Map zoneDevs = getZoneDevices()
     // log.debug "zoneDevs: $zoneDevs"
-    return [name: app?.getLabel(), active: isActive(), paused: isPaused(true), id: app?.getId(), zoneDevices: (List)zoneDevs.devIds ?: []]
+    return [name: app?.getLabel(), active: isActive(), paused: isPaused(true), id: app?.getId(), createZoneDevice: isZoneDeviceEnabled(), zoneDevices: (List)zoneDevs.devIds ?: []]
 }
 
 void sendZoneStatus() {
