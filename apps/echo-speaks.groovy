@@ -1037,7 +1037,7 @@ def uninstallPage() {
     }
 }
 
-static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} "+ sBULLET + " " + strVal }
+static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} "+ sBULLET + sSPACE + strVal }
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - " + strVal }
 
 def deviceTestPage() {
@@ -3948,7 +3948,9 @@ Integer getMsgDur(String command, String type, String tv){
     Integer del
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
-        Integer msgLen = valObj[1]?.length()
+        Boolean isSSML = (valObj[1].startsWith("<speak>") && valObj[1].endsWith("</speak>"))
+        String actMsg = cleanString(lcmd == "ssml" || isSSML ?  valObj[1].replaceAll(/<[^>]+>/, '') : valObj[1])
+        Integer msgLen = actMsg.length() //valObj[1]?.length()
         del = getRecheckDelay(msgLen)
     }
     else if(type.startsWith('play')) del = 18
@@ -4111,12 +4113,12 @@ private static List msgSeqBuilder(String str, Map st) {
         List<String> msgItems = str.split()
         msgItems.each { String wd->
             // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
-            if((getStringLen(strArr.join(" ")) + wd.length()) > 430) {
-                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st)
+            if((getStringLen(strArr.join(sSPACE)) + wd.length()) > 430) {
+                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE)]+st)
                 strArr = []
             }
             strArr.push(wd)
-            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st) }
+            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE)]+st) }
         }
     }
     // log.debug "seqCmds: $seqCmds"
@@ -4126,7 +4128,7 @@ private static List msgSeqBuilder(String str, Map st) {
 String cleanString(String str, Boolean frcTrans=false) {
     if(!str) { return sNULL }
     //Cleans up characters from message
-    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, " ")
+    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, sSPACE)
     str = textTransform(str, frcTrans)
     // log.debug "cleanString: $str"
     return str
@@ -4248,7 +4250,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
                 break
             case "sound":
-                String sndName =sBLANK
+                String sndName = sBLANK
                 if(value?.startsWith("amzn_sfx_")) {
                     sndName = value
                 } else {
@@ -4628,7 +4630,7 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
     Boolean sent = false
     try {
         String newMsg = msgTitle+": "+msg
-        String flatMsg = newMsg.replaceAll("\n", " ")
+        String flatMsg = newMsg.replaceAll("\n", sSPACE)
         if(!getOk2Notify()) {
             logInfo("sendMsg: Message Skipped Notification not configured or During Quiet Time ($flatMsg)")
         } else {
@@ -4673,7 +4675,7 @@ static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { re
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
-static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ").replaceAll("<br>", " "), und), clr, img) }
+static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE).replaceAll("<br>", sSPACE), und), clr, img) }
 
 // Root HTML Objects
 static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
