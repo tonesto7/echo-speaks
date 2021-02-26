@@ -16,8 +16,8 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-25"
+@Field static final String appVersionFLD  = "4.0.7.1"
+@Field static final String appModifiedFLD = "2021-02-26"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -486,9 +486,9 @@ def guardTriggerEvtHandler(evt) {
             if(!inAwayMode && inHomeMode) { newState = sARM_STAY }
             break
         case "switch":
-            Boolean isFollowSwitch = (settings.guardFollowSwitch && settings.guardFollowSwitch.deviceNetworkId == evt.deviceNetworkId)
+            Boolean isFollowSwitch = (settings.guardFollowSwitch && settings.guardFollowSwitch.getId().toInteger() == evt.getDeviceId().toInteger())
             if(isFollowSwitch) {
-                newState = isSwitchOn(settings.guardFollowSwitch) ? sARM_AWAY : sARM_STAY
+                newState = (settings.guardFollowSwitch.currentSwitch == "on") ? sARM_AWAY : sARM_STAY
             } else {
                 Boolean inAwaySw = isSwitchOn(settings.guardAwaySwitch)
                 Boolean inHomeSw = isSwitchOn(settings.guardHomeSwitch)
