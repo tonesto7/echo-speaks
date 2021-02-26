@@ -3949,7 +3949,7 @@ Integer getMsgDur(String command, String type, String tv){
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
         Boolean isSSML = (valObj[1].startsWith("<speak>") && valObj[1].endsWith("</speak>"))
-        String actMsg = cleanString(lcmd == "ssml" || isSSML ?  valObj[1].replaceAll(/<[^>]+>/, '') : valObj[1])
+        String actMsg = cleanString(isSSML ?  valObj[1].replaceAll(/<[^>]+>/, '') : valObj[1])
         Integer msgLen = actMsg.length() //valObj[1]?.length()
         del = getRecheckDelay(msgLen)
     }
@@ -4255,8 +4255,10 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                     sndName = value
                 } else {
                     Map sounds = getAvailableSounds()
-                    if(!(sounds[value])) { return null }
-                    sndName = sounds[value]
+                    if(sounds[value]) { sndName = sounds[value] }
+                    else { sndName = value }
+                    //if(!(sounds[value])) { return null }
+                    //sndName = sounds[value]
                 }
                 seqNode.type = "Alexa.Sound"
                 seqNode.operationPayload.soundStringId = sndName
