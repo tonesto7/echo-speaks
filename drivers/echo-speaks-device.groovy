@@ -161,8 +161,8 @@ metadata {
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "togglePlayback"
-        command "setVolumeAndSpeak", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""]]
-        command "setVolumeSpeakAndRestore", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""],[name: "Restore Volume*", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "setVolumeAndSpeak", [[name: "Volume", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""]]
+        command "setVolumeSpeakAndRestore", [[name: "Volume", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
 //        command "volumeUp"
 //        command "volumeDown"
         command "speechTest"
