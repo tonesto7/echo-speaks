@@ -489,7 +489,7 @@ def guardTriggerEvtHandler(evt) {
         case "switch":
             Boolean isFollowSwitch = (settings.guardFollowSwitch && settings.guardFollowSwitch.getId().toInteger() == evt.getDeviceId().toInteger())
             if(isFollowSwitch) {
-                newState = (settings.guardFollowSwitch.currentSwitch == "on") ? sARM_AWAY : sARM_STAY
+                newState = isSwitchOn(settings.guardFollowSwitch) ? sARM_AWAY : sARM_STAY
             } else {
                 Boolean inAwaySw = isSwitchOn(settings.guardAwaySwitch)
                 Boolean inHomeSw = isSwitchOn(settings.guardHomeSwitch)
@@ -6641,7 +6641,8 @@ Boolean isContactOpen(sensors) {
 }
 
 Boolean isSwitchOn(devs) {
-    if(devs) { devs.each { if(it?.currentSwitch == "on") { return true } } }
+    if(devs instanceof List) { devs.each { if(it?.currentSwitch == "on") { return true } } }
+    else if(devs) if(devs?.currentSwitch == "on") { return true }
     return false
 }
 
