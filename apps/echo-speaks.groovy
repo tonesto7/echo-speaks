@@ -6642,7 +6642,7 @@ Boolean isContactOpen(sensors) {
 
 Boolean isSwitchOn(devs) {
     if(devs instanceof List) { devs.each { if(it?.currentSwitch == "on") { return true } } }
-    else if(devs) if(devs?.currentSwitch == "on") { return true } } }
+    else if(devs) if(devs?.currentSwitch == "on") { return true }
     return false
 }
 
