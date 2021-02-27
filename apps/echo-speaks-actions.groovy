@@ -495,11 +495,11 @@ def triggersPage() {
             }
 
             if (valTrigEvt("lock")) {
-                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", sANY], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++, (settings.trig_lock_Codes), ((settings.trig_lock && settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
+                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", sANY], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++, (!!settings.trig_lock_Codes), ((settings.trig_lock && settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
             }
 
             if (valTrigEvt("securityKeypad")) {
-                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], "changes to", ["disarmed", "armed home", "armed away", "unknown"], "lock", trigItemCnt++, (settings.trig_securityKeypad_Codes), ((settings.trig_securityKeypad && settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
+                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], "changes to", ["disarmed", "armed home", "armed away", "unknown"], "lock", trigItemCnt++, (!!settings.trig_securityKeypad_Codes), ((settings.trig_securityKeypad && settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
             }
 
             if (valTrigEvt("pushed")) {
