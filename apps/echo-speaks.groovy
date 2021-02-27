@@ -22,7 +22,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, zoneParentDevice: 4080, zoneChildDevice: 4080, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, /* zoneParentDevice: 4080, */zoneChildDevice: 4080, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1470,7 +1470,7 @@ def initialize() {
             updTsVal("lastDevDataUpdDt", formatDt(d))
            // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
-            checkZoneParent()
+            //checkZoneParent()
             if(advLogsActive()) { logsEnabled() }
         } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
     }
@@ -1724,15 +1724,15 @@ List getEsDevices() {
     return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == false }
 }
 
-List getEsZoneParent() {
+/*List getEsZoneParent() {
     return getChildDevices()?.find { it?.name == "Echo Speaks Zones Parent" }
-}
+}*/
 
 List getEsZoneDevices() {
     return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == true }
 }
 
-private void checkZoneParent() {
+/*private void checkZoneParent() {
     Map zones = getZones()
     List zoneDev = getEsZoneParent()
     if(!zoneDev && zones.size()) {
@@ -1743,7 +1743,7 @@ private void checkZoneParent() {
         if(!znDevice) { addChildDevice("tonesto7", znChildHandlerName, nmS, null, [name: znChildHandlerName, label: "Echo Speaks - Zones Parent", completedSetup: true]) }
         updCodeVerMap("zoneParentDevice", (String)znDevice?.devVersion())
     }
-}
+}*/
 
 def getSocketDevice() {
     String myId=app.getId()
@@ -3446,7 +3446,7 @@ public static Map minVersions() {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneChildDevice: "Echo Speaks Zone Child Device", zoneParentDevice: "Echo Speaks Zone Parent Device"]
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneChildDevice: "Echo Speaks Zone Child Device" /*, zoneParentDevice: "Echo Speaks Zone Parent Device"*/]
     Map codeVers = (Map)state.codeVersions ?: [:]
     codeVers.each { String k,String v->
         if(codeItems.containsKey(k) && v != sNULL && (versionStr2Int(v) < minVersionsFLD[k])) { updRequired = true; updItems.push(codeItems[k]) }
@@ -4554,12 +4554,12 @@ void appUpdateNotify() {
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
-    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
+//    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     Boolean res=false
-    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || zoneParentDevUpd || echoDevUpd || socketUpd || servUpd) res=true
+    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd /*|| zoneParentDevUpd */|| echoDevUpd || socketUpd || servUpd) res=true
 
     Integer secs
     Integer updW
@@ -4574,7 +4574,7 @@ void appUpdateNotify() {
             str += !appUpd ? "" : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
             str += !zoneUpd ? "" : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
-            str += !zoneParentDevUpd ? "" : "\nEcho Speaks Zone Parent Device: v${state.appData?.versions?.zoneParentDevice?.ver?.toString()}"
+//            str += !zoneParentDevUpd ? "" : "\nEcho Speaks Zone Parent Device: v${state.appData?.versions?.zoneParentDevice?.ver?.toString()}"
             str += !zoneChildDevUpd ? "" : "\nEcho Speaks Zone Child Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
@@ -4594,16 +4594,16 @@ private List codeUpdateItems(Boolean shrt=false) {
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
-    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
+//    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
     Boolean devUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     List updItems = []
-    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || zoneParentDevUpd || devUpd || socketUpd || servUpd) {
+    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd /*|| zoneParentDevUpd */|| devUpd || socketUpd || servUpd) {
         if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}App: (v${state.appData?.versions?.mainApp?.ver?.toString()})")
         if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Actions: (v${state.appData?.versions?.actionApp?.ver?.toString()})")
         if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zones: (v${state.appData?.versions?.zoneApp?.ver?.toString()})")
-        if(zoneParentDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Parent Device: (v${state.appData?.versions?.zoneParentDevice?.ver?.toString()})")
+//        if(zoneParentDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Parent Device: (v${state.appData?.versions?.zoneParentDevice?.ver?.toString()})")
         if(zoneChildDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Child Device: (v${state.appData?.versions?.zoneChildDevice?.ver?.toString()})")
         if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state.appData?.versions?.echoDevice?.ver?.toString()})")
         if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
@@ -4980,7 +4980,7 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
 Boolean appUpdAvail()           { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
 Boolean actionUpdAvail()        { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
 Boolean zoneUpdAvail()          { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
-Boolean zoneParentDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.zoneParentDevice && codeUpdIsAvail(state.appData?.versions?.zoneParentDevice?.ver, state.codeVersions?.zoneParentDevice, "zone_parent_dev")) }
+//Boolean zoneParentDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.zoneParentDevice && codeUpdIsAvail(state.appData?.versions?.zoneParentDevice?.ver, state.codeVersions?.zoneParentDevice, "zone_parent_dev")) }
 Boolean zoneChildDevUpdAvail()  { return (state.appData?.versions && state.codeVersions?.zoneChildDevice && codeUpdIsAvail(state.appData?.versions?.zoneChildDevice?.ver, state.codeVersions?.zoneChildDevice, "zone_child_dev")) }
 Boolean echoDevUpdAvail()       { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
 Boolean socketUpdAvail()        { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
@@ -5831,7 +5831,7 @@ def appInfoSect() {
         if(codeVer.echoDevice) verMap.push([name: "Device:", ver: "v${codeVer.echoDevice}"])
         if(codeVer.actionApp) verMap.push([name: "Action:", ver: "v${codeVer.actionApp}"])
         if(codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${codeVer.zoneApp}"])
-        if(codeVer.zoneParentDevice) verMap.push([name: "Zone Parent Device:", ver: "v${codeVer.zoneParentDevice}"])
+//        if(codeVer.zoneParentDevice) verMap.push([name: "Zone Parent Device:", ver: "v${codeVer.zoneParentDevice}"])
         if(codeVer.zoneChildDevice) verMap.push([name: "Zone Child Device:", ver: "v${codeVer.zoneChildDevice}"])
         if(codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${codeVer.wsDevice}"])
         if(codeVer.server) verMap.push([name: "Server:", ver: "v${codeVer.server}"])
