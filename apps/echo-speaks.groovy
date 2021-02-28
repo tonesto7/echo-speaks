@@ -1720,7 +1720,7 @@ List getActionApps() {
 }
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == false }
+    return getChildDevices()?.findAll { it?.isWS() == false }
 }
 
 
