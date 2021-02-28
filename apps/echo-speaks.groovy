@@ -16,8 +16,8 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-25"
+@Field static final String appVersionFLD  = "4.0.8.0"
+@Field static final String appModifiedFLD = "2021-02-28"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
@@ -71,15 +71,16 @@ import groovy.transform.Field
 @Field static final String sTSTR          = 't'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field volatile static Map<String, Map> historyMapFLD    = [:]
-@Field volatile static Map<String, Map> cookieDataFLD    = [:]
-@Field volatile static Map<String, Map> echoDeviceMapFLD = [:]
-@Field volatile static Map<String, Map> childDupMapFLD   = [:]
-//@Field static Map<String,          Map> guardDataFLD     = [:]
-@Field volatile static Map<String, Map> zoneStatusMapFLD = [:]
-@Field volatile static Map<String, Map> bluetoothDataFLD = [:]
+@Field volatile static Map<String, Map> historyMapFLD        = [:]
+@Field volatile static Map<String, Map> cookieDataFLD        = [:]
+@Field volatile static Map<String, Map> echoDeviceMapFLD     = [:]
+@Field volatile static Map<String, Map> childDupMapFLD       = [:]
+//@Field static Map<String,          Map> guardDataFLD       = [:]
+@Field volatile static Map<String, Map> zoneStatusMapFLD     = [:]
+@Field volatile static Map<String, Map> bluetoothDataFLD     = [:]
 @Field volatile static Map<String, Map> alexaRoutinesDataFLD = [:]
-@Field volatile static Map<String, Map> dndDataFLD       = [:]
+@Field volatile static Map<String, Map> dndDataFLD           = [:]
+@Field volatile static Boolean guardArmPendingFLD            = false
 
 definition(
     name        : "Echo Speaks",
@@ -486,7 +487,7 @@ def guardTriggerEvtHandler(evt) {
             if(!inAwayMode && inHomeMode) { newState = sARM_STAY }
             break
         case "switch":
-            Boolean isFollowSwitch = (settings.guardFollowSwitch && settings.guardFollowSwitch.deviceNetworkId == evt.deviceNetworkId)
+            Boolean isFollowSwitch = (settings.guardFollowSwitch && settings.guardFollowSwitch.getId().toInteger() == evt.getDeviceId().toInteger())
             if(isFollowSwitch) {
                 newState = isSwitchOn(settings.guardFollowSwitch) ? sARM_AWAY : sARM_STAY
             } else {
@@ -508,7 +509,13 @@ def guardTriggerEvtHandler(evt) {
             if(!inAlarmAway && inAlarmHome) { newState = sARM_STAY }
             break
     }
-    if(curState == newState) { logDebug("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
+    if(guardArmPendingFLD && curState == sARM_STAY) {
+        unschedule("setGuardAway")
+        logInfo("New Guard State is Now STAY... Scheduled Arming Has Been Cancelled...")
+        guardArmPendingFLD = false
+        return
+    }
+    if(curState == newState) { logInfo("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
     if(newState && curState != newState) {
         if (newState == sARM_STAY) {
             unschedule("setGuardAway")
@@ -516,7 +523,12 @@ def guardTriggerEvtHandler(evt) {
             setGuardHome()
         }
         if(newState == sARM_AWAY) {
-            if(settings.guardAwayDelay) { logWarn("Setting Alexa Guard Mode to Away in (${settings.guardAwayDelay} seconds)", true); runIn(settings.guardAwayDelay, "setGuardAway") }
+            if(settings.guardAwayDelay) {
+                guardArmPendingFLD = true
+                logWarn("Setting Alexa Guard Mode to Away in (${settings.guardAwayDelay} seconds)", true)
+                runIn(settings.guardAwayDelay, "setGuardAway")
+                
+            }
             else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away...", true) }
         }
     }
@@ -1037,7 +1049,7 @@ def uninstallPage() {
     }
 }
 
-static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} "+ sBULLET + " " + strVal }
+static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} "+ sBULLET + sSPACE + strVal }
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - " + strVal }
 
 def deviceTestPage() {
@@ -1708,14 +1720,14 @@ List getActionApps() {
 }
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { it?.isWS() == false }
+    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == false }
 }
+
 
 def getSocketDevice() {
     String myId=app.getId()
     String nmS = 'echoSpeaks_websocket'
-    nmS = myId+'|'+nmS
-    return getChildDevice(nmS)
+    return getChildDevice(myId+'|'+nmS)
 }
 
 mappings {
@@ -2049,12 +2061,6 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
         state.noAuthActive = false
         logDebug("Scheduling initialize for auth change ${stC}")
         runIn(10, "initialize", [overwrite: true])
-//    } else if (isAuth && (Boolean)state.noAuthActive) {
-        // waiting for initialize to run
-//        logWarn("OOPS Somehow your Auth is Valid but the NoAuthActive State is true.  Clearing noAuthActive flag to allow device refresh")
-//        unschedule("noAuthReminder")
-//        state.noAuthActive = false
-        // runIn(10, "initialize", [overwrite: true])
     }
 }
 
@@ -3101,6 +3107,7 @@ public setGuardHome() {
 
 public setGuardAway() {
     setGuardState(sARM_AWAY)
+    guardArmPendingFLD = false
 }
 
 Map isFamilyAllowed(String family) {
@@ -3549,7 +3556,7 @@ void sendZoneCmd(Map cmdData) {
 }
 
 void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
-	List<Map> devObj = odevObj.unique() // remove any duplicate devices
+    List<Map> devObj = odevObj.unique() // remove any duplicate devices
         String origMsg = newmsg
         switch(myCmd) {
             case "announcement":
@@ -3733,6 +3740,8 @@ void addToQ(Map item) {
     }
     if((Boolean)settings.logDebug) lmsg.each { String msg -> log.debug(msg) }
 }
+
+
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
 
@@ -3948,7 +3957,9 @@ Integer getMsgDur(String command, String type, String tv){
     Integer del
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
-        Integer msgLen = valObj[1]?.length()
+        Boolean isSSML = (valObj[1].startsWith("<speak>") && valObj[1].endsWith("</speak>"))
+        String actMsg = cleanString(isSSML ?  valObj[1].replaceAll(/<[^>]+>/, '') : valObj[1])
+        Integer msgLen = actMsg.length() //valObj[1]?.length()
         del = getRecheckDelay(msgLen)
     }
     else if(type.startsWith('play')) del = 18
@@ -4111,12 +4122,12 @@ private static List msgSeqBuilder(String str, Map st) {
         List<String> msgItems = str.split()
         msgItems.each { String wd->
             // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
-            if((getStringLen(strArr.join(" ")) + wd.length()) > 430) {
-                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st)
+            if((getStringLen(strArr.join(sSPACE)) + wd.length()) > 430) {
+                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE)]+st)
                 strArr = []
             }
             strArr.push(wd)
-            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(" ")]+st) }
+            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE)]+st) }
         }
     }
     // log.debug "seqCmds: $seqCmds"
@@ -4126,7 +4137,7 @@ private static List msgSeqBuilder(String str, Map st) {
 String cleanString(String str, Boolean frcTrans=false) {
     if(!str) { return sNULL }
     //Cleans up characters from message
-    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, " ")
+    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, sSPACE)
     str = textTransform(str, frcTrans)
     // log.debug "cleanString: $str"
     return str
@@ -4248,13 +4259,15 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
                 break
             case "sound":
-                String sndName =sBLANK
+                String sndName = sBLANK
                 if(value?.startsWith("amzn_sfx_")) {
                     sndName = value
                 } else {
                     Map sounds = getAvailableSounds()
-                    if(!(sounds[value])) { return null }
-                    sndName = sounds[value]
+                    if(sounds[value]) { sndName = sounds[value] }
+                    else { sndName = value }
+                    //if(!(sounds[value])) { return null }
+                    //sndName = sounds[value]
                 }
                 seqNode.type = "Alexa.Sound"
                 seqNode.operationPayload.soundStringId = sndName
@@ -4590,7 +4603,6 @@ Boolean quietModesOk(List modes) { return !(modes && location?.mode?.toString() 
 Boolean quietTimeOk() {
     Date startTime = null
     Date stopTime = null
-//    Date now = new Date()
     def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
     if(settings.qStartTime && settings.qStopTime) {
         if(settings.qStartInput == "Sunset") { startTime = sun?.sunset }
@@ -4628,7 +4640,7 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
     Boolean sent = false
     try {
         String newMsg = msgTitle+": "+msg
-        String flatMsg = newMsg.replaceAll("\n", " ")
+        String flatMsg = newMsg.replaceAll("\n", sSPACE)
         if(!getOk2Notify()) {
             logInfo("sendMsg: Message Skipped Notification not configured or During Quiet Time ($flatMsg)")
         } else {
@@ -4673,7 +4685,7 @@ static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { re
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
-static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ").replaceAll("<br>", " "), und), clr, img) }
+static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE).replaceAll("<br>", sSPACE), und), clr, img) }
 
 // Root HTML Objects
 static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
@@ -4723,6 +4735,7 @@ def appFooter() {
 
 static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
+static String zoneChildDeviceName(){ return "Echo Speaks - Zones" }
 static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
@@ -4934,12 +4947,12 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
     return result
 }
 
-Boolean appUpdAvail()       { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
-Boolean actionUpdAvail()    { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
-Boolean zoneUpdAvail()      { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
-Boolean echoDevUpdAvail()   { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
-Boolean socketUpdAvail()    { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
-Boolean serverUpdAvail()    { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
+Boolean appUpdAvail()           { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
+Boolean actionUpdAvail()        { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
+Boolean zoneUpdAvail()          { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
+Boolean echoDevUpdAvail()       { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
+Boolean socketUpdAvail()        { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
+Boolean serverUpdAvail()        { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
 
 static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
@@ -5052,6 +5065,7 @@ private getDiagDataJson(Boolean asObj = false) {
         List echoDevs = getEsDevices()
         List actApps = getActionApps()
         List zoneApps = getZoneApps()
+        // List zoneDevs = getZoneDevices()
         def wsDev = getSocketDevice()
         List appWarnings = []
         List appErrors = []
@@ -5088,6 +5102,11 @@ private getDiagDataJson(Boolean asObj = false) {
             if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
             if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
         }
+        // zoneDevs?.each { zn->
+        //     Map h = (Map)zn?.getLogHistory()
+        //     if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
+        //     if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
+        // }
         Map output = [
             diagDt: getDtNow(),
             app: [
@@ -5134,6 +5153,12 @@ private getDiagDataJson(Boolean asObj = false) {
                 warnings: zoneWarnings ?: [],
                 errors: zoneErrors ?: []
             ],
+            // zone_devices: [
+            //     version: state.codeVersions?.zoneDevice ?: null,
+            //     count: zoneDevs?.size() ?: 0,
+            //     warnings: zoneWarnings ?: [],
+            //     errors: zoneErrors ?: []
+            // ],
             devices: [
                 version: state.codeVersions?.echoDevice ?: null,
                 count: echoDevs?.size() ?: 0,
@@ -5834,7 +5859,9 @@ def appInfoSect() {
     List unkDevs = getUnknownDevices()
     if(unkDevs?.size()) {
         section() {
-            Map params = [ assignees: "tonesto7", labels: "add_device_support", title: "[ADD DEVICE SUPPORT] (${unkDevs?.size()}) Devices", body: "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString() ]
+            String title = "[DEVICE SUPPORT]" + (unkDevs?.size() > 5) ? " | ${unkDevs.collect { it.key.toString() }.join(",")}" : "(${unkDevs.size()})"
+            String body = "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString()
+            Map params = [ assignees: "tonesto7", labels: "add_device_support", title: title, body: body ]
             def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
             href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: spanSm("Tap to open browser", sCLRGRY)
         }
@@ -6580,7 +6607,8 @@ Boolean isContactOpen(sensors) {
 }
 
 Boolean isSwitchOn(devs) {
-    if(devs) { devs.each { if(it?.currentSwitch == "on") { return true } } }
+    if(devs instanceof List) { devs.each { if(it?.currentSwitch == "on") { return true } } }
+    else if(devs) if(devs?.currentSwitch == "on") { return true }
     return false
 }
 
@@ -6954,6 +6982,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A29L394LN0I8HN" : [ ignore: true ],
         "A2E0SNTXJVT7WK" : [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen2)" ],
         "A2GFL5ZMWNE0PX" : [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Gen3)" ],
+        "AN630UQPG2CA4"  : [ caps: [ "a", "t" ], image: "firetv_gen1", name: "Fire TV (Toshiba)" ],
         "A2HZENIFNYTXZD" : [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal" ],
         "A52ARKF0HM2T4"  : [ caps: [ "a", "t" ], image: "facebook_portal", name: "Facebook Portal+" ],
         "A2IVLV5VM2W81"  : [  ignore: true ],
@@ -6984,10 +7013,10 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A303PJF6ISQ7IC" : [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
         "A195TXHV1M5D4A" : [ caps: [ "a", "t" ], image: "echo_auto", name: "Echo Auto" ],
         "A30YDR2MK8HMRV" : [ caps: [ "a", "t" ], image: "echo_dot_clock", name: "Echo Dot Clock" ],
-        "A32DDESGESSHZA" : [ caps: [ "a", "t" ], image: "echo_dot_gen3",  name : "Echo Dot (Gen3)" ],
-        "A32DOYMUN6DTXA" : [ caps: [ "a", "t" ], image: "echo_dot_gen4",  name : "Echo Dot (Gen4)" ],
-        "A2H4LV5GIZ1JFT" : [ caps: [ "a", "t" ], image: "echo_dot_clock_gen4",  name : "Echo Dot Clock (Gen4)" ],
-        "A2U21SRK4QGSE1" : [ caps: [ "a", "t" ], image: "echo_dot_gen4",  name : "Echo Dot (Gen4)" ],
+        "A32DDESGESSHZA" : [ caps: [ "a", "t" ], image: "echo_dot_gen3",  name: "Echo Dot (Gen3)" ],
+        "A32DOYMUN6DTXA" : [ caps: [ "a", "t" ], image: "echo_dot_gen3",  name: "Echo Dot (Gen3)" ],
+        "A2H4LV5GIZ1JFT" : [ caps: [ "a", "t" ], image: "echo_dot_clock_gen4",  name: "Echo Dot Clock (Gen4)" ],
+        "A2U21SRK4QGSE1" : [ caps: [ "a", "t" ], image: "echo_dot_gen4",  name: "Echo Dot (Gen4)" ],
         "A347G2JC8I4HC7" : [ caps: [ "a", "t" ], image: "unknown", name: "Roav Car Charger Pro" ],
         "A37CFAHI1O0CXT" : [ image: "logitech_blast", name: "Logitech Blast" ],
         "A37SHHQ3NUL7B5" : [ blocked: true, name: "Bose Home Speaker 500" ],

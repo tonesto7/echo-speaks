@@ -1,3 +1,8 @@
+## _**(February 26th, 2021)**_
+### _**Echo Speaks App (v4.0.8.0)**_
+- [FIX] Bugfixes and Optimizations
+- [FIX] Issue with cancelling delayed Alexa Guard Arming when setting back to STAY
+
 ## _**(February 25th, 2021)**_
 ### _**Echo Speaks App (v4.0.7.0)**_
 - [NEW] Moved to a centralized queue for all speech commands to eliminate Amazon rate limiting.

@@ -19,10 +19,10 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-25"
-@Field static final String branchFLD      = "master"
-@Field static final String platformFLD    = "Hubitat"
+@Field static final String appVersionFLD  = '4.0.8.0'
+@Field static final String appModifiedFLD = '2021-02-28'
+@Field static final String branchFLD      = 'master'
+@Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
@@ -69,47 +69,47 @@ import groovy.transform.Field
 @Field static final String sBELOW         = 'below'
 @Field static final String sABOVE         = 'above'
 @Field static final String sEQUALS        = 'equals'
-@Field static final List<String> lONOFF        = ["on", "off"]
-@Field static final List<String> lANY          = ["any"]
-@Field static final List<String> lOPNCLS       = ["open", "closed"]
-@Field static final List<String> lACTINACT     = ["active", "inactive"]
-@Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
+@Field static final List<String> lONOFF        = ['on', 'off']
+@Field static final List<String> lANY          = ['any']
+@Field static final List<String> lOPNCLS       = ['open', 'closed']
+@Field static final List<String> lACTINACT     = ['active', 'inactive']
+@Field static final List<String> lSUNRISESET   = ['sunrise', 'sunset']
 
 static String appVersion()  { return appVersionFLD }
 
 definition(
-    name: "Echo Speaks - Actions",
-    namespace: "tonesto7",
-    author: "Anthony Santilli",
-    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your SmartThings/Hubitat home.",
-    category: "My Apps",
-    parent: "tonesto7:Echo Speaks",
-    iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
-    iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
-    iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-actions.groovy")
+    name: 'Echo Speaks - Actions',
+    namespace: 'tonesto7',
+    author: 'Anthony Santilli',
+    description: 'DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your SmartThings/Hubitat home.',
+    category: 'My Apps',
+    parent: 'tonesto7:Echo Speaks',
+    iconUrl: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
+    iconX2Url: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
+    iconX3Url: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
+    importUrl  : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-actions.groovy')
 
 preferences {
-    page(name: "startPage")
-    page(name: "uhOhPage")
-    page(name: "codeUpdatePage")
-    page(name: "mainPage")
-    page(name: "prefsPage")
-    page(name: "triggersPage")
-    page(name: "conditionsPage")
-    page(name: "condTimePage")
-    page(name: "actionsPage")
-    page(name: "actionTiersPage")
-    page(name: "actionTiersConfigPage")
-    page(name: "actTrigTasksPage")
-    page(name: "actTierStartTasksPage")
-    page(name: "actTierStopTasksPage")
-    page(name: "actNotifPage")
-    page(name: "actNotifTimePage")
-    page(name: "actionHistoryPage")
-    page(name: "searchTuneInResultsPage")
-    page(name: "uninstallPage")
-    page(name: "namePage")
+    page(name: 'startPage')
+    page(name: 'uhOhPage')
+    page(name: 'codeUpdatePage')
+    page(name: 'mainPage')
+    page(name: 'prefsPage')
+    page(name: 'triggersPage')
+    page(name: 'conditionsPage')
+    page(name: 'condTimePage')
+    page(name: 'actionsPage')
+    page(name: 'actionTiersPage')
+    page(name: 'actionTiersConfigPage')
+    page(name: 'actTrigTasksPage')
+    page(name: 'actTierStartTasksPage')
+    page(name: 'actTierStopTasksPage')
+    page(name: 'actNotifPage')
+    page(name: 'actNotifTimePage')
+    page(name: 'actionHistoryPage')
+    page(name: 'searchTuneInResultsPage')
+    page(name: 'uninstallPage')
+    page(name: 'namePage')
 }
 
 def startPage() {
@@ -135,7 +135,7 @@ def uhOhPage () {
     }
 }
 
-def appInfoSect()	{
+def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBldBr(app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
@@ -495,11 +495,11 @@ def triggersPage() {
             }
 
             if (valTrigEvt("lock")) {
-                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", sANY], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++, (settings.trig_lock_Codes), ((settings.trig_lock && settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
+                trigNonNumSect("lock", "lock", "Locks", "Smart Locks", ["locked", "unlocked", sANY], "changes to", ["locked", "unlocked"], "lock", trigItemCnt++, (!!settings.trig_lock_Codes), ((settings.trig_lock && settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
             }
 
             if (valTrigEvt("securityKeypad")) {
-                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], "changes to", ["disarmed", "armed home", "armed away", "unknown"], "lock", trigItemCnt++, (settings.trig_securityKeypad_Codes), ((settings.trig_securityKeypad && settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
+                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], "changes to", ["disarmed", "armed home", "armed away", "unknown"], "lock", trigItemCnt++, (!!settings.trig_securityKeypad_Codes), ((settings.trig_securityKeypad && settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
             }
 
             if (valTrigEvt("pushed")) {
@@ -4950,10 +4950,10 @@ static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { re
 static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 
 def appFooter() {
-	section() {
-		paragraph htmlLine("orange")
-		paragraph "<div style='color:orange;text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target='_blank'><img width=120' height='120' src='https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png'></a><br><br>Please consider donating if you find this integration useful.</div>"
-	}
+    section() {
+        paragraph htmlLine("orange")
+        paragraph "<div style='color:orange;text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target='_blank'><img width=120' height='120' src='https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png'></a><br><br>Please consider donating if you find this integration useful.</div>"
+    }
 }
 
 static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} \u2022 ${strVal}" }
@@ -5080,21 +5080,21 @@ static void mb(String meth=sNULL){
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
 
 private Integer getSemaNum(String name) {
-	if(name==sHMLF) return 0
+    if(name==sHMLF) return 0
     log.warn "unrecognized lock name..."
     return 0
-	// Integer stripes=22
-	// if(name.isNumber()) return name.toInteger()%stripes
-	// Integer hash=smear(name.hashCode())
-	// return Math.abs(hash)%stripes
+    // Integer stripes=22
+    // if(name.isNumber()) return name.toInteger()%stripes
+    // Integer hash=smear(name.hashCode())
+    // return Math.abs(hash)%stripes
     // log.info "sema $name # $sema"
 }
 java.util.concurrent.Semaphore getSema(Integer snum){
-	switch(snum) {
-		case 0: return histMapLockFLD
-		default: log.error "bad hash result $snum"
-			return null
-	}
+    switch(snum) {
+        case 0: return histMapLockFLD
+        default: log.error "bad hash result $snum"
+            return null
+    }
 }
 
 @Field volatile static Map<String,Long> lockTimesFLD = [:]
@@ -5245,7 +5245,7 @@ private restoreLightState(devs) {
 }
 
 @Field static final List colorSettingsListFLD = [
-    [name: "Soft White", rgb: "#B6DA7C", h: 83, s: 44, l: 67],              [name: "Warm White", rgb: "#DAF17E",	h: 51, s: 20, l: 100],      [name: "Very Warm White", rgb: "#DAF17E", h: 51, s: 60, l: 51],
+    [name: "Soft White", rgb: "#B6DA7C", h: 83, s: 44, l: 67],              [name: "Warm White", rgb: "#DAF17E", h: 51, s: 20, l: 100],      [name: "Very Warm White", rgb: "#DAF17E", h: 51, s: 60, l: 51],
     [name: "Daylight White", rgb: "#CEF4FD", h: 191, s: 9, l: 90],          [name: "Daylight", rgb: "#CEF4FD", h: 191, s: 9, l: 90],            [name: "Cool White", rgb: "#F3F6F7", h: 187, s: 19, l: 96],
     [name: "White", rgb: "#FFFFFF", h: 0, s: 0, l: 100],                    [name: "Alice Blue", rgb: "#F0F8FF", h: 208, s: 100, l: 97],        [name: "Antique White", rgb: "#FAEBD7", h: 34, s: 78, l: 91],
     [name: "Aqua", rgb: "#00FFFF", h: 180, s: 100, l: 50],                  [name: "Aquamarine", rgb: "#7FFFD4", h: 160, s: 100, l: 75],        [name: "Azure", rgb: "#F0FFFF", h: 180, s: 100, l: 97],
@@ -5256,7 +5256,7 @@ private restoreLightState(devs) {
     [name: "Corn Silk", rgb: "#FFF8DC", h: 48, s: 100, l: 93],              [name: "Crimson", rgb: "#DC143C", h: 348, s: 83, l: 58],            [name: "Cyan", rgb: "#00FFFF", h: 180, s: 100, l: 50],
     [name: "Dark Blue", rgb: "#00008B", h: 240, s: 100, l: 27],             [name: "Dark Cyan", rgb: "#008B8B", h: 180, s: 100, l: 27],         [name: "Dark Golden Rod", rgb: "#B8860B", h: 43, s: 89, l: 38],
     [name: "Dark Gray", rgb: "#A9A9A9", h: 0, s: 0, l: 66],                 [name: "Dark Green", rgb: "#006400", h: 120, s: 100, l: 20],        [name: "Dark Khaki", rgb: "#BDB76B", h: 56, s: 38, l: 58],
-    [name: "Dark Magenta", rgb: "#8B008B", h: 300, s: 100, l: 27],          [name: "Dark Olive Green", 	rgb: "#556B2F", h: 82, s: 39, l: 30],   [name: "Dark Orange", rgb: "#FF8C00", h: 33, s: 100, l: 50],
+    [name: "Dark Magenta", rgb: "#8B008B", h: 300, s: 100, l: 27],          [name: "Dark Olive Green",     rgb: "#556B2F", h: 82, s: 39, l: 30],   [name: "Dark Orange", rgb: "#FF8C00", h: 33, s: 100, l: 50],
     [name: "Dark Orchid", rgb: "#9932CC", h: 280, s: 61, l: 50],            [name: "Dark Red", rgb: "#8B0000", h: 0, s: 100, l: 27],            [name: "Dark Salmon", rgb: "#E9967A", h: 15, s: 72, l: 70],
     [name: "Dark Sea Green", rgb: "#8FBC8F", h: 120, s: 25, l: 65],         [name: "Dark Slate Blue", rgb: "#483D8B", h: 248, s: 39, l: 39],    [name: "Dark Slate Gray", rgb: "#2F4F4F", h: 180, s: 25, l: 25],
     [name: "Dark Turquoise", rgb: "#00CED1", h: 181, s: 100, l: 41],        [name: "Dark Violet", rgb: "#9400D3", h: 282, s: 100, l: 41],       [name: "Deep Pink", rgb: "#FF1493", h: 328, s: 100, l: 54],
@@ -5270,13 +5270,13 @@ private restoreLightState(devs) {
     [name: "Lavender Blush", rgb: "#FFF0F5", h: 340, s: 100, l: 97],        [name: "Lawn Green", rgb: "#7CFC00", h: 90, s: 100, l: 49],         [name: "Lemon Chiffon", rgb: "#FFFACD", h: 54, s: 100, l: 90],
     [name: "Light Blue", rgb: "#ADD8E6", h: 195, s: 53, l: 79],             [name: "Light Coral", rgb: "#F08080", h: 0, s: 79, l: 72],          [name: "Light Cyan", rgb: "#E0FFFF", h: 180, s: 100, l: 94],
     [name: "Light Golden Rod Yellow", rgb: "#FAFAD2", h: 60, s: 80, l: 90], [name: "Light Gray", rgb: "#D3D3D3", h: 0, s: 0, l: 83],            [name: "Light Green", rgb: "#90EE90", h: 120, s: 73, l: 75],
-    [name: "Light Pink", rgb: "#FFB6C1", h: 351, s: 100, l: 86],            [name: "Light Salmon", rgb: "#FFA07A", h: 17, s: 100, l: 74],       [name: "Light Sea Green", 	rgb: "#20B2AA", h: 177, s: 70, l: 41],
-    [name: "Light Sky Blue", 	rgb: "#87CEFA", h: 203, s: 92, l: 75],      [name: "Light Slate Gray", 	rgb: "#778899", h: 210, s: 14, l: 53],  [name: "Light Steel Blue", 	rgb: "#B0C4DE", h: 214, s: 41, l: 78],
+    [name: "Light Pink", rgb: "#FFB6C1", h: 351, s: 100, l: 86],            [name: "Light Salmon", rgb: "#FFA07A", h: 17, s: 100, l: 74],       [name: "Light Sea Green", rgb: "#20B2AA", h: 177, s: 70, l: 41],
+    [name: "Light Sky Blue", rgb: "#87CEFA", h: 203, s: 92, l: 75],         [name: "Light Slate Gray", rgb: "#778899", h: 210, s: 14, l: 53],   [name: "Light Steel Blue", rgb: "#B0C4DE", h: 214, s: 41, l: 78],
     [name: "Light Yellow", rgb: "#FFFFE0", h: 60, s: 100, l: 94],           [name: "Lime", rgb: "#00FF00", h: 120, s: 100, l: 50],              [name: "Lime Green", rgb: "#32CD32", h: 120, s: 61, l: 50],
     [name: "Linen", rgb: "#FAF0E6", h: 30, s: 67, l: 94],                   [name: "Maroon", rgb: "#800000", h: 0, s: 100, l: 25],              [name: "Medium Aquamarine", rgb: "#66CDAA", h: 160, s: 51, l: 60],
     [name: "Medium Blue", rgb: "#0000CD", h: 240, s: 100, l: 40],           [name: "Medium Orchid", rgb: "#BA55D3", h: 288, s: 59, l: 58],      [name: "Medium Purple", rgb: "#9370DB", h: 260, s: 60, l: 65],
-    [name: "Medium Sea Green", 	rgb: "#3CB371", h: 147, s: 50, l: 47],      [name: "Medium Slate Blue", rgb: "#7B68EE", h: 249, s: 80, l: 67],  [name: "Medium Spring Green", rgb: "#00FA9A", h: 157, s: 100, l: 49],
-    [name: "Medium Turquoise", 	rgb: "#48D1CC", h: 178, s: 60, l: 55],      [name: "Medium Violet Red", rgb: "#C71585", h: 322, s: 81, l: 43],  [name: "Midnight Blue", rgb: "#191970", h: 240, s: 64, l: 27],
+    [name: "Medium Sea Green", rgb: "#3CB371", h: 147, s: 50, l: 47],       [name: "Medium Slate Blue", rgb: "#7B68EE", h: 249, s: 80, l: 67],  [name: "Medium Spring Green", rgb: "#00FA9A", h: 157, s: 100, l: 49],
+    [name: "Medium Turquoise", rgb: "#48D1CC", h: 178, s: 60, l: 55],       [name: "Medium Violet Red", rgb: "#C71585", h: 322, s: 81, l: 43],  [name: "Midnight Blue", rgb: "#191970", h: 240, s: 64, l: 27],
     [name: "Mint Cream", rgb: "#F5FFFA", h: 150, s: 100, l: 98],            [name: "Misty Rose", rgb: "#FFE4E1", h: 6, s: 100, l: 94],          [name: "Moccasin", rgb: "#FFE4B5", h: 38, s: 100, l: 85],
     [name: "Navajo White", rgb: "#FFDEAD", h: 36, s: 100, l: 84],           [name: "Navy", rgb: "#000080", h: 240, s: 100, l: 25],              [name: "Old Lace", rgb: "#FDF5E6", h: 39, s: 85, l: 95],
     [name: "Olive", rgb: "#808000", h: 60, s: 100, l: 25],                  [name: "Olive Drab", rgb: "#6B8E23", h: 80, s: 60, l: 35],          [name: "Orange", rgb: "#FFA500", h: 39, s: 100, l: 50],

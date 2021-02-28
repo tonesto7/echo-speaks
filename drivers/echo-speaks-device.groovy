@@ -21,10 +21,10 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.7.0"
-@Field static final String appModifiedFLD = "2021-02-25"
-@Field static final String branchFLD      = "master"
-@Field static final String platformFLD    = "Hubitat"
+@Field static final String devVersionFLD  = '4.0.8.0'
+@Field static final String appModifiedFLD = '2021-02-28'
+@Field static final String branchFLD      = 'master'
+@Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -98,7 +98,7 @@ metadata {
         // attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
 	    
-	attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
+	    attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
 /* // these are part of audioNotification
         command "playText", ["STRING"] //This command is deprecated in ST but will work
@@ -162,7 +162,7 @@ metadata {
         command "restoreLastVolume"
         command "togglePlayback"
         command "setVolumeAndSpeak", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""]]
-        command "setVolumeSpeakAndRestore", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""],[name: "Restore Volume*", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "setVolumeSpeakAndRestore", [[name: "Volume*", type: "NUMBER", description: "Sets the volume before playing the message"], [name: "Message to Speak*", type: "STRING", description: ""],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
 //        command "volumeUp"
 //        command "volumeDown"
         command "speechTest"
@@ -2702,7 +2702,9 @@ private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=tru
 ]
 
 private void stateCleanup() {
-    if(state.lastVolume) { state?.oldVolume = state?.lastVolume }
+    state.newVolume = null
+    state.oldVolume = null
+//    if(state.lastVolume) { state?.oldVolume = state?.lastVolume }
     clnItemsFLD.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 }
 
