@@ -178,7 +178,7 @@ def mainPage() {
             href "prefsPage", title: inTS1("Logging Preferences", sSETTINGS), description: sBLANK
             if((Boolean)state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true
-                input "createZoneDevice", sBOOL, title: inTS1("Create a Virtual Device for this Zone?", "question"), defaultValue: false, submitOnChange: true
+                //input "createZoneDevice", sBOOL, title: inTS1("Create a Virtual Device for this Zone?", "question"), defaultValue: false, submitOnChange: true
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
