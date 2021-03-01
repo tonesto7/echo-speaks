@@ -1267,12 +1267,14 @@ def pause() {
 // capability musicPlayer
 def stop() {
     logTrace("stop() command received...")
+    pause()
+/*
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PauseCommand")
         if(isStateChange(device, "status", "stopped")) {
             sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
         }
-    }
+    } */
 }
 
 def togglePlayback() {
