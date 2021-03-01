@@ -1439,22 +1439,28 @@ def setVolume(vol) {
 
 // capability audioVolume
 def volumeUp() {
-    parent.zoneCmdHandler([value: 'volume', jsonData: [zones:[parent.id.toString()], cmd:'volumeUp', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
-    return
-    def t0 = device?.currentValue('level')
-    def curVol = t0 ?: 1
-    if(curVol >= 0 && curVol <= 95) { setVolume(curVol.toInteger()+5) }
-    else if(t0 > 95) setVolume(100)
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'volume', jsonData: [zones:[parent.id.toString()], cmd:'volumeUp', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
+        return
+    } else {
+        def t0 = device?.currentValue('level')
+        def curVol = t0 ?: 1
+        if(curVol >= 0 && curVol <= 95) { setVolume(curVol.toInteger()+5) }
+        else if(t0 > 95) setVolume(100)
+    }
 }
 
 // capability audioVolume
 def volumeDown() {
-    parent.zoneCmdHandler([value: 'volume', jsonData: [zones:[parent.id.toString()], cmd:'volumeDown', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
-    return
-    def t0 = device?.currentValue('level')
-    def curVol = t0 ?: 1
-    if(curVol >= 5) { setVolume(curVol.toInteger()-5) }
-    else if(t0 > 0) setVolume(0)
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'volume', jsonData: [zones:[parent.id.toString()], cmd:'volumeDown', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
+        return
+    } else {
+        def t0 = device?.currentValue('level')
+        def curVol = t0 ?: 1
+        if(curVol >= 5) { setVolume(curVol.toInteger()-5) }
+        else if(t0 > 0) setVolume(0)
+    }
 }
 
 // capability musicPlayer
@@ -1491,19 +1497,21 @@ def followUpModeOn() {
 def setDoNotDisturb(Boolean val) {
     logTrace("setDoNotDisturb($val) command received...")
     if(isCommandTypeAllowed("doNotDisturb")) {
-        String t0 = sendAmazonCommand("PUT", [
-            uri: getAmazonUrl(),
-            path: "/api/dnd/status",
-            headers: getCookieMap(true),
-            contentType: sAPPJSON,
-            body: [
-                deviceSerialNumber: (String)state.serialNumber,
-                deviceType: (String)state.deviceType,
-                enabled: val
-            ]
-        ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
-        sendEvent(name: "doNotDisturb", value: val.toString(), descriptionText: "Do Not Disturb Enabled ${val}", display: true, displayed: true)
-        parent?.getDoNotDisturb()
+        if(!isZone()) {
+            String t0 = sendAmazonCommand("PUT", [
+                uri: getAmazonUrl(),
+                path: "/api/dnd/status",
+                headers: getCookieMap(true),
+                contentType: sAPPJSON,
+                body: [
+                    deviceSerialNumber: (String)state.serialNumber,
+                    deviceType: (String)state.deviceType,
+                    enabled: val
+                ]
+            ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
+            sendEvent(name: "doNotDisturb", value: val.toString(), descriptionText: "Do Not Disturb Enabled ${val}", display: true, displayed: true)
+            parent?.getDoNotDisturb()
+        }
     }
 }
 
@@ -1590,13 +1598,16 @@ public restoreLastVolume() {
 }
 
 void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
-    parent.zoneCmdHandler([value: 'builtin', jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
-    return
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
-        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, cmdType)
-    } else { sendSequenceCommand(cmdType, cmd, val) }
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'builtin', jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        return
+    } else {
+        if(volume != null) {
+            List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
+            if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+            sendMultiSequenceCommand(seqs, cmdType)
+        } else { sendSequenceCommand(cmdType, cmd, val) }
+    }
 }
 
 void seqHelper_c(String val, String cmdType, volume, restoreVolume){
@@ -1637,13 +1648,16 @@ def executeRoutineId(String rId) {
 }
 
 void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
-    parent.zoneCmdHandler([value: cmd, jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
-    return
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType]]
-        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, cmdType)
-    } else { sendSequenceCommand(cmdType, cmd) }
+    if(isZone()) {
+        parent.zoneCmdHandler([value: cmd, jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        return
+    } else {
+        if(volume != null) {
+            List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType]]
+            if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+            sendMultiSequenceCommand(seqs, cmdType)
+        } else { sendSequenceCommand(cmdType, cmd) }
+    }
 }
 
 def playWeather(volume=null, restoreVolume=null) {
@@ -1704,12 +1718,15 @@ def playSoundByName(String name, volume=null, restoreVolume=null) {
 }
 
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
-    parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
-    finishAnnounce(msg)
-    return
-    if(isCommandTypeAllowed("announce")) {
-        seqHelper_a("announcement", msg, "playAnnouncement", volume, restoreVolume)
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         finishAnnounce(msg)
+        return
+    } else {
+        if(isCommandTypeAllowed("announce")) {
+            seqHelper_a("announcement", msg, "playAnnouncement", volume, restoreVolume)
+            finishAnnounce(msg)
+        }
     }
 }
 
@@ -1725,11 +1742,14 @@ def finishAnnounce(String msg){
     } else { sendSequenceCommand(cmdType, cmd, val) } */
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
-    parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: title, changeVol:volume, restoreVol:restoreVolume, delay:0]])
-    finishAnnounce(msg)
-    return
-    String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
-    playAnnouncement(newMsg, volume, restoreVolume)
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: title, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        finishAnnounce(msg)
+        return
+    } else {
+        String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
+        playAnnouncement(newMsg, volume, restoreVolume)
+    }
 }
 
 def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volume=null, restoreVolume=null) {
@@ -2603,15 +2623,13 @@ void speechTest(String ttsMsg=sNULL) {
 
 void speak(String msg) {
     logTrace("speak() command received...")
-    parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol:(state.newVolume ?: null), restoreVol:(state.oldVolume ?: null), delay:0]])
-    state.newVolume = null
-    state.oldVolume = null
-
-    return
-
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true); return }
-        speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
+        if(isZone()) {
+            parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol:(state.newVolume ?: null), restoreVol:(state.oldVolume ?: null), delay:0]])
+        } else {
+            speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
+        }
     } else {
         logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
     }
@@ -2869,7 +2887,7 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
 static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 Boolean minVersionFailed() {
     try {
-        Integer t0 = ((Map<String,Integer>)parent?.relayMinVersions())["zoneEchoDevice"]
+        Integer t0 = isZone() ? ((Map<String,Integer>)parent?.relayMinVersions())["zoneEchoDevice"] : ((Map<String,Integer>)parent?.minVersions())["echoDevice"]
         Integer minDevVer = t0 ?: null
         return minDevVer != null && versionStr2Int(devVersionFLD) < minDevVer
     } catch (e) { 
