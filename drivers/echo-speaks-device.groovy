@@ -49,6 +49,7 @@ import groovy.transform.Field
 
 static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return false }
+static Boolean isZone()     { return false }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy") {
@@ -608,7 +609,7 @@ void refreshData(Boolean full=false) {
     } else { state.fullRefreshOk = false }
 }
 
-private refreshStage2() {
+private void refreshStage2() {
     // log.trace("refreshStage2()...")
     Boolean wsActive = (Boolean)state.websocketActive
     Boolean full = (Boolean)state.fullRefreshOk
@@ -629,7 +630,7 @@ private refreshStage2() {
     // updGuardStatus()
 }
 
-public setOnlineStatus(Boolean isOnline) {
+public void setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
 //    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString())) {
 //        sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), display: false, displayed: false)
@@ -640,7 +641,7 @@ public setOnlineStatus(Boolean isOnline) {
     }
 }
 
-private getPlaybackState(Boolean isGroupResponse=false) {
+private void getPlaybackState(Boolean isGroupResponse=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/np/player",
@@ -2545,11 +2546,11 @@ void speak(String msg) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true); return }
         speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
-        return
+    } else {
+        logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
     }
     state.newVolume = null
     state.oldVolume = null
-    logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
 }
 
 private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
@@ -2893,7 +2894,7 @@ private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug l
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info logPrefix(msg, "#0299b1") } }
 private void logTrace(String msg) { if((Boolean)settings.logTrace) { log.trace logPrefix(msg, sCLRGRY) } }
 private void logWarn(String msg, Boolean noHist=false) { if((Boolean)settings.logWarn != false) { log.warn logPrefix(sSPACE + msg, sCLRORG) }; if(!noHist) { addToLogHistory("warnHistory", msg, null, 15) } }
-static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return (String) str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
 
 void logError(String msg, Boolean noHist=false, ex=null) {
     if((Boolean)settings.logError != false) {
@@ -2916,7 +2917,7 @@ Map getLogHistory() {
     return [ warnings: getMemStoreItem("warnHistory") ?: [], errors: getMemStoreItem("errorHistory") ?: [], speech: getMemStoreItem("speechHistory") ?: [] ]
 }
 
-public clearLogHistory() {
+public void clearLogHistory() {
     updMemStoreItem("warnHistory", [])
     updMemStoreItem("errorHistory",[])
     updMemStoreItem("speechHistory", [])
