@@ -1660,7 +1660,7 @@ def executeRoutineId(String rId) {
 
 void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
     if(isZone()) {
-        parent.zoneCmdHandler([value: cmd, jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        parent.zoneCmdHandler([value: 'builtin', jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         return
     } else {
         if(volume != null) {
