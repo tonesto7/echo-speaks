@@ -1159,20 +1159,11 @@ private void sendSequenceCommand(String type, String command, value=null, String
 }
 
 private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false, String callback=sNULL) {
-//    String serial = (String)state.serialNumber
-//    String type = (String)state.deviceType
-    //parent.queueMultiSequenceCommand(commands, srcDesc, parallel, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], null, device.deviceNetworkId, callback)
-    parent.relayMultiSeqCommand(commands, srcDesc, parallel, [:] /* [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]*/, null, device.deviceNetworkId, callback)
-/*
-    List nodeList = []
-    String seqType = parallel ? "ParallelNode" : "SerialNode"
-    commands.each { cmdItem->
-        if(cmdItem.command instanceof Map) {
-            nodeList.push(cmdItem.command)
-        } else { nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem?.value, (String)cmdItem?.devType ?: type, (String)cmdItem?.devSerial ?: serial)) }
+    if(isZone())
+        parent.relayMultiSeqCommand(commands, srcDesc, parallel, [:], null, device.deviceNetworkId, callback)
+    else {
+        parent.queueMultiSequenceCommand(commands, srcDesc, parallel, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], null, device.deviceNetworkId, callback)
     }
-    Map seqJson = [ "sequence": [ "@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": [ "@type": "com.amazon.alexa.behaviors.model.${seqType}", "name": null, "nodesToExecute": nodeList ] ] ]
-    sendSequenceCommand("${srcDesc} | MultiSequence: ${parallel ? "Parallel" : "Sequential"}", seqJson, null) */
 }
 
 void respExceptionHandler(ex, String mName, Boolean clearOn401=false, Boolean ignNullMsg=false) {
@@ -1282,18 +1273,21 @@ def playTrack(String uri, volume=null) {
 // capability musicPlayer
 def pause() {
     logTrace("pause() command received...")
-    parent.zoneCmdHandler([value: 'playback', jsonData: [zones:[parent.id.toString()], cmd:'pause', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
-    return
-    if(isCommandTypeAllowed("mediaPlayer")) {
-        sendAmazonBasicCommand("PauseCommand")
-        if(isStateChange(device, "status", "stopped")) {
-            sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
-            // log.debug "deviceStatus: stopped_${state.deviceStyle?.image}"
-            sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.image}", display: false, displayed: false)
-        }
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'playback', jsonData: [zones:[parent.id.toString()], cmd:'pause', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
         return
+    } else {
+        if(isCommandTypeAllowed("mediaPlayer")) {
+            sendAmazonBasicCommand("PauseCommand")
+            if(isStateChange(device, "status", "stopped")) {
+                sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
+                // log.debug "deviceStatus: stopped_${state.deviceStyle?.image}"
+                sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.image}", display: false, displayed: false)
+            }
+            return
+        }
+        logWarn("Uh-Oh... The pause Command is NOT Supported by this Device!!!")
     }
-    logWarn("Uh-Oh... The pause Command is NOT Supported by this Device!!!")
 }
 
 // capability musicPlayer
@@ -1311,21 +1305,26 @@ def stop() {
 
 def togglePlayback() {
     logTrace("togglePlayback() command received...")
-    parent.zoneCmdHandler([value: 'playback', jsonData: [zones:[parent.id.toString()], cmd:'togglePlayback', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
-    return
-    if(isCommandTypeAllowed("mediaPlayer")) {
-        def isPlaying = (device?.currentValue('status') == "playing")
-        if(isPlaying) {
-            stop()
-        } else {
-            play()
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'playback', jsonData: [zones:[parent.id.toString()], cmd:'togglePlayback', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
+        return
+    } else {
+        if(isCommandTypeAllowed("mediaPlayer")) {
+            def isPlaying = (device?.currentValue('status') == "playing")
+            if(isPlaying) {
+                stop()
+            } else {
+                play()
+            }
         }
     }
 }
 
 def stopAllDevices() {
-    logWarn("Uh-Oh... The stopAllDevices() Command is NOT Supported by this Device!!!", true)
-    return
+    if(isZone()) {
+        logWarn("Uh-Oh... The stopAllDevices() Command is NOT Supported by this Device!!!", true)
+        return
+    }
     sendSequenceCommand("StopAllDevicesCommand", "stopalldevices")
     //parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
     triggerDataRrsh('stopAllDevices')
@@ -1350,15 +1349,18 @@ def nextTrack() {
 // capability musicPlayer, audioVolume
 def mute() {
     logTrace("mute() command received...")
-    parent.zoneCmdHandler([value: 'mute', jsonData: [zones:[parent.id.toString()], cmd:'mute', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
-    return
-    if(isCommandTypeAllowed("volumeControl")) {
-        def t0= device?.currentValue("level")?.toInteger()
-        if( (!state.muteLevel && t0) ) state.muteLevel = t0
-        if(isStateChange(device, "mute", "muted")) {
-            sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'mute', jsonData: [zones:[parent.id.toString()], cmd:'mute', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
+        return
+    } else {
+        if(isCommandTypeAllowed("volumeControl")) {
+            def t0= device?.currentValue("level")?.toInteger()
+            if( (!state.muteLevel && t0) ) state.muteLevel = t0
+            if(isStateChange(device, "mute", "muted")) {
+                sendEvent(name: "mute", value: "muted", descriptionText: "Mute is set to muted", display: true, displayed: true)
+            }
+            setLevel(0)
         }
-        setLevel(0)
     }
 }
 
@@ -1379,16 +1381,19 @@ def shuffle() {
 // capability musicPlayer, audioVolume
 def unmute() {
     logTrace("unmute() command received...")
-    parent.zoneCmdHandler([value: 'unmute', jsonData: [zones:[parent.id.toString()], cmd:'unmute', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
-    return
-    if(isCommandTypeAllowed("volumeControl")) {
-        if(state.muteLevel) {
-            setLevel(state.muteLevel)
-            state.muteLevel = null
-            if(isStateChange(device, "mute", "unmuted")) {
-                sendEvent(name: "mute", value: "unmuted", descriptionText: "Mute is set to unmuted", display: true, displayed: true)
-            }
-        } else logTrace("no previous volume level found")
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'unmute', jsonData: [zones:[parent.id.toString()], cmd:'unmute', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
+        return
+    } else {
+        if(isCommandTypeAllowed("volumeControl")) {
+            if(state.muteLevel) {
+                setLevel(state.muteLevel)
+                state.muteLevel = null
+                if(isStateChange(device, "mute", "unmuted")) {
+                    sendEvent(name: "mute", value: "unmuted", descriptionText: "Mute is set to unmuted", display: true, displayed: true)
+                }
+            } else logTrace("no previous volume level found")
+        }
     }
 }
 
@@ -1399,36 +1404,42 @@ def setMute(muteState) {
 // capability musicPlayer
 def setLevel(level) {
     logTrace("setVolume($level) command received...")
-    parent.zoneCmdHandler([value: 'volume', jsonData: [zones:[parent.id.toString()], cmd:'setLevel', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
-    return
-    if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
-        if(level != device?.currentValue('level')) {
-            sendSequenceCommand("VolumeCommand", "volume", level)
-            //parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
-            sendEvent(name: "level", value: level.toInteger(), display: true, displayed: true)
-            sendEvent(name: "volume", value: level.toInteger(), display: true, displayed: true)
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'volume', jsonData: [zones:[parent.id.toString()], cmd:'setLevel', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
+        return
+    } else {
+        if(isCommandTypeAllowed("volumeControl") && level>=0 && level<=100) {
+            if(level != device?.currentValue('level')) {
+                sendSequenceCommand("VolumeCommand", "volume", level)
+                //parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
+                sendEvent(name: "level", value: level.toInteger(), display: true, displayed: true)
+                sendEvent(name: "volume", value: level.toInteger(), display: true, displayed: true)
+            }
         }
     }
 }
 
 def setAlarmVolume(vol) {
     logTrace("setAlarmVolume($vol) command received...")
-    parent.zoneCmdHandler([value: 'alarmvolume', jsonData: [zones:[parent.id.toString()], cmd:'setAlarmVolume', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
-    return
-    if(isCommandTypeAllowed("alarms") && vol>=0 && vol<=100) {
-        String t0 = sendAmazonCommand("PUT", [
-            uri: getAmazonUrl(),
-            path: "/api/device-notification-state/${(String)state.deviceType}/${state?.softwareVersion}/${(String)state.serialNumber}",
-            headers: getCookieMap(true),
-            contentType: sAPPJSON,
-            body: [
-                deviceSerialNumber: (String)state.serialNumber,
-                deviceType: (String)state.deviceType,
-                softwareVersion: device?.currentValue('firmwareVer'),
-                volumeLevel: vol
-            ]
-        ], [cmdDesc: "AlarmVolume"])
-        sendEvent(name: "alarmVolume", value: vol, display: true, displayed: true)
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'alarmvolume', jsonData: [zones:[parent.id.toString()], cmd:'setAlarmVolume', message: sNULL, changeVol:level, restoreVol:null, delay:0]])
+        return
+    } else {
+        if(isCommandTypeAllowed("alarms") && vol>=0 && vol<=100) {
+            String t0 = sendAmazonCommand("PUT", [
+                uri: getAmazonUrl(),
+                path: "/api/device-notification-state/${(String)state.deviceType}/${state?.softwareVersion}/${(String)state.serialNumber}",
+                headers: getCookieMap(true),
+                contentType: sAPPJSON,
+                body: [
+                    deviceSerialNumber: (String)state.serialNumber,
+                    deviceType: (String)state.deviceType,
+                    softwareVersion: device?.currentValue('firmwareVer'),
+                    volumeLevel: vol
+                ]
+            ], [cmdDesc: "AlarmVolume"])
+            sendEvent(name: "alarmVolume", value: vol, display: true, displayed: true)
+        }
     }
 }
 
