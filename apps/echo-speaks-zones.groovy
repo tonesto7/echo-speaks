@@ -178,7 +178,7 @@ def mainPage() {
             href "prefsPage", title: inTS1("Logging Preferences", sSETTINGS), description: sBLANK
             if((Boolean)state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true
-                //input "createZoneDevice", sBOOL, title: inTS1("Create a Virtual Device for this Zone?", "question"), defaultValue: false, submitOnChange: true
+                input "createZoneDevice", sBOOL, title: inTS1("Create a Virtual Device for this Zone?", "question"), defaultValue: false, submitOnChange: true
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
@@ -550,8 +550,116 @@ def initialize() {
         runEvery1Hour("healthCheck")
         updConfigStatusMap()
     }
+
+    handleZoneDevice()
     checkZoneStatus([name: "initialize", displayName: "initialize"])
 }
+
+void handleZoneDevice() {
+    String dni = [app?.id, "echoSpeaks-Zone-Dev", echoKey].join("|")
+    def childDevice = getChildDevice(dni)
+    //String devLabel = "${(Boolean)settings.addEchoNamePrefix ? "EchoZD - " : sBLANK}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : sBLANK}"
+    String devLabel = "EchoZD - ${app.getLabel()}" 
+    String childHandlerName = "Echo Speaks Zone Device"
+    if (!childDevice && (Boolean)settings.createZoneDevice) {
+        // log.debug "childDevice not found | autoCreateDevices: ${settings.autoCreateDevices}"
+            try{
+                logInfo("Creating NEW Echo Speaks Zone Device!!! | Device Label: ($devLabel)")
+                childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
+            } catch(ex) {
+                logError("AddDevice Error! | ${ex}", false, ex)
+            }
+//            runIn(10, "updChildSocketStatus")
+    }
+    if (childDevice && !(Boolean)settings.createZoneDevice) {
+        try{
+            def nd = deleteChildDevice(childDevice.deviceNetworkId)
+        }catch(e) {
+            logError("RemoveDevice Error! } ${e}", false, ex)
+        }
+    }
+    if (childDevice && (Boolean)settings.createZoneDevice) {
+    }
+}
+
+
+List getEsDevices() {
+    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == true }
+}
+
+void updateChildZoneState(Boolean zoneActive, Boolean active) {
+    if(zoneActive != null) getEsDevices()?.each { it?.updStatus(zoneActive) }
+    if(active != null) getEsDevices()?.each { it?.updSocketStatus(active) }
+}
+
+/*******************************************************************
+            To Device from parent
+*******************************************************************/
+String relayDevVersion() {
+    String a
+    getEsDevices().each { if(!a) a = it.devVersion() }
+    return a
+}
+
+void relayUpdChildSocketStatus(Boolean active) {
+     updateChildZoneState(null, active)
+}
+
+void relayUpdateCookies(Map cookies){
+    getEsDevices().each { it.updateCookies(cookies) }
+}
+
+void relayRemoveCookies(Boolean isParent) {
+    getEsDevices().each { it.removeCookies(isParent) }
+}
+
+void relayEnableDebugLog() { getEsDevices().each { it.enableDebugLog() } }
+void relayDisableDebugLog() { getEsDevices().each { it.disableDebugLog() } }
+void relayEnableTraceLog() { getEsDevices().each { it.enableTraceLog() } }
+void relayDisableTraceLog() { getEsDevices().each { it.disableTraceLog() } }
+void relayLogsOff() { getEsDevices().each { it.logsOff() } }
+void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
+
+
+/*******************************************************************
+            To Parent from Device Command FUNCTIONS
+*******************************************************************/
+Map relayMinVersions() {
+    parent.minVersions()
+}
+
+public relayMultiSeqCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, devData, cmdMap, device, callback)
+}
+
+public relaySeqCommand(String type, String command, value=null,  Map deviceData=[:], String device=sNULL, String callback=sNULL) {
+    parent.queueSequenceCommand(type, command, value, deviceData, device, callback)
+}
+
+public relaySpeakCommand(Map cmdMap, Map device, String callback) {
+    parent.sendSpeak(cmdMap, device, callback)
+}
+
+Boolean relayGetWWebSocketStatus() {
+     parent.getWWebSocketStatus()
+}
+
+void relayChildInitialtedRefresh() {
+     parent.childInitiatedRefresh()
+}
+
+void relaySendPlaybackStateToClusterMembers(String whaKey, data) {
+    parent.sendPlaybackStateToClusterMembers(whaKey, data)
+}
+
+String RelayGetAlexaGuardStatus() {
+    parent.getAlexaGuardStatus()
+}
+
+Boolean RelayGetDndEnabled(String serial) {
+    parent.getDndEnabled(serial)
+}
+
 
 private void processDuplication() {
     String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? sBLANK : " (Dup)"}"
@@ -1034,7 +1142,7 @@ void checkZoneStatus(evt) {
 }
 
 public Boolean isZoneDeviceEnabled() {
-    return (Boolean) settings.createZoneDevice
+    return (Boolean)settings.createZoneDevice
 }
 
 Map myZoneStatus() {
@@ -1141,9 +1249,15 @@ public zoneRefreshHandler(evt) {
 }
 
 public zoneCmdHandler(evt) {
+    // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
     Map data = evt?.jsonData
+    if(isPaused(true) || !isActive()) {
+        logInfo( "zoneCmdHandler: zone is paused or inactive Skipping $evt")
+        return
+    }
     String appId = app?.getId() as String
+    // log.warn "zoneCmdHandler cmd: $cmd data: $data appId $appId"
     if(cmd && data && appId && data.zones && data.zones.contains(appId) && data.cmd) {
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
         Map zoneDevMap = getZoneDevices()
@@ -1156,6 +1270,7 @@ public zoneCmdHandler(evt) {
         }
         Integer delay = data.delay ?: null
         if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" }
+        // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
         switch(cmd) {
             case "speak":
                 if(!data.message) { logWarning("Zone Command Message is missing", true); return }
@@ -1190,12 +1305,28 @@ public zoneCmdHandler(evt) {
                     dev?.executeSequenceCommand((String)data.message)
                 }
                 break
-            case "playback":
+
+/*            case "playback":
             case "dnd":
                 logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.each { dev->
-                    if(data.cmd != "volume") { dev?."${data.cmd}"() }
-                    if(data.cmd == "volume" && data.changeVol != null) { dev?.setVolume(data.changeVol) }
+                    if(data.cmd) { dev?."${data.cmd}"() }
+                }
+                break */
+
+            case "alarmvolume":
+            case "volume":
+                logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                if(data.changeVol != null) { dev?."${data.cmd}}"(data.changeVol) }
+                break
+
+            case "playback":
+            case "dnd":
+            case "mute":
+            case "unmute":
+                logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${delay ? " | Delay: (${delay})" : sBLANK}")
+                zoneDevs?.each { dev->
+                    if(data.cmd) { dev?."${data.cmd}"() }
                 }
                 break
 
