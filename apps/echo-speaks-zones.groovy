@@ -556,7 +556,7 @@ def initialize() {
 }
 
 void handleZoneDevice() {
-    String dni = [app?.id, "echoSpeaks-Zone-Dev", echoKey].join("|")
+    String dni = [app?.id, "echoSpeaks-Zone-Dev"].join("|")
     def childDevice = getChildDevice(dni)
     //String devLabel = "${(Boolean)settings.addEchoNamePrefix ? "EchoZD - " : sBLANK}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : sBLANK}"
     String devLabel = "EchoZD - ${app.getLabel()}" 
@@ -1269,11 +1269,11 @@ public zoneCmdHandler(evt) {
             data.restoreVol = zVol.restore ?: data.restoreVol
         }
         Integer delay = data.delay ?: null
-        if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" }
+        if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" } // FORCES speak to be announcement
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
+        if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
         switch(cmd) {
             case "speak":
-                if(!data.message) { logWarning("Zone Command Message is missing", true); return }
                 logDebug("Sending Speak Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 if(data.changeVol!=null || data.restoreVol!=null) {
                     zoneDevs?.each { dev->
