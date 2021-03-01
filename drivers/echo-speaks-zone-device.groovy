@@ -137,7 +137,9 @@ if(!isZone()) {
         // command "playCannedTts", ["string", "string", "number", "number"]
 //        command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+if(!isZone()) {
         command "playAnnouncementAll", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
+}
         command "playCalendarToday", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playCalendarTomorrow", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playCalendarNext", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -176,9 +178,9 @@ if(!isZone()) {
         command "speechTest"
 //        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""]]
         command "sendTestAnnouncement"
+if(!isZone()) {
         command "sendTestAnnouncementAll"
         command "getDeviceActivity"
-if(!isZone()) {
         command "getBluetoothDevices"
         command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
         command "disconnectBluetooth"
