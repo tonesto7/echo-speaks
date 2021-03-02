@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.8.0"
-@Field static final String appModifiedFLD = "2021-02-28"
+@Field static final String appVersionFLD  = "4.0.8.1"
+@Field static final String appModifiedFLD = "2021-03-02"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -558,27 +558,23 @@ def initialize() {
 void handleZoneDevice() {
     String dni = [app?.id, "echoSpeaks-Zone-Dev"].join("|")
     def childDevice = getChildDevice(dni)
-    //String devLabel = "${(Boolean)settings.addEchoNamePrefix ? "EchoZD - " : sBLANK}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : sBLANK}"
-    String devLabel = "EchoZD - ${app.getLabel()}" 
+    String devLabel = "EchoZone - ${app.getLabel().replace(" (Z)", sBLANK)}"
     String childHandlerName = "Echo Speaks Zone Device"
     if (!childDevice && (Boolean)settings.createZoneDevice) {
         // log.debug "childDevice not found | autoCreateDevices: ${settings.autoCreateDevices}"
-            try{
-                logInfo("Creating NEW Echo Speaks Zone Device!!! | Device Label: ($devLabel)")
-                childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, completedSetup: true])
-            } catch(ex) {
-                logError("AddDevice Error! | ${ex}", false, ex)
-            }
-//            runIn(10, "updChildSocketStatus")
-    }
-    if (childDevice && !(Boolean)settings.createZoneDevice) {
         try{
-            def nd = deleteChildDevice(childDevice.deviceNetworkId)
-        }catch(e) {
-            logError("RemoveDevice Error! } ${e}", false, ex)
+            logInfo("Creating NEW Echo Speaks Zone Device!!! | Device Label: ($devLabel)")
+            childDevice = addChildDevice("tonesto7", childHandlerName, dni, null, [name: childHandlerName, label: devLabel, settings:[isZone: true], completedSetup: true])
+        } catch(ex) {
+            logError("AddDevice Error! | ${ex}", false, ex)
         }
     }
-    if (childDevice && (Boolean)settings.createZoneDevice) {
+    if (childDevice && !(Boolean)settings.createZoneDevice) {
+        try {
+            deleteChildDevice(childDevice.deviceNetworkId)
+        } catch(e) {
+            logError("RemoveDevice Error! } ${e}", false, ex)
+        }
     }
 }
 

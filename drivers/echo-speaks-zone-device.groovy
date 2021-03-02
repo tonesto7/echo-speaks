@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.8.0"
-@Field static final String appModifiedFLD = "2021-02-26"
+@Field static final String devVersionFLD  = "4.0.8.1"
+@Field static final String appModifiedFLD = "2021-03-02"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -53,9 +53,7 @@ static Boolean isZone()     { return true }
 
 metadata {
     definition (name: "Echo Speaks Zone Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-zone-device.groovy") {
-        // capability "Audio Mute" // Not Compatible with Hubitat
         capability "Audio Notification"
-        // capability "Audio Track Data" // Not Compatible with Hubitat
         capability "Audio Volume"
         capability "Music Player"
         capability "Notification"

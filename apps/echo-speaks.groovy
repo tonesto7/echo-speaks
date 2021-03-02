@@ -4522,7 +4522,7 @@ void missPollNotify(Boolean on, Integer wait) {
             if((Boolean)state.authValid) {
                 msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue network access."
             } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
-            logWarn("${msg.toString().replaceAll("\n", " ")}")
+            logWarn(msg.toString().replaceAll("\n", sSPACE))
 
             if(lastMissPollM < wait?.toInteger()) { on = false }
             if(on && sendMsg("${app.name} ${(Boolean)state.authValid ? "Data Refresh Issue" : "Amazon Login Issue"}", msg)) {
@@ -7014,6 +7014,10 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2V3E2XUH5Z7M8" : [ ignore: true ],
         "A1FWRGKHME4LXH" : [ ignore: true ],
         "A26TRKU1GG059T" : [ ignore: true ],
+        "AU4IFDJDRSBC1"  : [ ignore: true ],
+        "A324YMIUSWQDGE" : [ ignore: true, image: "unknown", name: "Samsung 8K TV" ],
+        "A18X8OBWBCSLD8" : [ ignore: true, image: "unknown", name: "Samsung Soundbar" ],
+        "A1GA2W150VBSDI" : [ ignore: true, image: "unknown", name: "Sony On-Hear Headphones" ],
         "A2S24G29BFP88"  : [ ignore: true, image: "unknown", name: "Ford/Lincoln Alexa App" ],
         "A1NAFO69AAQ16Bk": [ ignore: true, image: "unknown", name: "Wyze Band" ],
         "A1NAFO69AAQ16B" : [ ignore: true, image: "unknown", name: "Wyze Band" ],
@@ -7083,6 +7087,10 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1GPVMRI4IOS0M" : [ ignore: true ],
         "A2Z8O30CD35N8F" : [ ignore: true ],
         "A1XN1MKELB7WUF" : [ ignore: true ],
+        "AINRG27IL8AS0"  : [ ignore: true ],
+        "A1L4KDRIILU6N9" : [ caps: [ "a", "t" ], image: "unknown", name: "Sony Speaker" ],
+        "ALT9P69K6LORD"  : [ caps: [ "a", "t" ], image: "echo_auto_gen1", name: "Echo Auto" ],
+        "A1F1F76XIW4DHQ" : [ caps: [ "a", "t" ], image: "unknown", name: "Unknown TV" ],
         "ADVBD696BHNV5"  : [ caps: [ "a", "t" ], image: "firetv_stick_gen1", name: "Fire TV Stick (Gen1)" ],
         "AE7X7Z227NFNS"  : [ caps: [ "a", "t" ], image: "unknown", name: "HiMirror Mini" ],
         "AF473ZSOIRKFJ"  : [ caps: [ "a", "t" ], image: "unknown", name: "Onkyo VC-PX30" ],
