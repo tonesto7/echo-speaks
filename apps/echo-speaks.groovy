@@ -22,7 +22,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, /* zoneParentDevice: 4080, */zoneEchoDevice: 4080, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1470,6 +1470,7 @@ def initialize() {
             updTsVal("lastDevDataUpdDt", formatDt(d))
            // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
+            //checkZoneParent()
             if(advLogsActive()) { logsEnabled() }
         } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
     }
@@ -1577,6 +1578,7 @@ void updChildSocketStatus() {
     Boolean active = (Boolean)state.websocketActive
     logTrace "updChildSocketStatus... | Active: ${active}"
     getEsDevices()?.each { it?.updSocketStatus(active) }
+    getZoneApps()?.each { it?.relayUpdChildSocketStatus(active) }
     updTsVal("lastWebsocketUpdDt")
 }
 
@@ -1720,9 +1722,29 @@ List getActionApps() {
 }
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { it?.isWS() == false }
+    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == false }
 }
 
+/*List getEsZoneParent() {
+    return getChildDevices()?.find { it?.name == "Echo Speaks Zones Parent" }
+}*/
+
+List getEsZoneDevices() {
+    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == true }
+}
+
+/*private void checkZoneParent() {
+    Map zones = getZones()
+    List zoneDev = getEsZoneParent()
+    if(!zoneDev && zones.size()) {
+        String myId=app.getId()
+        String znChildHandlerName = "Echo Speaks Zones Parent"
+        String nmS = myId+'|echoSpeaks_zone_parent'
+        def znDevice = getChildDevice(nmS)
+        if(!znDevice) { addChildDevice("tonesto7", znChildHandlerName, nmS, null, [name: znChildHandlerName, label: "Echo Speaks - Zones Parent", completedSetup: true]) }
+        updCodeVerMap("zoneParentDevice", (String)znDevice?.devVersion())
+    }
+}*/
 
 def getSocketDevice() {
     String myId=app.getId()
@@ -1827,6 +1849,14 @@ Boolean checkIfCodeUpdated() {
             state.pollBlocked = true
             // log.debug "zoneVer: ver"
             updCodeVerMap("zoneApp", ver)
+            codeUpdated = true
+        }
+        ver = sNULL
+        zApps.each { if(!ver) ver = it?.relayDevVersion() }
+        if(ver && (String)codeVer.zoneEchoDevice != ver) {
+            chgs.push("zoneEchoDevice")
+            state.pollBlocked = true
+            updCodeVerMap("zoneEchoDevice", ver)
             codeUpdated = true
         }
     }
@@ -2014,6 +2044,7 @@ Boolean refreshDevCookies() {
 void updateChildAuth(Boolean isValid) {
     Map cook = getCookieMap()
     getChildDevices()?.each { (isValid) ? it?.updateCookies(cook) : it?.removeCookies(true) }
+    getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook) : it?.relayRemoveCookies(true) }
 }
 
 @Field volatile static Map<String,List> authValidMapFLD             = [:]
@@ -3425,7 +3456,7 @@ public static Map minVersions() {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones"]
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneEchoDevice: "Echo Speaks Zone Device" /*, zoneParentDevice: "Echo Speaks Zone Parent Device"*/]
     Map codeVers = (Map)state.codeVersions ?: [:]
     codeVers.each { String k,String v->
         if(codeItems.containsKey(k) && v != sNULL && (versionStr2Int(v) < minVersionsFLD[k])) { updRequired = true; updItems.push(codeItems[k]) }
@@ -3556,7 +3587,7 @@ void sendZoneCmd(Map cmdData) {
 }
 
 void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
-    List<Map> devObj = odevObj.unique() // remove any duplicate devices
+	List<Map> devObj = odevObj.unique() // remove any duplicate devices
         String origMsg = newmsg
         switch(myCmd) {
             case "announcement":
@@ -4418,7 +4449,7 @@ void healthCheck() {
         runCookieRefresh()
     } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
-    } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
+    } else if(getLastTsValSecs("lastServerWakeDt") > 86400*2 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
     def aa=getAllDeviceVolumes()
     chkRestartSocket()
@@ -4486,13 +4517,16 @@ private void manAllZonesDbgLogs(Boolean enable=true) { getZoneApps()?.each { ca-
 private void manAllZonesTrcLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
 private void manAllActsDbgLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
 private void manAllActsTrcLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
-private void manAllEchosDbgLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
-private void manAllEchosTrcLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
+private void manAllEchosDbgLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? cd?.enableDebugLog() : cd?.disableDebugLog() }
+                                                       getZoneApps()?.each { ca-> enable ? ca?.relayEnableDebugLog() : ca?.relayDisableDebugLog() } }
+private void manAllEchosTrcLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? cd?.enableTraceLog() : cd?.disableTraceLog() }
+                                                       getZoneApps()?.each { ca-> enable ? ca?.relayEnableTraceLog() : ca?.relayDisableTraceLog() } }
 
 
 private void disableAdvChldLogs() {
     getActionApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.logsDisable() }
+    getZoneApps()?.each { ca-> ca?.relayLogsOff() }
     getChildDevices()?.each { cd-> cd?.logsOff() }
 }
 
@@ -4532,11 +4566,13 @@ void appUpdateNotify() {
     Boolean appUpd = appUpdAvail()
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
+    Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
+//    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     Boolean res=false
-    if(appUpd || actUpd || zoneUpd || echoDevUpd || socketUpd || servUpd) res=true
+    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd /*|| zoneParentDevUpd */|| echoDevUpd || socketUpd || servUpd) res=true
 
     Integer secs
     Integer updW
@@ -4551,6 +4587,8 @@ void appUpdateNotify() {
             str += !appUpd ? "" : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
             str += !zoneUpd ? "" : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
+//            str += !zoneParentDevUpd ? "" : "\nEcho Speaks Zone Parent Device: v${state.appData?.versions?.zoneParentDevice?.ver?.toString()}"
+            str += !zoneChildDevUpd ? "" : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
             str += !servUpd ? "" : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
@@ -4568,14 +4606,18 @@ private List codeUpdateItems(Boolean shrt=false) {
     Boolean appUpd = appUpdAvail()
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
+    Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
+//    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
     Boolean devUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     List updItems = []
-    if(appUpd || actUpd || zoneUpd || devUpd || socketUpd || servUpd) {
+    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd /*|| zoneParentDevUpd */|| devUpd || socketUpd || servUpd) {
         if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}App: (v${state.appData?.versions?.mainApp?.ver?.toString()})")
         if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Actions: (v${state.appData?.versions?.actionApp?.ver?.toString()})")
         if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zones: (v${state.appData?.versions?.zoneApp?.ver?.toString()})")
+//        if(zoneParentDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Parent Device: (v${state.appData?.versions?.zoneParentDevice?.ver?.toString()})")
+        if(zoneChildDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Child Device: (v${state.appData?.versions?.zoneChildDevice?.ver?.toString()})")
         if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state.appData?.versions?.echoDevice?.ver?.toString()})")
         if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
         if(servUpd) updItems.push("${!shrt ? "\n" : sBLANK}Server: (v${state.appData?.versions?.server?.ver?.toString()})")
@@ -4735,7 +4777,7 @@ def appFooter() {
 
 static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
-static String zoneChildDeviceName(){ return "Echo Speaks - Zones" }
+//static String zoneChildDeviceName(){ return "Echo Speaks - Zones" }
 static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
 static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
@@ -4950,6 +4992,8 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
 Boolean appUpdAvail()           { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
 Boolean actionUpdAvail()        { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
 Boolean zoneUpdAvail()          { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
+//Boolean zoneParentDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.zoneParentDevice && codeUpdIsAvail(state.appData?.versions?.zoneParentDevice?.ver, state.codeVersions?.zoneParentDevice, "zone_parent_dev")) }
+Boolean zoneChildDevUpdAvail()  { return (state.appData?.versions && state.codeVersions?.zoneEchoDevice && codeUpdIsAvail(state.appData?.versions?.zoneChildDevice?.ver, state.codeVersions?.zoneEchoDevice, "zone_child_dev")) }
 Boolean echoDevUpdAvail()       { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
 Boolean socketUpdAvail()        { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
 Boolean serverUpdAvail()        { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
@@ -5799,6 +5843,8 @@ def appInfoSect() {
         if(codeVer.echoDevice) verMap.push([name: "Device:", ver: "v${codeVer.echoDevice}"])
         if(codeVer.actionApp) verMap.push([name: "Action:", ver: "v${codeVer.actionApp}"])
         if(codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${codeVer.zoneApp}"])
+//        if(codeVer.zoneParentDevice) verMap.push([name: "Zone Parent Device:", ver: "v${codeVer.zoneParentDevice}"])
+        if(codeVer.zoneEchoDevice) verMap.push([name: "Zone Device:", ver: "v${codeVer.zoneEchoDevice}"])
         if(codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${codeVer.wsDevice}"])
         if(codeVer.server) verMap.push([name: "Server:", ver: "v${codeVer.server}"])
         if(verMap?.size()) {
@@ -6736,6 +6782,7 @@ void clearDiagLogs(String type="all") {
         clearHistory()
         getActionApps()?.each { ca-> ca?.clearLogHistory() }
         getChildDevices()?.each { cd-> cd?.clearLogHistory() }
+        getZoneApps()?.each { ca -> ca?.relayClearLogHistory() }
     }
 }
 
