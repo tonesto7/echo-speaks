@@ -22,7 +22,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, /* zoneParentDevice: 4080, */zoneEchoDevice: 4080, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, zoneEchoDevice: 4080, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1724,27 +1724,6 @@ List getActionApps() {
 List getEsDevices() {
     return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == false }
 }
-
-/*List getEsZoneParent() {
-    return getChildDevices()?.find { it?.name == "Echo Speaks Zones Parent" }
-}*/
-
-List getEsZoneDevices() {
-    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == true }
-}
-
-/*private void checkZoneParent() {
-    Map zones = getZones()
-    List zoneDev = getEsZoneParent()
-    if(!zoneDev && zones.size()) {
-        String myId=app.getId()
-        String znChildHandlerName = "Echo Speaks Zones Parent"
-        String nmS = myId+'|echoSpeaks_zone_parent'
-        def znDevice = getChildDevice(nmS)
-        if(!znDevice) { addChildDevice("tonesto7", znChildHandlerName, nmS, null, [name: znChildHandlerName, label: "Echo Speaks - Zones Parent", completedSetup: true]) }
-        updCodeVerMap("zoneParentDevice", (String)znDevice?.devVersion())
-    }
-}*/
 
 def getSocketDevice() {
     String myId=app.getId()
@@ -5109,7 +5088,6 @@ private getDiagDataJson(Boolean asObj = false) {
         List echoDevs = getEsDevices()
         List actApps = getActionApps()
         List zoneApps = getZoneApps()
-        // List zoneDevs = getZoneDevices()
         def wsDev = getSocketDevice()
         List appWarnings = []
         List appErrors = []
@@ -5146,11 +5124,6 @@ private getDiagDataJson(Boolean asObj = false) {
             if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
             if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
         }
-        // zoneDevs?.each { zn->
-        //     Map h = (Map)zn?.getLogHistory()
-        //     if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
-        //     if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
-        // }
         Map output = [
             diagDt: getDtNow(),
             app: [
@@ -5197,12 +5170,6 @@ private getDiagDataJson(Boolean asObj = false) {
                 warnings: zoneWarnings ?: [],
                 errors: zoneErrors ?: []
             ],
-            // zone_devices: [
-            //     version: state.codeVersions?.zoneDevice ?: null,
-            //     count: zoneDevs?.size() ?: 0,
-            //     warnings: zoneWarnings ?: [],
-            //     errors: zoneErrors ?: []
-            // ],
             devices: [
                 version: state.codeVersions?.echoDevice ?: null,
                 count: echoDevs?.size() ?: 0,
