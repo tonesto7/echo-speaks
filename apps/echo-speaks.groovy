@@ -16,10 +16,10 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.0.8.0"
-@Field static final String appModifiedFLD = "2021-02-28"
-@Field static final String branchFLD      = "master"
-@Field static final String platformFLD    = "Hubitat"
+@Field static final String appVersionFLD  = '4.0.8.1'
+@Field static final String appModifiedFLD = '2021-03-01'
+@Field static final String branchFLD      = 'master'
+@Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
 @Field static final Map minVersionsFLD    = [echoDevice: 4070, wsDevice: 4070, actionApp: 4070, zoneApp: 4070, /* zoneParentDevice: 4080, */zoneEchoDevice: 4080, server: 270]  //These values define the minimum versions of code this app will work with.
@@ -4822,7 +4822,7 @@ Boolean showChgLogOk() { return ((Boolean) state.isInstalled && !((String) state
 
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: sBLANK, nextPage: "mainPage", install: false) {
-        section(sectTS("Release Notes:", getAppImg("change_log"), true)) { paragraph changeLogData() }
+        section(sectTS("Release Notes:", getAppImg("change_log"), true)) { paragraph spanSm(changeLogData()) }
         state.curAppVer = appVersionFLD
         updInstData("shownChgLog", true)
     }
