@@ -328,12 +328,12 @@ def servPrefPage() {
                 }
             } else {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
-                    section(sectHead("Server Management:")) {
-                        if(oH && (String)state.herokuName) { paragraph spanSmBr("Heroku Name:", sCLR4D9) + spanSmBld(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
-                        href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
-                        if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
-                    }
+                section(sectHead("Server Management:")) {
+                    if(oH && (String)state.herokuName) { paragraph spanSmBr("Heroku Name:", sCLR4D9) + spanSmBld(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
+                    href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
+                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
+                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
+                }
             }
             srvcPrefOpts()
         }
@@ -2221,7 +2221,7 @@ Boolean validateCookie(Boolean frc=false) {
             timeout: 20,
         ]
         logTrace(meth)
-        if(!frc) execAsyncCmd("get", "validateCookieResp", params, [dt:execDt])
+        if(!frc) { execAsyncCmd("get", "validateCookieResp", params, [dt:execDt]) }
         else {
             httpGet(params) { resp->
                 valid = validateCookieResp(resp, [dt:execDt])
@@ -2245,9 +2245,8 @@ def validateCookieResp(resp, data){
         else aData =  resp?.data
         aData = aData ?: null
         aData = (Map)aData?.authentication ?: null
-//        Map aData = resp?.data?.authentication ?: null
         if (aData) {
-//            log.debug "aData: $aData"
+            // log.debug "aData: $aData"
             if(aData.customerId) { state.deviceOwnerCustomerId = aData.customerId }
             if(aData.customerName) { state.customerName = aData.customerName }
             Boolean valid = (aData.authenticated != false)
@@ -4341,7 +4340,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                                                             display: [ title: cleanString(valObj[0]), body: mtitle ], //valObj[1].replaceAll(/<[^>]+>/, '') ],
                                                             speak: [ type: mtype, value: mval ] //(lcmd == "ssml" || isSSML ? "ssml" : "text"), value: valObj[1] ]
                                                     ]]
-                seqNode.operationPayload.target = [ customerId : (String)state.deviceOwnerCustomerId ]
+                seqNode.operationPayload.target = [ customerId: (String)state.deviceOwnerCustomerId ]
                 if(!(lcmd in ["announcementall", "announcement_devices"])) {
                     seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
                 } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
@@ -5446,7 +5445,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     }
 }
 
-static String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk=2 /*, Boolean asMap=false */) {
+static String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk=2) {
     Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000
     Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000
     Integer days = Math.floor(timeSec / 86400); timeSec -= days * 86400
@@ -5454,7 +5453,6 @@ static String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk
     Integer minutes = Math.floor(timeSec / 60); timeSec -= minutes * 60
     Integer seconds = Integer.parseInt((timeSec % 60) as String, 10)
     Map d = [y: years, mn: months, d: days, h: hours, m: minutes, s: seconds]
-//    if(asMap) { return d }
     List l = []
     if(d.d > 0) { l.push("${d.d} ${pluralize(d.d, "day")}") }
     if(d.h > 0) { l.push("${d.h} ${pluralize(d.h, "hour")}") }
@@ -5467,7 +5465,6 @@ String nextCookieRefreshDur() {
     Integer days = (Integer)settings.refreshCookieDays ?: 5
     String lastCookieRfsh = getTsVal("lastCookieRrshDt")
     if(!lastCookieRfsh) { return "Not Sure"}
-//    Date now = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", getDtNow())))
     Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", lastCookieRfsh)))
     Date nextDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt + days))
     Integer diff = ( ((Long)nextDt.getTime() - now()) / 1000) as Integer
@@ -5535,7 +5532,6 @@ private void remTsVal(key) {
         tsDtMapFLD=tsDtMapFLD
     }
 }
-
 
 private String getTsVal(String key) {
     if(key in svdTSValsFLD) {
@@ -5812,7 +5808,6 @@ def appInfoSect() {
         if(codeVer.echoDevice) verMap.push([name: "Device:", ver: "v${codeVer.echoDevice}"])
         if(codeVer.actionApp) verMap.push([name: "Action:", ver: "v${codeVer.actionApp}"])
         if(codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${codeVer.zoneApp}"])
-//        if(codeVer.zoneParentDevice) verMap.push([name: "Zone Parent Device:", ver: "v${codeVer.zoneParentDevice}"])
         if(codeVer.zoneEchoDevice) verMap.push([name: "Zone Device:", ver: "v${codeVer.zoneEchoDevice}"])
         if(codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${codeVer.wsDevice}"])
         if(codeVer.server) verMap.push([name: "Server:", ver: "v${codeVer.server}"])
