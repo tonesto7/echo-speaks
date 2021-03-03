@@ -3180,7 +3180,7 @@ void echoDevicesResponse(response, data) {
                 if (!((String)eDevice.deviceType in ignoreTypes) && !((String)eDevice.accountName)?.startsWith("This Device")) {
                     removeKeys.each { rk-> eDevice.remove(rk) }
                     eDevice.capabilities = eDevice.capabilities?.findAll { !(it in removeCaps) }?.collect { it as String }
-                    if (eDevice.deviceOwnerCustomerId != null) { state.deviceOwnerCustomerId = eDevice.deviceOwnerCustomerId }
+                    //if (eDevice.deviceOwnerCustomerId != null) { state.deviceOwnerCustomerId = eDevice.deviceOwnerCustomerId }
                     echoDevices[(String)eDevice.serialNumber] = eDevice
                 }
             }
@@ -3640,7 +3640,7 @@ private List getZoneDevices(List znList, String cmd, Boolean chkDnd=false) {
                     Map devInfo = it?.getEchoDevInfo(cmd)
                     if(devInfo) {
                         Boolean dnd = chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
-                        if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
+                        if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, deviceOwnerCustomerId: devInfo.deviceOwnerCustomerId, dni: devInfo.dni])
                     }
                 }
             }
