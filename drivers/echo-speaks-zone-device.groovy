@@ -212,7 +212,7 @@ def installed() {
     sendEvent(name: "mute", value: "unmuted")
     sendEvent(name: "status", value: "stopped")
     sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
-    sendEvent(name: "trackDescription", value: sBLANK)
+    sendEvent(name: "trackDescription", value: "Not Set")
     sendEvent(name: "lastSpeakCmd", value: "Nothing sent yet...")
     sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
     sendEvent(name: "doNotDisturb", value: sFALSE)
@@ -220,7 +220,7 @@ def installed() {
     sendEvent(name: "followUpMode", value: sFALSE)
     sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "alexaWakeWord", value: "ALEXA")
-    sendEvent(name: "mediaSource", value: sBLANK)
+    sendEvent(name: "mediaSource", value: "Not Set")
 //    state.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
@@ -505,7 +505,7 @@ void updateDeviceStatus(Map devData) {
             sendEvent(name: "mute", value: "unmuted")
             sendEvent(name: "status", value: "stopped")
             sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.image}")
-            sendEvent(name: "trackDescription", value: sBLANK)
+            sendEvent(name: "trackDescription", value: "Not Set")
         } else { if(chg) { state.fullRefreshOk = true; triggerDataRrsh('updateDeviceStatus') }}
     }
     setOnlineStatus(isOnline)
