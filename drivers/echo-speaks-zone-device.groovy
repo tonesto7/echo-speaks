@@ -111,9 +111,9 @@ metadata {
 if(!isZone()) {
         command "doNotDisturbOn"
         command "doNotDisturbOff"
-}
         // command "followUpModeOn"
         // command "followUpModeOff"
+}
         command "setAlarmVolume", [[name: "Alarm Volume*", type: "NUMBER", description: "Sets the devices Alarm notification volume"]]
 //        command "resetQueue"
         command "playWeather", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -221,7 +221,7 @@ def installed() {
     sendEvent(name: "alarmVolume", value: 0)
     sendEvent(name: "alexaWakeWord", value: "ALEXA")
     sendEvent(name: "mediaSource", value: sBLANK)
-    state.doNotDisturb = false
+//    state.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
 }
@@ -939,7 +939,7 @@ private getDoNotDisturb() {
     if(isZone()) return
     Boolean dndEnabled = (Boolean)parent?.getDndEnabled((String)state.serialNumber)
 //    logTrace("getDoNotDisturb: $dndEnabled")
-    state.doNotDisturb = dndEnabled
+//    state.doNotDisturb = dndEnabled
     if(isStateChange(device, "doNotDisturb", dndEnabled?.toString())) {
         logDebug("Do Not Disturb: (${(dndEnabled)})")
         sendEvent(name: "doNotDisturb", value: dndEnabled?.toString(), descriptionText: "Do Not Disturb Enabled ${dndEnabled}", display: true, displayed: true)
@@ -2828,7 +2828,8 @@ private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=tru
     "q_curMsgLen",
     "q_lastTtsCmdDelay",
     "q_lastTtsMsg",
-    "q_lastMsg"
+    "q_lastMsg",
+    "doNotDisturb"
 ]
 
 private void stateCleanup() {
