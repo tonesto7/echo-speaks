@@ -1,5 +1,5 @@
 /**
- *	Echo Speaks Device (Hubitat ONLY)
+ *	Echo Speaks Zone Device (Hubitat ONLY)
  *
  *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
  *  Code Contributions by @nh.schottfam
