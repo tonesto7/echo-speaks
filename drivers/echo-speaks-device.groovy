@@ -52,7 +52,7 @@ static Boolean isWS()       { return false }
 static Boolean isZone()     { return false }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-zone-device.groovy") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy") {
         capability "Audio Notification"
         capability "Audio Volume"
         capability "Music Player"
