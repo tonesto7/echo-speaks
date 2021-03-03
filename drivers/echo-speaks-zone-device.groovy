@@ -937,7 +937,7 @@ private String getBtFirst() {
 
 private getDoNotDisturb() {
     if(isZone()) return
-    Boolean dndEnabled = (Boolean)parent?.RelayGetDndEnabled((String)state.serialNumber)
+    Boolean dndEnabled = (Boolean)parent?.getDndEnabled((String)state.serialNumber)
 //    logTrace("getDoNotDisturb: $dndEnabled")
     state.doNotDisturb = dndEnabled
     if(isStateChange(device, "doNotDisturb", dndEnabled?.toString())) {
