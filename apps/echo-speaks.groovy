@@ -1372,12 +1372,12 @@ private getChildDeviceBySerial(String serial) {
     def a = childDevs?.find { it?.deviceNetworkId?.tokenize("|")?.contains(serial) }
     return a ?: null
 }
-
+/*
 public getChildDeviceByCap(String cap) {
     List childDevs = app?.getChildDevices()
     def a= childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) }
     return a ?: null
-}
+}*/
 
 public List getDevicesFromList(List ids) {
     List cDevs = app?.getChildDevices()
