@@ -4428,7 +4428,7 @@ void healthCheck() {
         runCookieRefresh()
     } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
         checkGuardSupport()
-    } else if(getLastTsValSecs("lastServerWakeDt") > 86400*2 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
+    } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
     def aa=getAllDeviceVolumes()
     chkRestartSocket()
@@ -5503,11 +5503,12 @@ private getInstData(String key) {
     return null
 }
 
+@Field static final List<String> svdTSValsFLD = ["lastCookieRrshDt", "lastServerWakeDt"]
 @Field volatile static Map<String,Map> tsDtMapFLD=[:]
 
 private void updTsVal(String key, String dt=sNULL) {
     String val = dt ?: getDtNow()
-    if(key == "lastCookieRrshDt") { updServerItem(key, val); return }
+    if(key in svdTSValsFLD) { updServerItem(key, val); return }
 
     String appId=app.getId()
     Map data=tsDtMapFLD[appId] ?: [:]
@@ -5523,20 +5524,21 @@ private void remTsVal(key) {
         if(key instanceof List) {
                 key.each { String k->
                     if(data.containsKey(k)) { data.remove(k) }
-                    if(k == "lastCookieRrshDt") { remServerItem(k) }
+                    if(k in svdTSValsFLD) { remServerItem(k) }
                 }
         } else {
             String sKey = (String)key
             if(data.containsKey(sKey)) { data.remove(sKey) }
-            if(sKey == "lastCookieRrshDt") { remServerItem(sKey) }
+            if(sKey in svdTSValsFLD) { remServerItem(sKey) }
         }
         tsDtMapFLD[appId]=data
         tsDtMapFLD=tsDtMapFLD
     }
 }
 
+
 private String getTsVal(String key) {
-    if(key == "lastCookieRrshDt") {
+    if(key in svdTSValsFLD) {
         return (String)getServerItem(key)
     }
     String appId=app.getId()
