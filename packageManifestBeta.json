@@ -3,12 +3,13 @@
     "author": "Anthony S.",
     "version": "4.0.8.1",
     "minimumHEVersion": "2.0.0",
-    "dateReleased": "2021-03-01",
+    "dateReleased": "2021-03-03",
     "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
     "communityLink": "https://community.hubitat.com/t/release-echo-speaks-v3-actions/22879/992",
     "licenseFile": "",
     "releaseNotes": "Please see Changelog at https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/resources/changelog.txt for recent changes.",
-    "apps": [{
+    "apps": [
+        {
             "id": "4216cb09-591c-452d-9dc7-20f330de8624",
             "name": "Echo Speaks",
             "namespace": "tonesto7",
@@ -24,7 +25,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-actions.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.0.8.0"
+            "version": "4.0.8.1"
         },
         {
             "id": "50ad91a0-eb51-4d6f-98d2-f1654221baa9",
@@ -33,16 +34,17 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-zones.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.0.8.0"
+            "version": "4.0.8.1"
         }
     ],
-    "drivers": [{
+    "drivers": [
+        {
             "id": "f3aa1a73-d2d2-4620-b9e6-2eb32f847d45",
             "name": "Echo Speaks Device",
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy",
             "required": true,
-            "version": "4.0.8.0"
+            "version": "4.0.8.1"
         },
         {
             "id": "e708fa5f-91be-421a-848c-e989406317bd",
@@ -50,7 +52,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-ws.groovy",
             "required": true,
-            "version": "4.0.8.0"
+            "version": "4.0.8.1"
         }
     ]
 }

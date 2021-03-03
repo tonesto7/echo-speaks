@@ -22,7 +22,7 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = "4.0.8.1"
-@Field static final String appModifiedFLD = "2021-03-02"
+@Field static final String appModifiedFLD = "2021-03-03"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -62,7 +62,6 @@ metadata {
         capability "Speech Synthesis"
 
         attribute "alarmVolume", "number"
-        // attribute "alexaNotifications", "JSON_OBJECT"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaGuardStatus", "string"
         attribute "alexaWakeWord", "string"
@@ -94,28 +93,15 @@ metadata {
 
         attribute "volume", "number"
         attribute "wakeWords", "enum"
-        // attribute "wifiNetwork", "string"
         attribute "wasLastSpokenToDevice", "string"
 	    
 	    attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
-
-/* // these are part of audioNotification
-        command "playText", ["STRING"] //This command is deprecated in ST but will work
-        command "playTextAndRestore"
-        command "playTextAndResume"
-        command "playTrack", ["STRING"]
-        command "playTrackAndResume"
-        command "playTrackAndRestore"
-*/
         command "replayText"
 if(!isZone()) {
         command "doNotDisturbOn"
         command "doNotDisturbOff"
-        // command "followUpModeOn"
-        // command "followUpModeOff"
 }
         command "setAlarmVolume", [[name: "Alarm Volume*", type: "NUMBER", description: "Sets the devices Alarm notification volume"]]
-//        command "resetQueue"
         command "playWeather", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playSingASong", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playFlashBrief", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -131,9 +117,7 @@ if(!isZone()) {
         command "sayCompliment", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "sayGoodMorning", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "sayWelcomeHome", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-        // command "playCannedRandomTts", ["string", "number", "number"]
-        // command "playCannedTts", ["string", "string", "number", "number"]
-//        command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+
         command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
 if(!isZone()) {
         command "playAnnouncementAll", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
@@ -196,13 +180,9 @@ if(!isZone()) {
             input "logDebug", "bool", title: "Show Debug Logs?", description: "Only leave on when required", required: false, defaultValue: false
             input "logTrace", "bool", title: "Show Detailed Logs?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false
             input "ignoreTimeoutErrors", "bool", required: false, title: "Don't show errors in the logs for request timeouts?", description: sBLANK, defaultValue: true
-
-            // input "disableQueue", "bool", required: false, title: "Don't Allow Queuing?", defaultValue: false
             input "sendDevNotifAsAnnouncement", "bool", required: false, title: "Send Device Notifications as Announcements?", description: sBLANK, defaultValue: false
-// maxVolume not used
-//            input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
-            // input "ttsWordDelay", "number", required: true, title: "Speech queue delay (per 14 characters)", description: "Default - 2 second delay per every 14 characters.", defaultValue: 2
-            // input "autoResetQueue", "number", required: false, title: "Auto reset queue (xx seconds) after last speak command", description: "This will reset the queue 180 seconds after last message sent.", defaultValue: 180
+            // maxVolume not used
+            // input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
         }
     }
 }
