@@ -240,10 +240,11 @@ def postInstall() {
 public triggerInitialize() { runIn(3, "initialize") }
 String getEchoDeviceType() { return (String)state.deviceType ?: sNULL }
 String getEchoSerial() { return (String)state.serialNumber ?: sNULL }
+String getEchoOwner() { return (String)state.deviceOwnerCustomerId ?: sNULL }
 
 Map getEchoDevInfo(cmd) {
     if(isCommandTypeAllowed(cmd)) {
-	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), dni: device.deviceNetworkId ]
+	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), dni: device.deviceNetworkId ]
     }
    return null
 }
