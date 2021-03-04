@@ -1221,12 +1221,22 @@ private String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
     return str
 }
 
-Map getZoneDevices() {
+Map getZoneDevices(String cmd=sNULL) {
     // updDeviceInputs()
     List devObj = []
     List devIds = []
+    if(cmd==sNULL) cmd='announce'
     List devices = parent?.getDevicesFromList(settings.zone_EchoDevices)
-    devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]); devIds.push(it?.getId()); }
+    //devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]); devIds.push(it?.getId()); }
+    devices?.each {
+        Map devInfo = it?.getEchoDevInfo(cmd)
+        if(devInfo) {
+            devObj?.push(devInfo)
+            devIds.push(it?.getId())
+        } else logWarn("uh oh. did not get devinfo")
+//        devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String])
+//        devIds.push(it?.getId())
+    }
     return [devices: devices, devObj: devObj, devIds: devIds]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
 
@@ -1256,7 +1266,7 @@ public zoneCmdHandler(evt) {
     // log.warn "zoneCmdHandler cmd: $cmd data: $data appId $appId"
     if(cmd && data && appId && data.zones && data.zones.contains(appId) && data.cmd) {
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
-        Map zoneDevMap = getZoneDevices()
+        Map zoneDevMap = getZoneDevices('announce')
         List zoneDevs = (List)zoneDevMap.devices
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
             Map zVol = data.zoneVolumes[appId]
