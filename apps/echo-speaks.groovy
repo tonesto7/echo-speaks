@@ -3685,7 +3685,8 @@ private Map getZoneState(String znId) {
 }
 
 void sendSpeak(Map cmdMap, Map deviceData, String device, String callback){
-    logTrace("sendSpeak cmdMap: $cmdMap  callback: $callback,  device: $device")
+    String nm = cmdMap.toString().tr('<', '&lt;').tr('>', '&gt;')
+    logTrace("sendSpeak cmdMap: $nm  callback: $callback,  device: $device")
 
     String bodyObj = sNULL
 /*    Map deviceData = [
@@ -3769,7 +3770,8 @@ void addToQ(Map item) {
         def ss = item."${s}"
         if(ss) {
              if(fir) { fir=false; lmsg.push(spanSm("addToQ NEW COMMAND", sCLRGRN2)) }
-             lmsg.push("addToQ (${t}) | ${s}: ${ss}")
+             String nm = ss.toString().tr('<', '&lt;').tr('>', '&gt;')
+             lmsg.push("addToQ (${t}) | ${s}: ${nm}")
         }
     }
     if(item.commands?.size()) {
@@ -3915,8 +3917,11 @@ void workQ() {
 
             Map t_extData =[:]
             if(device && callback) {
-                Boolean isSSML = (cmdMap?.message?.toString()?.startsWith("<speak>") && cmdMap?.message?.toString()?.endsWith("</speak>"))
-                Integer msgLen = ((String)cmdMap.message)?.length()
+                String nstr = cmdMap?.message?.toString()
+                nstr = nstr?.trim()
+                Boolean isSSML = (nstr?.toString()?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
+                if(isSSML) nstr = nstr[7..-9]
+                Integer msgLen = nstr?.length()
                 t_extData = [
                     cmdDt:(cmdMap.cmdDt ?: null),
                     cmdDesc: (cmdMap.cmdDesc ?: null),
@@ -3973,7 +3978,8 @@ void workQ() {
                 body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-            //log.trace spanSm("workQ params: $params extData: $extData", sCLRGRN)
+            String nm = params.toString().tr('<', '&lt;').tr('>', '&gt;')
+            log.trace spanSm("workQ params: $nm extData: $extData", sCLRGRN)
 
 //            updTsVal("lastWorkQDt")
             try{
@@ -3998,14 +4004,17 @@ Integer getMsgDur(String command, String type, String tv){
     Integer del
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
-        Boolean isSSML = (valObj[1].startsWith("<speak>") && valObj[1].endsWith("</speak>"))
-        String actMsg = cleanString(isSSML ?  valObj[1].replaceAll(/<[^>]+>/, '') : valObj[1])
+        String nstr = valObj[1].trim()
+        Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
+        if(isSSML) nstr = nstr[7..-9]
+        String actMsg = cleanString(isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : nstr)
         Integer msgLen = actMsg.length() //valObj[1]?.length()
         del = getRecheckDelay(msgLen)
+        logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
     }
     else if(type.startsWith('play')) del = 18
     else if(type.startsWith('say')) del = 3
-    logTrace("getMsgDur($command, $type, $tv) | res: $del")
+    logTrace("getMsgDur res: $del ($command, $type, $tv)")
     return del
 }
 
@@ -4156,7 +4165,10 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
     // log.debug "msgSeqBuilder: $str"
     List seqCmds = []
     List strArr = []
-    Boolean isSSML = (str.startsWith("<speak>") && str.endsWith("</speak>"))
+    String nstr = str.trim()
+    Boolean isSSML = (nstr.startsWith("<speak>") && nstr.endsWith("</speak>"))
+    if(isSSML) nstr = nstr[7..-9]
+    str = nstr
     if(str.length() < 450) {
         seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str, deviceData: deviceData, cmdType: cmdType])
     } else {
@@ -4366,12 +4378,15 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
-                Boolean isSSML = (valObj[1].startsWith("<speak>") && valObj[1].endsWith("</speak>"))
+                String nstr = valObj[1].trim()
+                Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
+                if(isSSML) nstr = nstr[7..-9]
+                String str = nstr
                 String mtype = lcmd == "ssml" || isSSML ? "ssml" : "text"
-                String mval = lcmd == "ssml" || isSSML ? valObj[1] : cleanString(valObj[1])
-                String mtitle = cleanString(lcmd == "ssml" || isSSML ?  valObj[1].replaceAll(/<[^>]+>/, '') : valObj[1])
+                String mval = lcmd == "ssml" || isSSML ? str : cleanString(str)
+                String mtitle = cleanString(lcmd == "ssml" || isSSML ?  str.replaceAll(/<[^>]+>/, '') : str)
                 seqNode.operationPayload.content = [[
-                                                            locale: ((String)state.regionLocale ?: "en-US"),
+                                                            locale: ((String)settings.regionLocale ?: "en-US"),
                                                             display: [ title: cleanString(valObj[0]), body: mtitle ], //valObj[1].replaceAll(/<[^>]+>/, '') ],
                                                             speak: [ type: mtype, value: mval ] //(lcmd == "ssml" || isSSML ? "ssml" : "text"), value: valObj[1] ]
                                                     ]]
