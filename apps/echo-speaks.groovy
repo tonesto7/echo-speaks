@@ -72,7 +72,6 @@ import groovy.transform.Field
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String, Map> historyMapFLD        = [:]
-@Field volatile static Map<String, Map> queuehistMapFLD      = [:]
 @Field volatile static Map<String, Map> cookieDataFLD        = [:]
 @Field volatile static Map<String, Map> echoDeviceMapFLD     = [:]
 @Field volatile static Map<String, Map> childDupMapFLD       = [:]
@@ -3553,9 +3552,7 @@ void sendZoneCmd(Map cmdData) {
     String myCmd = cmdData ? (String)cmdData.cmd : sNULL
     if(myCmd && cmdData.zones) {
         List devObj = []
-        if(cmdData.zones) {
-            devObj = getZoneDevices((List)cmdData.zones, myCmd=='speak' ? "TTS" : "announce")
-        }
+        devObj = getZoneDevices((List)cmdData.zones, myCmd=='speak' ? "TTS" : "announce")
 
         String newmsg = (String)cmdData.message
         String title = (String)cmdData.title
@@ -3568,6 +3565,10 @@ void sendZoneCmd(Map cmdData) {
 void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
 	List<Map> devObj = odevObj.unique() // remove any duplicate devices
         String origMsg = newmsg
+        if(devObj.size() == 0) {
+            logWarn("sendDevObjCmd NO DEVICES | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
+            return
+        }
         switch(myCmd) {
             case "announcement":
                 String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
@@ -3577,7 +3578,15 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                 String myMsg = "sendDevObjCmd ${myCmd}"
                 if(volume != null) {
                     List mainSeqa = []
-                    devObj.each { dev-> mainSeqa.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                    devObj.each { dev-> 
+                        Map deviceData = [
+                            serialNumber : dev.deviceSerialNumber,
+                            deviceType: dev.deviceTypeId,
+                            owner: dev.deviceOwnerCustomerId,
+                            account: dev.deviceAccountId
+                        ]
+                        mainSeqa.push([command: "volume", value: volume, deviceData: deviceData])
+                    }
                     queueMultiSequenceCommand(mainSeqa, myMsg+"-VolumeSet")
                 }
                 List mainSeq = []
@@ -3592,9 +3601,16 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                             oldVolume: restoreVolume,
                             newVolume: volume
                         ] 
+                        Map deviceData = [
+                            serialNumber : dev.deviceSerialNumber,
+                            deviceType: dev.deviceTypeId,
+                            owner: dev.deviceOwnerCustomerId,
+                            account: dev.deviceAccountId
+                        ]
+
                         queueMultiSequenceCommand(
-                            [[command: 'sendspeak', value:newmsg ]],
-                            myMsg+" to device ${dev.dni}", false, [serialNumber : dev.deviceSerialNumber, deviceType: dev.deviceTypeId], cmdMap, dev.dni, "finishSendSpeak")
+                            [ [command: 'sendspeak', value:newmsg, deviceData: deviceData] ],
+                            myMsg+" to device ${dev.dni}", false, deviceData, cmdMap, dev.dni, "finishSendSpeak")
                     }
                 } else if (myCmd == 'announcement') {
                     mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement'])
@@ -3607,7 +3623,15 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
 
                 if(restoreVolume!=null) {
                     List amainSeq = []
-                    devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                    devObj.each { dev->
+                        Map deviceData = [
+                            serialNumber : dev.deviceSerialNumber,
+                            deviceType: dev.deviceTypeId,
+                            owner: dev.deviceOwnerCustomerId,
+                            account: dev.deviceAccountId
+                        ]
+                        amainSeq.push([command: "volume", value: restoreVolume, deviceData: deviceData])
+                    }
                     queueMultiSequenceCommand(amainSeq, myMsg+"-VolumeRestore")
                 }
 //                    log.debug "mainSeq: $mainSeq"
@@ -3641,7 +3665,8 @@ private List getZoneDevices(List znList, String cmd, Boolean chkDnd=false) {
                     Map devInfo = it?.getEchoDevInfo(cmd)
                     if(devInfo) {
                         Boolean dnd = chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
-                        if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, deviceOwnerCustomerId: devInfo.deviceOwnerCustomerId, dni: devInfo.dni])
+                        if(!dnd) devObjs?.push(devInfo)
+//                        if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, deviceOwnerCustomerId: devInfo.deviceOwnerCustomerId, deviceAccountId: devInfo.deviceAccountId, dni: devInfo.dni])
                     }
                 }
             }
@@ -3659,18 +3684,23 @@ private Map getZoneState(String znId) {
     return null
 }
 
-void sendSpeak(Map cmdMap, String device, String callback){
+void sendSpeak(Map cmdMap, Map deviceData, String device, String callback){
     logTrace("sendSpeak cmdMap: $cmdMap  callback: $callback,  device: $device")
 
     String bodyObj = sNULL
-    Map st = [serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
+/*    Map deviceData = [
+        serialNumber : cmdMap.serialNumber,
+        deviceType: cmdMap.deviceType,
+        owner: cmdMap.owner,
+        account: cmdMap.account
+    ] */
+//    Map st = [serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
     List<Map> seqCmds = []
-    if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume]+st) }
-    //seqCmds = seqCmds + msgSeqBuilder((String)cmdMap.message, st+[cmdType: 'sendSpeak'])
-    seqCmds.push([command: 'sendspeak', value:cmdMap.message])
-    if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume]+st) }
+    if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume, deviceData: deviceData]) }
+    seqCmds.push([command: 'sendspeak', value:cmdMap.message, deviceData:deviceData])
+    if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume, deviceData: deviceData]) }
 
-    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, st, cmdMap, device, callback)
+    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, cmdMap, device, callback)
 }
 
 void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
@@ -3687,8 +3717,8 @@ void queueSequenceCommand(String type, String command, value, Map deviceData=[:]
     addToQ(item)
 }
 
-void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
-//log.warn "commands: $commands   srcDesc: $srcDesc  parallel: $parallel  devicData: $deviceData   cmdMap: $cmdMap  device: $device"
+void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+//log.warn "commands: $commands   srcDesc: $srcDesc  parallel: $parallel  cmdMap: $cmdMap  device: $device"
 // expand speak commands and handle ssml
     List<Map> newCmds = []
     List<Map> seqCmds = commands
@@ -3696,8 +3726,9 @@ void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean paral
         // log.debug "cmdItem: $cmdItem"
         if(cmdItem.command instanceof String){
              if((String)cmdItem.command in ['sendspeak']){
-                  Map st = cmdItem.devType ? [serialNumber: cmdItem.devSerial, deviceType: cmdItem.devType] : deviceData
-                  newCmds = newCmds + msgSeqBuilder((String)cmdItem.value, st+[cmdType:'sendSpeak'])
+                  Map deviceData = cmdItem.deviceData
+//                  Map st = cmdItem.devType ? [serialNumber: cmdItem.devSerial, deviceType: cmdItem.devType] : deviceData
+                  newCmds = newCmds + msgSeqBuilder((String)cmdItem.value, deviceData, 'sendSpeak')
              } else newCmds.push(cmdItem)
         } else newCmds.push(cmdItem)
     }
@@ -3707,7 +3738,7 @@ void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean paral
         commands: newCmds,
         srcDesc: srcDesc,
         parallel: parallel,
-        deviceData: deviceData,
+//        deviceData: deviceData,
         cmdMap: cmdMap,
         device: device,
         callback: callback
@@ -3750,6 +3781,8 @@ void addToQ(Map item) {
     }
     if((Boolean)settings.logDebug) lmsg.each { String msg -> log.debug(msg) }
 }
+
+
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
 
@@ -3802,7 +3835,6 @@ void workQ() {
 
             String t=item.t
             Long tLong=(Long)item.time
-            Map deviceData = (Map)item.deviceData
             Map cmdMap
             String device = item.device
             String callback = item.callback
@@ -3828,7 +3860,7 @@ void workQ() {
                     cmdMap = (Map)item.cmdMap ?: [:]
 
                     //log.debug "seqCmds: $seqCmds"
-                    seqList = seqList + multiSequenceListBuilder(seqCmds, deviceData)
+                    seqList = seqList + multiSequenceListBuilder(seqCmds)
                     Integer mdelay = 0
                     seqCmds?.each { cmdItem->
                         //log.debug "cmdItem: $cmdItem"
@@ -3850,6 +3882,7 @@ void workQ() {
 
             if(t=='sequence') {
                 String type=item.type
+                Map deviceData = (Map)item.deviceData
                 srcDesc = type + "${device ? " from $device" : sBLANK}"
 
                 Boolean nparallel = item.parallel
@@ -4061,11 +4094,6 @@ void finishWorkQ(response, extData){
     workQ()
 }
 
-void addToQueueHist(Map qItemData) {
-    String appId = app.getId()
-    Map<String,List> memStore = queuehistMapFLD[appId] ?: [:]
-}
-
 Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
 //log.debug "sequenceBuilder: $cmd   val: $val"
 // this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
@@ -4086,15 +4114,15 @@ Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
     return seqObj
 }
 
-List multiSequenceListBuilder(List<Map>commands, Map deviceData) {
+List multiSequenceListBuilder(List<Map>commands) {
     //log.debug "multiSequenceListBuilder commands: $commands"
-    //log.debug "multiSequenceListBuilder deviceData: $deviceData"
     List nodeList = []
     commands?.each { cmdItem->
         //log.debug "multiSequenceListBuilder cmdItem: $cmdItem"
         if(cmdItem.command instanceof String){
-            nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem.value,
-                                          [serialNumber: cmdItem?.devSerial ?: deviceData.serialNumber, deviceType:cmdItem?.devType ?: deviceData.deviceType]) )
+            Map deviceData = cmdItem.deviceData
+            nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem.value, deviceData) )
+//                                          [serialNumber: cmdItem?.devSerial ?: deviceData.serialNumber, deviceType:cmdItem?.devType ?: deviceData.deviceType]) )
         } else {
             nodeList.push(cmdItem.command)
         }
@@ -4124,23 +4152,23 @@ Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
 
 static Integer getStringLen(String str) { return str?.length() ?: 0 }
 
-private static List msgSeqBuilder(String str, Map st) {
+private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
     // log.debug "msgSeqBuilder: $str"
     List seqCmds = []
     List strArr = []
     Boolean isSSML = (str.startsWith("<speak>") && str.endsWith("</speak>"))
     if(str.length() < 450) {
-        seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str]+st)
+        seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str, deviceData: deviceData, cmdType: cmdType])
     } else {
         List<String> msgItems = str.split()
         msgItems.each { String wd->
             // log.debug "CurArrLen: ${(getStringLen(strArr.join(" ")))} | CurStrLen: (${wd.length()})"
             if((getStringLen(strArr.join(sSPACE)) + wd.length()) > 430) {
-                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE)]+st)
+                seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE), deviceData: deviceData, cmdType: cmdType])
                 strArr = []
             }
             strArr.push(wd)
-            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE)]+st) }
+            if(wd == msgItems.last()) { seqCmds.push([command: (isSSML ? "ssml": "speak"), value: strArr.join(sSPACE), deviceData: deviceData, cmdType: cmdType]) }
         }
     }
     // log.debug "seqCmds: $seqCmds"
@@ -4172,18 +4200,21 @@ private String textTransform(String str, Boolean force=false) {
 Map createSequenceNode(String command, value, Map deviceData = [:]) {
     //log.debug "createSequenceNode: command: $command   "
     //log.debug "createSequenceNode: value:  $value   "
-    //log.debug "createSequenceNode: deviceData:  $deviceDatavalue   "
+    //log.debug "createSequenceNode: deviceData:  $deviceData   "
     try {
         Boolean remDevSpecifics = false
-        String deviceType = deviceData?.deviceType ?: null
-        String serialNumber = deviceData?.serialNumber ?: null
+        String deviceType = deviceData?.deviceType ?: sNULL
+        String serialNumber = deviceData?.serialNumber ?: sNULL
+        String accountId = deviceData?.account ?: sNULL
+        String owner = deviceData?.owner ?: sNULL
+
         Map seqNode = [
             "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
             operationPayload: [
                 deviceType: deviceType,
                 deviceSerialNumber: serialNumber,
                 locale: (settings.regionLocale ?: "en-US"),
-                customerId: state.deviceOwnerCustomerId
+                customerId: owner //state.deviceOwnerCustomerId
             ]
         ]
 
@@ -4304,7 +4335,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                     seqNode.operationPayload.devices = [ [deviceType: "ALEXA_ALL_DEVICE_TYPE", deviceSerialNumber: "ALEXA_ALL_DSN"] ]
                 }
                 if(lcmd in ["dnd_time", "dnd_duration"]) {
-                    seqNode.operationPayload.devices = [ [deviceAccountId: (String)state.deviceAccountId, deviceType: deviceType, deviceSerialNumber: serialNumber] ]
+                    seqNode.operationPayload.devices = [ [deviceAccountId: accountId /*(String)state.deviceAccountId*/, deviceType: deviceType, deviceSerialNumber: serialNumber] ]
                 }
                 seqNode.operationPayload.action = "Enable"
                 if(lcmd in ["dnd_time","dnd_all_time"]) {
@@ -4344,7 +4375,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                                                             display: [ title: cleanString(valObj[0]), body: mtitle ], //valObj[1].replaceAll(/<[^>]+>/, '') ],
                                                             speak: [ type: mtype, value: mval ] //(lcmd == "ssml" || isSSML ? "ssml" : "text"), value: valObj[1] ]
                                                     ]]
-                seqNode.operationPayload.target = [ customerId: (String)state.deviceOwnerCustomerId ]
+                seqNode.operationPayload.target = [ customerId: owner /* (String)state.deviceOwnerCustomerId */]
                 if(!(lcmd in ["announcementall", "announcement_devices"])) {
                     seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
                 } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
@@ -4579,7 +4610,7 @@ void appUpdateNotify() {
         }
     }
     state.updateAvailable = res
-    String msg="appUpdateNotify() RESULT: ${res} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${appUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}"
+    String msg="appUpdateNotify() RESULT: ${res} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${actUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | echoZoneDevUpd (${zoneChildDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}"
     if(res) logDebug(msg)
     else if(devModeFLD) logTrace(msg)
 }
