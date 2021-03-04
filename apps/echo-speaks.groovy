@@ -4227,7 +4227,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
             operationPayload: [
                 deviceType: deviceType,
                 deviceSerialNumber: serialNumber,
-                locale: (settings.regionLocale ?: "en-US"),
+                locale: ((String)settings.regionLocale ?: "en-US"),
                 customerId: owner //state.deviceOwnerCustomerId
             ]
         ]
