@@ -241,10 +241,11 @@ public triggerInitialize() { runIn(3, "initialize") }
 String getEchoDeviceType() { return (String)state.deviceType ?: sNULL }
 String getEchoSerial() { return (String)state.serialNumber ?: sNULL }
 String getEchoOwner() { return (String)state.deviceOwnerCustomerId ?: sNULL }
+String getEchoAccountId() { return (String)state.deviceAccountId ?: sNULL }
 
 Map getEchoDevInfo(cmd) {
     if(isCommandTypeAllowed(cmd)) {
-	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), dni: device.deviceNetworkId ]
+	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
     }
    return null
 }
@@ -638,7 +639,7 @@ private void getPlaybackState(Boolean isGroupResponse=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/np/player",
-        query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, screenWidth: 2560, _: now() ],
+        query: [ deviceSerialNumber: getEchoSerial(), deviceType: getEchoDeviceType(), screenWidth: 2560, _: now() ],
         headers: getCookieMap(),
         contentType: sAPPJSON,
         timeout: 20
@@ -844,7 +845,7 @@ private getAvailableWakeWords() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/wake-words-locale",
-        query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, softwareVersion: device.currentValue('firmwareVer') ],
+        query: [ cached: true, _: new Date().getTime(), deviceSerialNumber: getEchoSerial(), deviceType: getEchoDeviceType(), softwareVersion: device.currentValue('firmwareVer') ],
         headers: getCookieMap(true),
         contentType: sAPPJSON,
         timeout: 20
@@ -932,7 +933,7 @@ private getPlaylists() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/cloudplayer/playlists",
-        query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType, mediaOwnerCustomerId: (String)state.deviceOwnerCustomerId, screenWidth: 2560 ],
+        query: [ deviceSerialNumber: getEchoSerial(), deviceType: getEchoDeviceType(), mediaOwnerCustomerId: getEchoOwner(), screenWidth: 2560 ],
         headers: getCookieMap(true),
         contentType: sAPPJSON,
         timeout: 20
@@ -1064,7 +1065,7 @@ private void sendAmazonBasicCommand(String cmdType) {
         uri: getAmazonUrl(),
         path: "/api/np/command",
         headers: getCookieMap(),
-        query: [ deviceSerialNumber: (String)state.serialNumber, deviceType: (String)state.deviceType ],
+        query: [ deviceSerialNumber: getEchoSerial(), deviceType: getEchoDeviceType() ],
         contentType: sAPPJSON,
         body: [type: cmdType],
         timeout: 20
@@ -1119,12 +1120,18 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
     return sNULL
 }
 
+private Map getDeviceData(){
+    return [deviceType: getEchoDeviceType(), serialNumber: getEchoSerial(), owner: getEchoOwner(), account: getEchoAccountId(), dni: device.deviceNetworkId]
+//Map getEchoDevInfo(cmd) {
+//	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
+}
+
 private void sendSequenceCommand(String type, String command, value=null, String callback=sNULL) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     if(isZone()) 
         parent.relaySeqCommand(type, command, value, [:], device.deviceNetworkId, callback)
     else
-        parent.queueSequenceCommand(type, command, value, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], device.deviceNetworkId, callback)
+        parent.queueSequenceCommand(type, command, value, getDeviceData(), device.deviceNetworkId, callback)
 
 //ERS
 /*
@@ -1143,7 +1150,7 @@ private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean par
     if(isZone())
         parent.relayMultiSeqCommand(commands, srcDesc, parallel, [:], null, device.deviceNetworkId, callback)
     else {
-        parent.queueMultiSequenceCommand(commands, srcDesc, parallel, [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber], null, device.deviceNetworkId, callback)
+        parent.queueMultiSequenceCommand(commands, srcDesc, parallel, null, device.deviceNetworkId, callback)
     }
 }
 
@@ -1414,8 +1421,8 @@ def setAlarmVolume(vol) {
                 headers: getCookieMap(true),
                 contentType: sAPPJSON,
                 body: [
-                    deviceSerialNumber: (String)state.serialNumber,
-                    deviceType: (String)state.deviceType,
+                    deviceSerialNumber: getEchoSerial(),
+                    deviceType: getEchoDeviceType(),
                     softwareVersion: device?.currentValue('firmwareVer'),
                     volumeLevel: vol
                 ]
@@ -1497,8 +1504,8 @@ def setDoNotDisturb(Boolean val) {
                 headers: getCookieMap(true),
                 contentType: sAPPJSON,
                 body: [
-                    deviceSerialNumber: (String)state.serialNumber,
-                    deviceType: (String)state.deviceType,
+                    deviceSerialNumber: getEchoSerial(),
+                    deviceType: getEchoDeviceType(),
                     enabled: val
                 ]
             ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
@@ -1519,8 +1526,8 @@ def setFollowUpMode(Boolean val) {
             headers: getCookieMap(),
             contentType: sAPPJSON,
             body: [
-                deviceSerialNumber: (String)state.serialNumber,
-                deviceType: (String)state.deviceType,
+                deviceSerialNumber: getEchoSerial(),
+                deviceType: getEchoDeviceType(),
                 deviceAccountId: (String)state.deviceAccountId,
                 goldfishEnabled: val
             ]
@@ -1599,8 +1606,8 @@ void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) 
         return
     } else {
         if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
-            if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+            List seqs = [[command: "volume", value: volume, deviceData: getDeviceData()], [command: cmd, cmdType: cmdType, value: val, deviceData: getDeviceData()]]
+            if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
             sendMultiSequenceCommand(seqs, cmdType)
             if(volume || restoreVolume) {
                 sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
@@ -1657,8 +1664,8 @@ void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
         return
     } else {
         if(volume != null) {
-            List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType]]
-            if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
+            List seqs = [[command: "volume", value: volume, deviceData: getDeviceData()], [command: cmd, cmdType: cmdType, deviceData: getDeviceData()]]
+            if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
             sendMultiSequenceCommand(seqs, cmdType)
             if(volume || restoreVolume) {
                 sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
@@ -1773,15 +1780,15 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
         // log.debug "sendAnnouncementToDevices | msg: ${newmsg}"
         if(volume != null) {
             List mainSeq = []
-            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-            mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement'])
+            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, , deviceData: getDeviceData()]) }
+            mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement', deviceData: getDeviceData()])
 
             //sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet")
 
             if(restoreVolume!=null) {
                 List amainSeq = []
-                devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
+                devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
                 sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore")
             }
        /*     if(volume || restoreVolume) {
@@ -1922,9 +1929,9 @@ private Map validateMusicSearch(String searchPhrase, String providerId, sleepSec
     Map validObj = [
         type: "Alexa.Music.PlaySearchPhrase",
         operationPayload: [
-            deviceType: (String)state.deviceType,
-            deviceSerialNumber: (String)state.serialNumber,
-            customerId: (String)state.deviceOwnerCustomerId,
+            deviceType: getEchoDeviceType(),
+            deviceSerialNumber: getEchoSerial(),
+            customerId: getEchoOwner(),
             locale: ((String)state.regionLocale ?: "en-US"),
             musicProviderId: providerId,
             searchPhrase: searchPhrase
@@ -1998,8 +2005,8 @@ def setWakeWord(String newWord) {
             timeout: 20,
             body: [
                 active: true,
-                deviceSerialNumber: (String)state.serialNumber,
-                deviceType: (String)state.deviceType,
+                deviceSerialNumber: getEchoSerial(),
+                deviceType: getEchoDeviceType(),
                 displayName: oldWord,
                 midFieldState: null,
                 wakeWord: newWord
@@ -2141,8 +2148,8 @@ private createNotification(String type, Map opts) {
             timeZoneId: null,
             reminderIndex: null,
             sound: null,
-            deviceSerialNumber: (String)state.serialNumber,
-            deviceType: (String)state.deviceType,
+            deviceSerialNumber: getEchoSerial(),
+            deviceType: getEchoDeviceType(),
             alarmLabel: type == "Alarm" ? opts?.label : null,
             reminderLabel: type == "Reminder" ? opts?.label : null,
             reminderSubLabel: "Echo Speaks",
@@ -2451,8 +2458,8 @@ def renameDevice(String newName) {
         contentType: sAPPJSON,
         timeout: 20,
         body: [
-            serialNumber: (String)state.serialNumber,
-            deviceType: (String)state.deviceType,
+            serialNumber: getEchoSerial(),
+            deviceType: getEchoDeviceType(),
             deviceAccountId: (String)state.deviceAccountId,
             accountName: newName
         ]
@@ -2621,6 +2628,7 @@ String uriTrackParser(String uri) {
 
 void speechTest(String ttsMsg=sNULL) {
     List<String> items = [
+        """<voice name="Joey">Presenting, <break time="500ms"/>Alfred!</voice><audio src="soundbank://soundlibrary/musical/amzn_sfx_trumpet_bugle_03"/>""",
         """<speak><say-as interpret-as="interjection">abracadabra!</say-as>, You asked me to speak and I did!.</speak>""",
         """<speak><say-as interpret-as="interjection">pew pew</say-as>, <say-as interpret-as="interjection">guess what</say-as>? I'm pretty awesome.</speak>""",
         """<speak><say-as interpret-as="interjection">knock knock</say-as>., Please let me in. It's your favorite assistant...</speak>""",
@@ -2682,10 +2690,12 @@ private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
     Random random = new Random()
     Integer randCmdId = random.nextInt(300)
     cmdMap["cmdId"] = randCmdId
-    cmdMap["serialNumber"] = (String)state.serialNumber
-    cmdMap["deviceType"] = (String)state.deviceType
+    cmdMap = cmdMap + getDeviceData()
+//    cmdMap["serialNumber"] = getEchoSerial()
+//    cmdMap["deviceType"] = getEchoDeviceType()
+//    cmdMap["owner"] = getEchoOwner()
 
-    parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
+    parent.sendSpeak(cmdMap, getDeviceData(), device.deviceNetworkId, "finishSendSpeak")
 }
 
 def sendTestAnnouncement() {
@@ -2749,9 +2759,9 @@ def executeSequenceCommand(String seqStr) {
                         seqItems?.push([command: validObj])
                     } else {
                         if(li.size() == 1) {
-                            seqItems.push([command: cmd])
+                            seqItems.push([command: cmd, deviceData: getDeviceData()])
                         } else if(li.size() == 2) {
-                            seqItems.push([command: cmd, value: li[1]?.trim()])
+                            seqItems.push([command: cmd, value: li[1]?.trim(), deviceData: getDeviceData()])
                         }
                     }
                 }
@@ -2852,7 +2862,12 @@ void processCmdQueue() {
 }
 
 def testMultiCmd() {
-    sendMultiSequenceCommand([[command: "volume", value: 60], [command: "speak", value: "super duper test message 1, 2, 3"], [command: "volume", value: 30]], "testMultiCmd")
+    sendMultiSequenceCommand(
+        [
+           [command: "volume", value: 60, deviceData: getDeviceData()], 
+           [command: "speak", value: "super duper test message 1, 2, 3", deviceData: getDeviceData()],
+           [command: "volume", value: 30, deviceData: getDeviceData()]
+        ], "testMultiCmd")
 }
 
 def finishSendSpeak(Map resp, Integer statusCode, Map data){
