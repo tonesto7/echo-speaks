@@ -3842,6 +3842,7 @@ void workQ() {
             String callback = item.callback
             srcDesc = sNULL
             command = sNULL
+            //log.debug "item: $item"
 
             if(t=='multi') {
                 srcDesc = (String)item.srcDesc
@@ -4007,6 +4008,7 @@ Integer getMsgDur(String command, String type, String tv){
         String nstr = valObj[1].trim()
         Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
         if(isSSML) nstr = nstr[7..-9]
+        isSSML = (isSSML || command == 'ssml')
         String actMsg = cleanString(isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : nstr)
         Integer msgLen = actMsg.length() //valObj[1]?.length()
         del = getRecheckDelay(msgLen)
