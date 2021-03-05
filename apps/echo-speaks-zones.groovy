@@ -624,8 +624,8 @@ Map relayMinVersions() {
     parent.minVersions()
 }
 
-public relayMultiSeqCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
-    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, devData, cmdMap, device, callback)
+public relayMultiSeqCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, cmdMap, device, callback)
 }
 
 public relaySeqCommand(String type, String command, value=null,  Map deviceData=[:], String device=sNULL, String callback=sNULL) {
