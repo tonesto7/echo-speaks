@@ -3700,7 +3700,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                                 Map devInfo = it?.getEchoDevInfo(cmd)
                                 if(devInfo) {
                                     Boolean dnd = false //chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
-                                    if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
+                                    //if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
+                                    if(!dnd) devObjs?.push(devInfo)
                                 }
                             }
                             parent?.sendDevObjCmd(devObjs, mCmd, getActionName(), txt, changeVol, restoreVol)
