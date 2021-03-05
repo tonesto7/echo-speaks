@@ -160,8 +160,8 @@ if(!isZone()) {
         command "speechTest"
 //        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""]]
         command "sendTestAnnouncement"
-if(!isZone()) {
         command "sendTestAnnouncementAll"
+if(!isZone()) {
         command "getDeviceActivity"
         command "getBluetoothDevices"
         command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
@@ -1130,7 +1130,7 @@ private Map getDeviceData(){
 private void sendSequenceCommand(String type, String command, value=null, String callback=sNULL) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     if(isZone()) 
-        parent.relaySeqCommand(type, command, value, [:], device.deviceNetworkId, callback)
+        parent.relaySeqCommand(type, command, value, getDeviceData(), device.deviceNetworkId, callback)
     else
         parent.queueSequenceCommand(type, command, value, getDeviceData(), device.deviceNetworkId, callback)
 
@@ -1149,7 +1149,7 @@ private void sendSequenceCommand(String type, String command, value=null, String
 
 private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false, String callback=sNULL) {
     if(isZone())
-        parent.relayMultiSeqCommand(commands, srcDesc, parallel, [:], null, device.deviceNetworkId, callback)
+        parent.relayMultiSeqCommand(commands, srcDesc, parallel, null, device.deviceNetworkId, callback)
     else {
         parent.queueMultiSequenceCommand(commands, srcDesc, parallel, null, device.deviceNetworkId, callback)
     }
@@ -1742,7 +1742,7 @@ def playSoundByName(String name, volume=null, restoreVolume=null) {
 
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     if(isZone()) {
-        parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncement', message: msg, title: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         finishAnnounce(msg, volume, restoreVolume)
         return
     } else {
@@ -1771,8 +1771,9 @@ def finishAnnounce(String msg, volume, restoreVolume){
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
     if(isZone()) {
-        parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: title, changeVol:volume, restoreVol:restoreVolume, delay:0]])
-        finishAnnounce(msg, volume, restoreVolume)
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncement', message: msg, title: title, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
+        finishAnnounce(newMsg, volume, restoreVolume)
         return
     } else {
         String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
@@ -1813,15 +1814,25 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
 def voiceCmdAsText(String cmd) {
     // log.trace "voiceCmdAsText($cmd)"
     if(cmd) {
-        sendSequenceCommand("voiceCmdAsText", "voicecmdtxt", cmd)
+        if(isZone()) {
+            parent.zoneCmdHandler([value: 'voicecmd', jsonData: [zones:[parent.id.toString()], cmd:'voiceCmdAsText', message: cmd, title: sNULL, changeVol:null, restoreVol:null, delay:0]])
+        } else {
+            sendSequenceCommand("voiceCmdAsText", "voicecmdtxt", cmd)
+        }
     }
 }
 
 public playAnnouncementAll(String msg, String title=sNULL) {
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncementAll', message: msg, title: sNULL, changeVol:null, restoreVol:null, delay:0]])
+    } else {
     // if(isCommandTypeAllowed("announce")) {
         msg = title ? title+"::"+msg : msg
-        sendSequenceCommand("AnnouncementAll", "announcementall", msg)
+        sendSequenceCommand("playAnnouncementAll", "announcementall", msg)
     // }
+    }
+    msg = title ? title+"::"+msg : msg
+    finishAnnounce(msg, null, null)
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
