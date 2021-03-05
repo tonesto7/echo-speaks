@@ -1251,20 +1251,28 @@ public zoneRefreshHandler(evt) {
     }
 }
 
+/*
+ * handle commands sent to a zone
+ * caller could be actions (a broadcast location event) (speak and announce are not handled this way)
+ *   or a zone device handler (calling its parent)
+ */
+
 public zoneCmdHandler(evt) {
     // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
     Map data = evt?.jsonData
-    if(isPaused(true) || !isActive()) {
-        logInfo( "zoneCmdHandler: zone is paused or inactive Skipping $evt")
-        return
-    }
     String appId = app?.getId() as String
-    // log.warn "zoneCmdHandler cmd: $cmd data: $data appId $appId"
-    if(cmd && data && appId && data.zones && data.zones.contains(appId) && data.cmd) {
+
+    // log.warn "zoneCmdHandler cmd: $cmd data: $data appId: $appId"
+    if(cmd && data && appId && data.zones && data.zones.contains(appId) && data.cmd) { // is the broadcast for me?
+        if(isPaused(true) || !isActive()) {
+            logInfo( "zoneCmdHandler: zone is paused or inactive Skipping $evt")
+            return
+        }
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
         Map zoneDevMap = getZoneDevices('announce')
         List zoneDevs = (List)zoneDevMap.devices
+
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
             Map zVol = data.zoneVolumes[appId]
             // log.debug "zoneVolume: ${zVol}"
@@ -1272,9 +1280,11 @@ public zoneCmdHandler(evt) {
             data.restoreVol = zVol.restore ?: data.restoreVol
         }
         Integer delay = data.delay ?: null
+
         if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" } // FORCES speak to be announcement
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
         if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
+
         switch(cmd) {
             case "speak":
                 logDebug("Sending Speak Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
