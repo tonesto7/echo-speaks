@@ -1790,7 +1790,7 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
         // log.debug "sendAnnouncementToDevices | msg: ${newmsg}"
         if(volume != null) {
             List mainSeq = []
-            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, , deviceData: getDeviceData()]) }
+            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, deviceData: getDeviceData()]) }
             mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement', deviceData: getDeviceData()])
 
             //sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
