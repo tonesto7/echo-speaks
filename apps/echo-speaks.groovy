@@ -3979,8 +3979,8 @@ void workQ() {
                 body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-            String nm = params.toString().tr('<', '&lt;').tr('>', '&gt;')
-            log.trace spanSm("workQ params: $nm extData: $extData", sCLRGRN)
+//            String nm = params.toString().tr('<', '&lt;').tr('>', '&gt;')
+//            log.trace spanSm("workQ params: $nm extData: $extData", sCLRGRN)
 
 //            updTsVal("lastWorkQDt")
             try{
