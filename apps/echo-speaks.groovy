@@ -3547,6 +3547,10 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
     }
 }
 
+/*
+ * send command to one or more zones (actually devices in one or more zones)
+ * caller is actions;  typical operations are speak or announcement commands
+ */
 void sendZoneCmd(Map cmdData) {
     log.trace span("sendZoneCmd | cmdData: $cmdData", "purple")
     String myCmd = cmdData ? (String)cmdData.cmd : sNULL
@@ -3562,6 +3566,10 @@ void sendZoneCmd(Map cmdData) {
     }
 }
 
+/*
+ * send a command to a list of devices
+ * caller is above or actions when there is a list of devices
+ */
 void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
 	List<Map> devObj = odevObj.unique() // remove any duplicate devices
         String origMsg = newmsg
