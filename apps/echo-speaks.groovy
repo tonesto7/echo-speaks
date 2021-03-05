@@ -3610,10 +3610,17 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
 
                         queueMultiSequenceCommand(
                             [ [command: 'sendspeak', value:newmsg, deviceData: deviceData] ],
-                            myMsg+" to device ${dev.dni}", false, deviceData, cmdMap, dev.dni, "finishSendSpeak")
+                            myMsg+" to device ${dev.dni}", false, cmdMap, dev.dni, "finishSendSpeak")
                     }
                 } else if (myCmd == 'announcement') {
-                    mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement'])
+                    Map myDev = devObj[0]
+                    Map deviceData = [
+                        serialNumber : myDev.deviceSerialNumber,
+                        deviceType: myDev.deviceTypeId,
+                        owner: myDev.deviceOwnerCustomerId,
+                        account: myDev.deviceAccountId
+                    ]
+                    mainSeq.push([command: "announcement_devices", value: newmsg, deviceData: deviceData, cmdType: 'playAnnouncement'])
                     queueMultiSequenceCommand(mainSeq, myMsg)
                     devObj.each { dev-> 
                         def child = getChildDevice((String)dev.dni)
@@ -3634,18 +3641,8 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                     }
                     queueMultiSequenceCommand(amainSeq, myMsg+"-VolumeRestore")
                 }
-//                    log.debug "mainSeq: $mainSeq"
-/*                } else { 
-                    List mainSeq = []
-                    if(cmdData.cmd == 'speak') {
-                        devObj.each { dev-> mainSeq.push([command: 'sendspeak', value:cmdData.message, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber]) }
-                        queueMultiSequenceCommand(mainSeq, myMsg)
-                    }
-                    else if (cmdData.cmd == 'announcement') queueSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg)
-                } */
-//void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
+//                log.debug "mainSeq: $mainSeq"
 
-// void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
                 break
         }
 }
