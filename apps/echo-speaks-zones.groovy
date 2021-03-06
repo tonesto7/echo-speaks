@@ -614,6 +614,7 @@ void relayDisableDebugLog() { getEsDevices().each { it.disableDebugLog() } }
 void relayEnableTraceLog() { getEsDevices().each { it.enableTraceLog() } }
 void relayDisableTraceLog() { getEsDevices().each { it.disableTraceLog() } }
 void relayLogsOff() { getEsDevices().each { it.logsOff() } }
+Map relayGetLogHistory() { Map a = getEsDevices().each { it.getLogHistory() }; return a ?: [:] }
 void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
 
 
