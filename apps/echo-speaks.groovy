@@ -1463,6 +1463,7 @@ def initialize() {
             runEvery15Minutes("getOtherData")
             runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
+            remTsVal("donotdisturbDt")
             getOtherData()
 
             Long newD = now() - 999000
@@ -1570,7 +1571,10 @@ Boolean getWWebSocketStatus(){
 void webSocketStatus(Boolean active) {
     logTrace "webSocketStatus... | Active: ${active}"
     state.websocketActive = active
-    if(active) remTsVal('bluetoothUpdDt') // healthcheck will re-read
+    if(active) {
+        remTsVal('bluetoothUpdDt')
+        remTsVal("donotdisturbDt")
+    } // healthcheck will re-read
     runIn(6, "updChildSocketStatus")
 }
 
@@ -2503,7 +2507,7 @@ Map getMusicProviders(Boolean frc=false) {
 
 private getOtherData() {
     stateMigrationChk()
-    getDoNotDisturb()
+    getDoNotDisturb(false)
     getBluetoothDevices()
     Map aa = getMusicProviders()
     // getCustomerData()
@@ -2651,8 +2655,13 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
     return null
 }
 
-void getDoNotDisturb() {
+void getDoNotDisturb(Boolean frc=true) {
     if(!isAuthValid("getDoNotDisturb")) { return }
+    String myId=app.getId()
+    Integer lastU = getLastTsValSecs("donotdisturbDt")
+    if( (frc && lastU < 20)) { runIn(24, "getDoNotDisturb"); return }
+    if( (!frc && (Boolean)state.websocketActive && dndDataFLD[myId] && lastU < 10800) ) { return }
+    updTsVal("donotdisturbDt")
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
@@ -2668,7 +2677,6 @@ void getDoNotDisturb() {
         execAsyncCmd("get", "DnDResp", params, [:])
     } catch (ex) {
         respExceptionHandler(ex, "getDoNotDisturb", true)
-        String myId=app.getId()
         if(!dndDataFLD[myId]) { dndDataFLD[myId] = [:] }
     }
 }
