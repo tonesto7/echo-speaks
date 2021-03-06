@@ -3820,7 +3820,6 @@ void workQ() {
 // if we are not doing anything grab next item off queue and start it;
     if(!active && now() > nextOk) {
 
-//        Integer lastWQSec = getLastTsValSecs("lastWorkQDt")
         List<String> lmsg = []
         Double msSum = 0.0D
         List seqList = []
@@ -3959,8 +3958,8 @@ void workQ() {
 
         if(seqList.size() > 0 || seqObj) {
 
-//            Integer mymin = lastWQkSec > 8 ? 3000 : 3000
             Integer mymin = 3000 // min ms between Alexa commands
+
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             lmsg.push("workQ FINAL ms delay is $msSum")
@@ -3987,10 +3986,9 @@ void workQ() {
                 body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-//            String nm = params.toString().tr('<', '&lt;').tr('>', '&gt;')
-//            log.trace spanSm("workQ params: $nm extData: $extData", sCLRGRN)
+              //String nm = params.toString().tr('<', '&lt;').tr('>', '&gt;')
+              //log.trace spanSm("workQ params: $nm extData: $extData", sCLRGRN)
 
-//            updTsVal("lastWorkQDt")
             try{
                 execAsyncCmd("post", "finishWorkQ", params, extData)
             } catch (ex) {
@@ -4018,17 +4016,17 @@ Integer getMsgDur(String command, String type, String tv){
         if(isSSML) nstr = nstr[7..-9]
         isSSML = (isSSML || command == 'ssml')
         String actMsg = cleanString(isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : nstr)
-        Integer msgLen = actMsg.length() //valObj[1]?.length()
-        del = getRecheckDelay(msgLen)
-        logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
+        Integer msgLen = actMsg.length()
+        del = calcDelay(msgLen)
+        //logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
     }
     else if(type.startsWith('play')) del = 18
     else if(type.startsWith('say')) del = 3
-    logTrace("getMsgDur res: $del ($command, $type, $tv)")
+    //logTrace("getMsgDur res: $del ($command, $type, $tv)")
     return del
 }
 
-Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
+static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
     if(!msgLen) { return 30 }
     Integer twd = 2
     Integer v = (msgLen <= 14 ? 1 : (msgLen / 14)) * twd
@@ -4039,7 +4037,7 @@ Integer getRecheckDelay(Integer msgLen=null, Boolean addRandom=false) {
         randomInt = random?.nextInt(5) //Was using 7
         res=v + randomInt
     }
-//    logTrace("getRecheckDelay($msgLen) | res:$res | twd: $twd | delay: $v ${addRandom ? '+ '+randomInt.toString() : sBLANK}")
+//    logTrace("calcDelay($msgLen) | res:$res | twd: $twd | delay: $v ${addRandom ? '+ '+randomInt.toString() : sBLANK}")
     return res //+2
 }
 
@@ -4115,10 +4113,9 @@ void finishWorkQ(response, extData){
 
 Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
 //log.debug "sequenceBuilder: $cmd   val: $val"
-// this is from child device ->   deviceData = [deviceType: (String)state.deviceType, serialNumber: (String)state.serialNumber]
     Map seqJson
     if (cmd instanceof Map) {
-        seqJson = cmd?.sequence ?: cmd
+        seqJson = (Map)cmd?.sequence ?: (Map)cmd
     } else {
         seqJson = [
             "@type": "com.amazon.alexa.behaviors.model.Sequence",
@@ -4139,9 +4136,8 @@ List multiSequenceListBuilder(List<Map>commands) {
     commands?.each { cmdItem->
         //log.debug "multiSequenceListBuilder cmdItem: $cmdItem"
         if(cmdItem.command instanceof String){
-            Map deviceData = cmdItem.deviceData
+            Map deviceData = (Map)cmdItem.deviceData
             nodeList.push(createSequenceNode((String)cmdItem.command, cmdItem.value, deviceData) )
-//                                          [serialNumber: cmdItem?.devSerial ?: deviceData.serialNumber, deviceType:cmdItem?.devType ?: deviceData.deviceType]) )
         } else {
             nodeList.push(cmdItem.command)
         }
@@ -4149,12 +4145,10 @@ List multiSequenceListBuilder(List<Map>commands) {
     return nodeList
 }
 
-Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
+static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
 //log.debug "multiSequenceBuilder: $nodeList"
-//Map multiSequenceBuilder(List<Map> commands, Boolean parallel=false) {
-//    List nodeList = multiSequenceListBuilder(commands) {
     String seqType = parallel ? "ParallelNode" : "SerialNode"
-    Map seqJson = [
+    Map seqMap = [
        "sequence": [
            "@type": "com.amazon.alexa.behaviors.model.Sequence",
            "startNode": [
@@ -4164,9 +4158,7 @@ Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
            ]
        ]
     ]
-//    Map seqObj = sequenceBuilder(seqJson, null)
-//    return seqObj
-    return seqJson
+    return seqMap
 }
 
 static Integer getStringLen(String str) { return str?.length() ?: 0 }
@@ -4325,7 +4317,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
                 break
             case "sound":
-                String sndName = sBLANK
+                String sndName
                 if(value?.startsWith("amzn_sfx_")) {
                     sndName = value
                 } else {
@@ -4384,7 +4376,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.type = "AlexaAnnouncement"
                 seqNode.skillId = "amzn1.ask.1p.routines.messaging"
                 seqNode.operationPayload.expireAfter = "PT5S"
-                List<String> valObj = (value?.toString()?.contains("::")) ? value.split("::") : ["Echo Speaks", value.toString()]
+                List<String> valObj = (value?.toString()?.contains("::")) ? value.toString().split("::") : ["Echo Speaks", value.toString()]
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
