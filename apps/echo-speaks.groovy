@@ -5018,7 +5018,7 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
         if(newVer != curVer) {
             latestVer = versions?.max { a, b ->
                 List verA = a?.tokenize('.'); List verB = b?.tokenize('.'); Integer commonIndices = Math.min(verA?.size(), verB?.size())
-                for (int i = 0; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() } }
+                for (Integer i = 0; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() } }
                 verA?.size() <=> verB?.size()
             }
             result = (latestVer == newVer)
