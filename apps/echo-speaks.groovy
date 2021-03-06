@@ -5135,7 +5135,7 @@ static Map getAvailableSounds() {
 |    Diagnostic Data
 *******************************************/
 
-private getDiagDataJson(Boolean asObj = false) {
+private getDiagDataJson(Boolean asString = false) {
     try {
         String myId=app.getId()
         updChildVers()
@@ -5303,19 +5303,19 @@ private getDiagDataJson(Boolean asObj = false) {
             dndData:  dndDataFLD[myId]
         ]
         String json = new groovy.json.JsonOutput().toJson(output)
-        if(asObj) {
+        if(asString) {
             return json
         }
         render contentType: sAPPJSON, data: json, status: 200
     } catch (ex) {
         logError("getDiagData: Exception: ${ex}", false, ex)
-        if(asObj) { return null }
+        if(asString) { return sNULL }
         render contentType: sAPPJSON, data: [status: "failed", error: ex], status: 500
     }
 }
 
 private getDiagDataText() {
-    String jsonIn = getDiagDataJson(true)
+    String jsonIn = (String)getDiagDataJson(true)
     if(jsonIn) {
         String o = new groovy.json.JsonOutput().prettyPrint(jsonIn)
         render contentType: "text/plain", data: o, status: 200
