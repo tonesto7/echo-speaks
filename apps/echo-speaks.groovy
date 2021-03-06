@@ -1471,7 +1471,6 @@ def initialize() {
             updTsVal("lastDevDataUpdDt", formatDt(d))
            // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
-            //checkZoneParent()
             if(advLogsActive()) { logsEnabled() }
         } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
     }
@@ -5180,7 +5179,7 @@ private getDiagDataJson(Boolean asString = false) {
             if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
             Map hh = (Map)zn?.relayGetLogHistory()
             if(hh) {
-                zoneDevs.push('a')
+                zoneDevs.push(zn.getLabel())
                 if(hh.warnings?.size()) { devWarnings = devWarnings + hh.warnings }
                 if(hh.errors?.size()) { devErrors = devErrors + hh.errors }
                 if(hh.speech?.size()) { devSpeech = devSpeech + hh.speech }
@@ -5237,6 +5236,7 @@ private getDiagDataJson(Boolean asString = false) {
                 count: echoDevs?.size() + zoneDevs.size() ?: 0,
                 lastDataUpdDt: getTsVal("lastDevDataUpdDt"),
                 models: (Map)state.deviceStyleCnts ?: [:],
+                zoneDevs: zoneDevs,
                 warnings: devWarnings ?: [],
                 errors: devErrors ?: [],
                 speech: devSpeech
