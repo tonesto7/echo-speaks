@@ -13,6 +13,9 @@
         "echoDevice": {
             "ver": "4.0.8.1"
         },
+        "zoneChildDevice": {
+            "ver": "4.0.8.1"
+        },
         "wsDevice": {
             "ver": "4.0.8.1"
         },
