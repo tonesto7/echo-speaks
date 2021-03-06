@@ -997,17 +997,19 @@ private getDeviceActivity() {
         actData = actData ?: null
         Boolean wasLastDevice = (actData != null && (String)actData?.serialNumber == (String)state.serialNumber)
         if(actData != null && wasLastDevice) {
-            if((String)actData.spokeText) {
-                if(isStateChange(device, "lastVoiceActivity", (String)actData?.spokenText)) {
-                    logDebug("lastVoiceActivity: ${actData?.spokenText}")
-                    sendEvent(name: "lastVoiceActivity", value: (String) actData?.spokenText, display: false, displayed: false)
-                }
-                if(isStateChange(device, "lastSpokenToTime", (String) actData?.lastSpokenDt)) {
-                    sendEvent(name: "lastSpokenToTime", value: (String) actData?.lastSpokenDt, display: false, displayed: false)
+            String spTx = (String)actData.spokenText
+            if(spTx) {
+                if(isStateChange(device, "lastSpokenToTime", (String)actData.lastSpokenDt)) {
+                    sendEvent(name: "lastSpokenToTime", value: (String)actData.lastSpokenDt, display: false, displayed: false)
+
+                    logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
+                    sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false, isStateChange: true)
+
+                    logDebug("lastVoiceActivity: ${spTx}")
+                    sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
                 }
             }
-        }
-        if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
+        } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
             logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false)
         }
