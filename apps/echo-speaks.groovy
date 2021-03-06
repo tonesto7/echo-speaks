@@ -3689,6 +3689,11 @@ private Map getZoneState(String znId) {
     return null
 }
 
+/*
+ * called by drivers to queue speak (and possible volume changes)
+ * will setup to call back the device handler when the command completes with status
+ */
+
 void sendSpeak(Map cmdMap, Map deviceData, String device, String callback){
     String nm = cmdMap.toString().tr('<', '&lt;').tr('>', '&gt;')
     logTrace("sendSpeak cmdMap: $nm  callback: $callback,  device: $device")
@@ -3788,8 +3793,6 @@ void addToQ(Map item) {
     }
     if((Boolean)settings.logDebug) lmsg.each { String msg -> log.debug(msg) }
 }
-
-
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
 
