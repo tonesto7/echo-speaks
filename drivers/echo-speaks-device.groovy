@@ -1606,10 +1606,6 @@ void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) 
     if(isZone()) {
         parent.zoneCmdHandler([value: 'builtin', jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         updateLevel(restoreVolume, volume)
-/*        if(volume || restoreVolume) {
-            sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-        } */
         return
     } else {
         if(volume != null) {
@@ -1617,10 +1613,6 @@ void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) 
             if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
             sendMultiSequenceCommand(seqs, cmdType)
             updateLevel(restoreVolume, volume)
-/*            if(volume || restoreVolume) {
-                sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-                sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            } */
         } else { sendSequenceCommand(cmdType, cmd, val) }
     }
 }
@@ -1666,10 +1658,6 @@ void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
     if(isZone()) {
         parent.zoneCmdHandler([value: 'builtin', jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         updateLevel(restoreVolume, volume)
-/*        if(volume || restoreVolume) {
-            sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-        } */
         return
     } else {
         if(volume != null) {
@@ -1677,10 +1665,6 @@ void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
             if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
             sendMultiSequenceCommand(seqs, cmdType)
             updateLevel(restoreVolume, volume)
-/*            if(volume || restoreVolume) {
-                sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-                sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            } */
         } else { sendSequenceCommand(cmdType, cmd) }
     }
 }
@@ -1756,20 +1740,9 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
 }
 
 def finishAnnounce(String msg, volume, restoreVolume){ 
-    sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
+    sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false, isStateChange:true)
     updateLevel(restoreVolume, volume)
-/*    if(volume || restoreVolume) {
-        sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-        sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-    } */
 }
-
-/*void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
-        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, cmdType)
-    } else { sendSequenceCommand(cmdType, cmd, val) } */
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
     if(isZone()) {
@@ -2677,7 +2650,7 @@ void speak(String msg) {
             parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol:(state.newVolume ?: null), restoreVol:(state.oldVolume ?: null), delay:0]])
             String t0 = getDtNow()
             String lastMsg = msg ?: "Nothing to Show Here..."
-            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true)
+            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
             sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
             updateLevel(state.oldVolume, state.newVolume)
 /*            if(state.oldVolume || state.newVolume) {
@@ -2927,7 +2900,7 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
             if(data?.cmdDesc && data.cmdDesc == "SpeakCommand" && data?.message) {
                 String t0 = getDtNow()
                 String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
-                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true)
+                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
                 sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
                 updateLevel(data?.oldVolume, data?.newVolume)
 /*                if(data?.oldVolume || data?.newVolume) {
