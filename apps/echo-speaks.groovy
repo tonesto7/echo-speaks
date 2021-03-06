@@ -3442,7 +3442,7 @@ public static Map minVersions() {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneEchoDevice: "Echo Speaks Zone Device" /*, zoneParentDevice: "Echo Speaks Zone Parent Device"*/]
+    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneEchoDevice: "Echo Speaks Zone Device"]
     Map codeVers = (Map)state.codeVersions ?: [:]
     codeVers.each { String k,String v->
         if(codeItems.containsKey(k) && v != sNULL && (versionStr2Int(v) < minVersionsFLD[k])) { updRequired = true; updItems.push(codeItems[k]) }
@@ -4605,12 +4605,11 @@ void appUpdateNotify() {
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
-//    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
     Boolean echoDevUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     Boolean res=false
-    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd /*|| zoneParentDevUpd */|| echoDevUpd || socketUpd || servUpd) res=true
+    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || echoDevUpd || socketUpd || servUpd) res=true
 
     Integer secs
     Integer updW
@@ -4625,7 +4624,6 @@ void appUpdateNotify() {
             str += !appUpd ? "" : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
             str += !actUpd ? "" : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
             str += !zoneUpd ? "" : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
-//            str += !zoneParentDevUpd ? "" : "\nEcho Speaks Zone Parent Device: v${state.appData?.versions?.zoneParentDevice?.ver?.toString()}"
             str += !zoneChildDevUpd ? "" : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
             str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
             str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
@@ -4645,16 +4643,14 @@ private List codeUpdateItems(Boolean shrt=false) {
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
-//    Boolean zoneParentDevUpd = zoneParentDevUpdAvail()
     Boolean devUpd = echoDevUpdAvail()
     Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     List updItems = []
-    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd /*|| zoneParentDevUpd */|| devUpd || socketUpd || servUpd) {
+    if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || devUpd || socketUpd || servUpd) {
         if(appUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}App: (v${state.appData?.versions?.mainApp?.ver?.toString()})")
         if(actUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Actions: (v${state.appData?.versions?.actionApp?.ver?.toString()})")
         if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zones: (v${state.appData?.versions?.zoneApp?.ver?.toString()})")
-//        if(zoneParentDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Parent Device: (v${state.appData?.versions?.zoneParentDevice?.ver?.toString()})")
         if(zoneChildDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Child Device: (v${state.appData?.versions?.zoneChildDevice?.ver?.toString()})")
         if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state.appData?.versions?.echoDevice?.ver?.toString()})")
         if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
@@ -5030,7 +5026,6 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
 Boolean appUpdAvail()           { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
 Boolean actionUpdAvail()        { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
 Boolean zoneUpdAvail()          { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
-//Boolean zoneParentDevUpdAvail() { return (state.appData?.versions && state.codeVersions?.zoneParentDevice && codeUpdIsAvail(state.appData?.versions?.zoneParentDevice?.ver, state.codeVersions?.zoneParentDevice, "zone_parent_dev")) }
 Boolean zoneChildDevUpdAvail()  { return (state.appData?.versions && state.codeVersions?.zoneEchoDevice && codeUpdIsAvail(state.appData?.versions?.zoneChildDevice?.ver, state.codeVersions?.zoneEchoDevice, "zone_child_dev")) }
 Boolean echoDevUpdAvail()       { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
 Boolean socketUpdAvail()        { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
@@ -5144,6 +5139,7 @@ private getDiagDataJson(Boolean asObj = false) {
     try {
         String myId=app.getId()
         updChildVers()
+        List zoneDevs = []
         List echoDevs = getEsDevices()
         List actApps = getActionApps()
         List zoneApps = getZoneApps()
@@ -5182,6 +5178,13 @@ private getDiagDataJson(Boolean asObj = false) {
             Map h = (Map)zn?.getLogHistory()
             if(h?.warnings?.size()) { zoneWarnings = zoneWarnings + h?.warnings }
             if(h?.errors?.size()) { zoneErrors = zoneErrors + h?.errors }
+            Map hh = (Map)zn?.relayGetLogHistory()
+            if(hh) {
+                zoneDevs.push('a')
+                if(hh.warnings?.size()) { devWarnings = devWarnings + hh.warnings }
+                if(hh.errors?.size()) { devErrors = devErrors + hh.errors }
+                if(hh.speech?.size()) { devSpeech = devSpeech + hh.speech }
+            }
         }
         Map output = [
             diagDt: getDtNow(),
@@ -5231,7 +5234,7 @@ private getDiagDataJson(Boolean asObj = false) {
             ],
             devices: [
                 version: state.codeVersions?.echoDevice ?: null,
-                count: echoDevs?.size() ?: 0,
+                count: echoDevs?.size() + zoneDevs.size() ?: 0,
                 lastDataUpdDt: getTsVal("lastDevDataUpdDt"),
                 models: (Map)state.deviceStyleCnts ?: [:],
                 warnings: devWarnings ?: [],
