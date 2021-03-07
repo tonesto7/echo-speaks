@@ -142,7 +142,7 @@ def mainPage() {
                 paragraph spanSmBlr("This Zone is currently disabled...<br>To edit the please re-enable it.", sCLRRED, "pause_orange")
             }
         } else {
-            if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+            if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
             Boolean condConf = conditionsConfigured()
             section(sectHead("Zone Configuration:")) {
                 href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: spanSm(getConditionsDesc(true), sCLR4D9)
@@ -302,7 +302,7 @@ def conditionsPage() {
 
         section (sectHead("Mode Conditions")) {
             input "cond_mode", sMODE, title: inTS1("Location Modes...", sMODE), multiple: true, required: false, submitOnChange: true
-            if(settings.cond_mode) {
+            if((List)settings.cond_mode) {
                 input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true
                 if(cond_mode && cond_mode_cmd) {
                     input "cond_mode_db", sBOOL, title: inTS1("Deactivate Zone immediately when Mode condition no longer passes?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
@@ -614,6 +614,7 @@ void relayDisableDebugLog() { getEsDevices().each { it.disableDebugLog() } }
 void relayEnableTraceLog() { getEsDevices().each { it.enableTraceLog() } }
 void relayDisableTraceLog() { getEsDevices().each { it.disableTraceLog() } }
 void relayLogsOff() { getEsDevices().each { it.logsOff() } }
+Map relayGetLogHistory() { Map a; getEsDevices().each { a = it.getLogHistory() }; return a ?: [:] }
 void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
 
 
@@ -624,8 +625,8 @@ Map relayMinVersions() {
     parent.minVersions()
 }
 
-public relayMultiSeqCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map deviceData=[:], Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
-    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, devData, cmdMap, device, callback)
+public relayMultiSeqCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, cmdMap, device, callback)
 }
 
 public relaySeqCommand(String type, String command, value=null,  Map deviceData=[:], String device=sNULL, String callback=sNULL) {
@@ -825,7 +826,7 @@ void subscribeToEvts() {
                     subscribe(location, "hsmStatus", zoneEvtHandler)
                     break
                 case sMODE:
-                    if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+                    if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
                     subscribe(location, si, zoneEvtHandler)
                     break
                 default:
@@ -910,9 +911,9 @@ Boolean locationCondOk() {
     Boolean result = null
     Boolean mOk
     Boolean aOk
-    if((List)settings.cond_mode || settings.cond_mode_cmd || (List)settings.cond_alarm) {
+    if((List)settings.cond_mode || (String)settings.cond_mode_cmd || (List)settings.cond_alarm) {
         Boolean reqAll = reqAllCond()
-        mOk = ((List)settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, (settings.cond_mode_cmd == "not"))) : reqAll //true
+        mOk = ((List)settings.cond_mode /*&& (String)settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, ((String)settings.cond_mode_cmd == "not"))) : reqAll //true
         aOk = (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
@@ -977,7 +978,7 @@ private Boolean isConditionOk(String evt) {
         if(!settings."cond_${evt}") { true }
         return checkDeviceNumCondOk(evt)
     } else if (evt == sMODE) {
-        return ((List)settings.cond_mode /*&& settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, (settings.cond_mode_cmd == "not"))) : true
+        return ((List)settings.cond_mode /*&& (String)settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, ((String)settings.cond_mode_cmd == "not"))) : true
     } else if (["hsmStatus", "alarmSystemStatus"].contains(evt)) {
         return (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : true
     } else {
@@ -1047,16 +1048,13 @@ Boolean dateCondConfigured() {
 }
 
 Boolean locationCondConfigured() {
-    if((List)settings.cond_mode && !settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
-    Boolean mode = ((List)settings.cond_mode && settings.cond_mode_cmd)
+    if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+    Boolean mode = ((List)settings.cond_mode && (String)settings.cond_mode_cmd)
     Boolean alarm = ((List)settings.cond_alarm)
     return (mode || alarm)
 }
 
 Boolean deviceCondConfigured() {
-//    List devConds = [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "shade", "valve", "temperature", "humidity", "illuminance", "level", "power", "battery"]
-//    List items = []
-//    devConds.each { String dc-> if(devCondConfigured(dc)) { items.push(dc) } }
     return (deviceCondCount() > 0)
 }
 
@@ -1254,20 +1252,28 @@ public zoneRefreshHandler(evt) {
     }
 }
 
+/*
+ * handle commands sent to a zone
+ * caller could be actions (a broadcast location event) (speak and announce are not handled this way)
+ *   or a zone device handler (calling its parent)
+ */
+
 public zoneCmdHandler(evt) {
     // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
     Map data = evt?.jsonData
-    if(isPaused(true) || !isActive()) {
-        logInfo( "zoneCmdHandler: zone is paused or inactive Skipping $evt")
-        return
-    }
     String appId = app?.getId() as String
-    // log.warn "zoneCmdHandler cmd: $cmd data: $data appId $appId"
-    if(cmd && data && appId && data.zones && data.zones.contains(appId) && data.cmd) {
+
+    // log.warn "zoneCmdHandler cmd: $cmd data: $data appId: $appId"
+    if(cmd && data && appId && data.zones && data.zones.contains(appId) && data.cmd) { // is the broadcast for me?
+        if(isPaused(true) || !isActive()) {
+            logInfo( "zoneCmdHandler: zone is paused or inactive Skipping $evt")
+            return
+        }
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
         Map zoneDevMap = getZoneDevices('announce')
         List zoneDevs = (List)zoneDevMap.devices
+
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
             Map zVol = data.zoneVolumes[appId]
             // log.debug "zoneVolume: ${zVol}"
@@ -1275,9 +1281,11 @@ public zoneCmdHandler(evt) {
             data.restoreVol = zVol.restore ?: data.restoreVol
         }
         Integer delay = data.delay ?: null
+
         if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" } // FORCES speak to be announcement
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
         if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
+
         switch(cmd) {
             case "speak":
                 logDebug("Sending Speak Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
@@ -1379,11 +1387,11 @@ static String attUnit(String attr) {
             return sBLANK
     }
 }
-
+/*
 Double getDevValueAvg(devs, attr) {
     List vals = devs?.findAll { it?."current${attr?.capitalize()}"?.isNumber() }?.collect { it?."current${attr?.capitalize()}" as Double }
     return vals?.size() ? (vals?.sum()/vals?.size())?.round(1) as Double : null
-}
+} */
 
 String getCurrentMode() {
     return location?.mode
@@ -1408,11 +1416,11 @@ Boolean isInAlarmMode(List modes) {
     //return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
     return (modes) ? (a in modes) : false
 }
-
+/*
 Boolean areAllDevsSame(List devs, String attr, val) {
     if(devs && attr && val) { return (devs?.findAll { it?.currentValue(attr) == val as String }?.size() == devs?.size()) }
     return false
-}
+} */
 
 Boolean allDevCapValsEqual(List devs, String cap, val) {
     if(devs) { return (devs?.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size()) }
@@ -1448,11 +1456,11 @@ Boolean allDevCapNumValsBetween(List devs, String cap, low, high) {
 Boolean allDevCapNumValsEqual(List devs, String cap, val) {
     return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val?.toDouble() }?.size() == devs?.size()) : false
 }
-
+/*
 Boolean devCapValEqual(List devs, String devId, String cap, val) {
-    if(devs) { return (devs?.find { it?."current${cap?.capitalize()}" == val }) }
+    if(devs) { return (devs.find { it?."current${cap?.capitalize()}" == val }) }
     return false
-}
+} */
 
 static String getAlarmSystemName(Boolean abbr=false) {
     return (abbr ? "HSM" : "Hubitat Safety Monitor")
@@ -1774,8 +1782,8 @@ String getConditionsDesc(Boolean addFoot=true) {
         if((List)settings.cond_alarm || (List)settings.cond_mode) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
             str += settings.cond_alarm ? spanSmBr("    - Alarm Modes Allowed: " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
-            Boolean not = (settings.cond_mode_cmd == "not")
-            str += settings.cond_mode ? spanSmBr("    - Allowed Modes (${not ? "not in" : "in"}): " + getOkOrNotSymHTML(isInMode(settings.cond_mode, not))) : sBLANK
+            Boolean not = ((String)settings.cond_mode_cmd == "not")
+            str += (List)settings.cond_mode ? spanSmBr("    - Allowed Modes (${not ? "not in" : "in"}): " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
         }
          if(deviceCondConfigured()) {
             [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power" ]?.each { String evt->
@@ -2006,7 +2014,7 @@ Boolean isZoneNotifConfigured() {
     )
 }
 
-Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
+static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 Boolean minVersionFailed() {
     try {
@@ -2035,7 +2043,7 @@ static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { re
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
-static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE).replaceAll("<br>", sSPACE), und), clr, img) }
+static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str.replaceAll("\n", sSPACE).replaceAll("<br>", sSPACE), und), clr, img) }
 
 // Root HTML Objects
 static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
