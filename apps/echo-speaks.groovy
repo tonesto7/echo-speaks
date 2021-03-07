@@ -78,7 +78,7 @@ import groovy.transform.Field
 //@Field static Map<String,          Map> guardDataFLD       = [:]
 @Field volatile static Map<String, Map> zoneStatusMapFLD     = [:]
 @Field volatile static Map<String, Map> bluetoothDataFLD     = [:]
-@Field volatile static Map<String, Map> alexaRoutinesDataFLD = [:]
+@Field volatile static Map<String, List> alexaRoutinesDataFLD = [:]
 @Field volatile static Map<String, Map> dndDataFLD           = [:]
 @Field volatile static Boolean guardArmPendingFLD            = false
 
@@ -189,7 +189,7 @@ def mainPage() {
                         String rd = remDevs.sort().collect { spanSm(" ${sBULLET} ${it}") }.join("<br>")
                         href "devCleanupPage", title: inTS1("Removable Devices:"), description: divSm(rd, sCLRRED)
                     }
-                    String devDesc = getDeviceList()?.collect { "${spanSm(it?.value?.name)}${it?.value?.online ? spanSm(" (Online)", sCLRGRN2) : sBLANK}${it?.value?.supported == false ? spanSm(" ${sFRNFACE}", sCLRRED2) : sBLANK}" }?.sort().join("<br>").toString()
+                    String devDesc = getDeviceList().collect { "${spanSm((String)it.value?.name)}${it.value?.online ? spanSm(" (Online)", sCLRGRN2) : sBLANK}${it.value?.supported == false ? spanSm(" ${sFRNFACE}", sCLRRED2) : sBLANK}" }.sort().join("<br>").toString()
                     String dd = devDesc ? divSm(devDesc, sCLR4D9) + inputFooter(sTTM) : inputFooter(sTTC, sCLRGRY)
                     href "deviceManagePage", title: inTS1("Manage Devices:", sDEVICES), description: dd
                 } else { paragraph spanSmBld("Device Management will be displayed after install is complete", sCLRORG) }
@@ -369,8 +369,8 @@ def deviceManagePage() {
                 Map devs = getDeviceList()
                 Map skDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason != sIN_IGNORE) }
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
-                if(devs?.size()) {
-                    String devDesc = devs?.collect { "<span>${it?.value?.name}</span>${it?.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it?.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
+                if(devs.size()) {
+                    String devDesc = devs.collect { "<span>${it.value?.name}</span>${it.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
                     String dd = spanSmBr(devDesc) + inputFooter(sTTVD)
                     href "deviceListPage", title: inTS1("Installed Devices:"), description: divSm(dd, sCLR4D9)
                 } else { paragraph spanSm("Discovered Devices:<br>No Devices Available", sCLRRED) }
@@ -724,7 +724,7 @@ def viewActionHistory() {
     return dynamicPage(name: "viewActionHistory", title: div("<h2>Action Event History</h2>", sNULL, sNULL, true), uninstall: false, install: false) {
         List actApps = getActionApps()
         actApps?.each { a->
-            section(sectHead(a.getLabel())) {
+            section(sectHead((String)a.getLabel())) {
                 List<String> items = (List<String>)a.getActionHistory(true)
                 items.each { String v->
                     paragraph spanSm(v)
@@ -1135,8 +1135,7 @@ def appButtonHandler(btn) {
 }
 
 void executeRoutineTest(String rtId) {
-    if(rtId && executeRoutineById(rtId) ) {
-    } else {
+    if(!(rtId && executeRoutineById(rtId)) ) {
         logError("Valid Routine ID not received for Routine Test!!!")
     }
 }
@@ -2299,7 +2298,7 @@ private getCustomerData(Boolean frc=false) {
 }
 
 private List getAllDeviceVolumes(Boolean frc=false) {
-    if(!isAuthValid("getAllDeviceVolumes")) { return [:] }
+    if(!isAuthValid("getAllDeviceVolumes")) { return [] }
     if(!frc && (List)state.deviceVolumes && getLastTsValSecs("deviceVolumeUpdDt") < 3600) { return (List)state.deviceVolumes }
     Map params = [
         uri: getAmazonUrl(),
@@ -2317,7 +2316,7 @@ private List getAllDeviceVolumes(Boolean frc=false) {
             Map rData = response?.data ?: [:]
             // log.debug "Device Volumes: ${rData.volumes}"
             state.deviceVolumes = rData && rData.volumes ? rData.volumes : []
-            volumes = rData && rData.volumes ? rData.volumes : []
+            volumes = rData && (List)rData.volumes ? (List)rData.volumes : []
             updTsVal("deviceVolumeUpdDt")
         }
     } catch (ex) {
@@ -3450,7 +3449,7 @@ private Map getMinVerUpdsRequired() {
 }
 
 static Map getDeviceStyle(String family, String type) {
-    Map typeData = deviceSupportMapFLD.types[type] ?: [:]
+    Map typeData = (Map)deviceSupportMapFLD.types[type] ?: [:]
     if(typeData) {
         return typeData
     } else { return [name: "Echo Unknown $type", image: sUNKNOWN, allowTTS: false] }
@@ -3458,7 +3457,7 @@ static Map getDeviceStyle(String family, String type) {
 
 public Map getDeviceFamilyMap() {
     if(!state.appData || !state.appData.deviceFamilies) { checkVersionData(true) }
-    return state.appData?.deviceFamilies ?: deviceSupportMapFLD.families
+    return (Map)state.appData?.deviceFamilies ?: (Map)deviceSupportMapFLD.families
 }
 
 List getDevicesFromSerialList(List serialList) {
@@ -3482,7 +3481,7 @@ public void sendPlaybackStateToClusterMembers(String whaKey, data) {
     try {
         Map echoDeviceMap = getEchoDeviceMap() //state.echoDeviceMap
         Map whaMap = echoDeviceMap[whaKey]
-        def clusterMembers = whaMap?.clusterMembers
+        List clusterMembers = (List)whaMap?.clusterMembers
 
         if (clusterMembers) {
             def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
@@ -3567,8 +3566,8 @@ void sendZoneCmd(Map cmdData) {
 
         String newmsg = (String)cmdData.message
         String title = (String)cmdData.title
-        Integer volume = cmdData.changeVol
-        Integer restoreVolume = cmdData.restoreVol
+        Integer volume = (Integer)cmdData.changeVol
+        Integer restoreVolume = (Integer)cmdData.restoreVol
         sendDevObjCmd(devObj, myCmd, title, newmsg, volume, restoreVolume)
     }
 }
@@ -3625,7 +3624,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
 
                         queueMultiSequenceCommand(
                             [ [command: 'sendspeak', value:newmsg, deviceData: deviceData] ],
-                            myMsg+" to device ${dev.dni}", false, cmdMap, dev.dni, "finishSendSpeak")
+                            myMsg+" to device ${dev.dni}", false, cmdMap, (String)dev.dni, "finishSendSpeak")
                     }
                 } else if (myCmd == 'announcement') {
                     Map myDev = devObj[0]
@@ -3671,7 +3670,7 @@ private List getZoneDevices(List znList, String cmd, Boolean chkDnd=false) {
             Map znData = getZoneState(znId.toString())
             // log.trace "znData: $znData"
             if(znData && znData.zoneDevices) {
-                List devices = getDevicesFromList(znData.zoneDevices)
+                List devices = getDevicesFromList((List)znData.zoneDevices)
                 //devices?.each { devObjs?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
                 devices?.each {
                     Map devInfo = it?.getEchoDevInfo(cmd)
@@ -3691,7 +3690,7 @@ private List getZoneDevices(List znList, String cmd, Boolean chkDnd=false) {
 private Map getZoneState(String znId) {
     Map zones = getZones()
     if(zones) {
-        return zones[znId]
+        return (Map)zones[znId]
     }
     return null
 }
@@ -3744,7 +3743,7 @@ void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean paral
         // log.debug "cmdItem: $cmdItem"
         if(cmdItem.command instanceof String){
              if((String)cmdItem.command in ['sendspeak']){
-                  Map deviceData = cmdItem.deviceData
+                  Map deviceData = (Map)cmdItem.deviceData
 //                  Map st = cmdItem.devType ? [serialNumber: cmdItem.devSerial, deviceType: cmdItem.devType] : deviceData
                   newCmds = newCmds + msgSeqBuilder((String)cmdItem.value, deviceData, 'sendSpeak')
              } else newCmds.push(cmdItem)
@@ -3788,13 +3787,13 @@ void addToQ(Map item) {
         if(ss) {
              if(fir) { fir=false; lmsg.push(spanSm("addToQ NEW COMMAND", sCLRGRN2)) }
              String nm = ss.toString().tr('<', '&lt;').tr('>', '&gt;')
-             lmsg.push("addToQ (${t}) | ${s}: ${nm}")
+             lmsg.push("addToQ (${t}) | ${s}: ${nm}".toString())
         }
     }
     if(item.commands?.size()) {
         Integer cnt = 1
         item.commands.each { cmd -> 
-            lmsg.push("addToQ (${item.t}) | Command(${cnt}): ${cmd}")
+            lmsg.push("addToQ (${item.t}) | Command(${cnt}): ${cmd}".toString())
             cnt++
         }
     }
@@ -3957,7 +3956,7 @@ void workQ() {
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
             msSum += ms
-            lmsg.push("workQ ms delay is $msSum")
+            lmsg.push("workQ ms delay is $msSum".toString())
 
             if(seqObj) { break } // runs by itself
             if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
@@ -3969,7 +3968,7 @@ void workQ() {
 
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
-            lmsg.push("workQ FINAL ms delay is $msSum")
+            lmsg.push("workQ FINAL ms delay is $msSum".toString())
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
 
             locked = false
@@ -4573,7 +4572,6 @@ void missPollNotify(Boolean on, Integer wait) {
     if(devModeFLD) logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
     if(lastDataUpd <= ((settings.misPollNotifyWaitVal as Integer ?: 2700)+10800)) {
         state.missPollRepair = false
-        return
     } else {
         if(lastDataUpd != 1000000) {
             String msg = sBLANK
@@ -4593,7 +4591,6 @@ void missPollNotify(Boolean on, Integer wait) {
                 else logTrace("calling initialize to attempt recovery")
                 state.missPollRepair = true
                 initialize()
-                return
             }
         }
     }
@@ -5866,7 +5863,7 @@ def appInfoSect() {
     String tStr = sBLANK
     Boolean isNote = false
     if(codeVer && (codeVer.server || codeVer.actionApp || codeVer.echoDevice)) {
-        List verMap = []
+        List<Map> verMap = []
         verMap.push([name: "App:", ver: "v${appVersionFLD}"])
         if(codeVer.echoDevice) verMap.push([name: "Device:", ver: "v${codeVer.echoDevice}"])
         if(codeVer.actionApp) verMap.push([name: "Action:", ver: "v${codeVer.actionApp}"])
@@ -5876,15 +5873,15 @@ def appInfoSect() {
         if(codeVer.server) verMap.push([name: "Server:", ver: "v${codeVer.server}"])
         if(verMap?.size()) {
             tStr += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
-            verMap.each { it->  
-                tStr += "<tr style='border: 1px solid ${sCLRGRY};'><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBld(it.name)}</td><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.ver}")}</td></tr>"
+            verMap.each { it->
+                tStr += "<tr style='border: 1px solid ${sCLRGRY};'><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBld((String)it.name)}</td><td style='border: 1px solid ${sCLRGRY};padding: 0px 3px 0px 3px;'>${spanSmBr("${(String)it.ver}")}</td></tr>"
             }
             tStr += "</table>"
         }
         tStr = spanSm(tStr, sCLRGRY)
     }
 
-    section(sectH3TS(app?.name, tStr, getAppImg("echo_speaks_3.2x"), sCLR4D9)) {
+    section(sectH3TS((String)app?.name, tStr, getAppImg("echo_speaks_3.2x"), sCLR4D9)) {
         if(!(Boolean)state.isInstalled) {
             paragraph spanSmBld("--NEW Install--", sCLR4D9)
         } else {
