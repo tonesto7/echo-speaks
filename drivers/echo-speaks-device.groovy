@@ -119,8 +119,8 @@ if(!isZone()) {
         command "sayWelcomeHome", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
 
         command "playAnnouncement", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
-if(!isZone()) {
         command "playAnnouncementAll", [[name: "Message to Announcement*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
+if(!isZone()) {
 }
         command "playCalendarToday", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playCalendarTomorrow", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -160,8 +160,8 @@ if(!isZone()) {
         command "speechTest"
 //        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""]]
         command "sendTestAnnouncement"
-if(!isZone()) {
         command "sendTestAnnouncementAll"
+if(!isZone()) {
         command "getDeviceActivity"
         command "getBluetoothDevices"
         command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
@@ -737,8 +737,6 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
             if(isStateChange(device, "level", level.toString()) || isStateChange(device, "volume", level.toString())) {
                 logDebug("Volume Level Set to ${level}%")
                 updateLevel(level, null)
-//                sendEvent(name: "level", value: level, display: false, displayed: false)
-//                sendEvent(name: "volume", value: level, display: false, displayed: false)
             }
         }
         if(playerInfo.volume?.muted != null) {
@@ -997,17 +995,19 @@ private getDeviceActivity() {
         actData = actData ?: null
         Boolean wasLastDevice = (actData != null && (String)actData?.serialNumber == (String)state.serialNumber)
         if(actData != null && wasLastDevice) {
-            if((String)actData.spokeText) {
-                if(isStateChange(device, "lastVoiceActivity", (String)actData?.spokenText)) {
-                    logDebug("lastVoiceActivity: ${actData?.spokenText}")
-                    sendEvent(name: "lastVoiceActivity", value: (String) actData?.spokenText, display: false, displayed: false)
-                }
-                if(isStateChange(device, "lastSpokenToTime", (String) actData?.lastSpokenDt)) {
-                    sendEvent(name: "lastSpokenToTime", value: (String) actData?.lastSpokenDt, display: false, displayed: false)
+            String spTx = (String)actData.spokenText
+            if(spTx) {
+                if(isStateChange(device, "lastSpokenToTime", (String)actData.lastSpokenDt)) {
+                    sendEvent(name: "lastSpokenToTime", value: (String)actData.lastSpokenDt, display: false, displayed: false)
+
+                    logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
+                    sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false, isStateChange: true)
+
+                    logDebug("lastVoiceActivity: ${spTx}")
+                    sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
                 }
             }
-        }
-        if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
+        } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
             logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
             sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false)
         }
@@ -1130,26 +1130,14 @@ private Map getDeviceData(){
 private void sendSequenceCommand(String type, String command, value=null, String callback=sNULL) {
     // logTrace("sendSequenceCommand($type) | command: $command | value: $value")
     if(isZone()) 
-        parent.relaySeqCommand(type, command, value, [:], device.deviceNetworkId, callback)
+        parent.relaySeqCommand(type, command, value, getDeviceData(), device.deviceNetworkId, callback)
     else
         parent.queueSequenceCommand(type, command, value, getDeviceData(), device.deviceNetworkId, callback)
-
-//ERS
-/*
-    Map seqObj = sequenceBuilder(command, value)
-    String t0 = sendAmazonCommand("POST", [
-        uri: getAmazonUrl(),
-        path: "/api/behaviors/preview",
-        headers: getCookieMap(true),
-        contentType: sAPPJSON,
-        body: new groovy.json.JsonOutput().toJson(seqObj),
-        timeout: 20
-    ], [cmdDesc: "SequenceCommand (${type})"]) */
 }
 
 private void sendMultiSequenceCommand(List commands, String srcDesc, Boolean parallel=false, String callback=sNULL) {
     if(isZone())
-        parent.relayMultiSeqCommand(commands, srcDesc, parallel, [:], null, device.deviceNetworkId, callback)
+        parent.relayMultiSeqCommand(commands, srcDesc, parallel, null, device.deviceNetworkId, callback)
     else {
         parent.queueMultiSequenceCommand(commands, srcDesc, parallel, null, device.deviceNetworkId, callback)
     }
@@ -1283,13 +1271,6 @@ def pause() {
 def stop() {
     logTrace("stop() command received...")
     pause()
-/*
-    if(isCommandTypeAllowed("mediaPlayer")) {
-        sendAmazonBasicCommand("PauseCommand")
-        if(isStateChange(device, "status", "stopped")) {
-            sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
-        }
-    } */
 }
 
 def togglePlayback() {
@@ -1315,7 +1296,6 @@ def stopAllDevices() {
         return
     }
     sendSequenceCommand("StopAllDevicesCommand", "stopalldevices")
-    //parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
     triggerDataRrsh('stopAllDevices')
 }
 
@@ -1347,8 +1327,6 @@ def mute() {
         if(isZone()) {
             parent.zoneCmdHandler([value: 'mute', jsonData: [zones:[parent.id.toString()], cmd:'mute', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
             updateLevel(0, null)
-//            sendEvent(name: "level", value: 0, display: true, displayed: true)
-//            sendEvent(name: "volume", value: 0, display: true, displayed: true)
         } else {
             setLevel(0)
         }
@@ -1377,8 +1355,6 @@ def unmute() {
             if(isZone()) {
                 parent.zoneCmdHandler([value: 'unmute', jsonData: [zones:[parent.id.toString()], cmd:'unmute', message: sNULL, changeVol:null, restoreVol:null, delay:0]])
                 updateLevel(state.muteLevel, null)
-//                sendEvent(name: "level", value: state.muteLevel, display: true, displayed: true)
-//                sendEvent(name: "volume", value: state.muteLevel, display: true, displayed: true)
             } else {
                 setLevel(state.muteLevel)
             }
@@ -1403,12 +1379,9 @@ def setLevel(level) {
         } else {
             if(level != device?.currentValue('level')) {
                 sendSequenceCommand("VolumeCommand", "volume", level)
-                //parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
             }
         }
         updateLevel(level.toInteger(), null)
-//        sendEvent(name: "level", value: level.toInteger(), display: true, displayed: true)
-//        sendEvent(name: "volume", value: level.toInteger(), display: true, displayed: true)
     }
 }
 
@@ -1604,10 +1577,6 @@ void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) 
     if(isZone()) {
         parent.zoneCmdHandler([value: 'builtin', jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         updateLevel(restoreVolume, volume)
-/*        if(volume || restoreVolume) {
-            sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-        } */
         return
     } else {
         if(volume != null) {
@@ -1615,10 +1584,6 @@ void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) 
             if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
             sendMultiSequenceCommand(seqs, cmdType)
             updateLevel(restoreVolume, volume)
-/*            if(volume || restoreVolume) {
-                sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-                sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            } */
         } else { sendSequenceCommand(cmdType, cmd, val) }
     }
 }
@@ -1664,10 +1629,6 @@ void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
     if(isZone()) {
         parent.zoneCmdHandler([value: 'builtin', jsonData: [zones:[parent.id.toString()], cmd:cmdType, message: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         updateLevel(restoreVolume, volume)
-/*        if(volume || restoreVolume) {
-            sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-        } */
         return
     } else {
         if(volume != null) {
@@ -1675,10 +1636,6 @@ void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
             if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
             sendMultiSequenceCommand(seqs, cmdType)
             updateLevel(restoreVolume, volume)
-/*            if(volume || restoreVolume) {
-                sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-                sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            } */
         } else { sendSequenceCommand(cmdType, cmd) }
     }
 }
@@ -1742,7 +1699,7 @@ def playSoundByName(String name, volume=null, restoreVolume=null) {
 
 def playAnnouncement(String msg, volume=null, restoreVolume=null) {
     if(isZone()) {
-        parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncement', message: msg, title: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]])
         finishAnnounce(msg, volume, restoreVolume)
         return
     } else {
@@ -1754,25 +1711,15 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
 }
 
 def finishAnnounce(String msg, volume, restoreVolume){ 
-    sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false)
+    sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false, isStateChange:true)
     updateLevel(restoreVolume, volume)
-/*    if(volume || restoreVolume) {
-        sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-        sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-    } */
 }
-
-/*void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume) {
-    if(volume != null) {
-        List seqs = [[command: "volume", value: volume], [command: cmd, cmdType: cmdType, value: val]]
-        if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume]) }
-        sendMultiSequenceCommand(seqs, cmdType)
-    } else { sendSequenceCommand(cmdType, cmd, val) } */
 
 def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
     if(isZone()) {
-        parent.zoneCmdHandler([value: 'announce', jsonData: [zones:[parent.id.toString()], cmd:'announce', message: msg, title: title, changeVol:volume, restoreVol:restoreVolume, delay:0]])
-        finishAnnounce(msg, volume, restoreVolume)
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncement', message: msg, title: title, changeVol:volume, restoreVol:restoreVolume, delay:0]])
+        String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
+        finishAnnounce(newMsg, volume, restoreVolume)
         return
     } else {
         String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
@@ -1789,7 +1736,7 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
         // log.debug "sendAnnouncementToDevices | msg: ${newmsg}"
         if(volume != null) {
             List mainSeq = []
-            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, , deviceData: getDeviceData()]) }
+            devObj.each { dev-> mainSeq.push([command: "volume", value: volume, deviceData: getDeviceData()]) }
             mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement', deviceData: getDeviceData()])
 
             //sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
@@ -1801,10 +1748,6 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
                 sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore")
             }
             updateLevel(restoreVolume, volume)
-       /*     if(volume || restoreVolume) {
-                sendEvent(name: "level", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-                sendEvent(name: "volume", value: (restoreVolume ?: volume) as Integer, display: true, displayed: true)
-            } */
             // log.debug "mainSeq: $mainSeq"
         } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg) }
     }
@@ -1813,15 +1756,25 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
 def voiceCmdAsText(String cmd) {
     // log.trace "voiceCmdAsText($cmd)"
     if(cmd) {
-        sendSequenceCommand("voiceCmdAsText", "voicecmdtxt", cmd)
+        if(isZone()) {
+            parent.zoneCmdHandler([value: 'voicecmd', jsonData: [zones:[parent.id.toString()], cmd:'voiceCmdAsText', message: cmd, title: sNULL, changeVol:null, restoreVol:null, delay:0]])
+        } else {
+            sendSequenceCommand("voiceCmdAsText", "voicecmdtxt", cmd)
+        }
     }
 }
 
 public playAnnouncementAll(String msg, String title=sNULL) {
+    if(isZone()) {
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncementAll', message: msg, title: sNULL, changeVol:null, restoreVol:null, delay:0]])
+    } else {
     // if(isCommandTypeAllowed("announce")) {
         msg = title ? title+"::"+msg : msg
-        sendSequenceCommand("AnnouncementAll", "announcementall", msg)
+        sendSequenceCommand("playAnnouncementAll", "announcementall", msg)
     // }
+    }
+    msg = title ? title+"::"+msg : msg
+    finishAnnounce(msg, null, null)
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
@@ -1918,15 +1871,6 @@ def searchIheart(String searchPhrase, volume=null, sleepSeconds=null) {
         doSearchMusicCmd(searchPhrase, "I_HEART_RADIO", volume, sleepSeconds)
     }
 }
-/*
-//sendSequenceCommand("AlexaAppNotification", "pushnotification", text)
-private void doaSequenceCmd(String cmdType, String seqCmd, String seqVal=sBLANK) {
-    if((String)state.serialNumber) {
-        logDebug("Sending (${cmdType}) | Command: ${seqCmd} | Value: ${seqVal}")
-        sendSequenceCommand(cmdType, seqCmd, seqVal)
-        //parent.sendSpeak(cmdMap, device.deviceNetworkId, "finishSendSpeak")
-    } else { logWarn("sendSequenceCommand Error | You are missing one of the following... SerialNumber: ${(String)state.serialNumber}", true) }
-}*/
 
         //doSearchMusicCmd(nuri, "CLOUDPLAYER", volume)
 private void doSearchMusicCmd(String searchPhrase, String musicProvId, volume=null, sleepSeconds=null) {
@@ -2664,13 +2608,9 @@ void speak(String msg) {
             parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol:(state.newVolume ?: null), restoreVol:(state.oldVolume ?: null), delay:0]])
             String t0 = getDtNow()
             String lastMsg = msg ?: "Nothing to Show Here..."
-            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true)
+            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
             sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
             updateLevel(state.oldVolume, state.newVolume)
-/*            if(state.oldVolume || state.newVolume) {
-                sendEvent(name: "level", value: (state.oldVolume ?: state.newVolume) as Integer, display: true, displayed: true)
-                sendEvent(name: "volume", value: (state.oldVolume ?: state.newVolume) as Integer, display: true, displayed: true)
-            } */
             logSpeech(msg, 200, sNULL)
         } else {
             speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
@@ -2899,7 +2839,7 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
         String respMsgLow = respMsg ? respMsg?.toLowerCase() : sNULL
         if(statusCode == 200) {
             Long execTime = (Long)data.cmdDt ? (now()-(Long)data.cmdDt) : 0L
-            if ((Boolean)settings.logInfo != false) {
+            if ((Boolean)settings.logDebug) {
                 String pi = data.cmdDesc ?: "Command"
                 pi += data.isSSML ? " (SSML)" :sBLANK
                 pi += " Sent"
@@ -2907,21 +2847,17 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
                 pi += data.msgLen ? " | Length: (${data.msgLen}) " :sBLANK
                 pi += data.msgDelay ? " | Expected Runtime: (${(Integer)data.msgDelay} sec)" :sBLANK
                 pi += execTime ? " | Execution Time: (${execTime}ms)" : sBLANK
-                pi += (Boolean)settings.logDebug && data.amznReqId ? " | Amazon Request ID: ${data.amznReqId}" :sBLANK
-                logInfo(pi)
+                pi += data.amznReqId ? " | Amazon Request ID: ${data.amznReqId}" :sBLANK
+                logDebug(pi)
             }
 
-            if(data?.cmdDesc && data.cmdDesc == "SpeakCommand" && data?.message) {
+            String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
+            if((String)data?.cmdDesc == "SpeakCommand") {
                 String t0 = getDtNow()
-                String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
-                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true)
+                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
                 sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
-                updateLevel(data?.oldVolume, data?.newVolume)
-/*                if(data?.oldVolume || data?.newVolume) {
-                    sendEvent(name: "level", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
-                    sendEvent(name: "volume", value: (data?.oldVolume ?: data?.newVolume) as Integer, display: true, displayed: true)
-                } */
-                logSpeech((String)data?.message, statusCode, sNULL)
+                updateLevel((Integer)data.oldVolume, (Integer)data.newVolume)
+                logSpeech(lastMsg, statusCode, sNULL)
             }
         } else if((statusCode?.toInteger() in [400, 429]) && respMsgLow && (respMsgLow in ["rate exceeded", "too many requests"])) {
             switch(respMsgLow) {
