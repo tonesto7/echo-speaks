@@ -2839,7 +2839,7 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
         String respMsgLow = respMsg ? respMsg?.toLowerCase() : sNULL
         if(statusCode == 200) {
             Long execTime = (Long)data.cmdDt ? (now()-(Long)data.cmdDt) : 0L
-            if ((Boolean)settings.logInfo != false) {
+            if ((Boolean)settings.logDebug) {
                 String pi = data.cmdDesc ?: "Command"
                 pi += data.isSSML ? " (SSML)" :sBLANK
                 pi += " Sent"
@@ -2847,17 +2847,17 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
                 pi += data.msgLen ? " | Length: (${data.msgLen}) " :sBLANK
                 pi += data.msgDelay ? " | Expected Runtime: (${(Integer)data.msgDelay} sec)" :sBLANK
                 pi += execTime ? " | Execution Time: (${execTime}ms)" : sBLANK
-                pi += (Boolean)settings.logDebug && data.amznReqId ? " | Amazon Request ID: ${data.amznReqId}" :sBLANK
-                logInfo(pi)
+                pi += data.amznReqId ? " | Amazon Request ID: ${data.amznReqId}" :sBLANK
+                logDebug(pi)
             }
 
-            if(data?.cmdDesc && data.cmdDesc == "SpeakCommand" && data?.message) {
+            String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
+            if((String)data?.cmdDesc == "SpeakCommand") {
                 String t0 = getDtNow()
-                String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
                 sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
-                updateLevel(data?.oldVolume, data?.newVolume)
-                logSpeech((String)data?.message, statusCode, sNULL)
+                updateLevel((Integer)data.oldVolume, (Integer)data.newVolume)
+                logSpeech(lastMsg, statusCode, sNULL)
             }
         } else if((statusCode?.toInteger() in [400, 429]) && respMsgLow && (respMsgLow in ["rate exceeded", "too many requests"])) {
             switch(respMsgLow) {
