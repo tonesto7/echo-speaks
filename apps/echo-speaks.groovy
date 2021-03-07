@@ -2601,56 +2601,77 @@ void getDeviceActivityRunIn() {
 Map getDeviceActivity(String serialNum, Boolean frc=false) {
     if(!isAuthValid("getDeviceActivity")) { return null }
     try {
-        Map params = [
-            uri: getAmazonUrl(),
-            path: "/api/activities",
-            query: [ size: 5, offset: 1 ],
-            headers: getReqHeaderMap(true),
-            contentType: sAPPJSON,
-            timeout: 20
-        ]
-        String appId=app.getId()
-        Map lastActData = devActivityMapFLD[appId]
-        lastActData = lastActData ?: null
-        // log.debug "activityData(IN): $lastActData"
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
-
         if((frc && lastUpdSec > 3) || lastUpdSec >= 360) {
+            Long execDt = now()
+            Map params = [
+                    uri: getAmazonUrl(),
+                    path: "/api/activities",
+                    query: [ size: 5, offset: 1 ],
+                    headers: getReqHeaderMap(true),
+                    contentType: sAPPJSON,
+                    timeout: 20
+            ]
             logTrace("getDeviceActivity($serialNum, $frc)")
             updTsVal("lastDevActChk")
-            httpGet(params) { response->
-                if(response?.status != 200) logWarn("${response?.status} $params")
-                if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                if (response?.data && response?.data?.activities != null) {
-                    Map lastCommand = response?.data?.activities?.find {
-                        (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
-                        it?.activityStatus?.equals("SUCCESS") &&
-                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
-                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
-                    }
-                    if (lastCommand) {
-                        Map lastDescription = new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
-                        def lastDevice = lastCommand.sourceDeviceIds?.get(0)
-                        lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
 
-                        devActivityMapFLD[appId] = lastActData
-                        devActivityMapFLD = devActivityMapFLD
-                    }
+            if(!serialNum) execAsyncCmd("get", "getLastActResp", params, [dt:execDt])
+            else {
+                httpGet(params) { response ->
+                    getLastActResp(response, [dt: execDt])
                 }
             }
         }
-        if(serialNum && lastActData && lastActData.size() && lastActData.serialNumber == serialNum) {
-            // log.debug "activityData(OUT): $lastActData"
-            return lastActData
+        if(serialNum) {
+            String appId=app.getId()
+            Map lastActData = devActivityMapFLD[appId]
+            lastActData = lastActData ?: null
+            // log.debug "activityData(IN): $lastActData"
+            if(lastActData && (String)lastActData.serialNumber == serialNum) {
+                // log.debug "activityData(OUT): $lastActData"
+                return lastActData
+            }
         }
     } catch (ex) {
-        if(ex?.message != "Bad Request") {
+//        if(ex?.message != "Bad Request") {
             respExceptionHandler(ex, "getDeviceActivity")
-        }
+//        }
         // log.error "getDeviceActivity error: ${ex.message}"
     }
     return null
+}
+
+def getLastActResp(resp, data){
+    try {
+        String meth = 'getLastActResp'
+        if(resp?.status != 200) logWarn("${resp?.status} $meth")
+        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
+        def t0 = resp?.data
+        Map myResp
+        if (t0 instanceof String) { myResp = parseJson(t0) }
+        else { myResp = (Map)resp?.data }
+        if (myResp && myResp?.activities != null) {
+            Map lastCommand = myResp?.activities?.find {
+                (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
+                        it?.activityStatus?.equals("SUCCESS") &&
+                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
+                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
+            }
+            if (lastCommand) {
+                Map lastDescription = new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
+                def lastDevice = lastCommand.sourceDeviceIds?.get(0)
+                Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
+
+                String appId=app.getId()
+                devActivityMapFLD[appId] = lastActData
+                devActivityMapFLD = devActivityMapFLD
+            }
+        }
+        logDebug("getDeviceActivity: Process Time: (${(now()-(Long)data.dt)}ms)")
+    } catch(ex) {
+        respExceptionHandler(ex, "getLastActResp")
+    }
 }
 
 void getDoNotDisturb(Boolean frc=true) {
@@ -2689,9 +2710,9 @@ void DnDResp(resp, data){
         if( t0 instanceof String)  dndResp = parseJson(resp?.data)
         else dndResp = resp?.data
 //            log.debug "DoNotDisturb Data: ${dndResp}"
-            String myId=app.getId()
-            dndDataFLD[myId] = (Map)dndResp
-            dndDataFLD=dndDataFLD
+        String myId=app.getId()
+        dndDataFLD[myId] = (Map)dndResp
+        dndDataFLD=dndDataFLD
     } catch(ex) {
         respExceptionHandler(ex, "DnDResp", true)
         String myId=app.getId()
