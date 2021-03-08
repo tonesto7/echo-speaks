@@ -889,7 +889,7 @@ void getBluetoothDevices() {
 void updGuardStatus(String val=sNULL) {
     //TODO: Update this because it's not working
     Boolean guardSup = (Boolean)state.permissions?.guardSupported
-    String t0 = guardSup ? (val ?: parent?.relayGetAlexaGuardStatus() ) : "Not Supported"
+    String t0 = guardSup ? (val ?: (!isZone() ? parent?.getAlexaGuardStatus() : parent?.relayGetAlexaGuardStatus() ) ) : "Not Supported"
     String gState = t0 ?: "Unknown"
     if(guardSup) {
         //TODO: Guard is location based ?  ie we may be seeing multiple locations, each with different Guard status?
@@ -2622,10 +2622,10 @@ void speak(String msg) {
     state.oldVolume = null
 }
 
-void updateLevel(Integer oldvolume, Integer newvolume) {
+void updateLevel(oldvolume, newvolume) {
     if(oldvolume != null || newvolume != null) {
-        sendEvent(name: "level", value: (oldVolume != null  ? oldvolume : newVolume), display: true, displayed: true)
-        sendEvent(name: "volume", value: (oldVolume != null  ? oldvolume: newVolume), display: true, displayed: true)
+        sendEvent(name: "level", value: (oldvolume != null  ? oldvolume.toInteger() : newvolume.toInteger()), display: true, displayed: true)
+        sendEvent(name: "volume", value: (oldvolume != null  ? oldvolume.toInteger() : newvolume.toInteger()), display: true, displayed: true)
     }
 }
 
