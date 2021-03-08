@@ -1,22 +1,21 @@
 {
     "packageName": "Echo Speaks",
     "author": "Anthony S.",
-    "version": "4.0.8.1",
+    "version": "4.0.9.0",
     "minimumHEVersion": "1.0.0",
-    "dateReleased": "2021-03-03",
+    "dateReleased": "2021-03-07",
     "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
     "communityLink": "https://community.hubitat.com/t/release-echo-speaks-v3-actions/22879/992",
     "licenseFile": "",
     "releaseNotes": "Please see Changelog at https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/changelog.txt for recent changes.",
-    "apps": [
-        {
+    "apps": [{
             "id": "4216cb09-591c-452d-9dc7-20f330de8624",
             "name": "Echo Speaks",
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks.src/echo-speaks.groovy",
             "required": true,
             "oauth": true,
-            "version": "4.0.8.1"
+            "version": "4.0.9.0"
         },
         {
             "id": "cd4762db-aa0b-4d32-98ca-06de955dbc33",
@@ -25,7 +24,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-actions.src/echo-speaks-actions.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.0.8.1"
+            "version": "4.0.9.0"
         },
         {
             "id": "50ad91a0-eb51-4d6f-98d2-f1654221baa9",
@@ -34,11 +33,10 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/smartapps/tonesto7/echo-speaks-zones.src/echo-speaks-zones.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.0.8.1"
+            "version": "4.0.9.0"
         }
     ],
-    "drivers": [
-        {
+    "drivers": [{
             "id": "f3aa1a73-d2d2-4620-b9e6-2eb32f847d45",
             "name": "Echo Speaks Device",
             "namespace": "tonesto7",
@@ -53,6 +51,14 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-ws.groovy",
             "required": true,
             "version": "4.0.8.1"
+        },
+        {
+            "id": "afac5950-3dc0-4109-95ec-79aa3c7ef208",
+            "name": "Echo Speaks Zone Device",
+            "namespace": "tonesto7",
+            "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-zone-device.groovy",
+            "required": true,
+            "version": "4.0.9.0"
         }
     ]
 }
