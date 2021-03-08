@@ -423,7 +423,7 @@ private commandEvtHandler(msg) {
                 sendEvt = true
                 evt.attributes.volume = msg.payload.volumeSetting
                 evt.attributes.level = msg.payload.volumeSetting
-                evt.attributes.mute = (isMuted == true) ? "muted" : "unmuted"
+                evt.attributes.mute = msg.payload.isMuted == true ? "muted" : "unmuted"
                 break
             case "PUSH_BLUETOOTH_STATE_CHANGE":
                 switch(msg.payload.bluetoothEvent) {
