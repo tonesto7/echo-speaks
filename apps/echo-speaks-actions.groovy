@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = '4.0.8.0'
-@Field static final String appModifiedFLD = '2021-02-28'
+@Field static final String appVersionFLD  = '4.0.9.0'
+@Field static final String appModifiedFLD = '2021-03-07'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -3700,7 +3700,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                                 Map devInfo = it?.getEchoDevInfo(cmd)
                                 if(devInfo) {
                                     Boolean dnd = false //chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
-                                    if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
+                                    //if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
+                                    if(!dnd) devObjs?.push(devInfo)
                                 }
                             }
                             parent?.sendDevObjCmd(devObjs, mCmd, getActionName(), txt, changeVol, restoreVol)

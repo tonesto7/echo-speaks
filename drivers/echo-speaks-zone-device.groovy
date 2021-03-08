@@ -1,5 +1,5 @@
 /**
- *	Echo Speaks Device (Hubitat ONLY)
+ *	Echo Speaks Zone Device (Hubitat ONLY)
  *
  *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
  *  Code Contributions by @nh.schottfam
@@ -49,10 +49,10 @@ import groovy.transform.Field
 
 static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return false }
-static Boolean isZone()     { return false }
+static Boolean isZone()     { return true }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy") {
+    definition (name: "Echo Speaks Zone Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-zone-device.groovy") {
         capability "Audio Notification"
         capability "Audio Volume"
         capability "Music Player"
