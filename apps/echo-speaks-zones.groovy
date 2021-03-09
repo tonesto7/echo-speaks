@@ -649,13 +649,13 @@ void relaySendPlaybackStateToClusterMembers(String whaKey, data) {
     parent.sendPlaybackStateToClusterMembers(whaKey, data)
 }
 
-String RelayGetAlexaGuardStatus() {
+String relayGetAlexaGuardStatus() {
     parent.getAlexaGuardStatus()
 }
-
+/*
 Boolean RelayGetDndEnabled(String serial) {
     parent.getDndEnabled(serial)
-}
+} */
 
 
 private void processDuplication() {
