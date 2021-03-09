@@ -1459,10 +1459,11 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            runEvery15Minutes("getOtherData")
+            //runEvery15Minutes("getOtherData") now part of healthcheck
             runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             remTsVal("donotdisturbDt")
+            remTsVal("musicProviderUpdDt")
             getOtherData()
 
             Long newD = now() - 999000
@@ -1471,7 +1472,7 @@ def initialize() {
            // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
             if(advLogsActive()) { logsEnabled() }
-        } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
+        } else { unschedule("getEchoDevices") /*; unschedule("getOtherData") */ }
     }
 }
 
@@ -2008,7 +2009,7 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     state.clearCnt = 0
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
-    unschedule("getOtherData")
+//    unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
     updateChildAuth(false)
 }
@@ -2472,7 +2473,7 @@ public updChildVers() {
 
 Map getMusicProviders(Boolean frc=false) {
     if(!isAuthValid("getMusicProviders")) { return [:] }
-    if(!frc && (Map)state.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 3600) { return (Map)state.musicProviders }
+    if(!frc && (Map)state.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 7200) { return (Map)state.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
@@ -2508,6 +2509,7 @@ private getOtherData() {
     getDoNotDisturb(false)
     getBluetoothDevices()
     Map aa = getMusicProviders()
+    // def bb=getAllDeviceVolumes()
     // getCustomerData()
     // getAlexaSkills()
 }
@@ -2864,7 +2866,7 @@ void checkGuardSupport() {
         timeout: 20,
     ]
     logTrace("checkGuardSupport")
-    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now(), aws: true])
+    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
 }
 
 void checkGuardSupportResponse(response, data) {
@@ -2872,7 +2874,7 @@ void checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     try {
         if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
+        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
         Integer respLen = response?.data?.toString()?.length() ?: null
         Map resp = response?.data ? parseJson(response?.data?.toString()) : null
         if(resp && resp.networkDetail) {
@@ -3185,7 +3187,7 @@ void getEchoDevices(Boolean lazy=false) {
     state.deviceRefreshInProgress = true
 //    state.refreshDeviceData = false
     logTrace("getEchoDevices")
-    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now(), aws: true])
+    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
 void echoDevicesResponse(response, data) {
@@ -3197,7 +3199,7 @@ void echoDevicesResponse(response, data) {
     ]
     try {
         if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
+        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
         // log.debug "json response is: ${response.json}"
         state.deviceRefreshInProgress=false
         List eDevData = response?.json?.devices ?: []
@@ -4508,7 +4510,7 @@ void healthCheck() {
         checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
-    def aa=getAllDeviceVolumes()
+    if(!(Boolean)state.noAuthActive) runIn(2, "getOtherData")
     chkRestartSocket()
 
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
