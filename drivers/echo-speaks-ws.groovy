@@ -20,8 +20,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = '4.0.9.0'
-@Field static final String appModifiedFLD = '2021-03-07'
+@Field static final String devVersionFLD  = '4.0.9.1'
+@Field static final String appModifiedFLD = '2021-03-10'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -423,7 +423,7 @@ private commandEvtHandler(msg) {
                 sendEvt = true
                 evt.attributes.volume = msg.payload.volumeSetting
                 evt.attributes.level = msg.payload.volumeSetting
-                evt.attributes.mute = (isMuted == true) ? "muted" : "unmuted"
+                evt.attributes.mute = msg.payload.isMuted == true ? "muted" : "unmuted"
                 break
             case "PUSH_BLUETOOTH_STATE_CHANGE":
                 switch(msg.payload.bluetoothEvent) {

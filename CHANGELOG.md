@@ -1,3 +1,29 @@
+## _**(March 10th, 2021)**_
+
+### _**Echo Speaks App (v4.0.9.1)**_
+
+- [FIX] Bugfixes and Optimizations
+
+### _**Echo Speaks Actions App (v4.0.9.1)**_
+
+- [FIX] Bugfixes and Optimizations
+
+### _**Echo Speaks Zones App (v4.0.9.1)**_
+
+- [FIX] Bugfixes and Optimizations
+
+### _**Echo Speaks Device (v4.0.9.1)**_
+
+- [FIX] Bugfixes and Optimizations
+
+### _**Echo Speaks WebSocket Device (v4.0.9.1)**_
+
+- [FIX] Bugfixes and Optimizations
+
+### _**Echo Speaks Zone Device (v4.0.9.1)**_
+
+- [FIX] Bugfixes and Optimizations
+
 ## _**(March 7th, 2021)**_
 
 ### _**Echo Speaks App (v4.0.9.0)**_

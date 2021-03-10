@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.0.9.0'
-@Field static final String appModifiedFLD = '2021-03-07'
+@Field static final String appVersionFLD  = '4.0.9.1'
+@Field static final String appModifiedFLD = '2021-03-10'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4090, wsDevice: 4090, actionApp: 4090, zoneApp: 4090, zoneEchoDevice: 4090, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4091, wsDevice: 4091, actionApp: 4091, zoneApp: 4091, zoneEchoDevice: 4091, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1459,10 +1459,11 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            runEvery15Minutes("getOtherData")
+            //runEvery15Minutes("getOtherData") now part of healthcheck
             runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             remTsVal("donotdisturbDt")
+            remTsVal("musicProviderUpdDt")
             getOtherData()
 
             Long newD = now() - 999000
@@ -1471,7 +1472,7 @@ def initialize() {
            // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
             if(advLogsActive()) { logsEnabled() }
-        } else { unschedule("getEchoDevices"); unschedule("getOtherData") }
+        } else { unschedule("getEchoDevices") /*; unschedule("getOtherData") */ }
     }
 }
 
@@ -2008,7 +2009,7 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     state.clearCnt = 0
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
-    unschedule("getOtherData")
+//    unschedule("getOtherData")
     logWarn("Cookie Data has been cleared and Device Data Refreshes have been suspended...")
     updateChildAuth(false)
 }
@@ -2472,7 +2473,7 @@ public updChildVers() {
 
 Map getMusicProviders(Boolean frc=false) {
     if(!isAuthValid("getMusicProviders")) { return [:] }
-    if(!frc && (Map)state.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 3600) { return (Map)state.musicProviders }
+    if(!frc && (Map)state.musicProviders && getLastTsValSecs("musicProviderUpdDt") < 7200) { return (Map)state.musicProviders }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/entities",
@@ -2508,6 +2509,7 @@ private getOtherData() {
     getDoNotDisturb(false)
     getBluetoothDevices()
     Map aa = getMusicProviders()
+    // def bb=getAllDeviceVolumes()
     // getCustomerData()
     // getAlexaSkills()
 }
@@ -2601,56 +2603,77 @@ void getDeviceActivityRunIn() {
 Map getDeviceActivity(String serialNum, Boolean frc=false) {
     if(!isAuthValid("getDeviceActivity")) { return null }
     try {
-        Map params = [
-            uri: getAmazonUrl(),
-            path: "/api/activities",
-            query: [ size: 5, offset: 1 ],
-            headers: getReqHeaderMap(true),
-            contentType: sAPPJSON,
-            timeout: 20
-        ]
-        String appId=app.getId()
-        Map lastActData = devActivityMapFLD[appId]
-        lastActData = lastActData ?: null
-        // log.debug "activityData(IN): $lastActData"
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
-
         if((frc && lastUpdSec > 3) || lastUpdSec >= 360) {
+            Long execDt = now()
+            Map params = [
+                    uri: getAmazonUrl(),
+                    path: "/api/activities",
+                    query: [ size: 5, offset: 1 ],
+                    headers: getReqHeaderMap(true),
+                    contentType: sAPPJSON,
+                    timeout: 20
+            ]
             logTrace("getDeviceActivity($serialNum, $frc)")
             updTsVal("lastDevActChk")
-            httpGet(params) { response->
-                if(response?.status != 200) logWarn("${response?.status} $params")
-                if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                if (response?.data && response?.data?.activities != null) {
-                    Map lastCommand = response?.data?.activities?.find {
-                        (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
-                        it?.activityStatus?.equals("SUCCESS") &&
-                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
-                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
-                    }
-                    if (lastCommand) {
-                        Map lastDescription = new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
-                        def lastDevice = lastCommand.sourceDeviceIds?.get(0)
-                        lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
 
-                        devActivityMapFLD[appId] = lastActData
-                        devActivityMapFLD = devActivityMapFLD
-                    }
+            if(!serialNum) execAsyncCmd("get", "getLastActResp", params, [dt:execDt])
+            else {
+                httpGet(params) { response ->
+                    getLastActResp(response, [dt: execDt])
                 }
             }
         }
-        if(serialNum && lastActData && lastActData.size() && lastActData.serialNumber == serialNum) {
-            // log.debug "activityData(OUT): $lastActData"
-            return lastActData
+        if(serialNum) {
+            String appId=app.getId()
+            Map lastActData = devActivityMapFLD[appId]
+            lastActData = lastActData ?: null
+            // log.debug "activityData(IN): $lastActData"
+            if(lastActData && (String)lastActData.serialNumber == serialNum) {
+                // log.debug "activityData(OUT): $lastActData"
+                return lastActData
+            }
         }
     } catch (ex) {
-        if(ex?.message != "Bad Request") {
+//        if(ex?.message != "Bad Request") {
             respExceptionHandler(ex, "getDeviceActivity")
-        }
+//        }
         // log.error "getDeviceActivity error: ${ex.message}"
     }
     return null
+}
+
+def getLastActResp(resp, data){
+    try {
+        String meth = 'getLastActResp'
+        if(resp?.status != 200) logWarn("${resp?.status} $meth")
+        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
+        def t0 = resp?.data
+        Map myResp
+        if (t0 instanceof String) { myResp = parseJson(t0) }
+        else { myResp = (Map)resp?.data }
+        if (myResp && myResp?.activities != null) {
+            Map lastCommand = myResp?.activities?.find {
+                (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
+                        it?.activityStatus?.equals("SUCCESS") &&
+                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
+                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
+            }
+            if (lastCommand) {
+                Map lastDescription = new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
+                def lastDevice = lastCommand.sourceDeviceIds?.get(0)
+                Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
+
+                String appId=app.getId()
+                devActivityMapFLD[appId] = lastActData
+                devActivityMapFLD = devActivityMapFLD
+            }
+        }
+        logDebug("getDeviceActivity: Process Time: (${(now()-(Long)data.dt)}ms)")
+    } catch(ex) {
+        respExceptionHandler(ex, "getLastActResp")
+    }
 }
 
 void getDoNotDisturb(Boolean frc=true) {
@@ -2689,9 +2712,9 @@ void DnDResp(resp, data){
         if( t0 instanceof String)  dndResp = parseJson(resp?.data)
         else dndResp = resp?.data
 //            log.debug "DoNotDisturb Data: ${dndResp}"
-            String myId=app.getId()
-            dndDataFLD[myId] = (Map)dndResp
-            dndDataFLD=dndDataFLD
+        String myId=app.getId()
+        dndDataFLD[myId] = (Map)dndResp
+        dndDataFLD=dndDataFLD
     } catch(ex) {
         respExceptionHandler(ex, "DnDResp", true)
         String myId=app.getId()
@@ -2843,7 +2866,7 @@ void checkGuardSupport() {
         timeout: 20,
     ]
     logTrace("checkGuardSupport")
-    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now(), aws: true])
+    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
 }
 
 void checkGuardSupportResponse(response, data) {
@@ -2851,7 +2874,7 @@ void checkGuardSupportResponse(response, data) {
     Boolean guardSupported = false
     try {
         if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
+        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
         Integer respLen = response?.data?.toString()?.length() ?: null
         Map resp = response?.data ? parseJson(response?.data?.toString()) : null
         if(resp && resp.networkDetail) {
@@ -3164,7 +3187,7 @@ void getEchoDevices(Boolean lazy=false) {
     state.deviceRefreshInProgress = true
 //    state.refreshDeviceData = false
     logTrace("getEchoDevices")
-    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now(), aws: true])
+    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
 }
 
 void echoDevicesResponse(response, data) {
@@ -3176,7 +3199,7 @@ void echoDevicesResponse(response, data) {
     ]
     try {
         if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200 && data?.aws) updTsVal("lastSpokeToAmazon")
+        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
         // log.debug "json response is: ${response.json}"
         state.deviceRefreshInProgress=false
         List eDevData = response?.json?.devices ?: []
@@ -4487,7 +4510,7 @@ void healthCheck() {
         checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
-    def aa=getAllDeviceVolumes()
+    if(!(Boolean)state.noAuthActive) runIn(2, "getOtherData")
     chkRestartSocket()
 
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
