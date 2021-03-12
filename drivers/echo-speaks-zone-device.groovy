@@ -158,7 +158,7 @@ if(!isZone()) {
 //        command "volumeUp"
 //        command "volumeDown"
         command "speechTest"
-//        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""]]
+//        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""], volume, voice]
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
 if(!isZone()) {
@@ -2600,20 +2600,25 @@ void speechTest(String ttsMsg=sNULL) {
     speak(ttsMsg)
 }
 
-void speak(String msg) {
+void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
-        if(!msg) { logWarn("No Message sent with speak($msg) command", true); return }
-        if(isZone()) {
-            parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol:(state.newVolume ?: null), restoreVol:(state.oldVolume ?: null), delay:0]])
-            String t0 = getDtNow()
-            String lastMsg = msg ?: "Nothing to Show Here..."
-            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
-            sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
-            updateLevel(state.oldVolume, state.newVolume)
-            logSpeech(msg, 200, sNULL)
-        } else {
-            speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: (state.newVolume ?: null), oldVolume: (state.oldVolume ?: null), cmdDt: now()])
+        if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
+        else {
+            def newvol = volume ?: (state.newVolume ?: null)
+            def restvol = state.oldVolume ?: null
+
+            if(isZone()) {
+                parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]])
+                String t0 = getDtNow()
+                String lastMsg = msg ?: "Nothing to Show Here..."
+                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
+                sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+                updateLevel(restvol, newvol)
+                logSpeech(msg, 200, sNULL)
+            } else {
+                speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: newvol, oldVolume: restvol, cmdDt: now()])
+            }
         }
     } else {
         logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
