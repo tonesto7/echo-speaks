@@ -1934,11 +1934,13 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
                 }
             }
             section(sectHead("Volume Options:")) {
-                if(volMapSiz > 0 && volMapSiz < devSiz) { paragraph spanSmBld("NOTICE:<br>Some of the selected devices do not support volume control", sCLRORG) }
-                else if(devSiz == volMapSiz) { paragraph spanSmBld("Some of the selected devices do not support volume control", sCLRORG); return }
-                input "act_volume_change", sNUMBER, title: inTS1("Volume Level (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
-                if(!showVolOnly) { 
-                    input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true 
+                if(devSiz == volMapSiz) { paragraph spanSmBld("None of the selected devices support volume control", sCLRORG) }
+                else {
+                    if(volMapSiz > 0 && volMapSiz < devSiz) { paragraph spanSmBld("NOTICE:<br>Some of the selected devices do not support volume control", sCLRORG) }
+                    input "act_volume_change", sNUMBER, title: inTS1("Volume Level (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
+                    if(!showVolOnly) {
+                        input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
+                    }
                 }
             }
         }
@@ -2081,7 +2083,7 @@ private void processDuplication() {
     if(dupData && dupData.state?.size()) {
         dupData.state.each { String k,v-> state[k] = v }
     }
-
+/*
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
             if((String)v.type in [sENUM]) settingRemove(k)
@@ -2098,7 +2100,8 @@ private void processDuplication() {
                 if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
            } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
-    }
+    } */
+
     parent.childAppDuplicationFinished("actions", dupSrcId)
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
