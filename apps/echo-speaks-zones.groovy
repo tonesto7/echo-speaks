@@ -669,7 +669,7 @@ private void processDuplication() {
     if(dupData && dupData.state?.size()) {
         dupData.state.each { String k,v-> state[k] = v }
     }
-
+/*
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
            if((String)v.type in [sENUM]) settingRemove(k)
@@ -688,7 +688,7 @@ private void processDuplication() {
 
            } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
-    }
+    } */
 
     parent.childAppDuplicationFinished("zones", dupSrcId)
     sendZoneStatus()
