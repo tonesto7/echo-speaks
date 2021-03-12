@@ -3661,7 +3661,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                     queueMultiSequenceCommand(mainSeq, myMsg)
                     devObj.each { dev-> 
                         def child = getChildDevice((String)dev.dni)
-                        child.finishAnnounce(origMsg)
+                        child.finishAnnounce(origMsg, volume, restoreVolume)
                     }
                 }
 
