@@ -16,8 +16,8 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.0.9.1'
-@Field static final String appModifiedFLD = '2021-03-10'
+@Field static final String appVersionFLD  = '4.0.9.2'
+@Field static final String appModifiedFLD = '2021-03-12'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = true
@@ -1543,6 +1543,7 @@ void wsEvtHandler(evt) {
         List<String> trigs = evt.triggers
         if("bluetooth" in trigs) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
         if("activity" in trigs) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
+        if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
         if(evt.all == true) {
             getEsDevices()?.each { eDev->
                 if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) } }
@@ -2512,6 +2513,50 @@ private getOtherData() {
     // def bb=getAllDeviceVolumes()
     // getCustomerData()
     // getAlexaSkills()
+}
+
+void getNotificationsRunIn(){
+    getNotifications(true)
+}
+
+//private List getNotifications(String type="Reminder", all=false) {
+private void getNotifications(Boolean frc = false, String type="Reminder", Boolean all=false) {
+    Integer lastU = getLastTsValSecs("notificationsUpdDt")
+    if( (frc && lastU < 9)) { return }
+    if( (!frc && (Boolean)state.websocketActive && state.notifications && lastU < 10800) ) { return }
+    if(!isAuthValid("getNotifications")) { return }
+    updTsVal("notificationsUpdDt")
+    Map params = [
+        uri: getAmazonUrl(),
+        path: "/api/notifications",
+        query: [cached: true],
+        headers: getCookieMap(),
+        contentType: sAPPJSON,
+        timeout: 20,
+    ]
+    try {
+        logTrace('getNotifications')
+        def sData
+        List newList = []
+        httpGet(params) { response->
+            sData = response?.data ?: null
+            // log.trace "notifications: $sData"
+        }
+        if(sData?.size()) {
+            List s = ["ON"]
+            if(all) s.push("OFF")
+            List items = sData.notifications ? sData.notifications.findAll { it.status in s /* && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber  */ } : []
+            items?.each { item->
+                Map li = [:]
+                item.keySet()?.each { String key-> if(key in ['id', 'reminderLabel', 'createdDate', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'remainingTime', 'status']) { li[key] = item[key] } }
+                newList?.push(li)
+            }
+        }
+        // log.trace "notifications: $newList"
+        state.notifications=newList
+    } catch (ex) {
+        respExceptionHandler(ex, "getNotifications")
+    }
 }
 
 void getBluetoothRunIn(){
