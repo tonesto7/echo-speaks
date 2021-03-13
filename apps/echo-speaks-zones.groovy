@@ -1016,6 +1016,7 @@ Map conditionStatus() {
     List skipped = []
     Boolean ok = true
     if((Boolean)state.dupPendingSetup) ok = false
+    if(!settings.zone_EchoDevices) ok = false
     Integer cndSize
     if(ok) {
         [sTIME, "date", "location", "device"]?.each { i->
