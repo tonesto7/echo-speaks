@@ -139,6 +139,7 @@ def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBldBr(app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
+    str += lineBr() + getConditionsDesc(false)
     section() { paragraph divSm(str, sCLRGRY) }
 }
 
@@ -226,7 +227,7 @@ def mainPage() {
                 }
                 section(sectHead("Configuration: Part 3")) {
                     if((String)settings.actionType && trigConf) {
-                        href "conditionsPage", title: inTS1("Conditions/Restrictions", "conditions") + optPrefix(), description: spanSm(getConditionsDesc(true), sCLR4D9)
+                        href "conditionsPage", title: inTS1("Conditions/Restrictions", "conditions") + optPrefix(), description: divSm(getConditionsDesc(true), sCLR4D9)
                     } else { paragraph spanBld("These options will be shown once the triggers are configured.", sNULL, getAppImg("info")) }
                 }
                 section(sectHead("Configuration: Part 4")) {
@@ -806,12 +807,13 @@ Boolean triggersConfigured() {
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
-        // String a = getConditionsDesc(false)
-        // if(a) {
+        String a = getConditionsDesc(false)
+        if(a) {
+            section() { paragraph divSm(a, sCLRGRY) }
         //     section() {
         //         paragraph spanSm(a, sCLR4D9)
         //     }
-        // }
+        }
         Boolean multiConds = multipleConditions()
         section() {
             if(multiConds) {
@@ -4718,8 +4720,8 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
 String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
+    String str = spanSmBld("Action is ")  + spanSm((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok)
     if(confd) {
-        String str = spanSmBldBr("Conditions Status: " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if(timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
@@ -4762,10 +4764,10 @@ String getConditionsDesc(Boolean addFoot=true) {
             }
         }
         str += addFoot ? inputFooter(sTTM) : sBLANK
-        return str
     } else {
-        return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
+        str += addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
     }
+    return str
 }
 
 static String attUnit(String attr) {
