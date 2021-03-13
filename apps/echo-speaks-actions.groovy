@@ -666,7 +666,7 @@ def triggersPage() {
 
 def handleCodeSect(String typ, String lbl) {
     Map<String, Map> lockCodes = getCodes((List)settings."trig_${typ}")
-    log.debug "lockCodes: ${lockCodes}"
+    //log.debug "lockCodes: ${lockCodes}"
     if(lockCodes) {
         Map codeOpts = lockCodes.collectEntries { [((String)it.key): it.value?.name ? "Name: "+ (String)it.value.name : "Code Number ${(String)it.key}: (${(String)it.value?.code})"] }
         input "trig_${typ}_Codes", sENUM, title: inTS1("Filter ${lbl} codes...", sCOMMAND), options: codeOpts, multiple: true, required: false, submitOnChange: true
@@ -3492,7 +3492,7 @@ static Integer durationToHours(dur) {
 }
 
 private List decamelizeStr(String str) {
-    return (List) str.split("(?<!(^|[A-Z]))(?=[A-Z])|(?<!^)(?=[A-Z][a-z])");
+    return (List) str.split("(?<!(^|[A-Z]))(?=[A-Z])|(?<!^)(?=[A-Z][a-z])")
 }
 
 String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
@@ -4297,7 +4297,7 @@ public List webCoRE_list(String mode){
 }
 
 public getPistonByName(String pistonIdOrName) {
-    String i=(webCoREFLD?.pistons ?: []).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id;
+    String i=(webCoREFLD?.pistons ?: []).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id
 }
 
 String getPistonById(String rId) {
@@ -4309,11 +4309,11 @@ String getPistonById(String rId) {
 public  webCoRE_handler(evt){
     switch(evt.value){
       case 'pistonList':
-        List p=webCoREFLD?.pistons ?: [];
-        Map d=evt.jsonData?:[:];
+        List p=webCoREFLD?.pistons ?: []
+        Map d=evt.jsonData?:[:]
         if(d.id && d.pistons && (d.pistons instanceof List)){
-            p.removeAll{it.iid==d.id};
-            p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name};
+            p.removeAll{it.iid==d.id}
+            p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name}
             def a = webCoREFLD?.cbk
 
             Boolean aa = getTheLock(sHMLF, "webCoRE_Handler")
@@ -5001,10 +5001,10 @@ public Map getLogConfigs() {
     ]
 }
 
-public void enableDebugLog() { settingUpdate("logDebug", sTRUE, sBOOL); logInfo("Debug Logs Enabled From Main App..."); }
-public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInfo("Debug Logs Disabled From Main App..."); }
-public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App..."); }
-public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App..."); }
+public void enableDebugLog() { settingUpdate("logDebug", sTRUE, sBOOL); logInfo("Debug Logs Enabled From Main App...") }
+public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInfo("Debug Logs Disabled From Main App...") }
+public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App...") }
+public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App...") }
 
 private void logDebug(String msg) { if((Boolean)settings.logDebug) { log.debug logPrefix(msg, "purple") } }
 private void logInfo(String msg) { if((Boolean)settings.logInfo != false) { log.info sSPACE + logPrefix(msg, "#0299b1") } }
