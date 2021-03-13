@@ -243,7 +243,7 @@ String getEchoSerial() { return (String)state.serialNumber ?: sNULL }
 String getEchoOwner() { return (String)state.deviceOwnerCustomerId ?: sNULL }
 String getEchoAccountId() { return (String)state.deviceAccountId ?: sNULL }
 
-Map getEchoDevInfo(cmd) {
+Map getEchoDevInfo(String cmd) {
     if(isCommandTypeAllowed(cmd)) {
 	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
     }
@@ -299,18 +299,28 @@ Boolean isAuthOk(Boolean noLogs=false) {
 
 Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
     if(isZone()) return true
-    Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
-    if(!isOnline) { if(!noLogs) { logWarn("Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})", true) }; return false }
+
+    if(!type) { if(!noLogs) { logWarn("Invalid Permissions Type Received: ${type}", true) }; return false }
+
     if(!isAuthOk(noLogs)) { return false }
     if(!getAmazonDomain()) { if(!noLogs) { logWarn("amazonDomain State Value Missing: ${getAmazonDomain()}", true) }; return false }
     if(!state.cookie || !state.cookie.cookie || !state.cookie.csrf) { if(!noLogs) { logWarn("Amazon Cookie State Values Missing: ${state.cookie}", true) }; setAuthState(false); return false }
     if(!(String)state.serialNumber) { if(!noLogs) { logWarn("SerialNumber State Value Missing: ${(String)state.serialNumber}", true) }; return false }
     if(!(String)state.deviceType) { if(!noLogs) { logWarn("DeviceType State Value Missing: ${(String)state.deviceType}", true) }; return false }
     if(!(String)state.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${(String)state.deviceOwnerCustomerId}", true) }; return false }
+
+    Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
+    if(!isOnline) {
+        if(!noLogs) { logWarn("Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})", true) }
+        triggerDataRrsh("found offline", true)
+        return false
+    }
+
     if(state.isSupportedDevice == false) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
-    if(!type) { if(!noLogs) { logWarn("Invalid Permissions Type Received: ${type}", true) }; return false }
     if(state.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state.permissions}", true) }; return false }
+
     if(device?.currentValue("doNotDisturb") == sTRUE && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
+
     if(state.permissions.containsKey(type) && state.permissions[type] == true) { return true }
     else {
         String warnMsg = sNULL
@@ -390,7 +400,7 @@ Boolean permissionOk(String type) {
 void updateDeviceStatus(Map devData) {
     Boolean isOnline = false
     if(devData.size()) {
-        isOnline = (devData.online != false)
+        isOnline = (Boolean)devData.online
         // log.debug "isOnline: ${isOnline}"
         // log.debug "deviceFamily: ${devData?.deviceFamily} | deviceType: ${devData?.deviceType}"  // UNCOMMENT to identify unidentified devices
 
