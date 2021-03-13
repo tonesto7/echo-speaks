@@ -1784,7 +1784,7 @@ String getConditionsDesc(Boolean addFoot=true) {
     String sPre = "cond_"
     String str = sBLANK
     if(confd) {
-        str = spanSmBld("Zone is ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+        str = getOverallDesc()
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if((Boolean)timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
