@@ -124,7 +124,7 @@ def appInfoSect()	{
     String str = spanBldBr(app.name, "black", "es_groups")
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
-    str += lineBr() + getConditionsDesc(false)
+    str += lineBr() + getOverallDesc()
     section() { paragraph divSm(str, sCLRGRY) }
 }
 
@@ -1775,12 +1775,16 @@ String getNotifSchedDesc(Boolean min=false) {
     return (str != sBLANK) ? str : sNULL
 }
 
+String getOverallDesc() {
+    String str = spanSmBld("Zone is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active" : "Inactive" + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+}
+
 String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
-    String str = spanSmBld("Zone is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active" : "Inactive")
-//    String str = spanSmBldBr("Zone is " + (Boolean)conditionStatus().ok ? "Active" : "Inactive")
+    String str = sBLANK
     if(confd) {
+        str = spanSmBld("Zone is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active" : "Inactive" + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if((Boolean)timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
