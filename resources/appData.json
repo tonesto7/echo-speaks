@@ -2,22 +2,22 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "4.0.9.2"
+            "ver": "4.0.9.3"
         },
         "actionApp": {
-            "ver": "4.0.9.1"
+            "ver": "4.0.9.3"
         },
         "zoneApp": {
-            "ver": "4.0.9.1"
+            "ver": "4.0.9.3"
         },
         "echoDevice": {
-            "ver": "4.0.9.1"
+            "ver": "4.0.9.3"
         },
         "zoneChildDevice": {
-            "ver": "4.0.9.1"
+            "ver": "4.0.9.3"
         },
         "wsDevice": {
-            "ver": "4.0.9.1"
+            "ver": "4.0.9.3"
         },
         "server": {
             "ver": "2.7.0"
