@@ -151,7 +151,7 @@ def mainPage() {
                 if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
                 Boolean condConf = conditionsConfigured()
                 section(sectHead("Zone Configuration:")) {
-                    href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: (condConf ? divSm(getConditionsDesc(true), sCLR4D9):sBLANK)
+                    href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: divSm(getConditionsDesc(true), sCLR4D9)
                 }
 
                 if(condConf && settings.zone_EchoDevices) {
@@ -211,7 +211,7 @@ private echoDevicesInputByPerm(String type) {
     if(echoDevs?.size()) {
         Map eDevsMap = echoDevs?.collectEntries { [(it.getId()): [label: (String)it.getLabel(), lsd: (it.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
         Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
-        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: spanSm("Select the devices", sCLRGRY), multiple: true, required: true, submitOnChange: true, options: moptions
+        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: spanSm("Select the devices", sCLRGRY), options: moptions, multiple: true, required: true, submitOnChange: true
 
         // updDeviceInputs()
     } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
@@ -289,10 +289,7 @@ def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
         String a = getConditionsDesc(false)
         if(a) {
-            section() { paragraph divSm(a, sCLRGRY) }
-/*            section() {
-                paragraph pTS(a, sNULL, false, sCLR4D9)
-            } */
+            section() { paragraph divSm(a, sCLR4D9) }
         }
         Boolean multiConds = multipleConditions()
         section() {
