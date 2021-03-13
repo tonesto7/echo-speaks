@@ -124,6 +124,7 @@ def appInfoSect()	{
     String str = spanBldBr(app.name, "black", "es_groups")
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
+    str += lineBr() + getOverallDesc()
     section() { paragraph divSm(str, sCLRGRY) }
 }
 
@@ -142,29 +143,34 @@ def mainPage() {
                 paragraph spanSmBlr("This Zone is currently disabled...<br>To edit the please re-enable it.", sCLRRED, "pause_orange")
             }
         } else {
-            if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
-            Boolean condConf = conditionsConfigured()
-            section(sectHead("Zone Configuration:")) {
-                href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: spanSm(getConditionsDesc(true), sCLR4D9)
-                if(condConf) { echoDevicesInputByPerm("announce") }
-            }
 
+            section(sectHead("Zone Devices:")) {
+                echoDevicesInputByPerm("announce")
+            }
             if(settings.zone_EchoDevices) {
-                section(sectHead("Condition Delays:")) {
-                    input "zone_active_delay", sNUMBER, title: inTS1("Delay Activation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
-                    input "zone_inactive_delay", sNUMBER, title: inTS1("Delay Deactivation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+                Boolean condConf = conditionsConfigured()
+                section(sectHead("Zone Configuration:")) {
+                    href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: divSm(getConditionsDesc(true), sCLR4D9)
                 }
-                section(sectHead("Control Switches on Zone Active (Optional):")) {
-                    input "zone_active_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                    input "zone_active_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                }
-                section(sectHead("Control Switches on Zone Inactive (Optional):")) {
-                    input "zone_inactive_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                    input "zone_inactive_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                }
-                section(sectHead("Notifications:")) {
-                    def t0 = getAppNotifDesc()
-                    href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sNULL, true)
+
+                if(condConf && settings.zone_EchoDevices) {
+                    section(sectHead("Condition Delays:")) {
+                        input "zone_active_delay", sNUMBER, title: inTS1("Delay Activation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                        input "zone_inactive_delay", sNUMBER, title: inTS1("Delay Deactivation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                    }
+                    section(sectHead("Control Switches on Zone Active (Optional):")) {
+                        input "zone_active_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                        input "zone_active_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                    }
+                    section(sectHead("Control Switches on Zone Inactive (Optional):")) {
+                        input "zone_inactive_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                        input "zone_inactive_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                    }
+                    section(sectHead("Notifications:")) {
+                        def t0 = getAppNotifDesc()
+                        href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sNULL, true)
+                    }
                 }
             }
             updConfigStatusMap()
@@ -179,10 +185,11 @@ def mainPage() {
             if((Boolean)state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true
                 input "createZoneDevice", sBOOL, title: inTS1("Create a Virtual Device for this Zone?", "question"), defaultValue: false, submitOnChange: true
+                input "forceAnnounce", sBOOL, title: inTS1("Convert Zone speak commands to announcements?", "question"), defaultValue: true, submitOnChange: true
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
-        log.debug "myZoneStatus: ${myZoneStatus()}"
+        //log.debug "myZoneStatus: ${myZoneStatus()}"
         if((Boolean) state.isInstalled) {
             section(sectHead("Name this Zone:")) {
                 input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true
@@ -283,9 +290,7 @@ def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
         String a = getConditionsDesc(false)
         if(a) {
-            section() {
-                paragraph pTS(a, sNULL, false, sCLR4D9)
-            }
+            section() { paragraph divSm(a, sCLR4D9) }
         }
         Boolean multiConds = multipleConditions()
         section() {
@@ -580,7 +585,7 @@ void handleZoneDevice() {
 
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == true }
+    return getChildDevices()?.findAll { !(Boolean)it?.isWS() && (Boolean)it?.isZone() }
 }
 
 void updateChildZoneState(Boolean zoneActive, Boolean active) {
@@ -593,7 +598,7 @@ void updateChildZoneState(Boolean zoneActive, Boolean active) {
 *******************************************************************/
 String relayDevVersion() {
     String a
-    getEsDevices().each { if(!a) a = it.devVersion() }
+    getEsDevices().each { a = it.devVersion() }
     return a
 }
 
@@ -669,7 +674,7 @@ private void processDuplication() {
     if(dupData && dupData.state?.size()) {
         dupData.state.each { String k,v-> state[k] = v }
     }
-
+/*
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
            if((String)v.type in [sENUM]) settingRemove(k)
@@ -688,7 +693,7 @@ private void processDuplication() {
 
            } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
-    }
+    } */
 
     parent.childAppDuplicationFinished("zones", dupSrcId)
     sendZoneStatus()
@@ -1012,6 +1017,7 @@ Map conditionStatus() {
     List skipped = []
     Boolean ok = true
     if((Boolean)state.dupPendingSetup) ok = false
+    if(!settings.zone_EchoDevices) ok = false
     Integer cndSize
     if(ok) {
         [sTIME, "date", "location", "device"]?.each { i->
@@ -1254,7 +1260,7 @@ public zoneRefreshHandler(evt) {
 
 /*
  * handle commands sent to a zone
- * caller could be actions (a broadcast location event) (speak and announce are not handled this way)
+ * caller could be actions (a broadcast location event) (actions calls parent for speak or announce to combine across zones)
  *   or a zone device handler (calling its parent)
  */
 
@@ -1282,7 +1288,12 @@ public zoneCmdHandler(evt) {
         }
         Integer delay = data.delay ?: null
 
-        if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" } // FORCES speak to be announcement
+        if(cmd == "speak" && zoneDevs?.size() >= 2) {
+            Boolean fA = true
+            if(settings.forceAnnounce != null) fA = (Boolean)settings.forceAnnounce
+            if(fA) cmd = "announcement"
+        }
+
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
         if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
 
@@ -1764,11 +1775,16 @@ String getNotifSchedDesc(Boolean min=false) {
     return (str != sBLANK) ? str : sNULL
 }
 
+String getOverallDesc() {
+    String str = spanSmBld("Zone is ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+}
+
 String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
+    String str = sBLANK
     if(confd) {
-        String str = spanSmBldBr("Zone is " + (Boolean)conditionStatus().ok ? "Active" : "Inactive")
+        str = getOverallDesc()
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if((Boolean)timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
@@ -1810,10 +1826,10 @@ String getConditionsDesc(Boolean addFoot=true) {
             }
         }
         str += addFoot ? inputFooter(sTTM) : sBLANK
-        return str
     } else {
-        return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
+        str += addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
     }
+    return str
 }
 
 String getZoneDesc() {
