@@ -124,6 +124,7 @@ def appInfoSect()	{
     String str = spanBldBr(app.name, "black", "es_groups")
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
+    str += lineBr() + getConditionsDesc(false)
     section() { paragraph divSm(str, sCLRGRY) }
 }
 
@@ -142,29 +143,34 @@ def mainPage() {
                 paragraph spanSmBlr("This Zone is currently disabled...<br>To edit the please re-enable it.", sCLRRED, "pause_orange")
             }
         } else {
-            if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
-            Boolean condConf = conditionsConfigured()
-            section(sectHead("Zone Configuration:")) {
-                href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: spanSm(getConditionsDesc(true), sCLR4D9)
-                if(condConf) { echoDevicesInputByPerm("announce") }
-            }
 
+            section(sectHead("Zone Devices:")) {
+                echoDevicesInputByPerm("announce")
+            }
             if(settings.zone_EchoDevices) {
-                section(sectHead("Condition Delays:")) {
-                    input "zone_active_delay", sNUMBER, title: inTS1("Delay Activation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
-                    input "zone_inactive_delay", sNUMBER, title: inTS1("Delay Deactivation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+                Boolean condConf = conditionsConfigured()
+                section(sectHead("Zone Configuration:")) {
+                    href "conditionsPage", title: inTS1("Zone Activation Conditions", "conditions") + optPrefix(), description: (condConf ? divSm(getConditionsDesc(true), sCLR4D9):sBLANK)
                 }
-                section(sectHead("Control Switches on Zone Active (Optional):")) {
-                    input "zone_active_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                    input "zone_active_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                }
-                section(sectHead("Control Switches on Zone Inactive (Optional):")) {
-                    input "zone_inactive_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                    input "zone_inactive_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-                }
-                section(sectHead("Notifications:")) {
-                    def t0 = getAppNotifDesc()
-                    href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sNULL, true)
+
+                if(condConf && settings.zone_EchoDevices) {
+                    section(sectHead("Condition Delays:")) {
+                        input "zone_active_delay", sNUMBER, title: inTS1("Delay Activation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                        input "zone_inactive_delay", sNUMBER, title: inTS1("Delay Deactivation (In Seconds)", "delay_time") + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                    }
+                    section(sectHead("Control Switches on Zone Active (Optional):")) {
+                        input "zone_active_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                        input "zone_active_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Active", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                    }
+                    section(sectHead("Control Switches on Zone Inactive (Optional):")) {
+                        input "zone_inactive_switches_on", "capability.switch", title: inTS1("Turn on Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                        input "zone_inactive_switches_off", "capability.switch", title: inTS1("Turn off Switches when Zone Inactive", sSWITCH) + optPrefix(), description: inputFooter(sTTC, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
+                    }
+                    section(sectHead("Notifications:")) {
+                        def t0 = getAppNotifDesc()
+                        href "zoneNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sNULL, true)
+                    }
                 }
             }
             updConfigStatusMap()
@@ -182,7 +188,7 @@ def mainPage() {
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
-        log.debug "myZoneStatus: ${myZoneStatus()}"
+        //log.debug "myZoneStatus: ${myZoneStatus()}"
         if((Boolean) state.isInstalled) {
             section(sectHead("Name this Zone:")) {
                 input "appLbl", sTEXT, title: inTS1("Zone Name", "name_tag"), description: sBLANK, required:true, submitOnChange: true
@@ -205,7 +211,7 @@ private echoDevicesInputByPerm(String type) {
     if(echoDevs?.size()) {
         Map eDevsMap = echoDevs?.collectEntries { [(it.getId()): [label: (String)it.getLabel(), lsd: (it.currentWasLastSpokenToDevice?.toString() == sTRUE)]] }?.sort { a,b -> b?.value?.lsd <=> a?.value?.lsd ?: a?.value?.label <=> b?.value?.label }
         Map moptions =  eDevsMap?.collectEntries { [(it.key.toString()): "${it?.value?.label}${(it?.value?.lsd == true) ? " (Last Spoken To)" : sBLANK}".toString()] }
-        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: spanSm("Select the devices", sCLRGRY), options: moptions, multiple: true, required: true, submitOnChange: true
+        input "zone_EchoDevices", sENUM, title: inTS1("Echo Devices in Zone", "echo_gen1"), description: spanSm("Select the devices", sCLRGRY), multiple: true, required: true, submitOnChange: true, options: moptions
 
         // updDeviceInputs()
     } else { paragraph spanSmBld("No devices were found with support for ($type)", sCLRRED) }
@@ -283,9 +289,10 @@ def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
         String a = getConditionsDesc(false)
         if(a) {
-            section() {
+            section() { paragraph divSm(a, sCLRGRY) }
+/*            section() {
                 paragraph pTS(a, sNULL, false, sCLR4D9)
-            }
+            } */
         }
         Boolean multiConds = multipleConditions()
         section() {
@@ -1767,8 +1774,9 @@ String getNotifSchedDesc(Boolean min=false) {
 String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
+    String str = spanSmBld("Zone is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active" : "Inactive")
+//    String str = spanSmBldBr("Zone is " + (Boolean)conditionStatus().ok ? "Active" : "Inactive")
     if(confd) {
-        String str = spanSmBldBr("Zone is " + (Boolean)conditionStatus().ok ? "Active" : "Inactive")
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if((Boolean)timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
@@ -1810,10 +1818,10 @@ String getConditionsDesc(Boolean addFoot=true) {
             }
         }
         str += addFoot ? inputFooter(sTTM) : sBLANK
-        return str
     } else {
-        return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
+        str += addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
     }
+    return str
 }
 
 String getZoneDesc() {
