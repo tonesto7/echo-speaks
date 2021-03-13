@@ -139,7 +139,7 @@ def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBldBr(app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
-    str += lineBr() + getConditionsDesc(false)
+    str += lineBr() + getOverallDesc()
     section() { paragraph divSm(str, sCLRGRY) }
 }
 
@@ -4717,11 +4717,16 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     }
 }
 
+String getOverallDesc() {
+    String str = spanSmBld("Action is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active " : "Inactive " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+}
+
 String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
-    String str = spanSmBld("Action is ")  + spanSm((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok)
+    String str = sBLANK
     if(confd) {
+        str = spanSmBld("Action is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active " : "Inactive " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if(timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
