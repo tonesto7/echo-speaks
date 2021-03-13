@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = '4.0.9.1'
-@Field static final String appModifiedFLD = '2021-03-10'
+@Field static final String appVersionFLD  = '4.0.9.3'
+@Field static final String appModifiedFLD = '2021-03-13'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -139,6 +139,7 @@ def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBldBr(app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
+    str += lineBr() + getOverallDesc()
     section() { paragraph divSm(str, sCLRGRY) }
 }
 
@@ -226,7 +227,7 @@ def mainPage() {
                 }
                 section(sectHead("Configuration: Part 3")) {
                     if((String)settings.actionType && trigConf) {
-                        href "conditionsPage", title: inTS1("Conditions/Restrictions", "conditions") + optPrefix(), description: spanSm(getConditionsDesc(true), sCLR4D9)
+                        href "conditionsPage", title: inTS1("Conditions/Restrictions", "conditions") + optPrefix(), description: divSm(getConditionsDesc(true), sCLR4D9)
                     } else { paragraph spanBld("These options will be shown once the triggers are configured.", sNULL, getAppImg("info")) }
                 }
                 section(sectHead("Configuration: Part 4")) {
@@ -806,12 +807,13 @@ Boolean triggersConfigured() {
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
-        // String a = getConditionsDesc(false)
-        // if(a) {
+        String a = getConditionsDesc(false)
+        if(a) {
+            section() { paragraph divSm(a, sCLRGRY) }
         //     section() {
         //         paragraph spanSm(a, sCLR4D9)
         //     }
-        // }
+        }
         Boolean multiConds = multipleConditions()
         section() {
             if(multiConds) {
@@ -875,7 +877,7 @@ def conditionsPage() {
             input "cond_${inType}", "capability.thermostat", title: inTS1(devTitle, "thermostat"), multiple: true, submitOnChange: true, required:false
             if (settings."cond_${inType}") {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-                if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
+                if (settings."cond_${inType}"?.size() > 1 && settings."cond_${inType}_cmd"?.size() == 1) {
                     input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                 } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL)
             }
@@ -888,7 +890,7 @@ def conditionsPage() {
             input "cond_${inType}", "capability.thermostat", title: inTS1(devTitle, "thermostat"), multiple: true, submitOnChange: true, required:false
             if (settings."cond_${inType}") {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-                if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
+                if (settings."cond_${inType}"?.size() > 1 && settings."cond_${inType}_cmd"?.size() == 1) {
                     input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                 } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL)
             }
@@ -1934,11 +1936,13 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
                 }
             }
             section(sectHead("Volume Options:")) {
-                if(volMapSiz > 0 && volMapSiz < devSiz) { paragraph spanSmBld("NOTICE:<br>Some of the selected devices do not support volume control", sCLRORG) }
-                else if(devSiz == volMapSiz) { paragraph spanSmBld("Some of the selected devices do not support volume control", sCLRORG); return }
-                input "act_volume_change", sNUMBER, title: inTS1("Volume Level (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
-                if(!showVolOnly) { 
-                    input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true 
+                if(devSiz == volMapSiz) { paragraph spanSmBld("None of the selected devices support volume control", sCLRORG) }
+                else {
+                    if(volMapSiz > 0 && volMapSiz < devSiz) { paragraph spanSmBld("NOTICE:<br>Some of the selected devices do not support volume control", sCLRORG) }
+                    input "act_volume_change", sNUMBER, title: inTS1("Volume Level (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
+                    if(!showVolOnly) {
+                        input "act_volume_restore", sNUMBER, title: inTS1("Restore Volume (0% - 100%)", "speed_knob") + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
+                    }
                 }
             }
         }
@@ -2081,7 +2085,7 @@ private void processDuplication() {
     if(dupData && dupData.state?.size()) {
         dupData.state.each { String k,v-> state[k] = v }
     }
-
+/*
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
             if((String)v.type in [sENUM]) settingRemove(k)
@@ -2098,7 +2102,8 @@ private void processDuplication() {
                 if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
            } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
-    }
+    } */
+
     parent.childAppDuplicationFinished("actions", dupSrcId)
     logInfo("Duplicated Action has been created... Please open action and configure to complete setup...")
 }
@@ -4712,11 +4717,16 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     }
 }
 
+String getOverallDesc() {
+    String str = spanSmBld("Action is ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+}
+
 String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
+    String str = sBLANK
     if(confd) {
-        String str = spanSmBldBr("Conditions Status: " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+        str = getOverallDesc()
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if(timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
@@ -4759,10 +4769,10 @@ String getConditionsDesc(Boolean addFoot=true) {
             }
         }
         str += addFoot ? inputFooter(sTTM) : sBLANK
-        return str
     } else {
-        return addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
+        str += addFoot ? inputFooter(sTTC, sCLRGRY, true) : sBLANK
     }
+    return str
 }
 
 static String attUnit(String attr) {
