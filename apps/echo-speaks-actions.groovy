@@ -875,7 +875,7 @@ def conditionsPage() {
             input "cond_${inType}", "capability.thermostat", title: inTS1(devTitle, "thermostat"), multiple: true, submitOnChange: true, required:false
             if (settings."cond_${inType}") {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-                if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
+                if (settings."cond_${inType}"?.size() > 1 && settings."cond_${inType}_cmd"?.size() == 1) {
                     input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                 } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL)
             }
@@ -888,7 +888,7 @@ def conditionsPage() {
             input "cond_${inType}", "capability.thermostat", title: inTS1(devTitle, "thermostat"), multiple: true, submitOnChange: true, required:false
             if (settings."cond_${inType}") {
                 input "cond_${inType}_cmd", sENUM, title: inTS1("${devTitle} is...", sCOMMAND), options: cmdOpts, multiple: true, required: true, submitOnChange: true
-                if (settings."cond_${inType}_cmd".size() == 1 && settings."cond_${inType}"?.size() > 1) {
+                if (settings."cond_${inType}"?.size() > 1 && settings."cond_${inType}_cmd"?.size() == 1) {
                     input "cond_${inType}_all", sBOOL, title: inTS1("ALL ${devTitle} must be (${settings."cond_${inType}_cmd"})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                 } else settingUpdate("cond_${inType}_all", sFALSE, sBOOL)
             }
