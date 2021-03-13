@@ -580,7 +580,7 @@ void handleZoneDevice() {
 
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == true }
+    return getChildDevices()?.findAll { !(Boolean)it?.isWS() && (Boolean)it?.isZone() }
 }
 
 void updateChildZoneState(Boolean zoneActive, Boolean active) {
@@ -593,7 +593,7 @@ void updateChildZoneState(Boolean zoneActive, Boolean active) {
 *******************************************************************/
 String relayDevVersion() {
     String a
-    getEsDevices().each { if(!a) a = it.devVersion() }
+    getEsDevices().each { a = it.devVersion() }
     return a
 }
 
