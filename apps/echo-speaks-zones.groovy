@@ -185,6 +185,7 @@ def mainPage() {
             if((Boolean)state.isInstalled) {
                 input "zonePause", sBOOL, title: inTS1("Disable Zone?", "pause_orange"), defaultValue: false, submitOnChange: true
                 input "createZoneDevice", sBOOL, title: inTS1("Create a Virtual Device for this Zone?", "question"), defaultValue: false, submitOnChange: true
+                input "forceAnnounce", sBOOL, title: inTS1("Convert Zone speak commands to announcements?", "question"), defaultValue: true, submitOnChange: true
                 if((Boolean)settings.zonePause) { unsubscribe() }
             }
         }
@@ -1259,7 +1260,7 @@ public zoneRefreshHandler(evt) {
 
 /*
  * handle commands sent to a zone
- * caller could be actions (a broadcast location event) (speak and announce are not handled this way)
+ * caller could be actions (a broadcast location event) (actions calls parent for speak or announce to combine across zones)
  *   or a zone device handler (calling its parent)
  */
 
@@ -1287,7 +1288,12 @@ public zoneCmdHandler(evt) {
         }
         Integer delay = data.delay ?: null
 
-        if(cmd == "speak" && zoneDevs?.size() >= 2) { cmd = "announcement" } // FORCES speak to be announcement
+        if(cmd == "speak" && zoneDevs?.size() >= 2) {
+            Boolean fA = true
+            if(settings.forceAnnounce != null) fA = (Boolean)settings.forceAnnounce
+            if(fA) cmd = "announcement"
+        }
+
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
         if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
 
