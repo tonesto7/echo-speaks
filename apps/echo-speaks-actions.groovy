@@ -4718,7 +4718,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
 }
 
 String getOverallDesc() {
-    String str = spanSmBld("Action is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active " : "Inactive " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+    String str = spanSmBld("Action is ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
 }
 
 String getConditionsDesc(Boolean addFoot=true) {
@@ -4726,7 +4726,7 @@ String getConditionsDesc(Boolean addFoot=true) {
     String sPre = "cond_"
     String str = sBLANK
     if(confd) {
-        str = spanSmBld("Action is ")  + spanSmBr((Boolean)conditionStatus().ok ? "Active " : "Inactive " + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+        str = spanSmBld("Action is ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
         str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
         if(timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
