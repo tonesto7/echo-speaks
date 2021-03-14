@@ -638,8 +638,8 @@ public relaySeqCommand(String type, String command, value=null,  Map deviceData=
     parent.queueSequenceCommand(type, command, value, deviceData, device, callback)
 }
 
-public relaySpeakCommand(Map cmdMap, Map device, String callback) {
-    parent.sendSpeak(cmdMap, device, callback)
+public relaySpeakZone(String zoneId, String msg, Boolean parallel) {
+    parent.sendSpeakZone(zoneId, msg, parallel)
 }
 
 Boolean relayGetWWebSocketStatus() {
