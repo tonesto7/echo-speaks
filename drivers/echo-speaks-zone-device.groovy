@@ -2805,13 +2805,13 @@ private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=tru
     "q_lastTtsCmdDelay",
     "q_lastTtsMsg",
     "q_lastMsg",
-    "doNotDisturb"
+    "doNotDisturb",
+    "newVolume"
 ]
 
 private void stateCleanup() {
     // state.newVolume = null
     state.oldVolume = null
-//    if(state.lastVolume) { state?.oldVolume = state?.lastVolume }
     clnItemsFLD.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 }
 
