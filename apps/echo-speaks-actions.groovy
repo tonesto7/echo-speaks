@@ -2167,7 +2167,7 @@ Boolean getConfStatusItem(String item) {
 private void actionCleanup() {
     stateMapMigration()
     // State Cleanup
-    //ERS
+
     // keep actionExecMap configStatusMap schedTrigMap
     List items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive", "zoneStatusMap"]
     updMemStoreItem("afterEvtMap", [:])
@@ -2486,7 +2486,7 @@ def scheduleTrigEvt(evt=null) {
     List weeks = recur ? settings.trig_scheduled_weeks : null
     List months = recur ? settings.trig_scheduled_months : null
 
-    //ERS
+
     Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
@@ -2583,7 +2583,7 @@ def modeEvtHandler(evt) {
 Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
 
 void afterEvtCheckWatcher() {
-    //ERS
+
     Boolean aa = getTheLock(sHMLF, "afterEvtCheckWatcher")
     // log.trace "lock wait: ${aa}"
 
@@ -2618,7 +2618,6 @@ void devAfterEvtHandler(evt) {
     logTrace( "Device Event | ${evntName?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
     Boolean rem = false
 
-    //ERS
     Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
@@ -2662,7 +2661,7 @@ void devAfterEvtHandler(evt) {
 }
 
 void afterEvtCheckHandler() {
-    //ERS
+
     Boolean aa = getTheLock(sHMLF, "afterEvtCheckHandler")
     // log.trace "lock wait: ${aa}"
     Map<String,Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
@@ -2856,7 +2855,7 @@ def deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
 
 private processTierTrigEvt(evt, Boolean evtOk) {
     logDebug("processTierTrigEvt | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
-    //ERS
+
     Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
@@ -3054,7 +3053,7 @@ static String evtValueCleanup(val) {
 
 private clearEvtHistory() {
     settingUpdate("clrEvtHistory", sFALSE, sBOOL)
-    //ERS
+
     Boolean aa = getTheLock(sHMLF, "clearEvtHistory")
     // log.trace "lock wait: ${aa}"
     updMemStoreItem("valEvtHistory", [:])
@@ -3064,7 +3063,7 @@ private clearEvtHistory() {
 
 Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean ok = true
-    //ERS
+
     Long dur
     Boolean waitOk
     Boolean dayOk
@@ -3124,7 +3123,7 @@ def scheduleAfterCheck(data) {
     Integer val = data?.val ? (data.val < 2 ? 2 : data.val-4) : 60
     String id = data?.id?.toString() ?: null
     Boolean rep = (data?.repeat == true)
-    //ERS
+
     Boolean aa = getTheLock(sHMLF, "scheduleafterCheck")
     // log.trace "lock wait: ${aa}"
     Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
@@ -3147,7 +3146,7 @@ private clearAfterCheckSchedule() {
     unschedule("afterEvtCheckHandler")
     state.afterEvtCheckWatcherSched = false
     logDebug("Clearing After Event Check Schedule...")
-    //ERS
+
     Boolean aa = getTheLock(sHMLF, "clearAfterCheckSchedule")
     // log.trace "lock wait: ${aa}"
     Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
@@ -4717,14 +4716,15 @@ String getConditionsDesc(Boolean addFoot=true) {
         }
         if(dateCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Date:")
-            str += settings.cond_days    ? spanSmBr("    - Days Allowed: " + getOkOrNotSymHTML(isDayOfWeek(settings.cond_days))) : sBLANK
-            str += settings.cond_months  ? spanSmBr("    - Months Allowed: " + getOkOrNotSymHTML(isMonthOfYear(settings.cond_months)))  : sBLANK
+            str += settings.cond_days    ? spanSmBr("    - Days Allowed: ${settings.cond_days} " + getOkOrNotSymHTML(isDayOfWeek(settings.cond_days))) : sBLANK
+            str += settings.cond_months  ? spanSmBr("    - Months Allowed: ${settings.cond_months} " + getOkOrNotSymHTML(isMonthOfYear(settings.cond_months)))  : sBLANK
         }
         if(settings.cond_alarm || (settings.cond_mode)) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
-            str += settings.cond_alarm ? spanSmBr("    - Alarm Modes Allowed: " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
+            String a = location?.hsmStatus ?: "disarmed"
+            str += settings.cond_alarm ? spanSmBr("    - Alarm Mode ${a} in: ${settings.cond_alarm} " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
             Boolean not = (settings.cond_mode_cmd == "not")
-            str += settings.cond_mode ? spanSmBr("    - Allowed Modes (${not ? "not in" : "in"}): " + getOkOrNotSymHTML(isInMode(settings.cond_mode, not))) : sBLANK
+            str += settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${settings.cond_mode} " + getOkOrNotSymHTML(isInMode(settings.cond_mode, not))) : sBLANK
         }
 
         if(deviceCondConfigured()) {
@@ -4734,7 +4734,13 @@ String getConditionsDesc(Boolean addFoot=true) {
                     if(evt in [sSWITCH, sMOTION, "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water", "thermostatMode", "thermostatOperatingState" ]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in [sBATT, sTEMP, "illuminance", sLEVEL, "power", sHUMID, "coolingSetpoint", "heatingSetpoint", "thermostatTemperature"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings."${sPre}${evt}" ? spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) " + getOkOrNotSymHTML(condOk)) : sBLANK
+                    List devs = settings."${sPre}${evt}" ?: null
+                    if(devs){
+                        List myV = []
+                        if(!addFoot) devs.each { dev -> myV.push(it?."current${evt.capitalize()}") }
+                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size() ${!addFoot ? myV : sBLANK}}) " + getOkOrNotSymHTML(condOk))
+                    }
+
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
