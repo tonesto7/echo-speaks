@@ -639,7 +639,7 @@ public relaySeqCommand(String type, String command, value=null,  Map deviceData=
 }
 
 public relaySpeakZone(String zoneId, String msg, Boolean parallel) {
-    parent.sendSpeakZone(zoneId, msg, parallel)
+    parent.sendZoneSpeak(zoneId, msg, parallel)
 }
 
 Boolean relayGetWWebSocketStatus() {
