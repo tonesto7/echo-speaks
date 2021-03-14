@@ -4123,7 +4123,7 @@ Integer getMsgDur(String command, String type, String tv){
         Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
         if(isSSML) nstr = nstr[7..-9]
         isSSML = (isSSML || command == 'ssml')
-        String actMsg = cleanString(isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : nstr)
+        String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : cleanString(nstr)
         Integer msgLen = actMsg.length()
         del = calcDelay(msgLen)
         //logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
