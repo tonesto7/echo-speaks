@@ -1797,9 +1797,10 @@ String getConditionsDesc(Boolean addFoot=true) {
         }
         if((List)settings.cond_alarm || (List)settings.cond_mode) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
-            str += settings.cond_alarm ? spanSmBr("    - Alarm Modes Allowed: " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
-            Boolean not = ((String)settings.cond_mode_cmd == "not")
-            str += (List)settings.cond_mode ? spanSmBr("    - Allowed Modes (${not ? "not in" : "in"}): " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
+            String a = location?.hsmStatus ?: "disarmed"
+            str += settings.cond_alarm ? spanSmBr("    - Alarm Mode ${a} in: ${settings.cond_alarm} " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
+            Boolean not = (settings.cond_mode_cmd == "not")
+            str += settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${settings.cond_mode} " + getOkOrNotSymHTML(isInMode(settings.cond_mode, not))) : sBLANK
         }
          if(deviceCondConfigured()) {
             [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power" ]?.each { String evt->
@@ -1808,7 +1809,13 @@ String getConditionsDesc(Boolean addFoot=true) {
                     if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water" ]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings."${sPre}${evt}" ? spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) " + getOkOrNotSymHTML(condOk)) : sBLANK
+                    List devs = settings."${sPre}${evt}" ?: null
+                    if(devs){
+                        List myV = []
+                        if(!addFoot) devs.each { dev -> myV.push(it?."current${evt.capitalize()}") }
+                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size() ${!addFoot ? myV : sBLANK}}) " + getOkOrNotSymHTML(condOk))
+                    }
+
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
