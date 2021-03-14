@@ -168,9 +168,7 @@ if(!isZone()) {
         command "disconnectBluetooth"
         command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
 }
-if(isZone()) {
         command "parallelSpeak", [[name: "Message to Speak*", type: "STRING", description: ""]]
-}
         command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
     }
