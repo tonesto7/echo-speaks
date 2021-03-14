@@ -1922,14 +1922,15 @@ private Map validateMusicSearch(String searchPhrase, String providerId, sleepSec
 
 private Map getMusicSearchObj(String searchPhrase, String providerId, sleepSeconds=null) {
     if (searchPhrase == sBLANK) { logError("getMusicSearchObj Searchphrase empty"); return null }
-    Map validObj = [type: "Alexa.Music.PlaySearchPhrase", "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"]
+    Map validObj
     Map validResp = validateMusicSearch(searchPhrase, providerId, sleepSeconds)
-    if(validResp && validResp?.operationPayload) {
-        validObj?.operationPayload = validResp?.operationPayload
-    } else {
-        logError("Something went wrong with the Music Search | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
-        validObj = null
-    }
+    if(validResp?.operationPayload) {
+        validObj = [
+            type: "Alexa.Music.PlaySearchPhrase",
+            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            operationPayload: validResp.operationPayload
+        ]
+    } else logError("Something went wrong with the Music Search | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
     return validObj
 }
 
@@ -1937,13 +1938,13 @@ private void playMusicProvider(String searchPhrase, String providerId, volume=nu
     logTrace("playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
     Map validObj = getMusicSearchObj(searchPhrase, providerId, sleepSeconds)
     if(!validObj) { return }
-//    Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": validObj]
-//    seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
     List seqList = []
-    if(volume) seqList.push([command: "volume", value: volume])
-     seqList.push([command: validObj])
-     sendMultiSequenceCommand(seqList, "playMusicProvider(${providerId})", true)
-//    } else { sendSequenceCommand("playMusicProvider(${providerId})", seqJson, null) }
+    if(volume) {
+        seqList.push([command: "volume", value: volume, deviceData: getDeviceData()])
+        updateLevel(volume.toInteger(), null)
+    }
+    seqList.push([command: validObj])
+    sendMultiSequenceCommand(seqList, "playMusicProvider(${providerId})", true)
 }
 
 def setWakeWord(String newWord) {
