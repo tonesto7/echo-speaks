@@ -2976,7 +2976,7 @@ void checkGuardSupportServerResponse(response, data) {
             // log.debug "GuardSupport Server Response: ${resp}"
             if(resp) {
                 if(resp.guardData) {
-                    log.debug "AGS Server Resp: ${resp?.guardData}"
+                    logDebug("AGS Server Resp: ${resp?.guardData}")
                     state.alexaGuardData = resp.guardData
                     guardSupported = true
                 }
@@ -3686,7 +3686,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                 String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
                 newmsg = "${title ?: "Echo Speaks"}::${newmsg}::${zoneDevJson}"
             case "speak":
-                log.debug "sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume"
+                logDebug("sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
                 String myMsg = "sendDevObjCmd ${myCmd}"
                 if(volume != null) {
                     List mainSeqa = []
@@ -4112,7 +4112,7 @@ void workQ() {
         mmsg = "workQ wakeup requested in $ms ms ${now()}  ${nextOk}"
     }
     if(locked) releaseTheLock(sHMLF)
-    if(mmsg) log.debug(mmsg)
+    if(mmsg) logDebug(mmsg)
 }
 
 Integer getMsgDur(String command, String type, String tv){
