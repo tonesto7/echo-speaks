@@ -1768,7 +1768,7 @@ def voiceCmdAsText(String cmd) {
 
 public playAnnouncementAll(String msg, String title=sNULL) {
     if(isZone()) {
-        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncementAll', message: msg, title: sNULL, changeVol:null, restoreVol:null, delay:0]])
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncementAll', message: msg, title: title, changeVol:null, restoreVol:null, delay:0]])
     } else {
     // if(isCommandTypeAllowed("announce")) {
         msg = title ? title+"::"+msg : msg
