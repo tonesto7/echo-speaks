@@ -3622,6 +3622,36 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 /*
+ * send speak command to one zone
+ * caller is device handler via relay from zone app
+ */
+void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
+    List devObj = []
+    devObj = getZoneDevices([zoneId], "TTS")
+    String myMsg = "sendZoneSpeak"
+    devObj.each { dev ->
+        Map cmdMap = [
+            cmdDt: now(),
+            cmdDesc: "SpeakCommand",
+            message: msg,
+            //msgLen: newmsg.length(),
+            oldVolume: null,
+            newVolume: null
+        ] 
+        Map deviceData = [
+            serialNumber : dev.deviceSerialNumber,
+            deviceType: dev.deviceTypeId,
+            owner: dev.deviceOwnerCustomerId,
+            account: dev.deviceAccountId
+        ]
+
+        queueMultiSequenceCommand(
+            [ [command: 'sendspeak', value:msg, deviceData: deviceData] ],
+               myMsg+" to device ${dev.dni}", parallel, cmdMap, (String)dev.dni, "finishSendSpeak")
+    }
+}
+
+/*
  * send command to one or more zones (actually devices in one or more zones)
  * caller is actions;  typical operations are speak or announcement commands
  */
@@ -3768,7 +3798,7 @@ private Map getZoneState(String znId) {
  * will setup to call back the device handler when the command completes with status
  */
 
-void sendSpeak(Map cmdMap, Map deviceData, String device, String callback){
+void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boolean parallel=false){
     String nm = cmdMap.toString().tr('<', '&lt;').tr('>', '&gt;')
     logTrace("sendSpeak cmdMap: $nm  callback: $callback,  device: $device")
 
@@ -3785,7 +3815,7 @@ void sendSpeak(Map cmdMap, Map deviceData, String device, String callback){
     seqCmds.push([command: 'sendspeak', value:cmdMap.message, deviceData:deviceData])
     if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume, deviceData: deviceData]) }
 
-    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, cmdMap, device, callback)
+    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", parallel, cmdMap, device, callback)
 }
 
 void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
@@ -4027,7 +4057,7 @@ void workQ() {
             lmsg.push("workQ ms delay is $msSum".toString())
 
             if(seqObj) { break } // runs by itself
-            if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
+            // if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
         }
 
         if(seqList.size() > 0 || seqObj) {
