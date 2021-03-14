@@ -3939,6 +3939,7 @@ void workQ() {
         String srcDesc
         Map seqObj
         String command
+        Integer mdelay = 0
 
 // lets try to join commands in single request to Alexa
         while(eData.size()>0){
@@ -3975,7 +3976,7 @@ void workQ() {
 
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds)
-                    Integer mdelay = 0
+                    if(!parallel) mdelay = 0
                     seqCmds?.each { cmdItem->
                         //log.debug "cmdItem: $cmdItem"
                         if(cmdItem.command instanceof String){
@@ -4017,6 +4018,9 @@ void workQ() {
 
                 String tv  = value?.toString()
                 Integer del = getMsgDur(command, type, tv)
+                if(del) {
+                    if(parallel) mdelay = del > mdelay ? del : mdelay
+                }
                 if(del && !cmdMap) cmdMap = [ msgDelay: del ]
             }
 
@@ -4053,7 +4057,7 @@ void workQ() {
 
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
-            msSum += ms
+            msSum = parallel ? ms : msSum + ms
             lmsg.push("workQ ms delay is $msSum".toString())
 
             if(seqObj) { break } // runs by itself
