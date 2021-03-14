@@ -639,7 +639,7 @@ public relaySeqCommand(String type, String command, value=null,  Map deviceData=
 }
 
 public relaySpeakZone(String zoneId, String msg, Boolean parallel) {
-    parent.sendSpeakZone(zoneId, msg, parallel)
+    parent.sendZoneSpeak(zoneId, msg, parallel)
 }
 
 Boolean relayGetWWebSocketStatus() {
@@ -1342,7 +1342,11 @@ public zoneCmdHandler(evt) {
             case "alarmvolume":
             case "volume":
                 logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                if(data.changeVol != null) { dev?."${data.cmd}}"(data.changeVol) }
+                if(data.changeVol != null) {
+                    zoneDevs?.each { dev->
+                        dev?."${data.cmd}"(data.changeVol)
+                    }
+                }
                 break
 
             case "playback":
@@ -1813,20 +1817,22 @@ String getConditionsDesc(Boolean addFoot=true) {
                     if(devs){
                         List myV = []
                         if(!addFoot) devs.each { dev -> myV.push(it?."current${evt.capitalize()}") }
-                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size() ${!addFoot ? myV : sBLANK}}) " + getOkOrNotSymHTML(condOk))
+                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
                     }
 
+                    String a = "    - Desired Value: "
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr("    - Value: ( =${cmdEq}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "()" : sBLANK)) : sBLANK
-                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr("    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr("    - Value: ( >${cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sBELOW && cmdLow) ? spanSmBr("    - Value: ( <${cmdLow}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr(a+"(${cmdLow-cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr(a+"( >${cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? spanSmBr(a+"( <${cmdLow}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
                     } else {
-                        str += cmd ? spanSmBr("    - Value: (${cmd})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += cmd ? spanSmBr(a+"(${cmd})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+
                     }
                     str += (settings."${sPre}${evt}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                 }
