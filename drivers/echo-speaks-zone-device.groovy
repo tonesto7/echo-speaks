@@ -1529,26 +1529,26 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(volume, String msg) {
     logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-    if(volume != null && permissionOk("volumeControl")) {
+/*    if(volume != null && permissionOk("volumeControl")) {
         state.newVolume = volume
         state.oldVolume = null // does not put old value back
-    }
-    speak(msg)
+    } */
+    speak(msg, volume)
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, $restVolume) command received...")
     if(msg) {
-        if(volume != null && permissionOk("volumeControl")) {
-            state.newVolume = volume?.toInteger()
+        // if(volume != null && permissionOk("volumeControl")) {
+            // state.newVolume = volume?.toInteger()
             if(restVolume != null) {
                 state.oldVolume = restVolume as Integer
             } else {
                 state.oldVolume = null // clear out any junk
-                Boolean stored = mstoreCurrentVolume()
+                Boolean stored = mstoreCurrentVolume() // will set current volume for restore
             }
-        }
-        speak(msg)
+        // }
+        speak(msg, volume)
     }
 }
 
@@ -1559,7 +1559,7 @@ def storeCurrentVolume() {
 Boolean mstoreCurrentVolume(Boolean user=false) {
     Integer t0 = device?.currentValue("level")
     Integer curVol = t0 //  ?: 1
-    String msg = "storeCurrentVolume($user, $curVol)"
+    String msg = "storeCurrentVolume($user, $curVol) for restore"
     if(curVol != null) {
         if(user) state.svVolume = curVol
         else state.oldVolume = curVol
@@ -2625,7 +2625,8 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
         else {
-            def newvol = volume ?: (state.newVolume ?: null)
+            def newvol = volume ?: null
+            // def newvol = volume ?: (state.newVolume ?: null)
             def restvol = state.oldVolume ?: null
 
             if(isZone()) {
@@ -2643,7 +2644,7 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     } else {
         logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
     }
-    state.newVolume = null
+    // state.newVolume = null
     state.oldVolume = null
 }
 
@@ -2808,7 +2809,7 @@ private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=tru
 ]
 
 private void stateCleanup() {
-    state.newVolume = null
+    // state.newVolume = null
     state.oldVolume = null
 //    if(state.lastVolume) { state?.oldVolume = state?.lastVolume }
     clnItemsFLD.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
@@ -2822,7 +2823,7 @@ void resetQueue(String src=sBLANK) {
     unschedule("checkQueue")
 /*    state.q_blocked = false
     state.q_cmdCycleCnt = null */
-    state.newVolume = null
+    // state.newVolume = null
 /*    state.q_lastCheckDt = sNULL
     state.q_loopChkCnt = null
     state.q_speakingNow = false
