@@ -168,9 +168,7 @@ if(!isZone()) {
         command "disconnectBluetooth"
         command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
 }
-if(isZone()) {
         command "parallelSpeak", [[name: "Message to Speak*", type: "STRING", description: ""]]
-}
         command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
     }
@@ -2608,7 +2606,7 @@ void parallelSpeak(String msg) {
     logTrace("parallelSpeak() command received...")
     if(!msg) { logWarn("No Message sent with parallelSpeak($msg) command", true) }
     else {
-        if(!isZone()) {
+        if(isZone()) {
             parent.relaySpeakZone(parent.id.toString(), msg, true)
             String t0 = getDtNow()
             String lastMsg = msg ?: "Nothing to Show Here..."
