@@ -1313,8 +1313,11 @@ public zoneCmdHandler(evt) {
             case "announcement":
                 if(zoneDevs?.size() > 0 && (List)zoneDevMap.devObj) {
                     logDebug("Sending Announcement Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                    List<String> valS = data.message.contains("::") ? data.message.split("::") : [sNULL, data.message]
+                    String mymsg = valS[1]
+                    String mtitle = data.title ?: valS[0]
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs[0]?.sendAnnouncementToDevices(data.message, (data.title ?: getZoneName()), (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
+                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, (mtitle ?: getZoneName()), (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
                 }
                 break
 
