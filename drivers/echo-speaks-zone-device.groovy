@@ -2608,7 +2608,7 @@ void parallelSpeak(String msg) {
     logTrace("parallelSpeak() command received...")
     if(!msg) { logWarn("No Message sent with parallelSpeak($msg) command", true) }
     else {
-        if(!isZone()) {
+        if(isZone()) {
             parent.relaySpeakZone(parent.id.toString(), msg, true)
             String t0 = getDtNow()
             String lastMsg = msg ?: "Nothing to Show Here..."
