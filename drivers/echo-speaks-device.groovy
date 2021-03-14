@@ -168,6 +168,9 @@ if(!isZone()) {
         command "disconnectBluetooth"
         command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
 }
+if(isZone()) {
+        command "parallelSpeak", [[name: "Message to Speak*", type: "STRING", description: ""]]
+}
         command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
     }
@@ -2601,6 +2604,23 @@ void speechTest(String ttsMsg=sNULL) {
     speak(ttsMsg)
 }
 
+void parallelSpeak(String msg) {
+    logTrace("parallelSpeak() command received...")
+    if(!msg) { logWarn("No Message sent with parallelSpeak($msg) command", true) }
+    else {
+        if(!isZone()) {
+            parent.relaySpeakZone(parent.id.toString(), msg, true)
+            String t0 = getDtNow()
+            String lastMsg = msg ?: "Nothing to Show Here..."
+            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
+            sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+            logSpeech(msg, 200, sNULL)
+        } else {
+            speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: null, oldVolume: null, cmdDt: now()], true)
+        }
+    }
+}
+
 void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
@@ -2635,7 +2655,7 @@ void updateLevel(oldvolume, newvolume) {
     }
 }
 
-private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
+private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
 
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
     String healthStatus = getHealthStatus()
@@ -2659,7 +2679,7 @@ private void speechCmd(Map cmdMap=[:], Boolean isQueueCmd=true) {
 //    cmdMap["deviceType"] = getEchoDeviceType()
 //    cmdMap["owner"] = getEchoOwner()
 
-    parent.sendSpeak(cmdMap, getDeviceData(), device.deviceNetworkId, "finishSendSpeak")
+    parent.sendSpeak(cmdMap, getDeviceData(), device.deviceNetworkId, "finishSendSpeak", parallel)
 }
 
 def sendTestAnnouncement() {
