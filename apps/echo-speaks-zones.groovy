@@ -1342,7 +1342,11 @@ public zoneCmdHandler(evt) {
             case "alarmvolume":
             case "volume":
                 logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                if(data.changeVol != null) { dev?."${data.cmd}}"(data.changeVol) }
+                if(data.changeVol != null) {
+                    zoneDevs?.each { dev->
+                        dev?."${data.cmd}"(data.changeVol)
+                    }
+                }
                 break
 
             case "playback":
