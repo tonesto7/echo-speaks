@@ -125,6 +125,7 @@ def initialize() {
     }
 }
 
+public void enableDebugLog() { /*device.updateSetting("logDebug",[value:sTRUE,type:"bool"]); logInfo("Debug Logs Enabled From Main App...")*/ }
 Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
 public void logsOff() {
     device.updateSetting("logDebug",[value:"false",type:"bool"])
