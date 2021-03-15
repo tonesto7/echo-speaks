@@ -1951,22 +1951,23 @@ def storeCookieData() {
     Map data = request?.JSON as Map
     Map cookieItems = [:]
 
-    if(data && data.cookieData) {
-        logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
-
-        data.cookieData.each { String k,v-> cookieItems[k] = v as String }
-        state.cookieData = cookieItems
-        String myId=app.getId()
-        cookieDataFLD[myId] = cookieItems
-        cookieDataFLD = cookieDataFLD
-        state.clearCnt = 0
-    }
-
     if(data) {
+        if(data.cookieData) {
+            logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
+
+            data.cookieData.each { String k,v-> cookieItems[k] = v as String }
+            state.cookieData = cookieItems
+            String myId=app.getId()
+            cookieDataFLD[myId] = cookieItems
+            cookieDataFLD = cookieDataFLD
+            state.clearCnt = 0
+        }
+
         updServerItem("isLocal", (data.isLocal == true))
         updServerItem("onHeroku", (data.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
         updServerItem("serverHost", ((String)data.serverUrl ?: sNULL))
         updCodeVerMap("server", (String)data.version)
+        remTsVal(["lastCookieChkDt", "lastSpokeToAmazon"])
     }
 
     // log.debug "csrf: ${state.cookieData?.csrf}"
@@ -2204,8 +2205,8 @@ Boolean validateCookie(Boolean frc=false) {
     Integer lastChk = getLastTsValSecs("lastCookieChkDt", 3600)
     Integer lastSpoke = getLastTsValSecs("lastSpokeToAmazon", 3600)
     Boolean cookieOk = getCookieVal() && getCsrfVal()
-    if(!frc && valid && lastChk <= 900 && cookieOk) { return valid }
-    if(!frc && valid && lastSpoke <= 900 && cookieOk) { return valid }
+    if(!frc && valid && lastChk <= 1800 && cookieOk) { return valid }
+    if(!frc && valid && lastSpoke <= 1800 && lastChk < 3600 && cookieOk) { return valid }
     if(frc && valid && lastChk <= 60 && cookieOk) { return valid }
 
     valid = false
@@ -4577,6 +4578,7 @@ void healthCheck() {
         healthChkMapFLD = healthChkMapFLD
     }
 
+    if(!devModeFLD && advLogsActive()) { logsEnabled() }
     checkVersionData()
     if(checkIfCodeUpdated()) {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
@@ -4676,7 +4678,7 @@ void missPollNotify(Boolean on, Integer wait) {
         state.missPollRepair = false
     } else {
         if(lastDataUpd != 1000000) {
-            String msg = sBLANK
+            String msg
             if((Boolean)state.authValid) {
                 msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue network access."
             } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
