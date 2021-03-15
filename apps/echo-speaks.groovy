@@ -4578,6 +4578,7 @@ void healthCheck() {
         healthChkMapFLD = healthChkMapFLD
     }
 
+    if(!devModeFLD && advLogsActive()) { logsEnabled() }
     checkVersionData()
     if(checkIfCodeUpdated()) {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
