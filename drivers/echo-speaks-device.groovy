@@ -191,17 +191,19 @@ if(!isZone()) {
 def installed() {
     logInfo("${device?.displayName} Executing Installed...")
     sendEvent(name: "mute", value: "unmuted")
-    sendEvent(name: "status", value: "stopped")
-    sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
-    sendEvent(name: "trackDescription", value: "Not Set")
+    if(!isZone()) {
+        sendEvent(name: "status", value: "stopped")
+        sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
+        sendEvent(name: "trackDescription", value: "Not Set")
+        sendEvent(name: "followUpMode", value: sFALSE)
+        sendEvent(name: "alexaWakeWord", value: "ALEXA")
+        sendEvent(name: "mediaSource", value: "Not Set")
+        sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
+        sendEvent(name: "alarmVolume", value: 0)
+        sendEvent(name: "doNotDisturb", value: sFALSE)
+    }
     sendEvent(name: "lastSpeakCmd", value: "Nothing sent yet...")
-    sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
-    sendEvent(name: "doNotDisturb", value: sFALSE)
     sendEvent(name: "onlineStatus", value: "online")
-    sendEvent(name: "followUpMode", value: sFALSE)
-    sendEvent(name: "alarmVolume", value: 0)
-    sendEvent(name: "alexaWakeWord", value: "ALEXA")
-    sendEvent(name: "mediaSource", value: "Not Set")
 //    state.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
@@ -400,6 +402,7 @@ Boolean permissionOk(String type) {
 }
 
 void updateDeviceStatus(Map devData) {
+    if(isZone()) return
     Boolean isOnline = false
     if(devData.size()) {
         isOnline = (Boolean)devData.online
@@ -671,6 +674,7 @@ private void getPlaybackState(Boolean isGroupResponse=false) {
 }
 
 void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
+    if(isZone()) return
     // log.debug "playerInfo: ${playerInfo}"
     Boolean isPlayStateChange = false
     Boolean isMediaInfoChange = false
@@ -1501,6 +1505,7 @@ def setDoNotDisturb(Boolean val) {
 
 def setFollowUpMode(Boolean val) {
     logTrace("setFollowUpMode($val) command received...")
+    if(isZone()) return
     if(state.devicePreferences == null || !state.devicePreferences?.size()) { return }
     if(!(String)state.deviceAccountId) { logError("setFollowUpMode Failed because deviceAccountId is not found..."); return }
     if(isCommandTypeAllowed("followUpMode")) {
@@ -1943,6 +1948,7 @@ private void playMusicProvider(String searchPhrase, String providerId, volume=nu
 
 def setWakeWord(String newWord) {
     logTrace("setWakeWord($newWord) command received...")
+    if(isZone()) return
     String oldWord = device?.currentValue('alexaWakeWord')
     def t0 = device?.currentValue('wakeWords')
     def wwList = t0 ?: []
