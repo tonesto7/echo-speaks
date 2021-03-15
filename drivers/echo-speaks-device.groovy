@@ -322,7 +322,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
 
     if(device?.currentValue("doNotDisturb") == sTRUE && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
 
-    if(state.permissions.containsKey(type) && (Boolean)state.permissions[type]) { return true }
+    if(permissionOk(type)) { return true }
     else {
         String warnMsg = sNULL
         switch(type) {
@@ -394,7 +394,8 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
 
 Boolean permissionOk(String type) {
     if(isZone()) return true
-    if(type && state.permissions?.containsKey(type) && (Boolean)state.permissions[type]) { return true }
+    Map p = (Map)state.permissions
+    if(type && p?.containsKey(type) && (Boolean)p[type]) { return true }
     return false
 }
 
@@ -1419,7 +1420,7 @@ def setAlarmVolume(vol) {
 
 // capability audioVolume
 def setVolume(vol) {
-    if(vol) { setLevel(vol.toInteger()) }
+    if(vol!=null) { setLevel(vol.toInteger()) }
 }
 
 // capability audioVolume
@@ -1529,25 +1530,18 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(volume, String msg) {
     logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-/*    if(volume != null && permissionOk("volumeControl")) {
-        state.newVolume = volume
-        state.oldVolume = null // does not put old value back
-    } */
     speak(msg, volume)
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, $restVolume) command received...")
     if(msg) {
-        // if(volume != null && permissionOk("volumeControl")) {
-            // state.newVolume = volume?.toInteger()
-            if(restVolume != null) {
-                state.oldVolume = restVolume as Integer
-            } else {
-                state.oldVolume = null // clear out any junk
-                Boolean stored = mstoreCurrentVolume() // will set current volume for restore
-            }
-        // }
+        if(restVolume != null) {
+            state.oldVolume = restVolume as Integer
+        } else {
+            state.oldVolume = null // clear out any junk
+            Boolean stored = mstoreCurrentVolume() // will set current volume for restore
+        }
         speak(msg, volume)
     }
 }
@@ -1573,7 +1567,7 @@ Boolean mstoreCurrentVolume(Boolean user=false) {
 public restoreLastVolume() {
     Integer lastVol = state.svVolume
     String msg = "restoreLastVolume($lastVol)"
-    if(lastVol && permissionOk("volumeControl")) {
+    if(lastVol != null) {
         logTrace(msg+" received...")
         setVolume(lastVol as Integer)
     } else { logWarn(msg+" previous value not found...", true) }
@@ -1939,7 +1933,7 @@ private void playMusicProvider(String searchPhrase, String providerId, volume=nu
     Map validObj = getMusicSearchObj(searchPhrase, providerId, sleepSeconds)
     if(!validObj) { return }
     List seqList = []
-    if(volume) {
+    if(volume != null) {
         seqList.push([command: "volume", value: volume, deviceData: getDeviceData()])
         updateLevel(volume.toInteger(), null)
     }
@@ -2625,9 +2619,8 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
         else {
-            def newvol = volume ?: null
-            // def newvol = volume ?: (state.newVolume ?: null)
-            def restvol = state.oldVolume ?: null
+            def newvol = volume != null ? volume : null
+            def restvol = state.oldVolume != null ? state.oldVolume : null
 
             if(isZone()) {
                 parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]])
