@@ -20,8 +20,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = '4.0.9.3'
-@Field static final String appModifiedFLD = '2021-03-13'
+@Field static final String devVersionFLD  = '4.0.9.4'
+@Field static final String appModifiedFLD = '2021-03-15'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -108,9 +108,9 @@ def initialize() {
         if(!state.cookie || !(state.cookie instanceof Map)) state.cookie = (Map)parent?.getCookieMap()
         String cookS = getCookieVal() //state.cookie = parent?.getCookieVal()
         if(cookS) {
-            if(!state.amazonDomain) {
+            if(!(String)state.amazonDomain) {
                 state.amazonDomain = parent?.getAmazonDomain()
-                state.wsDomain = (state.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${state.amazonDomain}"
+                state.wsDomain = ((String)state.amazonDomain == "amazon.com") ? "-js.amazon.com" : ".${(String)state.amazonDomain}"
                 def serArr = cookS =~ /ubid-[a-z]+=([^;]+);/
                 state.wsSerial = serArr?.find() ? serArr[0..-1][0][1] : null
             }
@@ -134,19 +134,19 @@ public void logsOff() {
 
 
 def connect() {
-    if(!state.cookie || !state.amazonDomain || !state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
+    if(!state.cookie || !(String)state.amazonDomain || !(String)state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
     try {
         Map headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
-            "Host": "dp-gw-na.${state.amazonDomain}",
-            "Origin": "https://alexa.${state.amazonDomain}",
+            "Host": "dp-gw-na.${(String)state.amazonDomain}",
+            "Origin": "https://alexa.${(String)state.amazonDomain}",
             "Pragma": "no-cache",
             "Cache-Control": "no-cache",
             "Cookie": getCookieVal()
         ]
         logTrace("connect called")
-        interfaces.webSocket.connect("https://dp-gw-na${state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
+        interfaces.webSocket.connect("https://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
     } catch(ex) {
         logError("WebSocket connect failed | ${ex}", false, ex)
     }

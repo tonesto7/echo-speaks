@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.0.9.3'
-@Field static final String appModifiedFLD = '2021-03-13'
+@Field static final String appVersionFLD  = '4.0.9.4'
+@Field static final String appModifiedFLD = '2021-03-15'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4093, wsDevice: 4093, actionApp: 4093, zoneApp: 4093, zoneEchoDevice: 4093, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4094, wsDevice: 4094, actionApp: 4094, zoneApp: 4094, zoneEchoDevice: 4094, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1726,7 +1726,7 @@ List getActionApps() {
 }
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { it?.isWS() == false && it?.isZone() == false }
+    return getChildDevices()?.findAll { !(Boolean)it?.isWS() && !(Boolean)it?.isZone() }
 }
 
 def getSocketDevice() {
@@ -1951,22 +1951,23 @@ def storeCookieData() {
     Map data = request?.JSON as Map
     Map cookieItems = [:]
 
-    if(data && data.cookieData) {
-        logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
-
-        data.cookieData.each { String k,v-> cookieItems[k] = v as String }
-        state.cookieData = cookieItems
-        String myId=app.getId()
-        cookieDataFLD[myId] = cookieItems
-        cookieDataFLD = cookieDataFLD
-        state.clearCnt = 0
-    }
-
     if(data) {
+        if(data.cookieData) {
+            logTrace("cookieData Received: ${request?.JSON?.cookieData?.keySet()}")
+
+            data.cookieData.each { String k,v-> cookieItems[k] = v as String }
+            state.cookieData = cookieItems
+            String myId=app.getId()
+            cookieDataFLD[myId] = cookieItems
+            cookieDataFLD = cookieDataFLD
+            state.clearCnt = 0
+        }
+
         updServerItem("isLocal", (data.isLocal == true))
         updServerItem("onHeroku", (data.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
         updServerItem("serverHost", ((String)data.serverUrl ?: sNULL))
         updCodeVerMap("server", (String)data.version)
+        remTsVal(["lastCookieChkDt", "lastSpokeToAmazon"])
     }
 
     // log.debug "csrf: ${state.cookieData?.csrf}"
@@ -2204,8 +2205,8 @@ Boolean validateCookie(Boolean frc=false) {
     Integer lastChk = getLastTsValSecs("lastCookieChkDt", 3600)
     Integer lastSpoke = getLastTsValSecs("lastSpokeToAmazon", 3600)
     Boolean cookieOk = getCookieVal() && getCsrfVal()
-    if(!frc && valid && lastChk <= 900 && cookieOk) { return valid }
-    if(!frc && valid && lastSpoke <= 900 && cookieOk) { return valid }
+    if(!frc && valid && lastChk <= 1800 && cookieOk) { return valid }
+    if(!frc && valid && lastSpoke <= 1800 && lastChk < 3600 && cookieOk) { return valid }
     if(frc && valid && lastChk <= 60 && cookieOk) { return valid }
 
     valid = false
@@ -2976,7 +2977,7 @@ void checkGuardSupportServerResponse(response, data) {
             // log.debug "GuardSupport Server Response: ${resp}"
             if(resp) {
                 if(resp.guardData) {
-                    log.debug "AGS Server Resp: ${resp?.guardData}"
+                    logDebug("AGS Server Resp: ${resp?.guardData}")
                     state.alexaGuardData = resp.guardData
                     guardSupported = true
                 }
@@ -3622,6 +3623,36 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
 }
 
 /*
+ * send speak command to one zone
+ * caller is device handler via relay from zone app
+ */
+void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
+    List devObj = []
+    devObj = getZoneDevices([zoneId], "TTS")
+    String myMsg = "sendZoneSpeak"
+    devObj.each { dev ->
+        Map cmdMap = [
+            cmdDt: now(),
+            cmdDesc: "SpeakCommand",
+            message: msg,
+            //msgLen: newmsg.length(),
+            oldVolume: null,
+            newVolume: null
+        ] 
+        Map deviceData = [
+            serialNumber : dev.deviceSerialNumber,
+            deviceType: dev.deviceTypeId,
+            owner: dev.deviceOwnerCustomerId,
+            account: dev.deviceAccountId
+        ]
+
+        queueMultiSequenceCommand(
+            [ [command: 'sendspeak', value:msg, deviceData: deviceData] ],
+               myMsg+" to device ${dev.dni}", parallel, cmdMap, (String)dev.dni, "finishSendSpeak")
+    }
+}
+
+/*
  * send command to one or more zones (actually devices in one or more zones)
  * caller is actions;  typical operations are speak or announcement commands
  */
@@ -3656,7 +3687,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                 String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
                 newmsg = "${title ?: "Echo Speaks"}::${newmsg}::${zoneDevJson}"
             case "speak":
-                log.debug "sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume"
+                logDebug("sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
                 String myMsg = "sendDevObjCmd ${myCmd}"
                 if(volume != null) {
                     List mainSeqa = []
@@ -3768,7 +3799,7 @@ private Map getZoneState(String znId) {
  * will setup to call back the device handler when the command completes with status
  */
 
-void sendSpeak(Map cmdMap, Map deviceData, String device, String callback){
+void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boolean parallel=false){
     String nm = cmdMap.toString().tr('<', '&lt;').tr('>', '&gt;')
     logTrace("sendSpeak cmdMap: $nm  callback: $callback,  device: $device")
 
@@ -3785,7 +3816,7 @@ void sendSpeak(Map cmdMap, Map deviceData, String device, String callback){
     seqCmds.push([command: 'sendspeak', value:cmdMap.message, deviceData:deviceData])
     if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume, deviceData: deviceData]) }
 
-    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", false, cmdMap, device, callback)
+    queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", parallel, cmdMap, device, callback)
 }
 
 void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
@@ -3909,6 +3940,7 @@ void workQ() {
         String srcDesc
         Map seqObj
         String command
+        Integer mdelay = 0
 
 // lets try to join commands in single request to Alexa
         while(eData.size()>0){
@@ -3945,7 +3977,7 @@ void workQ() {
 
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds)
-                    Integer mdelay = 0
+                    if(!parallel) mdelay = 0
                     seqCmds?.each { cmdItem->
                         //log.debug "cmdItem: $cmdItem"
                         if(cmdItem.command instanceof String){
@@ -3987,6 +4019,9 @@ void workQ() {
 
                 String tv  = value?.toString()
                 Integer del = getMsgDur(command, type, tv)
+                if(del) {
+                    if(parallel) mdelay = del > mdelay ? del : mdelay
+                }
                 if(del && !cmdMap) cmdMap = [ msgDelay: del ]
             }
 
@@ -4023,11 +4058,11 @@ void workQ() {
 
             Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
             ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
-            msSum += ms
+            msSum = parallel ? ms : msSum + ms
             lmsg.push("workQ ms delay is $msSum".toString())
 
             if(seqObj) { break } // runs by itself
-            if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
+            // if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
         }
 
         if(seqList.size() > 0 || seqObj) {
@@ -4078,7 +4113,7 @@ void workQ() {
         mmsg = "workQ wakeup requested in $ms ms ${now()}  ${nextOk}"
     }
     if(locked) releaseTheLock(sHMLF)
-    if(mmsg) log.debug(mmsg)
+    if(mmsg) logDebug(mmsg)
 }
 
 Integer getMsgDur(String command, String type, String tv){
@@ -4089,7 +4124,7 @@ Integer getMsgDur(String command, String type, String tv){
         Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
         if(isSSML) nstr = nstr[7..-9]
         isSSML = (isSSML || command == 'ssml')
-        String actMsg = cleanString(isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : nstr)
+        String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : cleanString(nstr)
         Integer msgLen = actMsg.length()
         del = calcDelay(msgLen)
         //logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
@@ -4543,6 +4578,7 @@ void healthCheck() {
         healthChkMapFLD = healthChkMapFLD
     }
 
+    if(!devModeFLD && advLogsActive()) { logsEnabled() }
     checkVersionData()
     if(checkIfCodeUpdated()) {
         logWarn("Code Version Change Detected... Health Check will occur on next cycle.")
@@ -4642,7 +4678,7 @@ void missPollNotify(Boolean on, Integer wait) {
         state.missPollRepair = false
     } else {
         if(lastDataUpd != 1000000) {
-            String msg = sBLANK
+            String msg
             if((Boolean)state.authValid) {
                 msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue network access."
             } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }

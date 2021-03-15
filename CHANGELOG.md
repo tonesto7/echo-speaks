@@ -1,3 +1,9 @@
+## _**(March 15th, 2021)**_
+
+### _**Echo Speaks App (v4.0.9.4)**_
+
+- [FIX] Bugfixes and Optimizations
+
 ## _**(March 13th, 2021)**_
 
 ### _**Echo Speaks App (v4.0.9.3)**_

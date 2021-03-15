@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.9.3"
-@Field static final String appModifiedFLD = "2021-03-13"
+@Field static final String appVersionFLD  = "4.0.9.4"
+@Field static final String appModifiedFLD = "2021-03-15"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -638,8 +638,8 @@ public relaySeqCommand(String type, String command, value=null,  Map deviceData=
     parent.queueSequenceCommand(type, command, value, deviceData, device, callback)
 }
 
-public relaySpeakCommand(Map cmdMap, Map device, String callback) {
-    parent.sendSpeak(cmdMap, device, callback)
+public relaySpeakZone(String zoneId, String msg, Boolean parallel) {
+    parent.sendZoneSpeak(zoneId, msg, parallel)
 }
 
 Boolean relayGetWWebSocketStatus() {
@@ -1313,8 +1313,11 @@ public zoneCmdHandler(evt) {
             case "announcement":
                 if(zoneDevs?.size() > 0 && (List)zoneDevMap.devObj) {
                     logDebug("Sending Announcement Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
+                    List<String> valS = data.message.contains("::") ? data.message.split("::") : [sNULL, data.message]
+                    String mymsg = valS[1]
+                    String mtitle = data.title ?: valS[0]
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs[0]?.sendAnnouncementToDevices(data.message, (data.title ?: getZoneName()), (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
+                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, (mtitle ?: getZoneName()), (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
                 }
                 break
 
@@ -1342,7 +1345,11 @@ public zoneCmdHandler(evt) {
             case "alarmvolume":
             case "volume":
                 logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                if(data.changeVol != null) { dev?."${data.cmd}}"(data.changeVol) }
+                if(data.changeVol != null) {
+                    zoneDevs?.each { dev->
+                        dev?."${data.cmd}"(data.changeVol)
+                    }
+                }
                 break
 
             case "playback":
@@ -1797,9 +1804,10 @@ String getConditionsDesc(Boolean addFoot=true) {
         }
         if((List)settings.cond_alarm || (List)settings.cond_mode) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
-            str += settings.cond_alarm ? spanSmBr("    - Alarm Modes Allowed: " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
-            Boolean not = ((String)settings.cond_mode_cmd == "not")
-            str += (List)settings.cond_mode ? spanSmBr("    - Allowed Modes (${not ? "not in" : "in"}): " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
+            String a = location?.hsmStatus ?: "disarmed"
+            str += settings.cond_alarm ? spanSmBr("    - Alarm Mode ${a} in: ${settings.cond_alarm} " + getOkOrNotSymHTML(isInAlarmMode(settings.cond_alarm))) : sBLANK
+            Boolean not = (settings.cond_mode_cmd == "not")
+            str += settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${settings.cond_mode} " + getOkOrNotSymHTML(isInMode(settings.cond_mode, not))) : sBLANK
         }
          if(deviceCondConfigured()) {
             [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "battery", "humidity", "temperature", "illuminance", "shade", "door", "level", "valve", "water", "power" ]?.each { String evt->
@@ -1808,18 +1816,26 @@ String getConditionsDesc(Boolean addFoot=true) {
                     if(evt in [sSWITCH, "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "shade", "door", "valve", "water" ]) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in ["battery", "temperature", "illuminance", "level", "power", "humidity"]) { condOk = checkDeviceNumCondOk(evt) }
 
-                    str += settings."${sPre}${evt}" ? spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) " + getOkOrNotSymHTML(condOk)) : sBLANK
+                    List devs = settings."${sPre}${evt}" ?: null
+                    if(devs){
+                        List myV = []
+                        if(!addFoot) devs.each { dev -> myV.push(it?."current${evt.capitalize()}") }
+                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
+                    }
+
+                    String a = "    - Desired Value: "
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
                     if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr("    - Value: ( =${cmdEq}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "()" : sBLANK)) : sBLANK
-                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr("    - Value: (${cmdLow-cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr("    - Value: ( >${cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sBELOW && cmdLow) ? spanSmBr("    - Value: ( <${cmdLow}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr(a+"(${cmdLow-cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr(a+"( >${cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? spanSmBr(a+"( <${cmdLow}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
                     } else {
-                        str += cmd ? spanSmBr("    - Value: (${cmd})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += cmd ? spanSmBr(a+"(${cmd})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+
                     }
                     str += (settings."${sPre}${evt}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                 }
