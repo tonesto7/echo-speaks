@@ -128,15 +128,15 @@ if(!isZone()) {
         command "stopAllDevices"
 
 if(!isZone()) {
-        command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restore volume after playing"]]
-        command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
-        command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
-        command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
-        command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
-        command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
-        command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
-        // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
-        command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing"]]
+        command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
 }
         command "sendAlexaAppNotification", [ [name: "Notification Message*", type: "STRING", description: ""]]
 if(!isZone()) {
@@ -277,7 +277,7 @@ public void updateCookies(Map cookies) {
 }
 
 public void removeCookies(Boolean isParent=false) {
-    if(state.cookie != null || (Boolean)state.authValid != false || (Boolean)state.refreshScheduled) {
+    if(state.cookie != null || (Boolean)state.authValid || (Boolean)state.refreshScheduled) {
         logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
         if((Boolean)state.refreshScheduled) { unschedule("refreshData"); state.refreshScheduled = false }
         state.cookie = null
@@ -317,12 +317,12 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
         return false
     }
 
-    if(state.isSupportedDevice == false) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
+    if(!(Boolean)state.isSupportedDevice) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
     if(state.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state.permissions}", true) }; return false }
 
     if(device?.currentValue("doNotDisturb") == sTRUE && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
 
-    if(state.permissions.containsKey(type) && state.permissions[type] == true) { return true }
+    if(state.permissions.containsKey(type) && (Boolean)state.permissions[type]) { return true }
     else {
         String warnMsg = sNULL
         switch(type) {
@@ -394,7 +394,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
 
 Boolean permissionOk(String type) {
     if(isZone()) return true
-    if(type && state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
+    if(type && state.permissions?.containsKey(type) && (Boolean)state.permissions[type]) { return true }
     return false
 }
 
@@ -426,13 +426,13 @@ void updateDeviceStatus(Map devData) {
         String firmwareVer = devData.softwareVersion ?: "Not Set"
         state.softwareVersion = firmwareVer
 
-        // state?.mainAccountCommsId = devData.mainAccountCommsId ?: null
+        // state.mainAccountCommsId = devData.mainAccountCommsId ?: null
         // log.debug "mainAccountCommsId: ${state.mainAccountCommsId}"
         if(!state.cookie) {
             state.cookie = devData.cookie
             cookieDataFLD = [:]
         }
-        state.authValid = (devData.authValid == true)
+        state.authValid = ((Boolean)devData.authValid)
         state.amazonDomain = (String)devData.amazonDomain
         state.regionLocale = (String)devData.regionLocale
 
@@ -440,7 +440,7 @@ void updateDeviceStatus(Map devData) {
         devData.permissionMap?.each {String k,v -> permissions[k] = v }
         state.permissions = permissions
         state.hasClusterMembers = devData.hasClusterMembers
-        state.isWhaDevice = (devData.permissionMap?.isMultiroomDevice == true)
+        state.isWhaDevice = ((Boolean)devData.permissionMap?.isMultiroomDevice)
         // log.trace "hasClusterMembers: ${state.hasClusterMembers}"
         // log.trace "permissions: ${state.permissions}"
 
@@ -594,8 +594,8 @@ void refreshData(Boolean full=false) {
     }
     if(!isAuthOk()) {return}
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
-    // logTrace("permissions: ${state?.permissions}")
-    if(state.permissions?.mediaPlayer == true && (full || mfull || !wsActive)) {
+    // logTrace("permissions: ${state.permissions}")
+    if((Boolean)state.permissions?.mediaPlayer && (full || mfull || !wsActive)) {
         getPlaybackState()
         if(!isWHA) { getPlaylists() }
     }
@@ -604,7 +604,7 @@ void refreshData(Boolean full=false) {
             // if(isEchoDev) { getWifiDetails() }
             getDeviceSettings()
         }
-        if(state.permissions?.doNotDisturb == true) { getDoNotDisturb() }
+        if((Boolean)state.permissions?.doNotDisturb) { getDoNotDisturb() }
         if(!wsActive || full || mfull) {
             getDeviceActivity()
         }
@@ -623,8 +623,8 @@ private void refreshStage2() {
         getWakeWord()
         getAvailableWakeWords()
     }
-    if((state.permissions?.alarms == true) || (state.permissions?.reminders == true)) {
-        if(state?.permissions?.alarms == true) { getAlarmVolume() }
+    if( (Boolean)state.permissions?.alarms || (Boolean)state.permissions?.reminders) {
+        if((Boolean)state.permissions?.alarms) { getAlarmVolume() }
         // getNotifications()
     }
 
@@ -751,7 +751,7 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
             }
         }
         if(playerInfo.volume?.muted != null) {
-            String muteState = (playerInfo.volume?.muted == true) ? "muted" : "unmuted"
+            String muteState = ((Boolean)playerInfo.volume?.muted) ? "muted" : "unmuted"
             if(isStateChange(device, "mute", muteState)) {
                 logDebug("Mute Changed to ${muteState}")
                 sendEvent(name: "mute", value: muteState, descriptionText: "Volume has been ${muteState}", display: true, displayed: true)
@@ -838,7 +838,7 @@ private getDeviceSettings() {
             def devData = t0 ?: null
             state.devicePreferences = devData ?: [:]
             // log.debug "devData: $devData"
-            Boolean fupMode = (devData?.goldfishEnabled == true)
+            Boolean fupMode = (Boolean)devData?.goldfishEnabled
             if(isStateChange(device, "followUpMode", fupMode.toString())) {
                 logDebug("FollowUp Mode Changed to ${(fupMode)}")
                 sendEvent(name: "followUpMode", value: fupMode.toString(), display: false, displayed: false)
@@ -1196,15 +1196,15 @@ void respExceptionHandler(ex, String mName, Boolean clearOn401=false, Boolean ig
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
+        if(!(Boolean)settings?.ignoreTimeoutErrors) logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
         logError("${mName} | HostName Not Found | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
+        if(!(Boolean)settings?.ignoreTimeoutErrors) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.NoRouteToHostException) {
         logError("${mName} | No Route to Connection (Possibly a Local Internet Issue) | Msg: ${ex}")
     } else if(ex instanceof javax.net.ssl.SSLHandshakeException) {
-        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Remote Connection Closed (Possibly an Amazon/Internet Issue) | Msg: ${ex}")
+        if(!(Boolean)settings?.ignoreTimeoutErrors) logError("${mName} | Remote Connection Closed (Possibly an Amazon/Internet Issue) | Msg: ${ex}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
@@ -1402,7 +1402,7 @@ def setAlarmVolume(vol) {
         if(isCommandTypeAllowed("alarms") && vol>=0 && vol<=100) {
             String t0 = sendAmazonCommand("PUT", [
                 uri: getAmazonUrl(),
-                path: "/api/device-notification-state/${(String)state.deviceType}/${state?.softwareVersion}/${(String)state.serialNumber}",
+                path: "/api/device-notification-state/${(String)state.deviceType}/${state.softwareVersion}/${(String)state.serialNumber}",
                 headers: getCookieMap(true),
                 contentType: sAPPJSON,
                 body: [
@@ -1529,26 +1529,26 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(volume, String msg) {
     logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-    if(volume != null && permissionOk("volumeControl")) {
+/*    if(volume != null && permissionOk("volumeControl")) {
         state.newVolume = volume
         state.oldVolume = null // does not put old value back
-    }
-    speak(msg)
+    } */
+    speak(msg, volume)
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, $restVolume) command received...")
     if(msg) {
-        if(volume != null && permissionOk("volumeControl")) {
-            state.newVolume = volume?.toInteger()
+        // if(volume != null && permissionOk("volumeControl")) {
+            // state.newVolume = volume?.toInteger()
             if(restVolume != null) {
                 state.oldVolume = restVolume as Integer
             } else {
                 state.oldVolume = null // clear out any junk
-                Boolean stored = mstoreCurrentVolume()
+                Boolean stored = mstoreCurrentVolume() // will set current volume for restore
             }
-        }
-        speak(msg)
+        // }
+        speak(msg, volume)
     }
 }
 
@@ -1559,7 +1559,7 @@ def storeCurrentVolume() {
 Boolean mstoreCurrentVolume(Boolean user=false) {
     Integer t0 = device?.currentValue("level")
     Integer curVol = t0 //  ?: 1
-    String msg = "storeCurrentVolume($user, $curVol)"
+    String msg = "storeCurrentVolume($user, $curVol) for restore"
     if(curVol != null) {
         if(user) state.svVolume = curVol
         else state.oldVolume = curVol
@@ -1768,7 +1768,7 @@ def voiceCmdAsText(String cmd) {
 
 public playAnnouncementAll(String msg, String title=sNULL) {
     if(isZone()) {
-        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncementAll', message: msg, title: sNULL, changeVol:null, restoreVol:null, delay:0]])
+        parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncementAll', message: msg, title: title, changeVol:null, restoreVol:null, delay:0]])
     } else {
     // if(isCommandTypeAllowed("announce")) {
         msg = title ? title+"::"+msg : msg
@@ -1922,14 +1922,15 @@ private Map validateMusicSearch(String searchPhrase, String providerId, sleepSec
 
 private Map getMusicSearchObj(String searchPhrase, String providerId, sleepSeconds=null) {
     if (searchPhrase == sBLANK) { logError("getMusicSearchObj Searchphrase empty"); return null }
-    Map validObj = [type: "Alexa.Music.PlaySearchPhrase", "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"]
+    Map validObj
     Map validResp = validateMusicSearch(searchPhrase, providerId, sleepSeconds)
-    if(validResp && validResp?.operationPayload) {
-        validObj?.operationPayload = validResp?.operationPayload
-    } else {
-        logError("Something went wrong with the Music Search | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
-        validObj = null
-    }
+    if(validResp?.operationPayload) {
+        validObj = [
+            type: "Alexa.Music.PlaySearchPhrase",
+            "@type": "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode",
+            operationPayload: validResp.operationPayload
+        ]
+    } else logError("Something went wrong with the Music Search | MusicProvider: [${providerId}] | Search Phrase: (${searchPhrase})")
     return validObj
 }
 
@@ -1937,13 +1938,13 @@ private void playMusicProvider(String searchPhrase, String providerId, volume=nu
     logTrace("playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
     Map validObj = getMusicSearchObj(searchPhrase, providerId, sleepSeconds)
     if(!validObj) { return }
-//    Map seqJson = ["@type": "com.amazon.alexa.behaviors.model.Sequence", "startNode": validObj]
-//    seqJson?.startNode["@type"] = "com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode"
     List seqList = []
-    if(volume) seqList.push([command: "volume", value: volume])
-     seqList.push([command: validObj])
-     sendMultiSequenceCommand(seqList, "playMusicProvider(${providerId})", true)
-//    } else { sendSequenceCommand("playMusicProvider(${providerId})", seqJson, null) }
+    if(volume) {
+        seqList.push([command: "volume", value: volume, deviceData: getDeviceData()])
+        updateLevel(volume.toInteger(), null)
+    }
+    seqList.push([command: validObj])
+    sendMultiSequenceCommand(seqList, "playMusicProvider(${providerId})", true)
 }
 
 def setWakeWord(String newWord) {
@@ -2022,7 +2023,7 @@ def removeNotification(String id) {
     logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            String translatedID = state.createdNotifications == null ? null : state.createdNotifications[id]
             logDebug("Found ID translation ${id}=${translatedID}")
             if (translatedID) {
                 String t0 = sendAmazonCommand("DELETE", [
@@ -2075,7 +2076,7 @@ private createNotification(String type, Map opts) {
     logTrace("createdNotification params: ${opts}")
     String notifKey = generateNotificationKey((String)opts.label)
     if (notifKey) {
-        String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
+        String translatedID = state.createdNotifications == null ? null : state.createdNotifications[notifKey]
         if (translatedID) {
             logWarn("createNotification found existing notification named ${notifKey}=${translatedID}, removing that first")
             removeNotification(notifKey)
@@ -2124,8 +2125,8 @@ private createNotification(String type, Map opts) {
     logDebug("params: ${params?.body}")
     String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
     if (notifKey) {
-        if (state?.containsKey("createdNotifications")) {
-            state?.createdNotifications[notifKey] = id
+        if (state.containsKey("createdNotifications")) {
+            state.createdNotifications[notifKey] = id
         } else { state.createdNotifications = [notifKey: id] }
     }
 }
@@ -2624,7 +2625,8 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
         else {
-            def newvol = volume ?: (state.newVolume ?: null)
+            def newvol = volume ?: null
+            // def newvol = volume ?: (state.newVolume ?: null)
             def restvol = state.oldVolume ?: null
 
             if(isZone()) {
@@ -2642,7 +2644,7 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     } else {
         logWarn("Uh-Oh... The speak($msg) Command is NOT Supported by this Device!!!")
     }
-    state.newVolume = null
+    // state.newVolume = null
     state.oldVolume = null
 }
 
@@ -2803,13 +2805,13 @@ private void processLogItems(String t, List ll, Boolean es=false, Boolean ee=tru
     "q_lastTtsCmdDelay",
     "q_lastTtsMsg",
     "q_lastMsg",
-    "doNotDisturb"
+    "doNotDisturb",
+    "newVolume"
 ]
 
 private void stateCleanup() {
-    state.newVolume = null
+    // state.newVolume = null
     state.oldVolume = null
-//    if(state.lastVolume) { state?.oldVolume = state?.lastVolume }
     clnItemsFLD.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 }
 
@@ -2821,7 +2823,7 @@ void resetQueue(String src=sBLANK) {
     unschedule("checkQueue")
 /*    state.q_blocked = false
     state.q_cmdCycleCnt = null */
-    state.newVolume = null
+    // state.newVolume = null
 /*    state.q_lastCheckDt = sNULL
     state.q_loopChkCnt = null
     state.q_speakingNow = false
@@ -3031,7 +3033,7 @@ public void clearLogHistory() {
 }
 
 void incrementCntByKey(String key) {
-    Long evtCnt = state?."${key}"
+    Long evtCnt = state."${key}"
     evtCnt = evtCnt != null ? evtCnt : 0
     evtCnt++
     state."${key}" = evtCnt
@@ -3057,8 +3059,8 @@ static String getObjType(obj) {
 
 public Map getDeviceMetrics() {
     Map out = [:]
-    def cntItems = state?.findAll { it?.key?.startsWith("use_") }
-    def errItems = state?.findAll { it?.key?.startsWith("err_") }
+    def cntItems = state.findAll { it?.key?.startsWith("use_") }
+    def errItems = state.findAll { it?.key?.startsWith("err_") }
     if(cntItems?.size()) {
         out["usage"] = [:]
         cntItems?.each { String k,v -> out.usage[k.replace("use_", sBLANK) as String] = v as Integer ?: 0 }
