@@ -277,7 +277,7 @@ public void updateCookies(Map cookies) {
 }
 
 public void removeCookies(Boolean isParent=false) {
-    if(state.cookie != null || (Boolean)state.authValid != false || (Boolean)state.refreshScheduled) {
+    if(state.cookie != null || (Boolean)state.authValid || (Boolean)state.refreshScheduled) {
         logWarn("Cookie Authentication Cleared by ${isParent ? "Parent" : "Device"} | Scheduled Refreshes also cancelled!")
         if((Boolean)state.refreshScheduled) { unschedule("refreshData"); state.refreshScheduled = false }
         state.cookie = null
@@ -317,12 +317,12 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
         return false
     }
 
-    if(state.isSupportedDevice == false) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
+    if(!(Boolean)state.isSupportedDevice) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
     if(state.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state.permissions}", true) }; return false }
 
     if(device?.currentValue("doNotDisturb") == sTRUE && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
 
-    if(state.permissions.containsKey(type) && state.permissions[type] == true) { return true }
+    if(state.permissions.containsKey(type) && (Boolean)state.permissions[type]) { return true }
     else {
         String warnMsg = sNULL
         switch(type) {
@@ -394,7 +394,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
 
 Boolean permissionOk(String type) {
     if(isZone()) return true
-    if(type && state?.permissions?.containsKey(type) && state?.permissions[type] == true) { return true }
+    if(type && state.permissions?.containsKey(type) && (Boolean)state.permissions[type]) { return true }
     return false
 }
 
@@ -426,13 +426,13 @@ void updateDeviceStatus(Map devData) {
         String firmwareVer = devData.softwareVersion ?: "Not Set"
         state.softwareVersion = firmwareVer
 
-        // state?.mainAccountCommsId = devData.mainAccountCommsId ?: null
+        // state.mainAccountCommsId = devData.mainAccountCommsId ?: null
         // log.debug "mainAccountCommsId: ${state.mainAccountCommsId}"
         if(!state.cookie) {
             state.cookie = devData.cookie
             cookieDataFLD = [:]
         }
-        state.authValid = (devData.authValid == true)
+        state.authValid = ((Boolean)devData.authValid)
         state.amazonDomain = (String)devData.amazonDomain
         state.regionLocale = (String)devData.regionLocale
 
@@ -440,7 +440,7 @@ void updateDeviceStatus(Map devData) {
         devData.permissionMap?.each {String k,v -> permissions[k] = v }
         state.permissions = permissions
         state.hasClusterMembers = devData.hasClusterMembers
-        state.isWhaDevice = (devData.permissionMap?.isMultiroomDevice == true)
+        state.isWhaDevice = ((Boolean)devData.permissionMap?.isMultiroomDevice)
         // log.trace "hasClusterMembers: ${state.hasClusterMembers}"
         // log.trace "permissions: ${state.permissions}"
 
@@ -594,8 +594,8 @@ void refreshData(Boolean full=false) {
     }
     if(!isAuthOk()) {return}
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
-    // logTrace("permissions: ${state?.permissions}")
-    if(state.permissions?.mediaPlayer == true && (full || mfull || !wsActive)) {
+    // logTrace("permissions: ${state.permissions}")
+    if((Boolean)state.permissions?.mediaPlayer && (full || mfull || !wsActive)) {
         getPlaybackState()
         if(!isWHA) { getPlaylists() }
     }
@@ -604,7 +604,7 @@ void refreshData(Boolean full=false) {
             // if(isEchoDev) { getWifiDetails() }
             getDeviceSettings()
         }
-        if(state.permissions?.doNotDisturb == true) { getDoNotDisturb() }
+        if((Boolean)state.permissions?.doNotDisturb) { getDoNotDisturb() }
         if(!wsActive || full || mfull) {
             getDeviceActivity()
         }
@@ -623,8 +623,8 @@ private void refreshStage2() {
         getWakeWord()
         getAvailableWakeWords()
     }
-    if((state.permissions?.alarms == true) || (state.permissions?.reminders == true)) {
-        if(state?.permissions?.alarms == true) { getAlarmVolume() }
+    if( (Boolean)state.permissions?.alarms || (Boolean)state.permissions?.reminders) {
+        if((Boolean)state.permissions?.alarms) { getAlarmVolume() }
         // getNotifications()
     }
 
@@ -751,7 +751,7 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
             }
         }
         if(playerInfo.volume?.muted != null) {
-            String muteState = (playerInfo.volume?.muted == true) ? "muted" : "unmuted"
+            String muteState = ((Boolean)playerInfo.volume?.muted) ? "muted" : "unmuted"
             if(isStateChange(device, "mute", muteState)) {
                 logDebug("Mute Changed to ${muteState}")
                 sendEvent(name: "mute", value: muteState, descriptionText: "Volume has been ${muteState}", display: true, displayed: true)
@@ -838,7 +838,7 @@ private getDeviceSettings() {
             def devData = t0 ?: null
             state.devicePreferences = devData ?: [:]
             // log.debug "devData: $devData"
-            Boolean fupMode = (devData?.goldfishEnabled == true)
+            Boolean fupMode = (Boolean)devData?.goldfishEnabled
             if(isStateChange(device, "followUpMode", fupMode.toString())) {
                 logDebug("FollowUp Mode Changed to ${(fupMode)}")
                 sendEvent(name: "followUpMode", value: fupMode.toString(), display: false, displayed: false)
@@ -1196,15 +1196,15 @@ void respExceptionHandler(ex, String mName, Boolean clearOn401=false, Boolean ig
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
     } else if(ex instanceof java.net.SocketTimeoutException) {
-        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
+        if(!(Boolean)settings?.ignoreTimeoutErrors) logError("${mName} | Response Socket Timeout (Possibly an Amazon Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.UnknownHostException) {
         logError("${mName} | HostName Not Found | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof org.apache.http.conn.ConnectTimeoutException) {
-        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
+        if(!(Boolean)settings?.ignoreTimeoutErrors) logError("${mName} | Request Timeout (Possibly an Amazon/Internet Issue) | Msg: ${ex?.getMessage()}")
     } else if(ex instanceof java.net.NoRouteToHostException) {
         logError("${mName} | No Route to Connection (Possibly a Local Internet Issue) | Msg: ${ex}")
     } else if(ex instanceof javax.net.ssl.SSLHandshakeException) {
-        if(settings?.ignoreTimeoutErrors == false) logError("${mName} | Remote Connection Closed (Possibly an Amazon/Internet Issue) | Msg: ${ex}")
+        if(!(Boolean)settings?.ignoreTimeoutErrors) logError("${mName} | Remote Connection Closed (Possibly an Amazon/Internet Issue) | Msg: ${ex}")
     } else { logError("${mName} Exception: ${ex}") }
 }
 
@@ -1402,7 +1402,7 @@ def setAlarmVolume(vol) {
         if(isCommandTypeAllowed("alarms") && vol>=0 && vol<=100) {
             String t0 = sendAmazonCommand("PUT", [
                 uri: getAmazonUrl(),
-                path: "/api/device-notification-state/${(String)state.deviceType}/${state?.softwareVersion}/${(String)state.serialNumber}",
+                path: "/api/device-notification-state/${(String)state.deviceType}/${state.softwareVersion}/${(String)state.serialNumber}",
                 headers: getCookieMap(true),
                 contentType: sAPPJSON,
                 body: [
@@ -2023,7 +2023,7 @@ def removeNotification(String id) {
     logTrace("removeNotification($id) command received...")
     if(isCommandTypeAllowed("alarms") || isCommandTypeAllowed("reminders", true)) {
         if(id) {
-            String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[id]
+            String translatedID = state.createdNotifications == null ? null : state.createdNotifications[id]
             logDebug("Found ID translation ${id}=${translatedID}")
             if (translatedID) {
                 String t0 = sendAmazonCommand("DELETE", [
@@ -2076,7 +2076,7 @@ private createNotification(String type, Map opts) {
     logTrace("createdNotification params: ${opts}")
     String notifKey = generateNotificationKey((String)opts.label)
     if (notifKey) {
-        String translatedID = state?.createdNotifications == null ? null : state?.createdNotifications[notifKey]
+        String translatedID = state.createdNotifications == null ? null : state.createdNotifications[notifKey]
         if (translatedID) {
             logWarn("createNotification found existing notification named ${notifKey}=${translatedID}, removing that first")
             removeNotification(notifKey)
@@ -2125,8 +2125,8 @@ private createNotification(String type, Map opts) {
     logDebug("params: ${params?.body}")
     String id = sendAmazonCommand("PUT", params, [cmdDesc: "Create${type}"])
     if (notifKey) {
-        if (state?.containsKey("createdNotifications")) {
-            state?.createdNotifications[notifKey] = id
+        if (state.containsKey("createdNotifications")) {
+            state.createdNotifications[notifKey] = id
         } else { state.createdNotifications = [notifKey: id] }
     }
 }
@@ -3033,7 +3033,7 @@ public void clearLogHistory() {
 }
 
 void incrementCntByKey(String key) {
-    Long evtCnt = state?."${key}"
+    Long evtCnt = state."${key}"
     evtCnt = evtCnt != null ? evtCnt : 0
     evtCnt++
     state."${key}" = evtCnt
@@ -3059,8 +3059,8 @@ static String getObjType(obj) {
 
 public Map getDeviceMetrics() {
     Map out = [:]
-    def cntItems = state?.findAll { it?.key?.startsWith("use_") }
-    def errItems = state?.findAll { it?.key?.startsWith("err_") }
+    def cntItems = state.findAll { it?.key?.startsWith("use_") }
+    def errItems = state.findAll { it?.key?.startsWith("err_") }
     if(cntItems?.size()) {
         out["usage"] = [:]
         cntItems?.each { String k,v -> out.usage[k.replace("use_", sBLANK) as String] = v as Integer ?: 0 }
