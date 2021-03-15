@@ -78,7 +78,7 @@ metadata {
         attribute "doNotDisturb", "string"
         attribute "firmwareVer", "string"
         attribute "followUpMode", "string"
-        attribute "lastCmdSentDt", "string"
+//        attribute "lastCmdSentDt", "string"
         attribute "lastSpeakCmd", "string"
         attribute "lastAnnouncement", "string"
         attribute "lastSpokenToTime", "number"
@@ -1714,6 +1714,8 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
 
 def finishAnnounce(String msg, volume, restoreVolume){ 
     sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false, isStateChange:true)
+    //String t0 = getDtNow()
+    //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
     updateLevel(restoreVolume, volume)
 }
 
@@ -2609,10 +2611,10 @@ void parallelSpeak(String msg) {
     else {
         if(isZone()) {
             parent.relaySpeakZone(parent.id.toString(), msg, true)
-            String t0 = getDtNow()
             String lastMsg = msg ?: "Nothing to Show Here..."
             sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
-            sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+            //String t0 = getDtNow()
+            //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
             logSpeech(msg, 200, sNULL)
         } else {
             speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: null, oldVolume: null, cmdDt: now()], true)
@@ -2630,10 +2632,10 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
 
             if(isZone()) {
                 parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]])
-                String t0 = getDtNow()
                 String lastMsg = msg ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
-                sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+                //String t0 = getDtNow()
+                //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
                 updateLevel(restvol, newvol)
                 logSpeech(msg, 200, sNULL)
             } else {
@@ -2878,9 +2880,9 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
 
             String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
             if((String)data?.cmdDesc == "SpeakCommand") {
-                String t0 = getDtNow()
                 sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
-                sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+                //String t0 = getDtNow()
+                //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
                 updateLevel((Integer)data.oldVolume, (Integer)data.newVolume)
                 logSpeech(lastMsg, statusCode, sNULL)
             }
