@@ -4677,7 +4677,7 @@ void missPollNotify(Boolean on, Integer wait) {
         state.missPollRepair = false
     } else {
         if(lastDataUpd != 1000000) {
-            String msg = sBLANK
+            String msg
             if((Boolean)state.authValid) {
                 msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue network access."
             } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
