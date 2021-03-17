@@ -3920,7 +3920,7 @@ void workQ() {
     Map myMap = workQMapFLD[appId] ?: [:]
     Boolean active = (Boolean)myMap.active
     if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD }
-
+log.debug "active: $active myMap: $myMap"
     Long nextOk = (Long)myMap.nextOk ?: 0L
     if(nextOk < now()) nextOk = 0L
 
