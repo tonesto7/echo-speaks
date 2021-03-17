@@ -3909,7 +3909,7 @@ void workQB() { workQ() }
 void workQ() {
     logTrace "running workQ"
     String mmsg
-    Boolean doRecheck = false
+//    Boolean doRecheck = false
 
     Boolean locked=false
     String appId=app.getId()
