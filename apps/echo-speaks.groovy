@@ -3904,12 +3904,12 @@ void addToQ(Map item) {
 
 void workQF() { workQ() }
 void workQB() { workQ() }
-void workQR() { workQ() }
+//void workQR() { workQ() }
 
 void workQ() {
     logTrace "running workQ"
     String mmsg
-    Boolean doRecheck = false
+//    Boolean doRecheck = false
 
     Boolean locked=false
     String appId=app.getId()
@@ -3920,7 +3920,7 @@ void workQ() {
     Map myMap = workQMapFLD[appId] ?: [:]
     Boolean active = (Boolean)myMap.active
     if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD }
-log.debug "active: $active myMap: $myMap"
+    // log.debug "active: $active myMap: $myMap"
     Long nextOk = (Long)myMap.nextOk ?: 0L
     if(nextOk < now()) nextOk = 0L
 
@@ -3931,7 +3931,7 @@ log.debug "active: $active myMap: $myMap"
     Boolean fnd = (eData.size() > 0)
 
 // if we are not doing anything grab next item off queue and start it;
-    if(!active && now() > nextOk) {
+    if(!active && now() > nextOk && fnd) {
 
         List<String> lmsg = []
         Double msSum = 0.0D
@@ -4113,17 +4113,18 @@ log.debug "active: $active myMap: $myMap"
                 finishWorkQ([status: 500, data: [:]], extData)
             }
         }
-    } else {
+    } /* else {
         mmsg = "workQ busy active: ${active} fnd: ${fnd} now: ${now()} nextOk: ${nextOk}"
         doRecheck = true
-    }
+    }*/
     Long ms = ((nextOk+200L - (Long)now()))
-    if(ms < 0L) ms = 4000
+    if(ms <= 0L) ms = 4000
     if(!active && fnd && now() < nextOk){
+        //doRecheck = false
         runInMillis(ms, "workQF")
         mmsg = "workQ wakeup requested in $ms ms ${now()}  ${nextOk}"
     }
-    if(doRecheck) runInMillis(ms, "workQR")
+    //if(doRecheck) runInMillis(ms, "workQR")
     if(locked) releaseTheLock(sHMLF)
     if(mmsg) logDebug(mmsg)
 }
