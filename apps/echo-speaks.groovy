@@ -3940,7 +3940,6 @@ log.debug "active: $active myMap: $myMap"
         List activeD = []
         Map extData=[:]
         List extList = []
-        active = true;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
 
         Boolean oldParallel
         Boolean parallel = false
@@ -3953,6 +3952,7 @@ log.debug "active: $active myMap: $myMap"
 // lets try to join commands in single request to Alexa
         while(eData.size()>0){
 
+            active = true;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
             svSeqList = seqList
             Map item = (Map)eData[0]
 
