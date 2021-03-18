@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.0.9.4'
-@Field static final String appModifiedFLD = '2021-03-15'
+@Field static final String appVersionFLD  = '4.0.9.5'
+@Field static final String appModifiedFLD = '2021-03-18'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = true
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4094, wsDevice: 4094, actionApp: 4094, zoneApp: 4094, zoneEchoDevice: 4094, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4095, wsDevice: 4095, actionApp: 4095, zoneApp: 4095, zoneEchoDevice: 4095, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -3877,6 +3877,7 @@ void addToQ(Map item) {
     releaseTheLock(sHMLF)
 
     if(qsiz == 1) runInMillis(300L, "workQ")
+    else runIn(24, "workQB")
 
     List<String> lmsg = []
     String t = item.t
@@ -3884,7 +3885,7 @@ void addToQ(Map item) {
     ['cmdMap', 'time', 'deviceData', 'device', 'callback', 'parallel', 'command', 'value', 'srcDesc', 'type'].each { String s ->
         def ss = item."${s}"
         if(ss) {
-             if(fir) { fir=false; lmsg.push(spanSm("addToQ NEW COMMAND", sCLRGRN2)) }
+             if(fir) { fir=false; lmsg.push(spanSm("addToQ NEW COMMAND (${qsiz})", sCLRGRN2)) }
              String nm = ss.toString().tr('<', '&lt;').tr('>', '&gt;')
              lmsg.push("addToQ (${t}) | ${s}: ${nm}".toString())
         }
@@ -3901,29 +3902,34 @@ void addToQ(Map item) {
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
 
+void workQF() { workQ() }
+void workQB() { workQ() }
+
 void workQ() {
     logTrace "running workQ"
+    String mmsg
+
     Boolean locked=false
     String appId=app.getId()
     Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
     // log.trace "lock wait: ${aa}"
-
     locked = true
 
     Map myMap = workQMapFLD[appId] ?: [:]
     Boolean active = (Boolean)myMap.active
-    if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap }
-
+    if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD }
+    // log.debug "active: $active myMap: $myMap"
     Long nextOk = (Long)myMap.nextOk ?: 0L
+    if(nextOk < now()) nextOk = 0L
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'cmdQ'
     List<Map> eData = (List<Map>)memStore[k] ?: []
 
-    Boolean fnd = (eData.size())
+    Boolean fnd = (eData.size() > 0)
 
 // if we are not doing anything grab next item off queue and start it;
-    if(!active && now() > nextOk) {
+    if(!active && now() > nextOk && fnd) {
 
         List<String> lmsg = []
         Double msSum = 0.0D
@@ -3932,7 +3938,6 @@ void workQ() {
         List activeD = []
         Map extData=[:]
         List extList = []
-        active = true;  myMap.active=active; workQMapFLD[appId]=myMap
 
         Boolean oldParallel
         Boolean parallel = false
@@ -4072,7 +4077,9 @@ void workQ() {
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             lmsg.push("workQ FINAL ms delay is $msSum".toString())
-            myMap.nextOk = nextOk; workQMapFLD[appId]=myMap
+            active = true
+            myMap.active=active
+            myMap.nextOk = nextOk; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
 
             locked = false
             releaseTheLock(sHMLF)
@@ -4106,11 +4113,17 @@ void workQ() {
             }
         }
     }
-    Long ms = ((nextOk+200L - (Long)now()))
-    String mmsg
-    if(!active && fnd && now() < nextOk){
-        runInMillis(ms, "workQ")
-        mmsg = "workQ wakeup requested in $ms ms ${now()}  ${nextOk}"
+
+    Long t0 = (Long)now()
+    mmsg = "workQ active: ${active} work todo fnd: ${fnd} now: ${t0} nextOk: ${nextOk}"
+    if(!active && fnd) { // if we have more work to do
+        t0 = (Long)now()
+        Long ms = nextOk+200L - t0
+        if(ms <= 0L) ms = 4000
+        if(t0 < nextOk) { // if we are waiting between commands due to Alexa limits, schedule wakeup to resume
+            runInMillis(ms, "workQF")
+            mmsg = "workQ wakeup requested in $ms ms" + mmsg
+        }
     }
     if(locked) releaseTheLock(sHMLF)
     if(mmsg) logDebug(mmsg)
@@ -4188,7 +4201,7 @@ void finishWorkQ(response, extData){
     Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
 
     Map myMap = workQMapFLD[appId]
-    Boolean active = false;  myMap.active=active; workQMapFLD[appId]=myMap
+    Boolean active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'active'

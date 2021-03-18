@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.9.4"
-@Field static final String appModifiedFLD = "2021-03-15"
+@Field static final String devVersionFLD  = "4.0.9.5"
+@Field static final String appModifiedFLD = "2021-03-18"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -78,7 +78,7 @@ metadata {
         attribute "doNotDisturb", "string"
         attribute "firmwareVer", "string"
         attribute "followUpMode", "string"
-        attribute "lastCmdSentDt", "string"
+//        attribute "lastCmdSentDt", "string"
         attribute "lastSpeakCmd", "string"
         attribute "lastAnnouncement", "string"
         attribute "lastSpokenToTime", "number"
@@ -191,17 +191,19 @@ if(!isZone()) {
 def installed() {
     logInfo("${device?.displayName} Executing Installed...")
     sendEvent(name: "mute", value: "unmuted")
-    sendEvent(name: "status", value: "stopped")
-    sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
-    sendEvent(name: "trackDescription", value: "Not Set")
+    if(!isZone()) {
+        sendEvent(name: "status", value: "stopped")
+        sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
+        sendEvent(name: "trackDescription", value: "Not Set")
+        sendEvent(name: "followUpMode", value: sFALSE)
+        sendEvent(name: "alexaWakeWord", value: "ALEXA")
+        sendEvent(name: "mediaSource", value: "Not Set")
+        sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
+        sendEvent(name: "alarmVolume", value: 0)
+        sendEvent(name: "doNotDisturb", value: sFALSE)
+    }
     sendEvent(name: "lastSpeakCmd", value: "Nothing sent yet...")
-    sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
-    sendEvent(name: "doNotDisturb", value: sFALSE)
     sendEvent(name: "onlineStatus", value: "online")
-    sendEvent(name: "followUpMode", value: sFALSE)
-    sendEvent(name: "alarmVolume", value: 0)
-    sendEvent(name: "alexaWakeWord", value: "ALEXA")
-    sendEvent(name: "mediaSource", value: "Not Set")
 //    state.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
@@ -322,7 +324,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
 
     if(device?.currentValue("doNotDisturb") == sTRUE && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
 
-    if(state.permissions.containsKey(type) && (Boolean)state.permissions[type]) { return true }
+    if(permissionOk(type)) { return true }
     else {
         String warnMsg = sNULL
         switch(type) {
@@ -394,11 +396,13 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
 
 Boolean permissionOk(String type) {
     if(isZone()) return true
-    if(type && state.permissions?.containsKey(type) && (Boolean)state.permissions[type]) { return true }
+    Map p = (Map)state.permissions
+    if(type && p?.containsKey(type) && (Boolean)p[type]) { return true }
     return false
 }
 
 void updateDeviceStatus(Map devData) {
+    if(isZone()) return
     Boolean isOnline = false
     if(devData.size()) {
         isOnline = (Boolean)devData.online
@@ -670,6 +674,7 @@ private void getPlaybackState(Boolean isGroupResponse=false) {
 }
 
 void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
+    if(isZone()) return
     // log.debug "playerInfo: ${playerInfo}"
     Boolean isPlayStateChange = false
     Boolean isMediaInfoChange = false
@@ -1419,7 +1424,7 @@ def setAlarmVolume(vol) {
 
 // capability audioVolume
 def setVolume(vol) {
-    if(vol) { setLevel(vol.toInteger()) }
+    if(vol!=null) { setLevel(vol.toInteger()) }
 }
 
 // capability audioVolume
@@ -1500,6 +1505,7 @@ def setDoNotDisturb(Boolean val) {
 
 def setFollowUpMode(Boolean val) {
     logTrace("setFollowUpMode($val) command received...")
+    if(isZone()) return
     if(state.devicePreferences == null || !state.devicePreferences?.size()) { return }
     if(!(String)state.deviceAccountId) { logError("setFollowUpMode Failed because deviceAccountId is not found..."); return }
     if(isCommandTypeAllowed("followUpMode")) {
@@ -1529,25 +1535,18 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(volume, String msg) {
     logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-/*    if(volume != null && permissionOk("volumeControl")) {
-        state.newVolume = volume
-        state.oldVolume = null // does not put old value back
-    } */
     speak(msg, volume)
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
     logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, $restVolume) command received...")
     if(msg) {
-        // if(volume != null && permissionOk("volumeControl")) {
-            // state.newVolume = volume?.toInteger()
-            if(restVolume != null) {
-                state.oldVolume = restVolume as Integer
-            } else {
-                state.oldVolume = null // clear out any junk
-                Boolean stored = mstoreCurrentVolume() // will set current volume for restore
-            }
-        // }
+        if(restVolume != null) {
+            state.oldVolume = restVolume as Integer
+        } else {
+            state.oldVolume = null // clear out any junk
+            Boolean stored = mstoreCurrentVolume() // will set current volume for restore
+        }
         speak(msg, volume)
     }
 }
@@ -1573,7 +1572,7 @@ Boolean mstoreCurrentVolume(Boolean user=false) {
 public restoreLastVolume() {
     Integer lastVol = state.svVolume
     String msg = "restoreLastVolume($lastVol)"
-    if(lastVol && permissionOk("volumeControl")) {
+    if(lastVol != null) {
         logTrace(msg+" received...")
         setVolume(lastVol as Integer)
     } else { logWarn(msg+" previous value not found...", true) }
@@ -1715,6 +1714,8 @@ def playAnnouncement(String msg, volume=null, restoreVolume=null) {
 
 def finishAnnounce(String msg, volume, restoreVolume){ 
     sendEvent(name: "lastAnnouncement", value: msg, display: false, displayed: false, isStateChange:true)
+    //String t0 = getDtNow()
+    //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
     updateLevel(restoreVolume, volume)
 }
 
@@ -1939,7 +1940,7 @@ private void playMusicProvider(String searchPhrase, String providerId, volume=nu
     Map validObj = getMusicSearchObj(searchPhrase, providerId, sleepSeconds)
     if(!validObj) { return }
     List seqList = []
-    if(volume) {
+    if(volume != null) {
         seqList.push([command: "volume", value: volume, deviceData: getDeviceData()])
         updateLevel(volume.toInteger(), null)
     }
@@ -1949,6 +1950,7 @@ private void playMusicProvider(String searchPhrase, String providerId, volume=nu
 
 def setWakeWord(String newWord) {
     logTrace("setWakeWord($newWord) command received...")
+    if(isZone()) return
     String oldWord = device?.currentValue('alexaWakeWord')
     def t0 = device?.currentValue('wakeWords')
     def wwList = t0 ?: []
@@ -2609,10 +2611,10 @@ void parallelSpeak(String msg) {
     else {
         if(isZone()) {
             parent.relaySpeakZone(parent.id.toString(), msg, true)
-            String t0 = getDtNow()
             String lastMsg = msg ?: "Nothing to Show Here..."
             sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
-            sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+            //String t0 = getDtNow()
+            //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
             logSpeech(msg, 200, sNULL)
         } else {
             speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: null, oldVolume: null, cmdDt: now()], true)
@@ -2625,16 +2627,15 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
         else {
-            def newvol = volume ?: null
-            // def newvol = volume ?: (state.newVolume ?: null)
-            def restvol = state.oldVolume ?: null
+            def newvol = volume != null ? volume : null
+            def restvol = state.oldVolume != null ? state.oldVolume : null
 
             if(isZone()) {
                 parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]])
-                String t0 = getDtNow()
                 String lastMsg = msg ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
-                sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+                //String t0 = getDtNow()
+                //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
                 updateLevel(restvol, newvol)
                 logSpeech(msg, 200, sNULL)
             } else {
@@ -2879,9 +2880,9 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data) {
 
             String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
             if((String)data?.cmdDesc == "SpeakCommand") {
-                String t0 = getDtNow()
                 sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
-                sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+                //String t0 = getDtNow()
+                //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
                 updateLevel((Integer)data.oldVolume, (Integer)data.newVolume)
                 logSpeech(lastMsg, statusCode, sNULL)
             }
