@@ -3904,12 +3904,10 @@ void addToQ(Map item) {
 
 void workQF() { workQ() }
 void workQB() { workQ() }
-//void workQR() { workQ() }
 
 void workQ() {
     logTrace "running workQ"
     String mmsg
-//    Boolean doRecheck = false
 
     Boolean locked=false
     String appId=app.getId()
@@ -3952,7 +3950,6 @@ void workQ() {
 // lets try to join commands in single request to Alexa
         while(eData.size()>0){
 
-            active = true;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
             svSeqList = seqList
             Map item = (Map)eData[0]
 
@@ -4080,6 +4077,8 @@ void workQ() {
             msSum = Math.min(240000, Math.max(msSum, mymin))
             nextOk = (Long)now() + msSum.toLong()
             lmsg.push("workQ FINAL ms delay is $msSum".toString())
+            active = true
+            myMap.active=active
             myMap.nextOk = nextOk; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
 
             locked = false
@@ -4113,18 +4112,19 @@ void workQ() {
                 finishWorkQ([status: 500, data: [:]], extData)
             }
         }
-    } /* else {
-        mmsg = "workQ busy active: ${active} fnd: ${fnd} now: ${now()} nextOk: ${nextOk}"
-        doRecheck = true
-    }*/
-    Long ms = ((nextOk+200L - (Long)now()))
-    if(ms <= 0L) ms = 4000
-    if(!active && fnd && now() < nextOk){
-        //doRecheck = false
-        runInMillis(ms, "workQF")
-        mmsg = "workQ wakeup requested in $ms ms ${now()}  ${nextOk}"
     }
-    //if(doRecheck) runInMillis(ms, "workQR")
+
+    Long t0 = (Long)now()
+    mmsg = "workQ active: ${active} work todo fnd: ${fnd} now: ${t0} nextOk: ${nextOk}"
+    if(!active && fnd) { // if we have more work to do
+        t0 = (Long)now()
+        Long ms = nextOk+200L - t0
+        if(ms <= 0L) ms = 4000
+        if(t0 < nextOk) { // if we are waiting between commands due to Alexa limits, schedule wakeup to resume
+            runInMillis(ms, "workQF")
+            mmsg = "workQ wakeup requested in $ms ms" + mmsg
+        }
+    }
     if(locked) releaseTheLock(sHMLF)
     if(mmsg) logDebug(mmsg)
 }
