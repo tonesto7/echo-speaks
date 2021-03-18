@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = '4.0.9.4'
-@Field static final String appModifiedFLD = '2021-03-15'
+@Field static final String appModifiedFLD = '2021-03-17'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -3014,10 +3014,10 @@ private void tierSchedHandler(data) {
 Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null, Double dch=null, Double dce=null, Boolean dca=false, Boolean dcavg=false) {
     Boolean evtOk = false
     Boolean evtAd = false
-    log.debug "deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}"
+    logDebug("deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}")
     if(devs?.size() && cmd && evt?.value?.toString()?.isNumber()) {
         Double evtValue = (dcavg ? getDevValueAvg(devs, evt?.name) : evt?.value) as Double
-        log.debug "evtValue: ${evtValue}"
+        // log.debug "evtValue: ${evtValue}"
         switch(cmd) {
             case sEQUALS:
                 if(!dca && dce && dce?.toDouble() == evtValue) {
