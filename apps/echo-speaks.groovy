@@ -370,7 +370,7 @@ def deviceManagePage() {
                 Map skDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason != sIN_IGNORE) }
                 Map ignDevs = ((Map)state.skippedDevices)?.findAll { (it?.value?.reason == sIN_IGNORE) }
                 if(devs.size()) {
-                    String devDesc = devs.collect { "<span>${it.value?.name}</span>${it.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort().join("<br>").toString()
+                    String devDesc = devs.collect { "<span>${it.value?.name}</span>${it.value?.online ? "<span style='color: green;'> (Online)</span>" : sBLANK}${it.value?.supported == false ? "<span style='color: red;'> ${sFRNFACE}</span>" : sBLANK}" }?.sort()?.join("<br>")?.toString()
                     String dd = spanSmBr(devDesc) + inputFooter(sTTVD)
                     href "deviceListPage", title: inTS1("Installed Devices:"), description: divSm(dd, sCLR4D9)
                 } else { paragraph spanSm("Discovered Devices:<br>No Devices Available", sCLRRED) }
@@ -987,8 +987,8 @@ def notifPrefPage() {
         settingRemove('pushoverPriority')
         settingRemove('pushoverSound')
 
-        if(settings.notif_devs) {
-            if((settings.notif_devs) && !state.pushTested) {
+        if((List)settings.notif_devs) {
+            if(!state.pushTested) {
                 if(sendMsg("Info", "Notification Test Successful. Notifications Enabled for ${app?.label}", true)) {
                     state.pushTested = true
                 }
@@ -1088,7 +1088,7 @@ def speechPage() {
 
 def alexaRoutinesTestPage() {
     return dynamicPage(name: "alexaRoutinesTestPage", uninstall: false, install: false) {
-        Map rts = getAlexaRoutines()
+        Map<String, String> rts = getAlexaRoutines()
         section("Available Routines") {
             if(rts.size()) {
                 rts.each { String rk, String rv->
@@ -1195,19 +1195,19 @@ def sequencePage() {
     return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
         section(sectHead("Command Legend:"), hideable: true, hidden: true) {
             String str1 = "Sequence Options:"
-            seqItemsAvailFLD.other?.sort()?.each { String k, String v->
+            ((Map<String, String>)seqItemsAvailFLD.other).sort()?.each { String k, String v->
                 str1 += "${bulletItem(str1, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
             }
-            String str4 = "DoNotDisturb Options:"
-            seqItemsAvailFLD.dnd?.sort()?.each { String k, String v->
-                str4 += "${bulletItem(str4, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
-            }
+            // String str4 = "DoNotDisturb Options:"
+            // seqItemsAvailFLD.dnd?.sort()?.each { String k, String v->
+                // str4 += "${bulletItem(str4, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
+            // }
             String str2 = "Music Options:"
-            seqItemsAvailFLD.music?.sort()?.each { String k, String v->
+            ((Map<String, String>)seqItemsAvailFLD.music).sort()?.each { String k, String v->
                 str2 += "${bulletItem(str2, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
             }
             String str3 = "Canned TTS Options:"
-            seqItemsAvailFLD.speech?.sort()?.each { String k, v->
+            ((Map<String, Object>)seqItemsAvailFLD.speech).sort()?.each { String k, v->
                 String newV
                 if(v instanceof List) { newV = sBLANK; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}" } }
                 else newV=v
@@ -1631,7 +1631,7 @@ def zoneRemovedHandler(evt) {
     }
 }
 
-private requestZoneRefresh() {
+void requestZoneRefresh() {
     sendLocationEvent(name: "es3ZoneRefresh", value: "sendStatus", data: [sendStatus: true], isStateChange: true, display: false, displayed: false)
 }
 
@@ -2094,7 +2094,7 @@ void noAuthReminder() {
 }
 
 static String toQueryString(Map m) {
-    return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort().join("&")
+    return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort()?.join("&")
 }
 
 String getServerHostURL() {
@@ -2926,12 +2926,12 @@ void checkGuardSupportResponse(response, data) {
         if(resp && resp.networkDetail) {
             Map details = parseJson(resp.networkDetail as String)
             Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
-            if(locDetails && locDetails?.applianceDetails && locDetails?.applianceDetails?.applianceDetails) {
-                def guardKey = locDetails?.applianceDetails?.applianceDetails?.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+            if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
+                def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
                 // could there be multiple Guards?
-                def guardKeys = locDetails?.applianceDetails?.applianceDetails?.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+                def guardKeys = locDetails.applianceDetails.applianceDetails.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
                 if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
-                def guardData = locDetails?.applianceDetails?.applianceDetails[guardKey?.key]
+                def guardData = locDetails.applianceDetails.applianceDetails[(String)guardKey?.key]
                 if(devModeFLD) logTrace("Guard: ${guardData}")
                 if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
                 //TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
@@ -4775,7 +4775,7 @@ private List codeUpdateItems(Boolean shrt=false) {
 Boolean getOk2Notify() {
     Boolean smsOk // (settings.smsNumbers?.toString()?.length()>=10)
     Boolean pushOk // (Boolean)settings.usePush
-    Boolean notifDevs = (settings.notif_devs?.size())
+    Boolean notifDevs = (((List)settings.notif_devs)?.size() > 0)
     Boolean pushOver // ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
     Boolean daysOk = quietDaysOk((List)settings.quietDays)
     Boolean timeOk = quietTimeOk()
@@ -4833,9 +4833,9 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
         if(!getOk2Notify()) {
             logInfo("sendMsg: Message Skipped Notification not configured or During Quiet Time ($flatMsg)")
         } else {
-            if(settings.notif_devs) {
+            if((List)settings.notif_devs) {
                 sentstr = "Notification Devices"
-                settings.notif_devs?.each { it?.deviceNotification(newMsg) }
+                ((List)settings.notif_devs).each { it?.deviceNotification(newMsg) }
                 sent = true
             }
             if(sent) {
@@ -5053,8 +5053,8 @@ def renderMetricData() {
 
 private Map getSkippedDevsAnon() {
     Map res = [:]
-    Map sDevs = state.skippedDevices ?: [:]
-    sDevs?.each { k, v-> if(!res?.containsKey(v?.type)) { res[v?.type] = v } }
+    Map<String, Map> sDevs = (Map<String,Map>)state.skippedDevices ?: [:]
+    sDevs.each { k, v-> if(!res.containsKey((String)v?.type)) { res[(String)v?.type] = v } }
     return res
 }
 
@@ -5086,7 +5086,7 @@ private String createMetricsDataJson() {
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: (Boolean)getServerItem("onHeroku") ? "Cloud" : "Local",
-            versions: [app: appVersionFLD, server: swVer?.server ?: "N/A", actions: swVer?.actionApp ?: "N/A", zones: swVer?.zoneApp ?: "N/A", device: swVer?.echoDevice ?: "N/A", socket: swVer?.wsDevice ?: "N/A"],
+            versions: [app: appVersionFLD, server: (String)swVer?.server ?: "N/A", actions: (String)swVer?.actionApp ?: "N/A", zones: (String)swVer?.zoneApp ?: "N/A", device: (String)swVer?.echoDevice ?: "N/A", socket: (String)swVer?.wsDevice ?: "N/A"],
             detections: [skippedDevices: getSkippedDevsAnon()],
             actions: actData,
             zones: zoneData,
@@ -5106,6 +5106,7 @@ private String createMetricsDataJson() {
     } catch (ex) {
         logError("createMetricsDataJson: Exception: ${ex}", false, ex)
     }
+    return sNULL
 }
 
 void incrementCntByKey(String key) {
@@ -5119,7 +5120,7 @@ void incrementCntByKey(String key) {
 // ******************************************
 //      APP/DEVICE Version Functions
 // ******************************************
-Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
+static Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
     Boolean result = false
     def latestVer
     if(newVer && curVer) {
@@ -5136,13 +5137,13 @@ Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
     return result
 }
 
-Boolean appUpdAvail()           { return (state.appData?.versions && state.codeVersions?.mainApp && codeUpdIsAvail(state.appData?.versions?.mainApp?.ver, state.codeVersions?.mainApp, "main_app")) }
-Boolean actionUpdAvail()        { return (state.appData?.versions && state.codeVersions?.actionApp && codeUpdIsAvail(state.appData?.versions?.actionApp?.ver, state.codeVersions?.actionApp, "action_app")) }
-Boolean zoneUpdAvail()          { return (state.appData?.versions && state.codeVersions?.zoneApp && codeUpdIsAvail(state.appData?.versions?.zoneApp?.ver, state.codeVersions?.zoneApp, "zone_app")) }
-Boolean zoneChildDevUpdAvail()  { return (state.appData?.versions && state.codeVersions?.zoneEchoDevice && codeUpdIsAvail(state.appData?.versions?.zoneChildDevice?.ver, state.codeVersions?.zoneEchoDevice, "zone_child_dev")) }
-Boolean echoDevUpdAvail()       { return (state.appData?.versions && state.codeVersions?.echoDevice && codeUpdIsAvail(state.appData?.versions?.echoDevice?.ver, state.codeVersions?.echoDevice, "dev")) }
-Boolean socketUpdAvail()        { return (state.appData?.versions && state.codeVersions?.wsDevice && codeUpdIsAvail(state.appData?.versions?.wsDevice?.ver, state.codeVersions?.wsDevice, "socket")) }
-Boolean serverUpdAvail()        { return (state.appData?.versions && state.codeVersions?.server && codeUpdIsAvail(state.appData?.versions?.server?.ver, state.codeVersions?.server, "server")) }
+Boolean appUpdAvail()           { return ((Map)state.appData?.versions && (String)state.codeVersions?.mainApp && codeUpdIsAvail((String)state.appData.versions?.mainApp?.ver, (String)state.codeVersions.mainApp, "main_app")) }
+Boolean actionUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.actionApp && codeUpdIsAvail((String)state.appData.versions?.actionApp?.ver, (String)state.codeVersions.actionApp, "action_app")) }
+Boolean zoneUpdAvail()          { return ((Map)state.appData?.versions && (String)state.codeVersions?.zoneApp && codeUpdIsAvail((String)state.appData.versions?.zoneApp?.ver, (String)state.codeVersions.zoneApp, "zone_app")) }
+Boolean zoneChildDevUpdAvail()  { return ((Map)state.appData?.versions && (String)state.codeVersions?.zoneEchoDevice && codeUpdIsAvail((String)state.appData.versions?.zoneChildDevice?.ver, (String)state.codeVersions.zoneEchoDevice, "zone_child_dev")) }
+Boolean echoDevUpdAvail()       { return ((Map)state.appData?.versions && (String)state.codeVersions?.echoDevice && codeUpdIsAvail((String)state.appData.versions?.echoDevice?.ver, (String)state.codeVersions.echoDevice, "dev")) }
+Boolean socketUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.wsDevice && codeUpdIsAvail((String)state.appData.versions?.wsDevice?.ver, (String)state.codeVersions.wsDevice, "socket")) }
+Boolean serverUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.server && codeUpdIsAvail((String)state.appData.versions?.server?.ver, (String)state.codeVersions.server, "server")) }
 
 static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
@@ -5188,7 +5189,7 @@ private getWebData(Map params, String desc, Boolean text=true) {
         httpGet(params) { resp ->
             if(resp?.status != 200) logWarn("${resp?.status} $params")
             if(resp?.data) {
-                if(text) { return resp.data?.text.toString() }
+                if(text) { return resp.data.text?.toString() }
                 return resp.data
             }
         }
@@ -5364,8 +5365,8 @@ private getDiagDataJson(Boolean asString = false) {
             ],
             hub: [
                 platform: platformFLD,
-                firmware: location?.hubs[0]?.getFirmwareVersionString() ?: null,
-                type: location?.hubs[0]?.getType() ?: null
+                firmware: ((List)location?.hubs)[0]?.getFirmwareVersionString() ?: null,
+                type: ((List)location?.hubs)[0]?.getType() ?: null
             ],
             authStatus: [
                 cookieValidationState: (Boolean)state.authValid,
@@ -5428,7 +5429,7 @@ private getDiagDataJson(Boolean asString = false) {
     }
 }
 
-private getDiagDataText() {
+def getDiagDataText() {
     String jsonIn = (String)getDiagDataJson(true)
     if(jsonIn) {
         String o = new groovy.json.JsonOutput().prettyPrint(jsonIn)
@@ -5696,10 +5697,11 @@ private void remTsVal(key) {
     Map data=tsDtMapFLD[appId] ?: [:]
     if(key) {
         if(key instanceof List) {
-                key.each { String k->
-                    if(data.containsKey(k)) { data.remove(k) }
-                    if(k in svdTSValsFLD) { remServerItem(k) }
-                }
+            List<String> aa = (List<String>)key
+            aa.each { String k->
+                if(data.containsKey(k)) { data.remove(k) }
+                if(k in svdTSValsFLD) { remServerItem(k) }
+            }
         } else {
             String sKey = (String)key
             if(data.containsKey(sKey)) { data.remove(sKey) }
@@ -5743,7 +5745,8 @@ void remServerItem(key) {
     data =  data ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
+            List<String> aa = (List<String>)key
+            aa?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
         } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
         String appId=app.getId()
         atomicState?.serverDataMap = data
@@ -5780,7 +5783,8 @@ void remAppFlag(key) {
     data = data ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
+            List<String> aa = (List<String>)key
+            aa?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
         } else { if(data.containsKey(key)) { data.remove(key) } }
         atomicState.appFlagsMap = data
     }
@@ -5803,7 +5807,7 @@ void stateMapMigration() {
     tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, (String)state[k]); state.remove(k) } }
 
     //App Flag Migrations
-    Map flagItems = [:]
+    Map<String, String> flagItems = [:]
     flagItems?.each { String k, String v-> if(state.containsKey(k)) { updAppFlag(v, (Boolean)state[k]); state.remove(k) } }
 
     //Server Data Migrations
@@ -5834,9 +5838,9 @@ void updCodeVerMap(String key, String val) {
 }
 
 void cleanUpdVerMap() {
-    Map cv = state.codeVersions
+    Map<String, String> cv = (Map<String,String>)state.codeVersions
     cv = cv ?: [:]
-    List ri = ["groupApp"]
+    List<String> ri = ["groupApp"]
     cv.each { String k, String v-> if(v == null) ri.push(k) }
     ri.each { cv.remove(it) }
     state.codeVersions = cv
@@ -5852,13 +5856,14 @@ String getRandAppName() {
 *******************************************/
 String getAppNotifConfDesc() {
     String str = sBLANK
-    Integer notifDevs = settings.notif_devs?.size()
+    Integer notifDevs = ((List)settings.notif_devs)?.size()
     if(notifDevs) {
         Boolean ok = getOk2Notify()
         str += spanSmBld("Send Notifications Allowed:") + getOkOrNotSymHTML(ok)
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
-        str += notifDevs ? lineBr() + spanSmBr(" ${sBULLET} Sending via: Notification Device${pluralizeStr(settings.notif_devs)} (${notifDevs})") : sBLANK
+        List t0 = (List)settings.notif_devs
+        str += notifDevs ? lineBr() + spanSmBr(" ${sBULLET} Sending via: Notification Device${pluralizeStr(t0)} (${notifDevs})") : sBLANK
         str += (ap) ? lineBr(str != sBLANK) + spanSmBldBr("Enabled Alerts:") + ap : sBLANK
         str += (ap && nd) ? lineBr(str != sBLANK) + lineBr() + nd : sBLANK
     }
@@ -5982,12 +5987,12 @@ def appInfoSect() {
     if(codeVer && (codeVer.server || codeVer.actionApp || codeVer.echoDevice)) {
         List<Map> verMap = []
         verMap.push([name: "App:", ver: "v${appVersionFLD}"])
-        if(codeVer.echoDevice) verMap.push([name: "Device:", ver: "v${codeVer.echoDevice}"])
-        if(codeVer.actionApp) verMap.push([name: "Action:", ver: "v${codeVer.actionApp}"])
-        if(codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${codeVer.zoneApp}"])
-        if(codeVer.zoneEchoDevice) verMap.push([name: "Zone Device:", ver: "v${codeVer.zoneEchoDevice}"])
-        if(codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${codeVer.wsDevice}"])
-        if(codeVer.server) verMap.push([name: "Server:", ver: "v${codeVer.server}"])
+        if((String)codeVer.echoDevice) verMap.push([name: "Device:", ver: "v${(String)codeVer.echoDevice}"])
+        if((String)codeVer.actionApp) verMap.push([name: "Action:", ver: "v${(String)codeVer.actionApp}"])
+        if((String)codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${(String)codeVer.zoneApp}"])
+        if((String)codeVer.zoneEchoDevice) verMap.push([name: "Zone Device:", ver: "v${(String)codeVer.zoneEchoDevice}"])
+        if((String)codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${(String)codeVer.wsDevice}"])
+        if((String)codeVer.server) verMap.push([name: "Server:", ver: "v${(String)codeVer.server}"])
         if(verMap?.size()) {
             tStr += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
             verMap.each { it->
@@ -6054,10 +6059,9 @@ def appInfoSect() {
         }
     }
 }
-
+/*
 String htmlRowVerStr(String name, String ver) {
-
-}
+} */
 
 String UrlParamBuilder(Map items) {
     return items?.collect { k,v -> "${k}=${URLEncoder.encode(v?.toString())}" }?.join("&") as String
@@ -6818,11 +6822,11 @@ Boolean isInAlarmMode(modes) {
     return (getAlarmSystemStatus() in modes)
 }
 
-String getAlarmSystemName(Boolean abbr=false) {
+static String getAlarmSystemName(Boolean abbr=false) {
     return (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 
-List getAlarmModes() {
+static List getAlarmModes() {
     return ["armedAway", "armingAway", "armedHome", "armingHome", "armedNight", "armingNight", "disarmed", "allDisarmed"]
 }
 
@@ -6859,7 +6863,7 @@ public setAlarmSystemMode(mode) {
     sendLocationEvent(name: "hsmSetArm", value: mode.toString())
 }
 
-Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
+Integer stateSize() { String j = new groovy.json.JsonOutput().toJson((Map)state); return j.length() }
 Integer stateSizePerc() { return (Integer) ((stateSize() / 100000)*100).toDouble().round(0) }
 
 List logLevels() {
