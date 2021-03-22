@@ -1,5 +1,5 @@
 /**
- *	Echo Speaks Device (Hubitat ONLY)
+ *	Echo Speaks Zone Device (Hubitat ONLY)
  *
  *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
  *  Code Contributions by @nh.schottfam
@@ -49,10 +49,10 @@ import groovy.transform.Field
 
 static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return false }
-static Boolean isZone()     { return false }
+static Boolean isZone()     { return true }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
+    definition (name: "Echo Speaks Zone Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-zone-device.groovy") {
         capability "Audio Notification"
         capability "Audio Volume"
         capability "Music Player"
@@ -2703,6 +2703,7 @@ def sendTestAlexaMsg() {
             "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
             "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
             "sound": "message",
+            "date": null, "time": null,
             "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
             "announcementall": "message", "pushnotification": "message", "email": null, "voicecmdtxt": "voice command as text"
         ],
