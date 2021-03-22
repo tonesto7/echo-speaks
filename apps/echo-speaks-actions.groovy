@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = '4.0.9.5'
-@Field static final String appModifiedFLD = '2021-03-18'
+@Field static final String appVersionFLD  = '4.1.0.0'
+@Field static final String appModifiedFLD = '2021-03-22'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -100,7 +100,7 @@ definition(
     iconUrl: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
     iconX2Url: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
     iconX3Url: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
-    importUrl  : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-actions.groovy')
+    importUrl  : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-actions.groovy')
 
 preferences {
     page(name: 'startPage')

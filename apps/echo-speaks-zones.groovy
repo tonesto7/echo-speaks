@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.0.9.5"
-@Field static final String appModifiedFLD = "2021-03-18"
+@Field static final String appVersionFLD  = "4.1.0.0"
+@Field static final String appModifiedFLD = "2021-03-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -78,7 +78,7 @@ definition(
     iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
     iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
     iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks-zones.groovy")
+    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-zones.groovy")
 
 preferences {
     page(name: "startPage")
@@ -121,7 +121,7 @@ def uhOhPage () {
 
 def appInfoSect()	{
     String instDt = state.dateInstalled ? fmtTime(state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
-    String str = spanBldBr(app.name, "black", "es_groups")
+    String str = spanBldBr((String)app.name, "black", "es_groups")
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
     str += lineBr() + getOverallDesc()
@@ -269,15 +269,15 @@ private void updDeviceInputs() {
     Boolean updList = false
     try {
         updList = (aa.size() && aa[0].id != null)
-        devIds = aa.collect { it?.id.toString() }
+        devIds = aa.collect { it?.id?.toString() }
         // log.debug "updList(try): ${devIds.unique()}"
     } catch (ex) {
         // log.debug "ex: $ex"
         devIds = aa.collect { it?.toString() }
     }
-    if(updList && devIds) { 
-        log.debug "updList: $devIds"
-        app.updateSetting( "zone_EchoDevices", [type: "enum", value: devIds.unique()]) 
+    if(updList && devIds) {
+        logDebug("updList: $devIds")
+        app.updateSetting( "zone_EchoDevices", [type: "enum", value: devIds.unique()])
     }
     if(devIds) { app.updateSetting( "zone_EchoDeviceList", [type: "capability", value: devIds.unique()]) } // this won't take effect until next execution
 }
@@ -708,8 +708,8 @@ def uninstalled() {
 String getZoneName() { return (String)settings.appLbl }
 
 private void updAppLabel() {
-    String newLbl = "${settings.appLbl} (Z${isPaused(true) ? " ${sPAUSESymFLD}" : sBLANK})"?.replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s",sSPACE)
-    if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl); sendZoneStatus() } 
+    String newLbl = "${settings.appLbl} (Z${isPaused(true) ? " ${sPAUSESymFLD}" : sBLANK})".replaceAll(/ (Dup)/, sBLANK).replaceAll("\\s",sSPACE)
+    if(settings.appLbl && app?.getLabel() != newLbl) { app?.updateLabel(newLbl); sendZoneStatus() }
 }
 
 private void updConfigStatusMap() {
@@ -973,6 +973,7 @@ Boolean checkDeviceNumCondOk(String type) {
             return true
             break
     }
+    return false
 }
 
 private Boolean isConditionOk(String evt) {
@@ -1048,8 +1049,8 @@ Boolean timeCondConfigured() {
 }
 
 Boolean dateCondConfigured() {
-    Boolean days = (settings.cond_days)
-    Boolean months = (settings.cond_months)
+    Boolean days = ((List)settings.cond_days)
+    Boolean months = ((List)settings.cond_months)
     return (days || months)
 }
 
@@ -1089,26 +1090,30 @@ Boolean multipleConditions() {
 ************************************************************************************************************/
 
 def zoneEvtHandler(evt) {
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    logTrace( "${(String)evt?.name} Event | Device: ${(String)evt?.displayName} | Value: (${strCapitalize(evt?.value?.toString())}) with a delay of ${(Long)now() - (Long)((Date)evt?.date)?.getTime()}ms")
     checkZoneStatus(evt)
     scheduleCondition()
 }
 
 void zoneTimeStartCondHandler() {
-    checkZoneStatus([name: "Time", displayName: "Condition Start Time"])
-    scheduleCondition()
+    Map evt = [name: "Time", displayName: "Condition Start Time", value: now()]
+    zoneEvtHandler(evt)
+//    checkZoneStatus(evt)
+//    scheduleCondition()
 }
 
 void zoneTimeStopCondHandler() {
-    checkZoneStatus([name: "Time", displayName: "Condition Stop Time"])
-    scheduleCondition()
+    Map evt = [name: "Time", displayName: "Condition Stop Time", value: now()]
+    zoneEvtHandler(evt)
+//    checkZoneStatus(evt)
+//    scheduleCondition()
 }
 
 def zoneStartHandler(evt) {
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    zoneEvtHandler(evt)
+//    checkZoneStatus(evt)
+//    scheduleCondition()
 // match states incase we were down
-    checkZoneStatus(evt)
-    scheduleCondition()
     sendZoneStatus()
 }
 
@@ -1128,9 +1133,9 @@ void checkZoneStatus(evt) {
     String msg1 = " | Call from ${(String)evt?.name} / ${(String)evt?.displayName}".toString()
     if((Boolean)state.zoneConditionsOk == active) { logTrace("checkZoneStatus: Zone: ${delayType} | No changes${msg1}"); return }
     Boolean bypassDelay = false
-    Map data = [active: active, recheck: false, evtData: [name: evt?.name, displayName: evt?.displayName], condStatus: condStatus]
+    Map data = [active: active, recheck: false, evtData: [name: (String)evt?.name, displayName: (String)evt?.displayName], condStatus: condStatus]
     Integer delay = settings."zone_${delayType}_delay" ?: null
-    if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = !isConditionOk(evt?.name)
+    if(!active && settings."cond_${evt?.name}_db" == true) { bypassDelay = !isConditionOk((String)evt?.name)
     }
     String msg = !bypassDelay && delay ? "in (${delay} sec)" : (bypassDelay ? "Bypassing Inactive Delay for (${evt?.name}) Event..." : sBLANK)
     logTrace("calling updateZoneStatus [${delayType}] "+msg+msg1)
@@ -1195,8 +1200,7 @@ public getZoneHistory(Boolean asObj=false) {
     List<String> output = []
     if(zHist?.size()) {
         zHist.each { h->
-            String str = sBLANK
-            List hList = []
+            List<Map> hList = []
             hList.push([name: "Trigger:", val: h?.evtName])
             hList.push([name: "Device:", val: h?.evtDevice])
             hList.push([name: "Zone Status:", val: (h?.active ? "Activate" : "Deactivate")])
@@ -1204,7 +1208,7 @@ public getZoneHistory(Boolean asObj=false) {
             hList.push([name: "Conditions Blocks:", val: h?.blocks])
             hList.push([name: "DateTime:", val: h?.dt])
             if(hList.size()) {
-                output.push(spanSm(kvListToHtmlTable(hList, sCLR4D9), sCLRGRY)) 
+                output.push(spanSm(kvListToHtmlTable(hList, sCLR4D9), sCLRGRY))
             }
         }
     } else { output.push("No History Items Found...") }
@@ -1213,12 +1217,12 @@ public getZoneHistory(Boolean asObj=false) {
     } else { return output }
 }
 
-private String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
+private static String kvListToHtmlTable(List<Map> tabList, String color=sCLRGRY) {
     String str = sBLANK
     if(tabList?.size()) {
         str += "<table style='border: 1px solid ${color};border-collapse: collapse;'>"
-        tabList.each { it->  
-            str += "<tr style='border: 1px solid ${color};'><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBld(it.name)}</td><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.val}")}</td></tr>"
+        tabList.each { it->
+            str += "<tr style='border: 1px solid ${color};'><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBld((String)it.name)}</td><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.val}")}</td></tr>"
         }
         str += "</table>"
     }
@@ -1281,12 +1285,12 @@ public zoneCmdHandler(evt) {
         List zoneDevs = (List)zoneDevMap.devices
 
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
-            Map zVol = data.zoneVolumes[appId]
+            Map zVol = (Map)data.zoneVolumes[appId]
             // log.debug "zoneVolume: ${zVol}"
             data.changeVol = zVol.change ?: data.changeVol
             data.restoreVol = zVol.restore ?: data.restoreVol
         }
-        Integer delay = data.delay ?: null
+        Integer delay = (Integer)data.delay // ?: null
 
         if(cmd == "speak" && zoneDevs?.size() >= 2) {
             Boolean fA = true
@@ -1626,45 +1630,46 @@ public void logsDisable() {
     }
 }
 
-public void enableDebugLog() { settingUpdate("logDebug", sTRUE, sBOOL); logInfo("Debug Logs Enabled From Main App..."); }
-public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInfo("Debug Logs Disabled From Main App..."); }
-public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App..."); }
-public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App..."); }
+public void enableDebugLog() { settingUpdate("logDebug", sTRUE, sBOOL); logInfo("Debug Logs Enabled From Main App...") }
+public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInfo("Debug Logs Disabled From Main App...") }
+public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App...") }
+public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App...") }
 
 @Field volatile static Map<String,Map> tsDtMapFLD=[:]
 
 private void updTsVal(String key, String dt=sNULL) {
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:] 
+    Map data=tsDtMapFLD[appId] ?: [:]
     if(!data) data = state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
     tsDtMapFLD[appId]=data
     tsDtMapFLD=tsDtMapFLD
-    
+
     state.tsDtMap = data
 }
 
 private void remTsVal(key) {
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:] 
+    Map data=tsDtMapFLD[appId] ?: [:]
     if(!data) data = state.tsDtMap ?: [:]
     if(key) {
-        if(key instanceof List) { 
-            ((List)key).each { String k->
+        if(key instanceof List) {
+            List<String> aa = (List<String>)key
+            aa.each { String k->
                     if(data.containsKey(k)) { data.remove(k) }
                 }
         } else if(data.containsKey((String)key)) { data.remove((String)key) }
     }
     tsDtMapFLD[appId]=data
     tsDtMapFLD=tsDtMapFLD
-    
+
     state.tsDtMap = data
 }
 
 String getTsVal(String key) {
     String appId=app.getId()
     Map tsMap=tsDtMapFLD[appId]
-    if(!tsMap) tsMap = state.tsDtMap ?: [:] 
+    if(!tsMap) tsMap = state.tsDtMap ?: [:]
     if(key && tsMap && tsMap[key]) { return (String)tsMap[key] }
     return sNULL
 }
@@ -1683,7 +1688,8 @@ private void remAppFlag(key) {
     Map data = atomicState?.appFlagsMap ?: [:]
     if(key) {
         if(key instanceof List) {
-            ((List)key).each { String k-> if(data.containsKey(k)) { data.remove(k) } }
+            List<String> aa = (List<String>)key
+            aa.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
         } else { if(data.containsKey(key)) { data.remove(key) } }
         atomicState.appFlagsMap = data
     }
@@ -1783,7 +1789,8 @@ String getNotifSchedDesc(Boolean min=false) {
 }
 
 String getOverallDesc() {
-    String str = spanSmBld("Zone is ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+    String str = spanSmBld("Zone is ") + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+    return str
 }
 
 String getConditionsDesc(Boolean addFoot=true) {
@@ -1799,8 +1806,8 @@ String getConditionsDesc(Boolean addFoot=true) {
         }
         if((Boolean)dateCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Date:")
-            str += settings.cond_days    ? spanSmBr("    - Days Allowed: " + getOkOrNotSymHTML(isDayOfWeek(settings.cond_days))) : sBLANK
-            str += settings.cond_months  ? spanSmBr("    - Months Allowed: " + getOkOrNotSymHTML(isMonthOfYear(settings.cond_months)))  : sBLANK
+            str += (List)settings.cond_days    ? spanSmBr("    - Days Allowed: " + getOkOrNotSymHTML(isDayOfWeek((List)settings.cond_days))) : sBLANK
+            str += (List)settings.cond_months  ? spanSmBr("    - Months Allowed: " + getOkOrNotSymHTML(isMonthOfYear((List)settings.cond_months)))  : sBLANK
         }
         if((List)settings.cond_alarm || (List)settings.cond_mode) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
@@ -2050,7 +2057,7 @@ static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", s
 
 Boolean minVersionFailed() {
     try {
-        Integer minDevVer = parent?.minVersions()["zoneApp"]
+        Integer minDevVer = (Integer)parent?.minVersions()["zoneApp"]
         return minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer
     } catch (e) {
         return false
@@ -2119,7 +2126,7 @@ static String bulletItem(String inStr, String strVal) { return "${inStr == sBLAN
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - "+strVal }
 
 Integer stateSize() {
-    String j = new groovy.json.JsonOutput().toJson(state)
+    String j = new groovy.json.JsonOutput().toJson((Map)state)
     return j.length()
 }
 Integer stateSizePerc() { return (Integer)(((stateSize() / 100000)*100).toDouble().round(0)) }
