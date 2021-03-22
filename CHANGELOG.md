@@ -19,7 +19,7 @@
 - [UPDATE] Updates for operation with HSM,
 - [ADDED] Restored Zone and Action duplications.
 - [UPDATE] Added support for new Echo devices
-- [UPDATE] Significant platform resource usage.
+- [UPDATE] Significant reduction of platform resource usage.
 
 ### _**Echo Speaks Actions (v4.1.0.0)**_
 
@@ -46,16 +46,14 @@
 ### _**Echo Speaks Device (v4.1.0.0)**_
 
 - [UPDATE] Improved labeling for command inputs
-- [UPDATE] Significant platform resource usage.
+- [UPDATE] Significant reduction of platform resource usage.
 - [NEW] Added new voiceCmdAsText() command to execute commands as if they are spoken to the device
 
 ### _**Echo Speaks Zones Device (v4.1.0.0)**_
 
-- [UPDATE] Optimizations
-- [UPDATE] Improved time handling and transitioning
-- [UPDATE] Improved UI
+- [NEW] Device can be used in 3rd Party apps like WebCoRE or Rule Machine
 
 ### _**Echo Speaks WebSocket (v4.1.0.0)**_
 
-- [UPDATE] Significant platform resource usage.
+- [UPDATE] Significant reduction of platform resource usage.
 - [UPDATE] Improved operations with websockets.
