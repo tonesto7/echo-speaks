@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.0.9.5"
-@Field static final String appModifiedFLD = "2021-03-18"
+@Field static final String devVersionFLD  = "4.1.0.0"
+@Field static final String appModifiedFLD = "2021-03-22"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -52,7 +52,7 @@ static Boolean isWS()       { return false }
 static Boolean isZone()     { return false }
 
 metadata {
-    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-device.groovy") {
+    definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
         capability "Audio Notification"
         capability "Audio Volume"
         capability "Music Player"

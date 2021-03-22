@@ -20,8 +20,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = '4.0.9.5'
-@Field static final String appModifiedFLD = '2021-03-18'
+@Field static final String devVersionFLD  = '4.1.0.0'
+@Field static final String appModifiedFLD = '2021-03-22'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -47,7 +47,7 @@ static String devVersion()  { return devVersionFLD }
 static Boolean isWS()       { return true }
 
 metadata {
-    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/drivers/echo-speaks-ws.groovy") {
+    definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-ws.groovy") {
         capability "Initialize"
         capability "Refresh"
         capability "Actuator"

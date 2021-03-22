@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.0.9.5'
-@Field static final String appModifiedFLD = '2021-03-18'
+@Field static final String appVersionFLD  = '4.1.0.0'
+@Field static final String appModifiedFLD = '2021-03-22'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
-@Field static final Boolean betaFLD       = true
+@Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4095, wsDevice: 4095, actionApp: 4095, zoneApp: 4095, zoneEchoDevice: 4095, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4100, wsDevice: 4100, actionApp: 4100, zoneApp: 4100, zoneEchoDevice: 4100, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -91,7 +91,7 @@ definition(
     iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
     iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
     iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/apps/echo-speaks.groovy",
+    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks.groovy",
     oauth       : true
 )
 
@@ -5172,7 +5172,7 @@ void getConfigData() {
 
 void getNoticeData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/notices.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/notices.json",
         contentType: sAPPJSON,
         timeout: 20,
     ]
