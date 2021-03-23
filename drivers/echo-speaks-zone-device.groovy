@@ -1013,7 +1013,9 @@ private getDeviceActivity() {
         String wasLastS = wastLastDevice.toString()
         if(actData != null && wasLastDevice) {
             String lastSpoke = (String)actData.lastSpokenDt
+            Boolean didC = false
             if(isStateChange(device, "lastSpokenToTime", lastSpoke)) {
+                didC = true
                 sendEvent(name: "lastSpokenToTime", value: lastSpoke, display: false, displayed: false)
                 logDebug("lastSpokenToTime: ${lastSpoke} wasLastSpokenToDevice: ${wasLastS}")
                 sendEvent(name: "wasLastSpokenToDevice", value: wasLastS, display: false, displayed: false, isStateChange: true)
@@ -1021,8 +1023,10 @@ private getDeviceActivity() {
 
             String spTx = (String)actData.spokenText
             if(spTx) {
-                logDebug("lastVoiceActivity: ${spTx}")
-                sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
+                if (didC) {
+                    logDebug("lastVoiceActivity: ${spTx}")
+                    sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
+                } else sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false)
             }
         } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastS)) {
             logDebug("wasLastSpokenToDevice: ${wasLastS}")
