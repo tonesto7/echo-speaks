@@ -1010,22 +1010,23 @@ private getDeviceActivity() {
         Map actData = parent?.getDeviceActivity((String)state.serialNumber)
         actData = actData ?: null
         Boolean wasLastDevice = (actData != null && (String)actData?.serialNumber == (String)state.serialNumber)
+        String wasLastS = wastLastDevice.toString()
         if(actData != null && wasLastDevice) {
+            String lastSpoke = (String)actData.lastSpokenDt
+            if(isStateChange(device, "lastSpokenToTime", lastSpoke)) {
+                sendEvent(name: "lastSpokenToTime", value: lastSpoke, display: false, displayed: false)
+                logDebug("lastSpokenToTime: ${lastSpoke} wasLastSpokenToDevice: ${wasLastS}")
+                sendEvent(name: "wasLastSpokenToDevice", value: wasLastS, display: false, displayed: false, isStateChange: true)
+            }
+
             String spTx = (String)actData.spokenText
             if(spTx) {
-                if(isStateChange(device, "lastSpokenToTime", (String)actData.lastSpokenDt)) {
-                    sendEvent(name: "lastSpokenToTime", value: (String)actData.lastSpokenDt, display: false, displayed: false)
-
-                    logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
-                    sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false, isStateChange: true)
-
-                    logDebug("lastVoiceActivity: ${spTx}")
-                    sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
-                }
+                logDebug("lastVoiceActivity: ${spTx}")
+                sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
             }
-        } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
-            logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
-            sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false)
+        } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastS)) {
+            logDebug("wasLastSpokenToDevice: ${wasLastS}")
+            sendEvent(name: "wasLastSpokenToDevice", value: wasLastS, display: false, displayed: false)
         }
     } catch (ex) {
         logError("updDeviceActivity Error: ${ex.message}")
