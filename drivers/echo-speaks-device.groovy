@@ -546,7 +546,7 @@ void websocketUpdEvt(List<String> triggers) {
                     setOnlineStatus(false)
                     break
                 case "activity":
-                    runIn(2, "getDeviceActivity")
+                    runIn(5, "getDeviceActivity")
                     break
             }
         }
