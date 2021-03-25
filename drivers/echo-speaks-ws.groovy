@@ -20,8 +20,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = '4.1.0.0'
-@Field static final String appModifiedFLD = '2021-03-22'
+@Field static final String devVersionFLD  = '4.1.0.1'
+@Field static final String appModifiedFLD = '2021-03-25'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false

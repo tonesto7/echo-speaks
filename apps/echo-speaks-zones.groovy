@@ -17,8 +17,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = "4.1.0.0"
-@Field static final String appModifiedFLD = "2021-03-22"
+@Field static final String appVersionFLD  = "4.1.0.1"
+@Field static final String appModifiedFLD = "2021-03-25"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -1090,20 +1090,20 @@ Boolean multipleConditions() {
 ************************************************************************************************************/
 
 def zoneEvtHandler(evt) {
-    logTrace( "${(String)evt?.name} Event | Device: ${(String)evt?.displayName} | Value: (${strCapitalize(evt?.value?.toString())}) with a delay of ${(Long)now() - (Long)((Date)evt?.date)?.getTime()}ms")
+    logTrace( "${(String)evt?.name} Event | Device: ${(String)evt?.displayName} | Value: (${strCapitalize(evt?.value?.toString())}) with a delay of ${now() - ((Date)evt?.date)?.getTime()}ms")
     checkZoneStatus(evt)
     scheduleCondition()
 }
 
 void zoneTimeStartCondHandler() {
-    Map evt = [name: "Time", displayName: "Condition Start Time", value: now()]
+    Map evt = [date: new Date(), name: "Time", displayName: "Condition Start Time", value: now()]
     zoneEvtHandler(evt)
 //    checkZoneStatus(evt)
 //    scheduleCondition()
 }
 
 void zoneTimeStopCondHandler() {
-    Map evt = [name: "Time", displayName: "Condition Stop Time", value: now()]
+    Map evt = [date: new Date(), name: "Time", displayName: "Condition Stop Time", value: now()]
     zoneEvtHandler(evt)
 //    checkZoneStatus(evt)
 //    scheduleCondition()
