@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.1.0.0'
-@Field static final String appModifiedFLD = '2021-03-22'
+@Field static final String appVersionFLD  = '4.1.0.1'
+@Field static final String appModifiedFLD = '2021-03-25'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4100, wsDevice: 4100, actionApp: 4100, zoneApp: 4100, zoneEchoDevice: 4100, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map minVersionsFLD    = [echoDevice: 4101, wsDevice: 4101, actionApp: 4101, zoneApp: 4101, zoneEchoDevice: 4101, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -2670,7 +2670,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
                     getLastActResp(response, [dt: execDt])
                 }
             }
-        }
+        } else if (!serialNum) runIn(3, "getDeviceActivityRunIn")
         if(serialNum) {
             String appId=app.getId()
             Map lastActData = devActivityMapFLD[appId]

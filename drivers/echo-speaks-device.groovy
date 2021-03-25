@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.1.0.0"
-@Field static final String appModifiedFLD = "2021-03-22"
+@Field static final String devVersionFLD  = "4.1.0.1"
+@Field static final String appModifiedFLD = "2021-03-25"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -546,7 +546,7 @@ void websocketUpdEvt(List<String> triggers) {
                     setOnlineStatus(false)
                     break
                 case "activity":
-                    runIn(2, "getDeviceActivity")
+                    runIn(5, "getDeviceActivity")
                     break
             }
         }
@@ -1010,22 +1010,27 @@ private getDeviceActivity() {
         Map actData = parent?.getDeviceActivity((String)state.serialNumber)
         actData = actData ?: null
         Boolean wasLastDevice = (actData != null && (String)actData?.serialNumber == (String)state.serialNumber)
+        String wasLastS = wastLastDevice.toString()
         if(actData != null && wasLastDevice) {
+            String lastSpoke = (String)actData.lastSpokenDt
+            Boolean didC = false
+            if(isStateChange(device, "lastSpokenToTime", lastSpoke)) {
+                didC = true
+                sendEvent(name: "lastSpokenToTime", value: lastSpoke, display: false, displayed: false)
+                logDebug("lastSpokenToTime: ${lastSpoke} wasLastSpokenToDevice: ${wasLastS}")
+                sendEvent(name: "wasLastSpokenToDevice", value: wasLastS, display: false, displayed: false, isStateChange: true)
+            }
+
             String spTx = (String)actData.spokenText
             if(spTx) {
-                if(isStateChange(device, "lastSpokenToTime", (String)actData.lastSpokenDt)) {
-                    sendEvent(name: "lastSpokenToTime", value: (String)actData.lastSpokenDt, display: false, displayed: false)
-
-                    logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
-                    sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false, isStateChange: true)
-
+                if (didC) {
                     logDebug("lastVoiceActivity: ${spTx}")
                     sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
-                }
+                } else sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false)
             }
-        } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastDevice.toString())) {
-            logDebug("wasLastSpokenToDevice: ${wasLastDevice}")
-            sendEvent(name: "wasLastSpokenToDevice", value: wasLastDevice.toString(), display: false, displayed: false)
+        } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastS)) {
+            logDebug("wasLastSpokenToDevice: ${wasLastS}")
+            sendEvent(name: "wasLastSpokenToDevice", value: wasLastS, display: false, displayed: false)
         }
     } catch (ex) {
         logError("updDeviceActivity Error: ${ex.message}")
