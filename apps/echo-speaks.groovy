@@ -2670,7 +2670,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
                     getLastActResp(response, [dt: execDt])
                 }
             }
-        }
+        } else if (!serialNum) runIn(3, "getDeviceActivityRunIn")
         if(serialNum) {
             String appId=app.getId()
             Map lastActData = devActivityMapFLD[appId]
