@@ -1010,7 +1010,7 @@ private getDeviceActivity() {
         Map actData = parent?.getDeviceActivity((String)state.serialNumber)
         actData = actData ?: null
         Boolean wasLastDevice = (actData != null && (String)actData?.serialNumber == (String)state.serialNumber)
-        String wasLastS = wastLastDevice.toString()
+        String wasLastS = wasLastDevice.toString()
         if(actData != null && wasLastDevice) {
             String lastSpoke = (String)actData.lastSpokenDt
             Boolean didC = false
