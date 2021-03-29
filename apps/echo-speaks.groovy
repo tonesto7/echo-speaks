@@ -786,6 +786,7 @@ private deviceDetectOpts() {
     }
 }
 
+@SuppressWarnings('unused')
 private devCleanupPage() {
     return dynamicPage(name: "devCleanupPage", uninstall: false, install: false) {
         devCleanupSect()
@@ -1088,7 +1089,7 @@ def speechPage() {
 
 def alexaRoutinesTestPage() {
     return dynamicPage(name: "alexaRoutinesTestPage", uninstall: false, install: false) {
-        Map<String, String> rts = getAlexaRoutines()
+        Map<String, String> rts = (Map<String,String>)getAlexaRoutines()
         section("Available Routines") {
             if(rts.size()) {
                 rts.each { String rk, String rv->
@@ -1106,6 +1107,7 @@ def alexaRoutinesTestPage() {
     }
 }
 
+@SuppressWarnings('unused')
 def returnHomeBtn() {
     section {
         paragraph htmlLine()
@@ -1113,6 +1115,7 @@ def returnHomeBtn() {
     }
 }
 
+@SuppressWarnings('unused')
 def appButtonHandler(btn) {
     log.debug "appButton: $btn"
     switch (btn) {
@@ -1464,13 +1467,15 @@ def initialize() {
             runIn(11, "postInitialize")
             remTsVal("donotdisturbDt")
             remTsVal("musicProviderUpdDt")
+
             getOtherData()
 
             Long newD = now() - 999000
             Date d = new Date(newD)
-            updTsVal("lastDevDataUpdDt", formatDt(d))
+            updTsVal("lastDevDataUpdDt", formatDt(d)) // make sure not to cause a warning
            // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
             getEchoDevices()
+
             if(advLogsActive()) { logsEnabled() }
         } else { unschedule("getEchoDevices") /*; unschedule("getOtherData") */ }
     }
@@ -1779,7 +1784,7 @@ Boolean checkIfCodeUpdated() {
     Boolean codeUpdated = false
     List chgs = []
     Map codeVer = (Map)state.codeVersions ?: [:]
-    if(devModeFLD) logTrace("Code versions: ${codeVer}")
+    //if(devModeFLD) logTrace("Code versions: ${codeVer}")
     if(codeVer.mainApp != appVersionFLD) {
         checkVersionData(true)
         chgs.push("mainApp")
@@ -2300,6 +2305,7 @@ private getCustomerData(Boolean frc=false) {
     }
 }
 
+/*
 private List getAllDeviceVolumes(Boolean frc=false) {
     if(!isAuthValid("getAllDeviceVolumes")) { return [] }
     if(!frc && (List)state.deviceVolumes && getLastTsValSecs("deviceVolumeUpdDt") < 3600) { return (List)state.deviceVolumes }
@@ -2327,6 +2333,7 @@ private List getAllDeviceVolumes(Boolean frc=false) {
     }
     return volumes
 }
+ */
 
 // private getCustomerHistoryRecords(Integer maxRecordSize = 1, Boolean frc) {
 //     if(!isAuthValid("getCustomerHistoryRecords")) { return [:] }
@@ -2452,13 +2459,13 @@ private userCommIds() {
 */
 public void childInitiatedRefresh() {
     Integer lastRfsh = getLastTsValSecs("lastChildInitRefreshDt", 3600)?.abs()
-    if(!(Boolean)state.deviceRefreshInProgress && lastRfsh > 120) {
-        logDebug("A Child Device is requesting a Device List Refresh...")
+    if(!(Boolean)state.deviceRefreshInProgress && lastRfsh > 40) {
         updTsVal("lastChildInitRefreshDt")
+        logDebug("A Child Device is requesting a Device List Refresh...")
         getOtherData()
         runIn(3, "getEchoDevices1")
     } else {
-        logWarn("childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)")
+        if(devModeFLD) logWarn("childInitiatedRefresh request ignored... Refresh already in progress or it's too soon to refresh again | Last Refresh: (${lastRfsh} seconds)")
     }
 }
 
@@ -2508,7 +2515,7 @@ Map getMusicProviders(Boolean frc=false) {
 
 private getOtherData() {
     stateMigrationChk()
-    getDoNotDisturb(false)
+    getDoNotDisturb(true)
     getBluetoothDevices()
     Map aa = getMusicProviders()
     // def bb=getAllDeviceVolumes()
@@ -2516,6 +2523,7 @@ private getOtherData() {
     // getAlexaSkills()
 }
 
+@SuppressWarnings('unused')
 void getNotificationsRunIn(){
     getNotifications(true)
 }
@@ -2652,6 +2660,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         Integer lastUpdSec = getLastTsValSecs("lastDevActChk")
         // log.debug "lastUpdSec: $lastUpdSec"
         if((frc && lastUpdSec > 3) || lastUpdSec >= 360) {
+            updTsVal("lastDevActChk")
             Long execDt = now()
             Map params = [
                     uri: getAmazonUrl(),
@@ -2662,7 +2671,6 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
                     timeout: 20
             ]
             logTrace("getDeviceActivity($serialNum, $frc)")
-            updTsVal("lastDevActChk")
 
             if(!serialNum) execAsyncCmd("get", "getLastActResp", params, [dt:execDt])
             else {
@@ -3063,9 +3071,10 @@ void setGuardState(String guardState) {
     }
 }
 
+/*
 private getAlexaSkills() {
     Long execDt = now()
-    if(!isAuthValid("getAlexaSkills") || !getCustomerData() /* state.amazonCustomerData */) { return }
+    if(!isAuthValid("getAlexaSkills") || !getCustomerData()) { return } // state.amazonCustomerData
     if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
     Map params = [
         uri: "https://skills-store.${getAmazonDomain()}",
@@ -3093,6 +3102,7 @@ private getAlexaSkills() {
         // respExceptionHandler(ex, "getAlexaSkills", true)
     }
 }
+*/
 
 void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAmazon=true, Boolean ignNullMsg=false) {
     String toMsg = "Amazon"
@@ -3544,7 +3554,7 @@ List getDevicesFromSerialList(List serialList) {
     return devs
 }
 
-// This is called by the device handler to send playback data to cluster members
+// This is called by the (WHA) device handler to send playback data to cluster members
 public void sendPlaybackStateToClusterMembers(String whaKey, data) {
     //logTrace("sendPlaybackStateToClusterMembers: key: ${ whaKey}")
     try {
@@ -3624,7 +3634,7 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
 
 /*
  * send speak command to one zone
- * caller is device handler via relay from zone app
+ * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
  */
 void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
     List devObj = []
@@ -3648,32 +3658,73 @@ void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
 
         queueMultiSequenceCommand(
             [ [command: 'sendspeak', value:msg, deviceData: deviceData] ],
-               myMsg+" to device ${dev.dni}", parallel, cmdMap, (String)dev.dni, "finishSendSpeak")
+               myMsg+" to device ${dev.dni}", parallel, cmdMap, (String)dev.dni, "finishSendSpeakZ")
+    }
+}
+
+/*
+ * send announce command to one zone
+ * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
+ */
+void sendZoneAnnounce(String zoneId, String msg, Boolean parallel=false) {
+    List devObj = []
+    devObj = getZoneDevices([zoneId], "announce")
+    String myMsg = "sendZoneAnnounce"
+    devObj.each { dev ->
+        Map deviceData = [
+            serialNumber : dev.deviceSerialNumber,
+            deviceType: dev.deviceTypeId,
+            owner: dev.deviceOwnerCustomerId,
+            account: dev.deviceAccountId
+        ]
+
+        queueMultiSequenceCommand(
+            [ [command: 'announcement', value:msg, deviceData: deviceData] ],
+               myMsg+" to device ${dev.dni}", parallel)
+    }
+    devObj.each { dev-> 
+        def child = getChildDevice((String)dev.dni)
+        child.finishAnnounce(msg, null, null)
     }
 }
 
 /*
  * send command to one or more zones (actually devices in one or more zones)
- * caller is actions;  typical operations are speak or announcement commands
+ * caller is actions;  operations are speak or announcement commands
  */
 void sendZoneCmd(Map cmdData) {
-    log.trace span("sendZoneCmd | cmdData: $cmdData", "purple")
+    logTrace(span("sendZoneCmd | cmdData: $cmdData", "purple"))
     String myCmd = cmdData ? (String)cmdData.cmd : sNULL
-    if(myCmd && cmdData.zones) {
-        List devObj = []
-        devObj = getZoneDevices((List)cmdData.zones, myCmd=='speak' ? "TTS" : "announce")
+    List znList = (List)cmdData.zones
+    if(myCmd && znList && znList.size()) {
+        List devObj = getZoneDevices(znList, myCmd=='speak' ? "TTS" : "announce")
 
         String newmsg = (String)cmdData.message
         String title = (String)cmdData.title
         Integer volume = (Integer)cmdData.changeVol
         Integer restoreVolume = (Integer)cmdData.restoreVol
         sendDevObjCmd(devObj, myCmd, title, newmsg, volume, restoreVolume)
+
+        /* need to call zone vdevice with updates to finishAnnouncement or finishSpeak */
+        znList.each { znId ->
+            def zn = getZoneApps()?.find { it.id.toString() == znId.toString() }
+            if(zn) {
+                if(myCmd == 'announcement') {
+                    newmsg = "${title ?: "Echo Speaks"}::${newmsg}".toString()
+                    zn.relayFinishAnnouncement(newmsg, volume, restoreVolume)
+                }
+                if(myCmd == 'speak') {
+                    zn.relayFinishSpeak([:], 200, cmdData)
+                }
+            }
+        }
     }
 }
 
 /*
- * send a command to a list of devices
- * caller is above or actions when there is a list of devices
+ * send a speak or announcement command to a list of devices
+ * caller is actions (here or via above) when there is a list of devices
+ * this will callback the actual device(s) with status for attribute updates
  */
 void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
 	List<Map> devObj = odevObj.unique() // remove any duplicate devices
@@ -3713,7 +3764,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                             msgLen: newmsg.length(),
                             oldVolume: restoreVolume,
                             newVolume: volume
-                        ] 
+                        ]
                         Map deviceData = [
                             serialNumber : dev.deviceSerialNumber,
                             deviceType: dev.deviceTypeId,
@@ -3723,7 +3774,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
 
                         queueMultiSequenceCommand(
                             [ [command: 'sendspeak', value:newmsg, deviceData: deviceData] ],
-                            myMsg+" to device ${dev.dni}", false, cmdMap, (String)dev.dni, "finishSendSpeak")
+                            myMsg+" to device ${dev.dni}", false, cmdMap, (String)dev.dni, "finishSendSpeakZ")
                     }
                 } else if (myCmd == 'announcement') {
                     Map myDev = devObj[0]
@@ -3902,7 +3953,9 @@ void addToQ(Map item) {
 
 @Field volatile static Map<String,Map> workQMapFLD = [:]
 
+@SuppressWarnings('unused')
 void workQF() { workQ() }
+@SuppressWarnings('unused')
 void workQB() { workQ() }
 
 void workQ() {
@@ -4115,7 +4168,7 @@ void workQ() {
     }
 
     Long t0 = (Long)now()
-    mmsg = "workQ active: ${active} work todo fnd: ${fnd} now: ${t0} nextOk: ${nextOk}"
+    mmsg = "workQ active: ${active} work items fnd: ${fnd} now: ${t0} nextOk: ${nextOk}"
     if(!active && fnd) { // if we have more work to do
         t0 = (Long)now()
         Long ms = nextOk+200L - t0
@@ -4628,7 +4681,7 @@ public void logsDisable() {
                 settingUpdate("childAppLogTrace", sFALSE, sBOOL)
                 settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
                 settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
-                // runIn('disableAdvChldLogs', 12)
+                runIn(12, 'disableAdvChldLogs')
             }
             remTsVal("logsEnabled")
             log.debug "Disabling debug logs"
@@ -4676,6 +4729,7 @@ private void manAllEchosTrcLogs(Boolean enable=true) { getChildDevices()?.each {
                                                        getZoneApps()?.each { ca-> enable ? ca?.relayEnableTraceLog() : ca?.relayDisableTraceLog() } }
 
 
+@SuppressWarnings('unused')
 private void disableAdvChldLogs() {
     getActionApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.logsDisable() }
@@ -4686,7 +4740,7 @@ private void disableAdvChldLogs() {
 void missPollNotify(Boolean on, Integer wait) {
     Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt", 1000000)
     Integer lastMissPollM = getLastTsValSecs("lastMissedPollMsgDt")
-    if(devModeFLD) logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
+    //if(devModeFLD) logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
     if(lastDataUpd <= ((settings.misPollNotifyWaitVal as Integer ?: 2700)+10800)) {
         state.missPollRepair = false
     } else {
@@ -4748,7 +4802,7 @@ void appUpdateNotify() {
     state.updateAvailable = res
     String msg="appUpdateNotify() RESULT: ${res} | on: (${on}) | appUpd: (${appUpd}) | actUpd: (${actUpd}) | zoneUpd: (${zoneUpd}) | echoDevUpd: (${echoDevUpd}) | echoZoneDevUpd (${zoneChildDevUpd}) | servUpd: (${servUpd}) | getLastUpdMsgSec: ${secs} | updNotifyWaitVal: ${updW}"
     if(res) logDebug(msg)
-    else if(devModeFLD) logTrace(msg)
+    //else if(devModeFLD) logTrace(msg)
 }
 
 private List codeUpdateItems(Boolean shrt=false) {
@@ -4783,7 +4837,7 @@ Boolean getOk2Notify() {
     Boolean result = true
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
-    if(devModeFLD) logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    //if(devModeFLD) logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     return result
 }
 
@@ -4808,7 +4862,7 @@ Boolean quietTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime()
         Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
         isBtwn = not ? !isBtwn : isBtwn
-        if(devModeFLD) logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
+        //if(devModeFLD) logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
     } else { return true }
 }
@@ -7033,7 +7087,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
             lockTimesFLD[semaSNum] = timeL
             lockTimesFLD = lockTimesFLD
         }
-        if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
+        //if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
         pauseExecution(waitT)
         wait = true
         if((now() - timeL) > 30000L) {
