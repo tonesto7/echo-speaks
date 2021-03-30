@@ -337,8 +337,8 @@ def actionHistoryPage() {
         }
     }
 }
-
-// TODO: Add flag to check for the old schedule settings and pause the action, and notifiy the user.
+/*
+// TODO: Add flag to check for the old schedule settings and pause the action, and notify the user.
 private scheduleConvert() {
     if(settings.trig_scheduled_time || settings.trig_scheduled_sunState && !settings.trig_scheduled_type) {
         if(settings.trig_scheduled_sunState) { settingUpdate("trig_scheduled_type", "${settings.trig_scheduled_sunState}", sENUM); settingRemove("trig_scheduled_sunState") }
@@ -347,7 +347,7 @@ private scheduleConvert() {
             if(settings.trig_scheduled_recurrence in ["Daily", "Weekly", "Monthly"]) { settingUpdate("trig_scheduled_type", "Recurring", sENUM) }
         }
     }
-}
+} */
 
 def triggersPage() {
     return dynamicPage(name: "triggersPage", nextPage: "mainPage", uninstall: false, install: false) {
@@ -1709,6 +1709,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
     return str != sBLANK ? (isInpt ? divSm(spanSmBr(str) + inputFooter(sTTM), sCLR4D9) : str) : (isInpt ? spanSm("On trigger control devices, set mode, set alarm state, execute WebCore Pistons", sCLRGRY) + inactFoot(sTTC) : sNULL)
 }
 
+@SuppressWarnings('unused')
 private flashLights(data) {
     // log.debug "data: ${data}"
     String p = data?.type
@@ -1744,6 +1745,7 @@ private flashLights(data) {
     }
 }
 
+@SuppressWarnings('unused')
 private restoreLights(data) {
     if(data?.type && settings."${data.type}lights") { restoreLightState(settings."${data.type}lights") }
 }
@@ -2087,6 +2089,7 @@ def initialize() {
     }
 }
 
+@SuppressWarnings('unused')
 private void processDuplication() {
     String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? "" : " (Dup)"}"
     app?.updateLabel(newLbl)
@@ -2098,10 +2101,19 @@ private void processDuplication() {
     if(dupData && dupData.state?.size()) {
         dupData.state.each { String k,v-> state[k] = v }
     }
+
+    if(dupData && dupData.settings?.size()) {
+        dupData.settings.each { String k, Map v->
+            if((String)v.type in [sENUM, sMODE]) {
+                settingRemove(k)
+                settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
+            }
+        }
+    }
 /*
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
-            if((String)v.type in [sENUM]) settingRemove(k)
+           if((String)v.type in [sENUM]) settingRemove(k)
             if((String)v.type in [sMODE]) {
                 String msg = "Found mode settings $k is type $v.type value is ${v.value}, this setting needs to be updated to work properly"
                 logWarn(msg)
@@ -2113,7 +2125,7 @@ private void processDuplication() {
                 }
                 // log.warn "new settings $k is $modeIt"
                 if(modeIt) app.updateSetting( k, [type: sMODE, value: modeIt]) // this won't take effect until next execution
-           } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
+            } else settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
         }
     } */
 
@@ -2251,6 +2263,7 @@ public void updatePauseState(Boolean pause) {
     }
 }
 
+@SuppressWarnings('unused')
 private healthCheck() {
     logTrace("healthCheck")
     if(advLogsActive()) { logsDisable() }
@@ -3572,7 +3585,7 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
 }
 
 public getActionHistory(Boolean asObj=false) {
-    List eHist = (List)getMemStoreItem("actionHistory")
+    List<Map> eHist = (List<Map>)getMemStoreItem("actionHistory")
     List<String> output = []
     if(eHist.size()) {
         eHist.each { Map h->
@@ -4036,7 +4049,7 @@ private void updAppFlag(String key, val) {
     atomicState.appFlagsMap = data
 }
 
-private remAppFlag(key) {
+private void remAppFlag(key) {
     //ERS
     def t0 = atomicState.appFlagsMap
     def data = t0 ?: [:]
