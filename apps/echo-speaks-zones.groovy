@@ -16,8 +16,7 @@
  */
 
 import groovy.transform.Field
-
-@Field static final String appVersionFLD  = "4.1.0.1"
+@Field static final String appVersionFLD  = "4.1.1.0"
 @Field static final String appModifiedFLD = "2021-03-25"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
@@ -145,7 +144,7 @@ def mainPage() {
         } else {
 
             section(sectHead("Zone Devices:")) {
-                echoDevicesInputByPerm("announce")
+                echoDevicesInputByPerm('announce')
             }
             if(settings.zone_EchoDevices) {
                 if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
@@ -371,6 +370,7 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
     }
 }
 
+@SuppressWarnings('unused')
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, hideable= false) {
     section (sectHead(sectStr), hideWhenEmpty: true) {
         input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false, hideWhenEmpty: true
@@ -596,62 +596,93 @@ void updateChildZoneState(Boolean zoneActive, Boolean active) {
 /*******************************************************************
             To Device from parent
 *******************************************************************/
+@SuppressWarnings('unused')
 String relayDevVersion() {
     String a
     getEsDevices().each { a = it.devVersion() }
     return a
 }
 
+@SuppressWarnings('unused')
 void relayUpdChildSocketStatus(Boolean active) {
      updateChildZoneState(null, active)
 }
 
+@SuppressWarnings('unused')
 void relayUpdateCookies(Map cookies){
     getEsDevices().each { it.updateCookies(cookies) }
 }
 
+@SuppressWarnings('unused')
 void relayRemoveCookies(Boolean isParent) {
     getEsDevices().each { it.removeCookies(isParent) }
 }
 
+@SuppressWarnings('unused')
 void relayEnableDebugLog() { getEsDevices().each { it.enableDebugLog() } }
+@SuppressWarnings('unused')
 void relayDisableDebugLog() { getEsDevices().each { it.disableDebugLog() } }
+@SuppressWarnings('unused')
 void relayEnableTraceLog() { getEsDevices().each { it.enableTraceLog() } }
+@SuppressWarnings('unused')
 void relayDisableTraceLog() { getEsDevices().each { it.disableTraceLog() } }
+@SuppressWarnings('unused')
 void relayLogsOff() { getEsDevices().each { it.logsOff() } }
+@SuppressWarnings('unused')
 Map relayGetLogHistory() { Map a; getEsDevices().each { a = it.getLogHistory() }; return a ?: [:] }
+@SuppressWarnings('unused')
 void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
+@SuppressWarnings('unused')
+void relayFinishAnnoucement(String msg, vol, restvol) { getEsDevices().each { it.finishAnnounce(msg, vol, restvol) } }
+@SuppressWarnings('unused')
+void relayFinishSpeak(Map resp, Integer statucode, Map data) { getEsDevices().each { it.finishSendSpeakZ(resp, statuscode, data) } }
+@SuppressWarnings('unused')
+void relaySetOnline(Boolean onl) { getEsDevices().each { it.setOnlineStatus(onl) } }
 
 
 /*******************************************************************
             To Parent from Device Command FUNCTIONS
 *******************************************************************/
+Boolean zoneOnline() {
+    if(isPaused(true) || !isActive()) {
+        logTrace("zone offline or inactive; relay failed")
+        return false
+    }
+    return true
+}
+
 Map relayMinVersions() {
     parent.minVersions()
 }
 
-public relayMultiSeqCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
-    parent.queueMultiSequenceCommand(commands, srcDesc, parallel, cmdMap, device, callback)
+@SuppressWarnings('unused')
+void relayMultiSeqCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
+    if(zoneOnline()) parent.queueMultiSequenceCommand(commands, srcDesc, parallel, cmdMap, device, callback)
 }
 
-public relaySeqCommand(String type, String command, value=null,  Map deviceData=[:], String device=sNULL, String callback=sNULL) {
-    parent.queueSequenceCommand(type, command, value, deviceData, device, callback)
+@SuppressWarnings('unused')
+void relaySeqCommand(String type, String command, value=null,  Map deviceData=[:], String device=sNULL, String callback=sNULL) {
+    if(zoneOnline()) parent.queueSequenceCommand(type, command, value, deviceData, device, callback)
 }
 
-public relaySpeakZone(String zoneId, String msg, Boolean parallel) {
-    parent.sendZoneSpeak(zoneId, msg, parallel)
+@SuppressWarnings('unused')
+void relayAnnounceZone(String zoneId, String msg, Boolean parallel) {
+    if(zoneOnline()) parent.sendZoneAnnounce(zoneId, msg, parallel)
 }
 
-Boolean relayGetWWebSocketStatus() {
+@SuppressWarnings('unused')
+void relaySpeakZone(String zoneId, String msg, Boolean parallel) {
+    if(zoneOnline()) parent.sendZoneSpeak(zoneId, msg, parallel)
+}
+
+@SuppressWarnings('unused')
+private Boolean relayGetWWebSocketStatus() {
      parent.getWWebSocketStatus()
 }
 
+@SuppressWarnings('unused')
 void relayChildInitialtedRefresh() {
      parent.childInitiatedRefresh()
-}
-
-void relaySendPlaybackStateToClusterMembers(String whaKey, data) {
-    parent.sendPlaybackStateToClusterMembers(whaKey, data)
 }
 
 String relayGetAlexaGuardStatus() {
@@ -663,6 +694,7 @@ Boolean RelayGetDndEnabled(String serial) {
 } */
 
 
+@SuppressWarnings('unused')
 private void processDuplication() {
     String newLbl = "${app?.getLabel()}${app?.getLabel()?.toString()?.contains(" (Dup)") ? sBLANK : " (Dup)"}"
     app?.updateLabel(newLbl)
@@ -674,9 +706,19 @@ private void processDuplication() {
     if(dupData && dupData.state?.size()) {
         dupData.state.each { String k,v-> state[k] = v }
     }
-/*
+
     if(dupData && dupData.settings?.size()) {
         dupData.settings.each { String k, Map v->
+            if((String)v.type in [sENUM, sMODE]) {
+                settingRemove(k)
+                settingUpdate(k, (v.value != null ? v.value : null), (String)v.type)
+            }
+        }
+    }
+/*
+    if(dupData && dupData.settings?.size()) {
+        dupData.settings.each { String k, Map v->:wq
+
            if((String)v.type in [sENUM]) settingRemove(k)
 
            if((String)v.type in [sMODE]){
@@ -724,13 +766,13 @@ Boolean devicesConfigured() { return (settings.zone_EchoDevices?.size() > 0) }
 
 //private Boolean getConfStatusItem(String item) { Map sMap = state.configStatusMap; return (sMap?.containsKey(item) && sMap[item] == true) }
 
+@SuppressWarnings('unused')
 private void zoneCleanup() {
     // State Cleanup
     List<String> items = []
-    items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
+    items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     //Cleans up unused Zone setting items
     List<String> setItems = ["zone_delay"]
-//    List<String> setIgn = ["zone_EchoDeviceList", "zone_EchoDevices"]
     setItems.each { String sI-> if(settings.containsKey(sI)) { settingRemove(sI) } }
 }
 
@@ -744,6 +786,7 @@ public void updatePauseState(Boolean pause) {
     }
 }
 
+@SuppressWarnings('unused')
 private healthCheck() {
     // logTrace("healthCheck", true)
     checkZoneStatus([name: "healthCheck", displayName: "healthCheck"])
@@ -1157,7 +1200,10 @@ Map myZoneStatus() {
 }
 
 void sendZoneStatus() {
-    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: myZoneStatus(), isStateChange: true, display: false, displayed: false)
+    Map zs = myZoneStatus()
+    sendLocationEvent(name: "es3ZoneState", value: app?.getId(), data: zs, isStateChange: true, display: false, displayed: false)
+    Boolean onl = (Boolean)zs.active && !(Boolean)zs.paused ? true : false
+    relaySetOnline(onl)
 }
 
 void sendZoneRemoved() {
@@ -1250,7 +1296,7 @@ Map getZoneDevices(String cmd=sNULL) {
 
 public zoneRefreshHandler(evt) {
     String cmd = evt?.value
-    Map data = evt?.jsonData
+    // Map data = evt?.jsonData
     switch(cmd) {
         case "checkStatus":
             checkZoneStatus([name: "zoneRefresh", displayName: "zoneRefresh"])
@@ -1268,7 +1314,7 @@ public zoneRefreshHandler(evt) {
  *   or a zone device handler (calling its parent)
  */
 
-public zoneCmdHandler(evt) {
+public zoneCmdHandler(evt, Boolean chldDev=false) {
     // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
     Map data = evt?.jsonData
@@ -1280,8 +1326,15 @@ public zoneCmdHandler(evt) {
             logInfo( "zoneCmdHandler: zone is paused or inactive Skipping $evt")
             return
         }
+
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
-        Map zoneDevMap = getZoneDevices('announce')
+        if(cmd == 'speak'/*  && zoneDevs?.size() >= 2 */ ) {
+            Boolean fA = true
+            if(settings.forceAnnounce != null) fA = (Boolean)settings.forceAnnounce
+            if(fA) cmd = "announcement"
+        }
+
+        Map zoneDevMap = getZoneDevices(cmd == 'speak' ? 'TTS' : 'announce')
         List zoneDevs = (List)zoneDevMap.devices
 
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
@@ -1291,12 +1344,6 @@ public zoneCmdHandler(evt) {
             data.restoreVol = zVol.restore ?: data.restoreVol
         }
         Integer delay = (Integer)data.delay // ?: null
-
-        if(cmd == "speak" && zoneDevs?.size() >= 2) {
-            Boolean fA = true
-            if(settings.forceAnnounce != null) fA = (Boolean)settings.forceAnnounce
-            if(fA) cmd = "announcement"
-        }
 
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
         if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
@@ -1308,6 +1355,8 @@ public zoneCmdHandler(evt) {
                     zoneDevs?.each { dev->
                         dev?.setVolumeSpeakAndRestore(data.changeVol, data.message, data.restoreVol)
                     }
+                    /* todo need to call zone vdevice with finishSendSpeakZ */
+                    if(!chldDev) relayFinishSpeak([:], 200, [message: data.message, oldVolume: data.restoreVol, newVolume: data.changeVol])
                 } else {
                     zoneDevs?.each { dev->
                         dev?.speak(data.message)
@@ -1319,9 +1368,11 @@ public zoneCmdHandler(evt) {
                     logDebug("Sending Announcement Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                     List<String> valS = data.message.contains("::") ? data.message.split("::") : [sNULL, data.message]
                     String mymsg = valS[1]
-                    String mtitle = data.title ?: valS[0]
+                    String mtitle = data.title ?: (valS[0] ?: getZoneName())
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, (mtitle ?: getZoneName()), (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
+                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, mtitle, (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
+                    /* todo need to call zone vdevice with finishAnnounce */
+                    if(!chldDev) relayFinishAnnouncement(mtitle+'::'+mymsg, data.changeVol, data.restoreVol)
                 }
                 break
 
@@ -1338,14 +1389,6 @@ public zoneCmdHandler(evt) {
                 }
                 break
 
-/*            case "playback":
-            case "dnd":
-                logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
-                zoneDevs?.each { dev->
-                    if(data.cmd) { dev?."${data.cmd}"() }
-                }
-                break */
-
             case "alarmvolume":
             case "volume":
                 logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
@@ -1353,6 +1396,8 @@ public zoneCmdHandler(evt) {
                     zoneDevs?.each { dev->
                         dev?."${data.cmd}"(data.changeVol)
                     }
+                    /* todo need to call zone vdevice with updateLevel */
+                    if(!chldDev) getEsDevices().each { it.updateLevel(null, data.changeVol) }
                 }
                 break
 
@@ -1364,6 +1409,8 @@ public zoneCmdHandler(evt) {
                 zoneDevs?.each { dev->
                     if(data.cmd) { dev?."${data.cmd}"() }
                 }
+                    /* if(!chldDev) todo need to call zone vdevice with mute/unmute updates */
+                   // getEsDevices().each { it.updateCookies(cookies) }
                 break
 
             case "builtin":
@@ -1373,18 +1420,24 @@ public zoneCmdHandler(evt) {
                 zoneDevs?.each { dev->
                     if(data.cmd) { dev?."${data.cmd}"(data.changeVol, data.restoreVol) }
                 }
+                /* todo need to call zone vdevice with updateLevel */
+                if(!chldDev) getEsDevices().each { it.updateLevel(data.restoreVol, data.changeVol) }
                 break
             case "sounds":
                 logDebug("Sending ${data.cmd?.capitalize()} | Name: ${data.message} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.each { dev->
                     dev?."${data.cmd}"(data.message, data.changeVol, data.restoreVol)
                 }
+                /* todo need to call zone vdevice with updateLevel */
+                if(!chldDev) getEsDevices().each { it.updateLevel(data.restoreVol, data.changeVol) }
                 break
             case "music":
                 logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data.provider} | Search: ${data.search}${delay ? " | Delay: (${delay})" : sBLANK}${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}")
                 zoneDevs?.each { dev ->
                     dev?."${data.cmd}"(data.search, data.provider, data.changeVol, data.restoreVol)
                 }
+                /* todo need to call zone vdevice with updateLevel */
+                if(!chldDev) getEsDevices().each { it.updateLevel(data.restoreVol, data.changeVol) }
                 break
         }
     }
@@ -1684,6 +1737,7 @@ private void updAppFlag(String key, Boolean val) {
     atomicState?.appFlagsMap = data
 }
 
+@SuppressWarnings('unused')
 private void remAppFlag(key) {
     Map data = atomicState?.appFlagsMap ?: [:]
     if(key) {
@@ -1701,6 +1755,7 @@ Boolean getAppFlag(String val) {
     return false
 }
 
+@SuppressWarnings('unused')
 private stateMapMigration() {
     //Timestamp State Migrations
     Map<String, String> tsItems = [:]
@@ -1747,6 +1802,7 @@ List getQuietDays() {
     return allDays?.findAll { (!curDays?.contains(it as String)) }
 }
 
+@SuppressWarnings('unused')
 String getNotifSchedDesc(Boolean min=false) {
     String startType = settings.notif_time_start_type
     Date startTime
@@ -2081,6 +2137,7 @@ static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { re
 
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 
+@SuppressWarnings('unused')
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
 static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str.replaceAll("\n", sSPACE).replaceAll("<br>", sSPACE), und), clr, img) }
 
@@ -2173,12 +2230,14 @@ static String logPrefix(String msg, String color = sNULL) {
     return span("Zone (v" + appVersionFLD + ") | ", sCLRGRY) + span(msg, color)
 }
 
+@SuppressWarnings('unused')
 private Map getLogHistory() {
     List warn = getMemStoreItem("warnHistory")
     List errs = getMemStoreItem("errorHistory")
     return [ warnings: []+warn, errors: []+errs ]
 }
 
+@SuppressWarnings('unused')
 private void clearHistory()  { historyMapFLD = [:]; mb() }
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
