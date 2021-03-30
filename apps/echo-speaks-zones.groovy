@@ -144,7 +144,7 @@ def mainPage() {
         } else {
 
             section(sectHead("Zone Devices:")) {
-                echoDevicesInputByPerm("announce")
+                echoDevicesInputByPerm('announce')
             }
             if(settings.zone_EchoDevices) {
                 if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
@@ -770,10 +770,9 @@ Boolean devicesConfigured() { return (settings.zone_EchoDevices?.size() > 0) }
 private void zoneCleanup() {
     // State Cleanup
     List<String> items = []
-    items?.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
+    items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
     //Cleans up unused Zone setting items
     List<String> setItems = ["zone_delay"]
-//    List<String> setIgn = ["zone_EchoDeviceList", "zone_EchoDevices"]
     setItems.each { String sI-> if(settings.containsKey(sI)) { settingRemove(sI) } }
 }
 
@@ -1327,8 +1326,15 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
             logInfo( "zoneCmdHandler: zone is paused or inactive Skipping $evt")
             return
         }
+
         // log.trace "zoneCmdHandler | Cmd: $cmd | Data: $data"
-        Map zoneDevMap = getZoneDevices('announce')
+        if(cmd == 'speak'/*  && zoneDevs?.size() >= 2 */ ) {
+            Boolean fA = true
+            if(settings.forceAnnounce != null) fA = (Boolean)settings.forceAnnounce
+            if(fA) cmd = "announcement"
+        }
+
+        Map zoneDevMap = getZoneDevices(cmd == 'speak' ? 'TTS' : 'announce')
         List zoneDevs = (List)zoneDevMap.devices
 
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
@@ -1338,12 +1344,6 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
             data.restoreVol = zVol.restore ?: data.restoreVol
         }
         Integer delay = (Integer)data.delay // ?: null
-
-        if(cmd == "speak" && zoneDevs?.size() >= 2) {
-            Boolean fA = true
-            if(settings.forceAnnounce != null) fA = (Boolean)settings.forceAnnounce
-            if(fA) cmd = "announcement"
-        }
 
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
         if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
@@ -1355,8 +1355,8 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                     zoneDevs?.each { dev->
                         dev?.setVolumeSpeakAndRestore(data.changeVol, data.message, data.restoreVol)
                     }
-                    /* if(!chldDev) todo need to call zone vdevice with finishSendSpeakZ */
-                   // getEsDevices().each { it.updateCookies(cookies) }
+                    /* todo need to call zone vdevice with finishSendSpeakZ */
+                    if(!chldDev) relayFinishSpeak([:], 200, [message: data.message, oldVolume: data.restoreVol, newVolume: data.changeVol])
                 } else {
                     zoneDevs?.each { dev->
                         dev?.speak(data.message)
@@ -1368,11 +1368,11 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                     logDebug("Sending Announcement Command: (${data.message}) to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                     List<String> valS = data.message.contains("::") ? data.message.split("::") : [sNULL, data.message]
                     String mymsg = valS[1]
-                    String mtitle = data.title ?: valS[0]
+                    String mtitle = data.title ?: (valS[0] ?: getZoneName())
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, (mtitle ?: getZoneName()), (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
-                    /* if(!chldDev) todo need to call zone vdevice with finishAnnounce */
-                   // getEsDevices().each { it.updateCookies(cookies) }
+                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, mtitle, (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
+                    /* todo need to call zone vdevice with finishAnnounce */
+                    if(!chldDev) relayFinishAnnouncement(mtitle+'::'+mymsg, data.changeVol, data.restoreVol)
                 }
                 break
 
@@ -1396,8 +1396,8 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                     zoneDevs?.each { dev->
                         dev?."${data.cmd}"(data.changeVol)
                     }
-                    /* if(!chldDev) todo need to call zone vdevice with updateLevel */
-                   // getEsDevices().each { it.updateCookies(cookies) }
+                    /* todo need to call zone vdevice with updateLevel */
+                    if(!chldDev) getEsDevices().each { it.updateLevel(null, data.changeVol) }
                 }
                 break
 
@@ -1420,24 +1420,24 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                 zoneDevs?.each { dev->
                     if(data.cmd) { dev?."${data.cmd}"(data.changeVol, data.restoreVol) }
                 }
-                    /* if(!chldDev) todo need to call zone vdevice with updateLevel */
-                   // getEsDevices().each { it.updateCookies(cookies) }
+                /* todo need to call zone vdevice with updateLevel */
+                if(!chldDev) getEsDevices().each { it.updateLevel(data.restoreVol, data.changeVol) }
                 break
             case "sounds":
                 logDebug("Sending ${data.cmd?.capitalize()} | Name: ${data.message} Command to Zone (${getZoneName()})${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}${delay ? " | Delay: (${delay})" : sBLANK}")
                 zoneDevs?.each { dev->
                     dev?."${data.cmd}"(data.message, data.changeVol, data.restoreVol)
                 }
-                    /* if(!chldDev) todo need to call zone vdevice with updateLevel */
-                   // getEsDevices().each { it.updateCookies(cookies) }
+                /* todo need to call zone vdevice with updateLevel */
+                if(!chldDev) getEsDevices().each { it.updateLevel(data.restoreVol, data.changeVol) }
                 break
             case "music":
                 logDebug("Sending ${data.cmd?.capitalize()} Command to Zone (${getZoneName()}) | Provider: ${data.provider} | Search: ${data.search}${delay ? " | Delay: (${delay})" : sBLANK}${data.changeVol!=null ? " | Volume: ${data.changeVol}" : sBLANK}${data.restoreVol!=null ? " | Restore Volume: ${data.restoreVol}" : sBLANK}")
                 zoneDevs?.each { dev ->
                     dev?."${data.cmd}"(data.search, data.provider, data.changeVol, data.restoreVol)
                 }
-                    /* if(!chldDev) todo need to call zone vdevice with updateLevel */
-                   // getEsDevices().each { it.updateCookies(cookies) }
+                /* todo need to call zone vdevice with updateLevel */
+                if(!chldDev) getEsDevices().each { it.updateLevel(data.restoreVol, data.changeVol) }
                 break
         }
     }
