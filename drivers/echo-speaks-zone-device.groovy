@@ -2681,7 +2681,7 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
 void updateLevel(oldvolume, newvolume) {
     if(oldvolume != null || newvolume != null) {
         Integer res = oldvolume != null  ? oldvolume.toInteger() : newvolume.toInteger()
-        if(isStateChange(device, "level", res) || isStateChange(device, "volume", res)) {
+        if(isStateChange(device, "level", res.toString()) || isStateChange(device, "volume", res.toString())) {
             sendEvent(name: "level", value: res, display: true, displayed: true)
             sendEvent(name: "volume", value: res, display: true, displayed: true)
             logDebug("Volume Level Set to ${res}%")
