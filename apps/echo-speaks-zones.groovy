@@ -717,7 +717,7 @@ private void processDuplication() {
     }
 /*
     if(dupData && dupData.settings?.size()) {
-        dupData.settings.each { String k, Map v->:wq
+        dupData.settings.each { String k, Map v->
 
            if((String)v.type in [sENUM]) settingRemove(k)
 
