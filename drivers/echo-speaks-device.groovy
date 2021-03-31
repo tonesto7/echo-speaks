@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.1.1.0"
-@Field static final String appModifiedFLD = "2021-03-30"
+@Field static final String devVersionFLD  = "4.1.1.1"
+@Field static final String appModifiedFLD = "2021-03-31"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -2681,7 +2681,7 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
 void updateLevel(oldvolume, newvolume) {
     if(oldvolume != null || newvolume != null) {
         Integer res = oldvolume != null  ? oldvolume.toInteger() : newvolume.toInteger()
-        if(isStateChange(device, "level", res) || isStateChange(device, "volume", res)) {
+        if(isStateChange(device, "level", res.toString()) || isStateChange(device, "volume", res.toString())) {
             sendEvent(name: "level", value: res, display: true, displayed: true)
             sendEvent(name: "volume", value: res, display: true, displayed: true)
             logDebug("Volume Level Set to ${res}%")
