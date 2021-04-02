@@ -633,9 +633,7 @@ Map relayGetLogHistory() { Map a; getEsDevices().each { a = it.getLogHistory() }
 @SuppressWarnings('unused')
 void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
 @SuppressWarnings('unused')
-void relayFinishAnnoucement(String msg, Integer vol, Integer restvol) { getEsDevices().each { it.finishAnnounce(msg, vol, restvol) } }
-@SuppressWarnings('unused')
-void relayFinishAnnoucement(String msg, Object vol, Object restvol) { getEsDevices().each { it.finishAnnounce(msg, vol, restvol) } }
+void relayFinishAnnoucement(String msg, Map vmap) { getEsDevices().each { it.finishAnnounce(msg, vmap.vol, vmap.restvol) } }
 @SuppressWarnings('unused')
 void relayFinishSpeak(Map resp, Integer statucode, Map data) { getEsDevices().each { it.finishSendSpeakZ(resp, statuscode, data) } }
 @SuppressWarnings('unused')
@@ -1374,7 +1372,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                     zoneDevs[0]?.sendAnnouncementToDevices(mymsg, mtitle, (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
                     /* todo need to call zone vdevice with finishAnnounce */
-                    if(!chldDev) relayFinishAnnouncement(mtitle+'::'+mymsg, (Integer)data.changeVol, (Integer)data.restoreVol)
+                    if(!chldDev) relayFinishAnnouncement(mtitle+'::'+mymsg, [vol: (Integer)data.changeVol, restvol: (Integer)data.restoreVol])
                 }
                 break
 
