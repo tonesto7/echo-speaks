@@ -276,18 +276,22 @@ def authStatusPage() {
                 input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
                 if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
+
                 // Refreshes the cookie
                 input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: spanSm(ckDesc), required: true, defaultValue: false, submitOnChange: true
                 paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED)
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9)
+
                 // Clears cookies for app and devices
                 input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: spanSm("Clear all stored cookie data from the app and devices."), required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY)
+
                 input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: spanSm("Force devices to synchronize their stored cookies."), required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY)
+
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
-                if((Boolean)settings.refreshDevCookies) { refreshDevCookies() }
+                if((Boolean)settings.refreshDevCookies) { Boolean a = refreshDevCookies() }
             }
         }
 
@@ -1462,7 +1466,7 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            //runEvery15Minutes("getOtherData") now part of healthcheck
+            //runEvery15Minutes("getOtherData") now part of healthCheck
             runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             remTsVal("donotdisturbDt")
@@ -1509,6 +1513,7 @@ void updateZoneSubscriptions() {
 void postInitialize() {
     logTrace("postInitialize")
     runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
+    Boolean a = refreshDevCookies(false) // don't have children re-init as it is coming next
     reInitChildren()
 }
 
@@ -2021,19 +2026,19 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     updateChildAuth(false)
 }
 
-Boolean refreshDevCookies() {
+Boolean refreshDevCookies(Boolean doInit=true) {
     logTrace("refreshDevCookies()")
     settingUpdate("refreshDevCookies", sFALSE, sBOOL)
     logDebug("Re-Syncing Cookie Data with Devices")
     Boolean isValid = ((Boolean)state.authValid && getCookieVal() && getCsrfVal())
-    updateChildAuth(isValid)
+    updateChildAuth(isValid, doInit)
     return isValid
 }
 
-void updateChildAuth(Boolean isValid) {
+void updateChildAuth(Boolean isValid, Boolean doInit=true) {
     Map cook = getCookieMap()
-    getChildDevices()?.each { (isValid) ? it?.updateCookies(cook) : it?.removeCookies(true) }
-    getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook) : it?.relayRemoveCookies(true) }
+    getChildDevices()?.each { (isValid) ? it?.updateCookies(cook, doInit) : it?.removeCookies(true) }
+    getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook, doInit) : it?.relayRemoveCookies(true) }
 }
 
 @Field volatile static Map<String,List> authValidMapFLD             = [:]
@@ -3022,8 +3027,8 @@ void getGuardState() {
 
             if(devModeFLD) log.debug "GuardState resp: ${respData}"
 
-            if(respData && respData?.deviceStates && respData?.deviceStates[0] && respData?.deviceStates[0]?.capabilityStates) {
-                def guardStateData = parseJson(respData?.deviceStates[0]?.capabilityStates as String)
+            if(respData && respData.deviceStates && ((List)respData.deviceStates)[0] && ((List)respData.deviceStates)[0].capabilityStates) {
+                def guardStateData = parseJson(((List)respData.deviceStates)[0].capabilityStates as String)
                 if(devModeFLD) logTrace("guardState: ${guardStateData}")
                 String curState = (String)state.alexaGuardState ?: sNULL
                 state.alexaGuardState = guardStateData?.value[0] ? (String)guardStateData?.value[0] : (String)guardStateData?.value
@@ -3059,7 +3064,7 @@ void setGuardState(String guardState) {
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
             def resp = response?.data ?: null
-            if(resp && !resp.errors?.size() && resp.controlResponses && resp.controlResponses[0] && resp.controlResponses[0].code && (String)resp.controlResponses[0].code == "SUCCESS") {
+            if(resp && !resp.errors?.size() && resp.controlResponses && ((List)resp.controlResponses)[0] && ((List)resp.controlResponses)[0].code && (String)((List)resp.controlResponses)[0].code == "SUCCESS") {
                 logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
                 state.alexaGuardState = guardState
                 updTsVal("lastGuardStateUpdDt")
@@ -3111,7 +3116,7 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
     if(ex) {
         try {
             stackTr = getStackTrace(ex)
-        } catch (e) {
+        } catch (ignored) {
         }
         if(stackTr) logError("${mName} | Stack Trace: "+stackTr)
     }
@@ -3637,8 +3642,7 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
  * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
  */
 void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
-    List devObj = []
-    devObj = getZoneDevices([zoneId], "TTS")
+    List devObj = getZoneDevices([zoneId], "TTS")
     String myMsg = "sendZoneSpeak"
     devObj.each { dev ->
         Map cmdMap = [
@@ -3667,8 +3671,7 @@ void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
  * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
  */
 void sendZoneAnnounce(String zoneId, String msg, Boolean parallel=false) {
-    List devObj = []
-    devObj = getZoneDevices([zoneId], "announce")
+    List devObj = getZoneDevices([zoneId], "announce")
     String myMsg = "sendZoneAnnounce"
     devObj.each { dev ->
         Map deviceData = [
@@ -3987,7 +3990,6 @@ void workQ() {
         List<String> lmsg = []
         Double msSum = 0.0D
         List seqList = []
-        List svSeqList = []
         List activeD = []
         Map extData=[:]
         List extList = []
@@ -3997,22 +3999,19 @@ void workQ() {
 
         String srcDesc
         Map seqObj
-        String command
         Integer mdelay = 0
 
 // lets try to join commands in single request to Alexa
         while(eData.size()>0){
 
-            svSeqList = seqList
             Map item = (Map)eData[0]
 
-            String t=item.t
-            Long tLong=(Long)item.time
-            Map cmdMap
-            String device = item.device
-            String callback = item.callback
+            String t=(String)item.t
+            // Long tLong=(Long)item.time
+            Map cmdMap=[:]
+            String device = (String)item.device
+            String callback = (String)item.callback
             srcDesc = sNULL
-            command = sNULL
             //log.debug "item: $item"
 
             if(t=='multi') {
@@ -4021,9 +4020,9 @@ void workQ() {
 
                 if(srcDesc == 'ExecuteRoutine'){
                     if(seqList.size() > 0) break // execute runs by itself
-                    Map seqMap = seqCmds[0].command // already have a sequence map
+                    Map seqMap = (Map)seqCmds[0].command // already have a sequence map
                     seqObj = sequenceBuilder(seqMap, null, null)
-
+                    if(oldParallel == null) oldParallel = parallel
                 } else {
 
                     Boolean nparallel = item.parallel
@@ -4064,7 +4063,7 @@ void workQ() {
                 if(oldParallel == null) oldParallel = parallel
                 if(parallel != oldParallel) { break } // if parallel changes we are done this set of commands
 
-                command=(String)item.command
+                String command=(String)item.command
 
                 def value = item.value
 
@@ -4088,7 +4087,7 @@ void workQ() {
             activeD.push(titem) // save what we are doing to an active list
             updMemStoreItem('active', activeD)
 
-            lmsg.push("workQ adding ${srcDesc} | ${seqList ? "MultiSequence" : "Sequence"} ${seqList ? "${parallel ? ": Parallel" : ": Sequential"}" : sBLANK}")
+            lmsg.push("workQ adding ${srcDesc} | ${seqList ? "MultiSequence" : "Sequence"} ${seqList ? "${parallel ? ": Parallel" : ": Sequential"}" : sBLANK}".toString())
 
             Map t_extData =[:]
             if(device && callback) {
@@ -4183,7 +4182,7 @@ void workQ() {
 }
 
 Integer getMsgDur(String command, String type, String tv){
-    Integer del
+    Integer del = 0
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
         String nstr = valObj[1].trim()
