@@ -16,8 +16,8 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.1.1.1"
-@Field static final String appModifiedFLD = "2021-03-31"
+@Field static final String appVersionFLD  = "4.1.2.0"
+@Field static final String appModifiedFLD = "2021-04-02"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -609,8 +609,8 @@ void relayUpdChildSocketStatus(Boolean active) {
 }
 
 @SuppressWarnings('unused')
-void relayUpdateCookies(Map cookies){
-    getEsDevices().each { it.updateCookies(cookies) }
+void relayUpdateCookies(Map cookies, Boolean doInit){
+    getEsDevices().each { it.updateCookies(cookies, doInit) }
 }
 
 @SuppressWarnings('unused')
@@ -633,7 +633,7 @@ Map relayGetLogHistory() { Map a; getEsDevices().each { a = it.getLogHistory() }
 @SuppressWarnings('unused')
 void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
 @SuppressWarnings('unused')
-void relayFinishAnnoucement(String msg, vol, restvol) { getEsDevices().each { it.finishAnnounce(msg, vol, restvol) } }
+void relayFinishAnnouncement(String msg, LinkedHashMap vmap) { getEsDevices().each { it.finishAnnounce(msg, vmap.vol, vmap.restvol) } }
 @SuppressWarnings('unused')
 void relayFinishSpeak(Map resp, Integer statucode, Map data) { getEsDevices().each { it.finishSendSpeakZ(resp, statuscode, data) } }
 @SuppressWarnings('unused')
@@ -1372,7 +1372,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
                     zoneDevs[0]?.sendAnnouncementToDevices(mymsg, mtitle, (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
                     /* todo need to call zone vdevice with finishAnnounce */
-                    if(!chldDev) relayFinishAnnouncement(mtitle+'::'+mymsg, data.changeVol, data.restoreVol)
+                    if(!chldDev) relayFinishAnnouncement(mtitle+'::'+mymsg, [vol: (Integer)data.changeVol, restvol: (Integer)data.restoreVol])
                 }
                 break
 
