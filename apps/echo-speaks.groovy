@@ -3714,7 +3714,7 @@ void sendZoneCmd(Map cmdData) {
             if(zn) {
                 if(myCmd == 'announcement') {
                     newmsg = "${title ?: "Echo Speaks"}::${newmsg}".toString()
-                    zn.relayFinishAnnouncement(newmsg, volume, restoreVolume)
+                    zn.relayFinishAnnouncement(newmsg, [vol:volume, restvol:restoreVolume])
                 }
                 if(myCmd == 'speak') {
                     zn.relayFinishSpeak([:], 200, cmdData)
