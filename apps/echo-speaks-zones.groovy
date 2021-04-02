@@ -609,8 +609,8 @@ void relayUpdChildSocketStatus(Boolean active) {
 }
 
 @SuppressWarnings('unused')
-void relayUpdateCookies(Map cookies){
-    getEsDevices().each { it.updateCookies(cookies) }
+void relayUpdateCookies(Map cookies, Boolean doInit){
+    getEsDevices().each { it.updateCookies(cookies, doInit) }
 }
 
 @SuppressWarnings('unused')
