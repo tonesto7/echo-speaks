@@ -20,8 +20,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = '4.1.1.1'
-@Field static final String appModifiedFLD = '2021-03-31'
+@Field static final String devVersionFLD  = '4.1.2.0'
+@Field static final String appModifiedFLD = '2021-04-02'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -65,11 +65,13 @@ preferences {
 
 Boolean isSocketActive() { return (Boolean)state.connectionActive }
 
-public updateCookies(Map cookies) {
-    logInfo("Cookies Update by Parent.  Re-Initializing Device in 10 Seconds...")
+public updateCookies(Map cookies, doInit=true) {
+    String msg = "Cookies Update by Parent."
+    msg += doInit ? "  Re-Initializing Device in 10 Seconds..." : ""
+    logInfo(msg)
     state.cookie = cookies
     state.amazonDomain = sNULL
-    runIn(10, "initialize")
+    if(doInit) runIn(10, "initialize")
 }
 
 public removeCookies(isParent=false) {

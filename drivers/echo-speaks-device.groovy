@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.1.1.1"
-@Field static final String appModifiedFLD = "2021-03-31"
+@Field static final String devVersionFLD  = "4.1.2.0"
+@Field static final String appModifiedFLD = "2021-04-02"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -270,12 +270,14 @@ public void setAuthState(Boolean authenticated) {
     }
 }
 
-public void updateCookies(Map cookies) {
-    logWarn("Cookies Update by Parent.  Re-Initializing Device in 5 Seconds...")
+public void updateCookies(Map cookies, Boolean doInit=true) {
+    String msg = "Cookies Update by Parent."
+    msg += doInit ? "  Re-Initializing Device in 5 Seconds..." : ""
+    logDebug(msg)
     state.cookie = cookies
     cookieDataFLD = [:]
     setAuthState(true)
-    runIn(5, "initialize")
+    if(doInit) runIn(5, "initialize")
 }
 
 public void removeCookies(Boolean isParent=false) {

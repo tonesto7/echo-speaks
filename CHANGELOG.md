@@ -1,3 +1,9 @@
+## _**(April 2nd, 2021)**_
+
+### _**All Apps and Devices (v4.1.2.0)**_
+
+- [UPDATE] Bugfixes and Optimizations
+
 ## _**(March 31st, 2021)**_
 
 ### _**All Apps and Devices (v4.1.1.1)**_
