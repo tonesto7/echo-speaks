@@ -1010,7 +1010,7 @@ def triggerVariableDesc(String inType, Boolean showRepInputs=false, Integer item
         paragraph divSm(str, sCLRGRY, "info")
         //Custom Text Options
         href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(), 
-            description: (settings."trig_${inType}_txt" ? spanSm(settings."trig_${inType}_txt", sCLR4D9) : sBLANK) + spanSm("Open Response Designer...", sCLRGRY)
+            description: (settings."trig_${inType}_txt" ? spanSm(settings."trig_${inType}_txt", sCLR4D9) : sBLANK) + ' ' + spanSm("Open Response Designer...", sCLRGRY)
         if(showRepInputs) {
             if(settings."trig_${inType}_after_repeat") {
                 //Custom Repeat Text Options
