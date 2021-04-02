@@ -276,18 +276,22 @@ def authStatusPage() {
                 input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
                 if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
+
                 // Refreshes the cookie
                 input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: spanSm(ckDesc), required: true, defaultValue: false, submitOnChange: true
                 paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED)
                 paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9)
+
                 // Clears cookies for app and devices
                 input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: spanSm("Clear all stored cookie data from the app and devices."), required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY)
+
                 input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: spanSm("Force devices to synchronize their stored cookies."), required: false, defaultValue: false, submitOnChange: true
                 paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY)
+
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
-                if((Boolean)settings.refreshDevCookies) { refreshDevCookies() }
+                if((Boolean)settings.refreshDevCookies) { Boolean a = refreshDevCookies() }
             }
         }
 
@@ -1462,7 +1466,7 @@ def initialize() {
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
         if(!(Boolean)state.noAuthActive) {
-            //runEvery15Minutes("getOtherData") now part of healthcheck
+            //runEvery15Minutes("getOtherData") now part of healthCheck
             runEvery3Hours("getEchoDevices") //This will reload the device list from Amazon
             runIn(11, "postInitialize")
             remTsVal("donotdisturbDt")
@@ -1509,6 +1513,7 @@ void updateZoneSubscriptions() {
 void postInitialize() {
     logTrace("postInitialize")
     runEvery15Minutes("healthCheck") // This task checks for missed polls, app updates, code version changes, and cloud service health
+    Boolean a = refreshDevCookies(false) // don't have children re-init as it is coming next
     reInitChildren()
 }
 
@@ -2021,19 +2026,19 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     updateChildAuth(false)
 }
 
-Boolean refreshDevCookies() {
+Boolean refreshDevCookies(Boolean doInit=true) {
     logTrace("refreshDevCookies()")
     settingUpdate("refreshDevCookies", sFALSE, sBOOL)
     logDebug("Re-Syncing Cookie Data with Devices")
     Boolean isValid = ((Boolean)state.authValid && getCookieVal() && getCsrfVal())
-    updateChildAuth(isValid)
+    updateChildAuth(isValid, doInit)
     return isValid
 }
 
-void updateChildAuth(Boolean isValid) {
+void updateChildAuth(Boolean isValid, Boolean doInit=true) {
     Map cook = getCookieMap()
-    getChildDevices()?.each { (isValid) ? it?.updateCookies(cook) : it?.removeCookies(true) }
-    getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook) : it?.relayRemoveCookies(true) }
+    getChildDevices()?.each { (isValid) ? it?.updateCookies(cook, doInit) : it?.removeCookies(true) }
+    getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook, doInit) : it?.relayRemoveCookies(true) }
 }
 
 @Field volatile static Map<String,List> authValidMapFLD             = [:]
