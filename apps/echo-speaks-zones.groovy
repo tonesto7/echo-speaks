@@ -633,7 +633,7 @@ Map relayGetLogHistory() { Map a; getEsDevices().each { a = it.getLogHistory() }
 @SuppressWarnings('unused')
 void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
 @SuppressWarnings('unused')
-void relayFinishAnnoucement(String msg, Map vmap) { getEsDevices().each { it.finishAnnounce(msg, vmap.vol, vmap.restvol) } }
+void relayFinishAnnoucement(String msg, LinkedHashMap vmap) { getEsDevices().each { it.finishAnnounce(msg, vmap.vol, vmap.restvol) } }
 @SuppressWarnings('unused')
 void relayFinishSpeak(Map resp, Integer statucode, Map data) { getEsDevices().each { it.finishSendSpeakZ(resp, statuscode, data) } }
 @SuppressWarnings('unused')
