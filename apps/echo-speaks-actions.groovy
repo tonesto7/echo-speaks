@@ -368,10 +368,17 @@ def triggersPage() {
         section (sectHead("Select Capabilities")) {
             input "triggerEvents", sENUM, title: inTS1("Select Trigger Event(s)", "trigger"), options: buildTriggerEnum(), multiple: true, required: true, submitOnChange: true
         }
-        Integer trigEvtCnt = settings.triggerEvents?.size()
+        Integer trigEvtCnt = ((List)settings.triggerEvents)?.size()
         if (trigEvtCnt) {
             Integer trigItemCnt = 0
-            if(!(settings.triggerEvents in ["scheduled", sWEATH])) { showSpeakEvtVars = true }
+            Boolean fnd = false
+            if( "scheduled" in (List<String>)settings.triggerEvents ||
+                   sWEATH in (List<String>)settings.triggerEvents) { fnd = true }
+            /*((List<String>)settings.triggerEvents)?.each { String tr ->
+                if(tr in ["scheduled", sWEATH]) { fnd = true }
+            } */
+            //if(!((List)settings.triggerEvents in ["scheduled", sWEATH])) { showSpeakEvtVars = true }
+            if(!fnd) { showSpeakEvtVars = true }
 
             if (valTrigEvt("scheduled")) {
                 section(sectHead("Time Based Events"), hideable: true) {
@@ -1871,7 +1878,7 @@ def ssmlInfoSection() {
 
 Map customTxtItems() {
     Map items = [:]
-    settings.triggerEvents?.each { String tr->
+    ((List<String>)settings.triggerEvents)?.each { String tr->
         if(settings."trig_${tr}_txt") { if(!items[tr]) { items[tr] = [:] }; items[tr].event = settings."trig_${tr}_txt"?.toString()?.tokenize(";") }
         if(settings."trig_${tr}_after_repeat_txt") { if(!items[tr]) { items[tr] = [:] };  items[tr].repeat = settings."trig_${tr}_after_repeat_txt"?.toString()?.tokenize(";") }
     }
@@ -1880,7 +1887,7 @@ Map customTxtItems() {
 
 Boolean hasRepeatTriggers() {
     Map items = [:]
-    settings.triggerEvents?.each { String tr->
+    ((List<String>)settings.triggerEvents)?.each { String tr->
         if(settings."trig_${tr}_after_repeat_txt") { if(!items[tr]) { items[tr] = [:] };  items[tr].repeat = settings."trig_${tr}_after_repeat_txt"?.toString()?.tokenize(";") }
     }
     return (items.size() > 0)
@@ -1888,7 +1895,7 @@ Boolean hasRepeatTriggers() {
 
 Boolean hasUserDefinedTxt() {
     Boolean fnd = false
-    settings.triggerEvents?.find { String tr ->
+    ((List<String>)settings.triggerEvents)?.each { String tr ->
         if(settings."trig_${tr}_txt") { fnd = true }
         if(settings."trig_${tr}_after_repeat_txt") { fnd = true }
         if(fnd) return true
@@ -1937,7 +1944,7 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
             if(settings.act_EchoZones?.size() > 1) {
                 section(sectHead("(Per Zone) Volume Options:"), hideable: true) {
                     input "act_EchoZones_vol_per_zone", sBOOL, title: inTS1("Set Per Zone Volume?", "question"), defaultValue: false, submitOnChange: true
-                    if(settings.act_EchoZones_vol_per_zone) {
+                    if((Boolean)settings.act_EchoZones_vol_per_zone) {
                         Map echoZones = (getZones() ?: [:]).findAll { it.key in settings.act_EchoZones }
                         paragraph htmlLine(sCLR4D9)
                         echoZones.each { String znId, Map znData->
@@ -1966,7 +1973,7 @@ private actionVolumeInputs(devices, Boolean showVolOnly=false, Boolean showAlrmV
 
 private Map getZoneVolumeMap() {
     Map znMap = [:]
-    if(settings.act_EchoZones_vol_per_zone) {
+    if((Boolean)settings.act_EchoZones_vol_per_zone) {
         Map echoZones = (getZones() ?: [:]).findAll { it.key in settings.act_EchoZones }
         echoZones.each { String zId, zData -> 
             Map aa = [:]
@@ -2009,14 +2016,13 @@ def uninstallPage() {
 private void updDeviceInputs() {
     // log.trace "updDeviceInputs..."
     List aa = settings.act_EchoDevices
-    List devIds = []
+    List devIds
     Boolean updList = false
     try {
         updList = (aa.size() && aa[0].id != null)
-        devIds = aa.collect { it?.id.toString() }
+        devIds = aa.collect { it?.id?.toString() }
         // log.debug "updList(try): ${devIds.unique()}"
-    } catch (ex) {
-        // log.debug "ex: $ex"
+    } catch (ignored) {
         devIds = aa.collect { it?.toString() }
     }
     if(updList && devIds) { 
@@ -2203,11 +2209,11 @@ private void actionCleanup() {
     }
 
     // Cleanup Unused Trigger Types...
-    if(settings.triggerEvents) {
-        List trigKeys = settings.findAll { it?.key?.startsWith("trig_") && !(it?.key?.tokenize("_")[1] in settings.triggerEvents) }?.keySet()?.collect { it?.tokenize("_")[1] as String }?.unique()
+    if((List)settings.triggerEvents) {
+        List<String> trigKeys = settings.findAll { it?.key?.startsWith("trig_") && !((String)((List)it?.key?.tokenize("_"))[1] in (List)settings.triggerEvents) }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
         // log.debug "trigKeys: $trigKeys"
         if(trigKeys?.size()) {
-            trigKeys?.each { tk-> setItems.push("trig_${tk}"); ["wait", "all", "cmd", "once", "after", "txt", "nums"]?.each { ei-> setItems.push("trig_${tk}_${ei}") } }
+            trigKeys.each { String tk-> setItems.push("trig_${tk}"); ["wait", "all", "cmd", "once", "after", "txt", "nums"]?.each { ei-> setItems.push("trig_${tk}_${ei}") } }
         }
     }
 
@@ -2253,7 +2259,8 @@ private void actionCleanup() {
 Boolean isPaused(Boolean chkAll = false) { return (Boolean)settings.actionPause && (chkAll ? !(state.dupPendingSetup == true) : true) }
 
 public void triggerInitialize() { runIn(3, "initialize") }
-private Boolean valTrigEvt(String key) { return (key in settings.triggerEvents) }
+
+private Boolean valTrigEvt(String key) { return (key in (List<String>)settings.triggerEvents) }
 
 public void updatePauseState(Boolean pause) {
     if((Boolean)settings.actionPause != pause) {
@@ -2369,7 +2376,7 @@ void subscribeToEvts() {
     state.handleGuardEvents = false
     if(minVersionFailed ()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
     if(isPaused(true)) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
-    settings.triggerEvents?.each { String te->
+    ((List<String>)settings.triggerEvents)?.each { String te->
         if(te == "scheduled" || settings."trig_${te}") {
             switch (te) {
                 case "scheduled":
@@ -3502,10 +3509,10 @@ static Integer durationToHours(dur) {
     if(dur && dur>= (60*60)) return (dur / 60 / 60)?.toInteger()
     return 0
 }
-
+/*
 private List decamelizeStr(String str) {
     return (List) str.split("(?<!(^|[A-Z]))(?=[A-Z])|(?<!^)(?=[A-Z][a-z])")
-}
+} */
 
 String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
     // log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
@@ -3519,8 +3526,8 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
     } else {
         String evntName = evt?.name
         List devs = settings."trig_${evntName}" ?: []
-        String dc = (String)settings."trig_${evntName}_cmd"
-        Boolean dca = (settings."trig_${evntName}_all" == true)
+        // String dc = (String)settings."trig_${evntName}_cmd"
+        // Boolean dca = (settings."trig_${evntName}_all" == true)
         String dct = settings."trig_${evntName}_txt" ?: sNULL
         String dcart = settings."trig_${evntName}_after_repeat" && settings."trig_${evntName}_after_repeat_txt" ? settings."trig_${evntName}_after_repeat_txt" : sNULL
         List eTxtItems = dct ? dct.tokenize(";") : []
@@ -3589,7 +3596,6 @@ public getActionHistory(Boolean asObj=false) {
     List<String> output = []
     if(eHist.size()) {
         eHist.each { Map h->
-            String str = sBLANK
             List hList = []
             hList.push([name: "Trigger:", val: h?.evtName])
             hList.push([name: "Device:", val: h?.evtDevice])
@@ -3612,7 +3618,7 @@ public getActionHistory(Boolean asObj=false) {
     }
 }
 
-private String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
+private static String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
     String str = sBLANK
     if(tabList?.size()) {
         str += "<table style='border: 1px solid ${color};border-collapse: collapse;'>"
@@ -3625,8 +3631,6 @@ private String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
 }
 
 private addToActHistory(evt, data, Integer max=10) {
-    Boolean ssOk = true // (stateSizePerc() <= 70)
-
     Boolean aa = getTheLock(sHMLF, "addToActHistory")
     // log.trace "lock wait: ${aa}"
 
@@ -3645,7 +3649,7 @@ private addToActHistory(evt, data, Integer max=10) {
         src: data?.src
     ])
     Integer lsiz=eData.size()
-    if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
+    if(lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     // log.debug "actionHistory Size: ${eData?.size()}"
     updMemStoreItem("actionHistory", eData)
 
@@ -3698,7 +3702,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
         Integer changeVol = actConf?.volume?.change as Integer ?: null
         Integer restoreVol = actConf?.volume?.restore as Integer ?: null
         Integer alarmVol = actConf?.volume?.alarm ?: null
-        Map zoneVolumeMap = actConf?.zoneVolume ?: null
+        Map zoneVolumeMap = (Map)actConf?.zoneVolume ?: null
         switch(actType) {
             case sSPEAK:
             case "speak_tiered":
@@ -3912,6 +3916,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
     logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
 }
 
+@SuppressWarnings('unused')
 private postTaskCommands(data) {
     if(data?.type && settings."${data.type}sirens" && (String)settings."${data.type}siren_cmd") { settings."${data.type}sirens"*.off() }
 }
@@ -4071,7 +4076,7 @@ Boolean getAppFlag(val) {
 private void stateMapMigration() {
     //Timestamp State Migrations
     Map tsItems = ["lastAfterEvtCheck":"lastAfterEvtCheck", "lastNotifMsgDt":"lastNotifMsgDt"]
-    tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, state[k]); state.remove(k) } }
+    tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, (String)state[k]); state.remove(k) } }
 
     //App Flag Migrations
     Map flagItems = [:]
@@ -4132,12 +4137,12 @@ public Map getActionMetrics() {
     out.version = appVersionFLD
     out.type = (String)settings.actionType ?: sNULL
     out.delay = settings.actDelay ?: 0
-    out.triggers = settings.triggerEvents ?: []
-    out.echoZones = settings.act_EchoZones ?: []
-    out.echoDevices = settings.act_EchoDevices ?: []
+    out.triggers = (List)settings.triggerEvents ?: []
+    out.echoZones = (List)settings.act_EchoZones ?: []
+    out.echoDevices = (List)settings.act_EchoDevices ?: []
     out.usingCustomText = (customTxtItems()?.size())
     Integer tDevCnt = 0
-    settings.triggerEvents?.each { if(settings."trig_${it}" && settings."trig_${it}"?.size()) { tDevCnt = tDevCnt+settings."trig_${it}"?.size() } }
+    ((List<String>)settings.triggerEvents)?.each { if(settings."trig_${it}" && settings."trig_${it}"?.size()) { tDevCnt = tDevCnt+settings."trig_${it}"?.size() } }
     out.triggerDeviceCnt = tDevCnt
     return out
 }
@@ -4256,14 +4261,13 @@ public pushover_handler(evt){Map pmd=state.pushoverManager?:[:];switch(evt?.valu
 //Builds Map Message object to send to Pushover Manager
 private buildPushMessage(List devices,Map msgData,timeStamp=false){if(!devices||!msgData){return};Map data=[:];data?.appId=app?.getId();data.devices=devices;data?.msgData=msgData;if(timeStamp){data?.msgData?.timeStamp=new Date().getTime()};pushover_msg(devices,data);} */
 
-Integer versionStr2Int(String str) { return str ? str.toString()?.replaceAll("\\.", sBLANK)?.toInteger() : null }
+static Integer versionStr2Int(String str) { return str ? str.toString()?.replaceAll("\\.", sBLANK)?.toInteger() : null }
 Boolean minVersionFailed() {
     try {
         Integer t0 = parent?.minVersions()["actionApp"]
         Integer minDevVer = t0 ?: null
-        if(minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer) { return true }
-        else { return false }
-    } catch (e) {
+        return minDevVer != null && versionStr2Int(appVersionFLD) < minDevVer
+    } catch (ignored) {
         return false
     }
 }
@@ -4275,7 +4279,7 @@ Boolean minVersionFailed() {
 private static String webCoRE_handle(){return'webCoRE'}
 
 private webCoRE_init(pistonExecutedCbk=null){
-    subscribe(location,webCoRE_handle(),webCoRE_handler);
+    subscribe(location,webCoRE_handle(),webCoRE_handler)
 //    if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);
     if(!webCoREFLD) {
         webCoREFLD = [:] + [cbk:true] // pistonExecutedCbk]
@@ -4284,10 +4288,10 @@ private webCoRE_init(pistonExecutedCbk=null){
 }
 
 @Field static final String sLASTWU = 'lastwebCoREUpdDt'
-@Field volatile static Map<String,Map> webCoREFLD = [:]
+@Field volatile static Map<String,Object> webCoREFLD = [:]
 
 private webCoRE_poll(Boolean anow=false){
-    Long rUpd = webCoREFLD?.updated
+    Long rUpd = (Long)webCoREFLD.updated
     if(rUpd && (now() > (rUpd+300000L))) {
         Date aa = new Date(rUpd)
         updTsVal(sLASTWU, formatDt(aa))
@@ -4299,34 +4303,34 @@ private webCoRE_poll(Boolean anow=false){
     }
 }
 
-public webCoRE_execute(String pistonIdOrName,Map data=[:]) {
+private void webCoRE_execute(String pistonIdOrName,Map data=[:]) {
     String i = pistonIdOrName
     if(i){sendLocationEvent([name:i,value:app.label,isStateChange:true,displayed:false,data:data])}
 }
 
-public List webCoRE_list(String mode){
-    return (List)webCoREFLD?.pistons?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
+private static List webCoRE_list(String mode){
+    return ((List)webCoREFLD?.pistons)?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
 }
+/*
+private static String getPistonByName(String pistonIdOrName) {
+    String i=((List)webCoREFLD?.pistons ?: []).find{((String)it.name==pistonIdOrName)||((String)it.id==pistonIdOrName)}?.id
+} */
 
-public getPistonByName(String pistonIdOrName) {
-    String i=(webCoREFLD?.pistons ?: []).find{(it.name==pistonIdOrName)||(it.id==pistonIdOrName)}?.id
-}
-
-String getPistonById(String rId) {
+private static String getPistonById(String rId) {
     Map a = webCoRE_list('name')?.find { it.containsKey(rId) }
     String aaa = (String)a?."${rId}"
     return aaa ?: "Refresh to display piston name..."
 }
 
-public  webCoRE_handler(evt){
-    switch(evt.value){
+void webCoRE_handler(evt){
+    switch((String)evt.value){
       case 'pistonList':
-        List p=webCoREFLD?.pistons ?: []
+        List p=(List)webCoREFLD?.pistons ?: []
         Map d=evt.jsonData?:[:]
         if(d.id && d.pistons && (d.pistons instanceof List)){
             p.removeAll{it.iid==d.id}
             p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name}
-            def a = webCoREFLD?.cbk
+            Boolean a = (Boolean)webCoREFLD?.cbk
 
             Boolean aa = getTheLock(sHMLF, "webCoRE_Handler")
             webCoREFLD = [cbk: a, updated: now(), pistons: p]
@@ -4334,7 +4338,7 @@ public  webCoRE_handler(evt){
 
             updTsVal(sLASTWU)
         }
-        break;
+        break
       case 'pistonExecuted':
         if(valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) {
             webcoreEvtHandler(evt)
@@ -4363,8 +4367,8 @@ List getLocationModes(Boolean sorted=false) {
     return (sorted) ? modes?.sort() : modes
 }
 
-List<String> getLocationPistons() {
-    List aa = (webCoREFLD?.pistons ?: []).findAll { it.id }.collect { (String)it.id }
+static List<String> getLocationPistons() {
+    List aa = ((List)webCoREFLD?.pistons ?: []).findAll { it.id }.collect { (String)it.id }
     return aa ?: []
 }
 
@@ -4438,7 +4442,7 @@ Boolean devCapValEqual(List devs, String devId, String cap, val) {
     return false
 }
 
-String getAlarmSystemName(Boolean abbr=false) {
+static String getAlarmSystemName(Boolean abbr=false) {
     return (abbr ? "HSM" : "Hubitat Safety Monitor")
 }
 /******************************************
@@ -4636,12 +4640,12 @@ String getNotifSchedDesc(Boolean min=false) {
 
 String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     Boolean confd = triggersConfigured()
-    List setItem = settings.triggerEvents
+    List<String> setItem = (List<String>)settings.triggerEvents
     String sPre = "trig_"
     if(confd && setItem?.size()) {
         if(!hideDesc) {
             String str = spanSmBldBr("Triggers${!addFoot ? " for ("+(String)buildActTypeEnum()."${(String)settings.actionType}" + ")" : sBLANK}:", sNULL)
-            setItem?.each { String evt->
+            setItem.each { String evt->
                 String adder = sBLANK
                 switch(evt) {
                     case "scheduled":
@@ -4808,7 +4812,7 @@ Map getZoneStatus() {
 String getZoneVolDesc(zone, volMap) {
     String str = sBLANK
     str += spanSm(" ${sBULLET} ${zone?.value?.name} ${zone?.value?.active == true ? spanSm(" (Active)", sCLRGRN2) : spanSm(" (Inactive)", sCLRGRY)}")
-    if(settings.act_EchoZones_vol_per_zone && volMap && volMap[zone.key]) {
+    if((Boolean)settings.act_EchoZones_vol_per_zone && volMap && volMap[zone.key]) {
         str += volMap[zone.key].change ? lineBr() + spanSm("    - New Volume: ${volMap[zone.key].change}") : sBLANK
         str += volMap[zone.key].restore ? lineBr() + spanSm("    - Restore Volume: ${volMap[zone.key].restore}") : sBLANK
     }
@@ -4819,7 +4823,7 @@ String getActionDesc(Boolean addFoot=true) {
     Boolean confd = executionConfigured()
     String str = sBLANK
     Map actMap = state.actionExecMap
-    Map znVolMap = actMap && actMap.config && actMap.config.zoneVolume ? actMap.config.zoneVolume : null
+    Map znVolMap = actMap && actMap.config && actMap.config.zoneVolume ? (Map)actMap.config.zoneVolume : null
     str += addFoot ? spanSmBr(strUnder("Action Type:")) : sBLANK
     str += addFoot ? spanSmBr(" ${sBULLET} " + (String)buildActTypeEnum()."${(String)settings.actionType}") + lineBr() : sBLANK
     if((String)settings.actionType && confd) {
@@ -4922,7 +4926,7 @@ static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { re
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
-static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ").replaceAll("<br>", " "), und), clr, img) }
+static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ")?.replaceAll("<br>", " "), und), clr, img) }
 
 // Root HTML Objects
 static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
@@ -5037,7 +5041,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
-        } catch (e) {
+        } catch (ignored) {
         }
         if(a) log.error logPrefix(a, sCLRRED)
     }
