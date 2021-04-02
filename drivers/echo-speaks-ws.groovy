@@ -65,11 +65,13 @@ preferences {
 
 Boolean isSocketActive() { return (Boolean)state.connectionActive }
 
-public updateCookies(Map cookies) {
-    logInfo("Cookies Update by Parent.  Re-Initializing Device in 10 Seconds...")
+public updateCookies(Map cookies, doInit=true) {
+    String msg = "Cookies Update by Parent."
+    msg += doInit ? "  Re-Initializing Device in 10 Seconds..." : ""
+    logInfo(msg)
     state.cookie = cookies
     state.amazonDomain = sNULL
-    runIn(10, "initialize")
+    if(doInit) runIn(10, "initialize")
 }
 
 public removeCookies(isParent=false) {
