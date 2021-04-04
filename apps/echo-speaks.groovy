@@ -22,7 +22,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map minVersionsFLD    = [echoDevice: 4120, wsDevice: 4120, actionApp: 4120, zoneApp: 4120, zoneEchoDevice: 4120, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD    = [echoDevice: 4120, wsDevice: 4120, actionApp: 4120, zoneApp: 4120, zoneEchoDevice: 4120, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1481,6 +1481,8 @@ def initialize() {
             getEchoDevices()
 
             if(advLogsActive()) { logsEnabled() }
+            runIn(60, "workQB")
+
         } else { unschedule("getEchoDevices") /*; unschedule("getOtherData") */ }
     }
 }
@@ -2276,7 +2278,7 @@ def validateCookieResp(resp, data){
     }
     return false
 }
-
+/*
 private getCustomerData(Boolean frc=false) {
     try {
         if(!frc && state.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state.amazonCustomerData }
@@ -2309,7 +2311,7 @@ private getCustomerData(Boolean frc=false) {
         updTsVal("lastCustDataUpdDt")
     }
 }
-
+*/
 /*
 private List getAllDeviceVolumes(Boolean frc=false) {
     if(!isAuthValid("getAllDeviceVolumes")) { return [] }
@@ -2502,7 +2504,7 @@ Map getMusicProviders(Boolean frc=false) {
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            List rData = response?.data ?: []
+            List<Map> rData = (List<Map>)response?.data ?: []
             if(rData.size()) {
                 rData.findAll { it?.availability == "AVAILABLE" }?.each { Map item->
                     items[item.id] = (String)item.displayName
@@ -2857,7 +2859,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
                             } else if(trg.type != null) {
                                 // log.debug "trg: $trg"
                                 String pt = trg.type.toString()
-                                if(pt?.toLowerCase().contains('guard')) {
+                                if(pt.toLowerCase().contains('guard')) {
                                     items[myK] = "Unlabeled Guard Routine ($cnt)"
                                     cnt++
                                 } else {
@@ -3524,8 +3526,8 @@ public static Map minVersions() {
 private Map getMinVerUpdsRequired() {
     Boolean updRequired = false
     List updItems = []
-    Map codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneEchoDevice: "Echo Speaks Zone Device"]
-    Map codeVers = (Map)state.codeVersions ?: [:]
+    Map<String, String> codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneEchoDevice: "Echo Speaks Zone Device"]
+    Map<String, String> codeVers = (Map<String, String>)state.codeVersions ?: [:]
     codeVers.each { String k,String v->
         if(codeItems.containsKey(k) && v != sNULL && (versionStr2Int(v) < minVersionsFLD[k])) { updRequired = true; updItems.push(codeItems[k]) }
     }
@@ -3536,7 +3538,7 @@ static Map getDeviceStyle(String family, String type) {
     Map typeData = (Map)deviceSupportMapFLD.types[type] ?: [:]
     if(typeData) {
         return typeData
-    } else { return [name: "Echo Unknown $type", image: sUNKNOWN, allowTTS: false] }
+    } else { return [name: "Echo Unknown "+type, image: sUNKNOWN, allowTTS: false] }
 }
 
 public Map getDeviceFamilyMap() {
@@ -3873,6 +3875,17 @@ void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boole
     queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", parallel, cmdMap, device, callback)
 }
 
+void queueNopCommand(){
+    Map item= [
+        t: 'nop',
+        time: now(),
+        device: null,
+        callback: null
+    ]
+    addToQ(item)
+
+}
+
 void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
     Map item= [
         t: 'sequence',
@@ -4084,42 +4097,52 @@ void workQ() {
 
             Map titem = (Map)eData.remove(0) // pop the command as we are going to do it
             updMemStoreItem(k, eData)
-            activeD.push(titem) // save what we are doing to an active list
-            updMemStoreItem('active', activeD)
 
-            lmsg.push("workQ adding ${srcDesc} | ${seqList ? "MultiSequence" : "Sequence"} ${seqList ? "${parallel ? ": Parallel" : ": Sequential"}" : sBLANK}".toString())
+            if(t=='nop') {
+                    if(seqList.size() > 0) {
+                        lmsg.push("workQ found nop, processing current list")
+                        break // finish off what we are planning to do
+                    }
+                    lmsg.push("workQ found nop, skipping")
+            } else {
 
-            Map t_extData =[:]
-            if(device && callback) {
-                String nstr = cmdMap?.message?.toString()
-                nstr = nstr?.trim()
-                Boolean isSSML = (nstr?.toString()?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
-                if(isSSML) nstr = nstr[7..-9]
-                Integer msgLen = nstr?.length()
-                t_extData = [
-                    cmdDt:(cmdMap.cmdDt ?: null),
-                    cmdDesc: (cmdMap.cmdDesc ?: null),
-                    msgLen: msgLen,
-                    isSSML: isSSML,
-                    deviceId: device,
-                    callback: callback,
-                    msgDelay: (cmdMap.msgDelay ?: null),
-                    message: (cmdMap.message ? cmdMap.message : null),
-                    newVolume: (cmdMap.newVolume ?: null),
-                    oldVolume: (cmdMap.oldVolume ?: null),
-                    cmdId: (cmdMap.cmdId ?: null),
-                ]
+                activeD.push(titem) // save what we are doing to an active list
+                updMemStoreItem('active', activeD)
+
+                lmsg.push("workQ adding ${srcDesc} | ${seqList ? "MultiSequence" : "Sequence"} ${seqList ? "${parallel ? ": Parallel" : ": Sequential"}" : sBLANK}".toString())
+
+                Map t_extData =[:]
+                if(device && callback) {
+                    String nstr = cmdMap?.message?.toString()
+                    nstr = nstr?.trim()
+                    Boolean isSSML = (nstr?.toString()?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
+                    if(isSSML) nstr = nstr[7..-9]
+                    Integer msgLen = nstr?.length()
+                    t_extData = [
+                        cmdDt:(cmdMap.cmdDt ?: null),
+                        cmdDesc: (cmdMap.cmdDesc ?: null),
+                        msgLen: msgLen,
+                        isSSML: isSSML,
+                        deviceId: device,
+                        callback: callback,
+                        msgDelay: (cmdMap.msgDelay ?: null),
+                        message: (cmdMap.message ? cmdMap.message : null),
+                        newVolume: (cmdMap.newVolume ?: null),
+                        oldVolume: (cmdMap.oldVolume ?: null),
+                        cmdId: (cmdMap.cmdId ?: null),
+                    ]
+                }
+                extList.push(t_extData)
+                extData.extList = extList
+
+                Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
+                ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
+                msSum = parallel ? ms : msSum + ms
+                lmsg.push("workQ ms delay is $msSum".toString())
+
+                if(seqObj) { break } // runs by itself
+                // if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
             }
-            extList.push(t_extData)
-            extData.extList = extList
-
-            Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
-            ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
-            msSum = parallel ? ms : msSum + ms
-            lmsg.push("workQ ms delay is $msSum".toString())
-
-            if(seqObj) { break } // runs by itself
-            // if(parallel) { break } // only run 1 parallel at a time in case they are changing the same thing again
         }
 
         if(seqList.size() > 0 || seqObj) {
@@ -4189,10 +4212,10 @@ Integer getMsgDur(String command, String type, String tv){
         Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
         if(isSSML) nstr = nstr[7..-9]
         isSSML = (isSSML || command == 'ssml')
-        String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, '') : cleanString(nstr)
+        String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, sBLANK) : cleanString(nstr)
         Integer msgLen = actMsg.length()
         del = calcDelay(msgLen)
-        //logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
+        if(devModeFLD) logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
     }
     else if(type.startsWith('play')) del = 18
     else if(type.startsWith('say')) del = 3
@@ -4366,7 +4389,7 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
 String cleanString(String str, Boolean frcTrans=false) {
     if(!str) { return sNULL }
     //Cleans up characters from message
-    str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sBLANK)?.replaceAll(/\s\s+/, sSPACE)
+    str = str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
     str = textTransform(str, frcTrans)
     // log.debug "cleanString: $str"
     return str
