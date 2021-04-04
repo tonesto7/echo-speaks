@@ -676,6 +676,11 @@ void relaySpeakZone(String zoneId, String msg, Boolean parallel) {
 }
 
 @SuppressWarnings('unused')
+void relayNopCommand() {
+    if(zoneOnline()) parent.queueNopCommand()
+}
+
+@SuppressWarnings('unused')
 private Boolean relayGetWWebSocketStatus() {
      parent.getWWebSocketStatus()
 }
