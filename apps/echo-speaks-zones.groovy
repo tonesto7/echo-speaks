@@ -16,8 +16,8 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = "4.1.2.0"
-@Field static final String appModifiedFLD = "2021-04-02"
+@Field static final String appVersionFLD  = "4.1.3.0"
+@Field static final String appModifiedFLD = "2021-04-05"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -673,6 +673,11 @@ void relayAnnounceZone(String zoneId, String msg, Boolean parallel) {
 @SuppressWarnings('unused')
 void relaySpeakZone(String zoneId, String msg, Boolean parallel) {
     if(zoneOnline()) parent.sendZoneSpeak(zoneId, msg, parallel)
+}
+
+@SuppressWarnings('unused')
+void relayNopCommand() {
+    if(zoneOnline()) parent.queueNopCommand()
 }
 
 @SuppressWarnings('unused')
