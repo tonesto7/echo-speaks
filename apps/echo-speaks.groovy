@@ -2535,8 +2535,14 @@ void getNotificationsRunIn(){
     getNotifications(true)
 }
 
-//private List getNotifications(String type="Reminder", all=false) {
-private void getNotifications(Boolean frc = false, String type="Reminder", Boolean all=false) {
+// Called by child devices
+@SuppressWarnings('unused')
+private List getNotificationList(Boolean frc) {
+    getNotifications(frc)
+    return (List)state.notifications
+}
+
+private void getNotifications(Boolean frc = false) {
     Integer lastU = getLastTsValSecs("notificationsUpdDt")
     if( (frc && lastU < 9)) { return }
     if( (!frc && (Boolean)state.websocketActive && state.notifications && lastU < 10800) ) { return }
@@ -2559,6 +2565,7 @@ private void getNotifications(Boolean frc = false, String type="Reminder", Boole
             // log.trace "notifications: $sData"
         }
         if(sData?.size()) {
+            Boolean all = true
             List s = ["ON"]
             if(all) s.push("OFF")
             List items = sData.notifications ? sData.notifications.findAll { it.status in s /* && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber  */ } : []
