@@ -533,14 +533,12 @@ void websocketUpdEvt(List<String> triggers) {
                     break
                 case "queue":
                     runIn(4, "getPlaylists")
+                case "notification":
                 case "notif":
                     // runIn(2, "getNotifications")
                     break
                 case "bluetooth":
                     runIn(20, "getBluetoothDevices")
-                    break
-                case "notification":
-                    // runIn(2, "getNotifications")
                     break
                 case "online":
                     setOnlineStatus(true)
@@ -551,6 +549,8 @@ void websocketUpdEvt(List<String> triggers) {
                 case "activity":
                     runIn(5, "getDeviceActivity")
                     break
+                default:
+                    logTrace("unknown websocket trigger $k")
             }
         }
     }
@@ -983,6 +983,19 @@ private getPlaylists() {
 
 private List getNotifications(String type="Reminder", all=false) {
     if(isZone()) return null
+    List<Map> items = []
+    try {
+        List<Map> notList = (List<Map>)parent?.getNotificationList(true)
+        List s = ["ON"]
+        if(all) s.push("OFF")
+        notList.each { Map it ->
+            if((String)it.status in s && (String)it.type == type && (String)it.deviceSerialNumber == (String)state.serialNumber) { items.push(it) }
+        }
+        return items
+    } catch (ex) {
+        respExceptionHandler(ex, "getNotifications")
+    }
+/*
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/notifications",
@@ -1011,7 +1024,7 @@ private List getNotifications(String type="Reminder", all=false) {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getNotifications")
-    }
+    } */
     return null
 }
 
@@ -1267,7 +1280,7 @@ def playTrack(String uri, volume=null) {
     logWarn("Uh-Oh... The playTrack($uri, $volume) Command is NOT Supported by this Device!!!")
 }
 
-// capability musicPlayer
+// capability musicPlayer  (above covers this
 /*def playTrack(String uri) {
     if(isCommandTypeAllowed("TTS")) {
         String tts = uriTrackParser(uri)
@@ -1354,15 +1367,25 @@ def nextTrack() {
     }
 }
 
+def repeat() {
+    logTrace("repeat() command received...")
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        sendAmazonBasicCommand("RepeatCommand")
+    }
+}
+
+def shuffle() {
+    logTrace("shuffle() command received...")
+    if(isCommandTypeAllowed("mediaPlayer")) {
+        sendAmazonBasicCommand("ShuffleCommand")
+    }
+}
+
 void updateMute(String typ) {
     if(typ in ['muted', 'unmuted'] && isCommandTypeAllowed("volumeControl")) {
-        if(typ == 'muted'){
-            Integer t0= device?.currentValue("level")?.toInteger()
-            if( (t0 && t0 != 0) ) state.muteLevel = t0
-            updateLevel(0, null)
-        } else {
-            if(state.muteLevel) updateLevel(state.muteLevel, null)
+        if(typ == 'unmuted'){
             state.muteLevel = null
+            state.remove('muteLevel')
         }
         if(isStateChange(device, "mute", typ)) {
             logDebug("Mute Changed to ${typ}")
@@ -1378,23 +1401,11 @@ def mute() {
         if(isZone()) {
             parent.zoneCmdHandler([value: 'mute', jsonData: [zones:[parent.id.toString()], cmd:'mute', message: sNULL, changeVol:null, restoreVol:null, delay:0]], true)
         } else {
+            Integer t0= device?.currentValue("level")?.toInteger()
+            if( (t0 && t0 != 0) ) state.muteLevel = t0
             setLevel(0)
         }
         updateMute('muted')
-    }
-}
-
-def repeat() {
-    logTrace("repeat() command received...")
-    if(isCommandTypeAllowed("mediaPlayer")) {
-        sendAmazonBasicCommand("RepeatCommand")
-    }
-}
-
-def shuffle() {
-    logTrace("shuffle() command received...")
-    if(isCommandTypeAllowed("mediaPlayer")) {
-        sendAmazonBasicCommand("ShuffleCommand")
     }
 }
 
@@ -1402,19 +1413,16 @@ def shuffle() {
 def unmute() {
     logTrace("unmute() command received...")
     if(isCommandTypeAllowed("volumeControl")) {
-        if(state.muteLevel) {
-            if(isZone()) {
-                parent.zoneCmdHandler([value: 'unmute', jsonData: [zones:[parent.id.toString()], cmd:'unmute', message: sNULL, changeVol:null, restoreVol:null, delay:0]], true)
-            } else {
-                setLevel(state.muteLevel)
-            }
-        } else logTrace("no previous volume level found")
+        if(isZone()) {
+            parent.zoneCmdHandler([value: 'unmute', jsonData: [zones:[parent.id.toString()], cmd:'unmute', message: sNULL, changeVol:null, restoreVol:null, delay:0]], true)
+        } else {
+            if(state.muteLevel) {
+                def a = state.muteLevel
+                setLevel(a)
+            } else logTrace("unmute - no previous volume level found to restore")
+        }
         updateMute('unmuted')
     }
-}
-
-def setMute(muteState) {
-    if(muteState) { (muteState == "muted") ? mute() : unmute() }
 }
 
 // capability musicPlayer
@@ -1427,8 +1435,8 @@ def setLevel(level) {
             if(level != device?.currentValue('level')) {
                 sendSequenceCommand("VolumeCommand", "volume", level)
             }
+            updateLevel(level, null)
         }
-        updateLevel(level.toInteger(), null)
     }
 }
 
@@ -1557,6 +1565,7 @@ def setFollowUpMode(Boolean val) {
     }
 }
 
+// capability notification
 @SuppressWarnings('unused')
 def deviceNotification(String msg) {
     logTrace("deviceNotification(msg: $msg) command received...")
@@ -2693,13 +2702,14 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
 void updateLevel(oldvolume, newvolume) {
     if(oldvolume != null || newvolume != null) {
         Integer res = oldvolume != null  ? oldvolume.toInteger() : newvolume.toInteger()
-        if(isStateChange(device, "level", res.toString()) || isStateChange(device, "volume", res.toString())) {
+        String val = res.toString()
+        if(isStateChange(device, "level", val) || isStateChange(device, "volume", val)) {
             sendEvent(name: "level", value: res, display: true, displayed: true)
             sendEvent(name: "volume", value: res, display: true, displayed: true)
             logDebug("Volume Level Set to ${res}%")
         }
         if(res != 0) updateMute('unmuted')
-    }
+    } else logWarn("Uh-Oh... UpdateLevel without any values")
 }
 
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
