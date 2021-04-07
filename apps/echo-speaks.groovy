@@ -1558,13 +1558,13 @@ void wsEvtHandler(evt) {
         if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
         if(evt.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) } }
+                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") } }
                 if(trigs?.size()) { eDev.websocketUpdEvt(trigs) }
             }
         } else {
             def eDev = findEchoDevice((String)evt.id)
             if(eDev) {
-                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) }
+                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
                 if(trigs?.size()) { eDev?.websocketUpdEvt(trigs) }
             }
         }
@@ -5243,7 +5243,7 @@ void getConfigData() {
     Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/appData.json",
         contentType: sAPPJSON,
-        timeout: 20,
+        timeout: 20
     ]
     Map data = (Map)getWebData(params, "appData", false)
     if(data) {
@@ -5257,7 +5257,7 @@ void getNoticeData() {
     Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/notices.json",
         contentType: sAPPJSON,
-        timeout: 20,
+        timeout: 20
     ]
     Map data = (Map)getWebData(params, "noticeData", false)
     if(data) {
@@ -6923,7 +6923,7 @@ def getShmIncidents() {
 }
 
 // This is incomplete (and currently unused)
-public setAlarmSystemMode(mode) {
+void setAlarmSystemMode(mode) {
     switch(mode) {
         case "armAway":
         case "away":
