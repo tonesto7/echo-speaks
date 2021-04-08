@@ -24,12 +24,6 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-      - run: mkdir output
-#       - name: Read CHANGELOG.MD
-#         id: changelog
-#         uses: juliangruber/read-file-action@v1
-#         with:
-#           path: ./CHANGELOG.md
       
       # Runs a single command using the runners shell
       - uses: docker://pandoc/core:2.9
@@ -40,11 +34,7 @@ jobs:
             --output=CHANGELOG.html
             CHANGELOG.md
       
-#       - name: move to dir # Move the generated files into output folder
-#         run: |
-#           mkdir -p output
-#           yes| cp -rf testfile.txt ./output/
-      - name: Commit files # commit the output folder
+      - name: Commit ChangeLog HTML Files
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Action test"
@@ -54,6 +44,6 @@ jobs:
       - name: Push changes # push the output folder to your repo
         uses: ad-m/github-push-action@master
         with:
-          branch: master #ignore if your branch is master
+          branch: ${{ github.ref }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          force: true
+#           force: true
