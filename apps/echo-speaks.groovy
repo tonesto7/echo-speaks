@@ -4396,7 +4396,8 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
 String cleanString(String str, Boolean frcTrans=false) {
     if(!str) { return sNULL }
     //Cleans up characters from message
-    str = str.replaceAll(~/[^a-zA-Z0-9-?%°.,: ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
+    str = str.replaceAll(~/[^a-zA-Z0-9-?%°.,:&#;<>! ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
+// from https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/text-aplt.html
     str = textTransform(str, frcTrans)
     // log.debug "cleanString: $str"
     return str
