@@ -37,7 +37,7 @@ jobs:
         with:
           args: >-  # allows you to break string into multiple lines
             --standalone
-            --metadata title="Changelog"
+            --metadata title=""
             --output=CHANGELOG.html
             CHANGELOG.md
       
