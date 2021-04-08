@@ -53,14 +53,16 @@ static Boolean isZone()     { return true }
 
 metadata {
     definition (name: "Echo Speaks Zone Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-zone-device.groovy") {
-        capability "Audio Notification"
-        capability "Audio Volume"
-        capability "Music Player"
+        capability "AudioNotification"
+        capability "AudioVolume"
+        capability "MusicPlayer"
         capability "Notification"
         capability "Refresh"
         capability "Sensor"
-        capability "Speech Synthesis"
-
+        capability "SpeechSynthesis"
+if(!isZone()) {
+        capability "SpeechRecognition"
+}
         attribute "alarmVolume", "number"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaGuardStatus", "string"
@@ -95,7 +97,8 @@ metadata {
         attribute "wakeWords", "enum"
         attribute "wasLastSpokenToDevice", "string"
 	    
-	    attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
+        attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
+
         command "replayText"
 if(!isZone()) {
         command "doNotDisturbOn"
@@ -195,10 +198,10 @@ def installed() {
     if(!isZone()) {
         sendEvent(name: "status", value: "stopped")
         sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
-        sendEvent(name: "trackDescription", value: "Not Set")
+        sendEvent(name: "trackDescription", value: "NA")
         sendEvent(name: "followUpMode", value: sFALSE)
         sendEvent(name: "alexaWakeWord", value: "ALEXA")
-        sendEvent(name: "mediaSource", value: "Not Set")
+        sendEvent(name: "mediaSource", value: "NA")
         sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
         sendEvent(name: "alarmVolume", value: 0)
         sendEvent(name: "doNotDisturb", value: sFALSE)
@@ -224,8 +227,10 @@ def initialize() {
     schedDataRefresh(true)
     if(advLogsActive()) { runIn(1800, "logsOff") }
     state.websocketActive = isZone() ? parent?.relayGetWWebSocketStatus() : parent?.getWWebSocketStatus()
-    sendEvent(name: "lastAnnouncement", value: "Not Set")
-    sendEvent(name: "lastSpeakCmd", value: "Not Set")
+    sendEvent(name: "lastAnnouncement", value: "NA")
+    sendEvent(name: "lastSpeakCmd", value: "NA")
+    sendEvent(name: "lastVoiceActivity", value: "NA")
+    sendEvent(name: "phraseSpoken", value: "NA")
     refresh() //refreshData(true)
 }
 
@@ -430,7 +435,7 @@ void updateDeviceStatus(Map devData) {
         state.deviceOwnerCustomerId = (String)devData.deviceOwnerCustomerId
         state.deviceAccountId = (String)devData.deviceAccountId
 
-        String firmwareVer = devData.softwareVersion ?: "Not Set"
+        String firmwareVer = devData.softwareVersion ?: "NA"
         state.softwareVersion = firmwareVer
 
         // state.mainAccountCommsId = devData.mainAccountCommsId ?: null
@@ -505,7 +510,7 @@ void updateDeviceStatus(Map devData) {
             updateMute('unmuted') // sendEvent(name: "mute", value: "unmuted")
             sendEvent(name: "status", value: "stopped")
             sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.i}")
-            sendEvent(name: "trackDescription", value: "Not Set")
+            sendEvent(name: "trackDescription", value: "NA")
         } else { if(chg) { state.fullRefreshOk = true; triggerDataRrshF('updateDeviceStatus') }}
     }
     setOnlineStatus(isOnline)
@@ -708,7 +713,7 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
     }
 
     //Track Title
-    String title = playerInfo.infoText?.title ?: "Not Set"
+    String title = playerInfo.infoText?.title ?: "NA"
     if(isStateChange(device, "trackDescription", title)) {
         isMediaInfoChange = true
         sendEvent(name: "trackDescription", value: title, descriptionText: "Track Description", display: true, displayed: true)
@@ -727,7 +732,7 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
     }
 
     //Track Art Image
-    String trackImg = playerInfo.mainArt?.url ?: "Not Set"
+    String trackImg = playerInfo.mainArt?.url ?: "NA"
     if(isStateChange(device, "trackImage", trackImg)) {
         isMediaInfoChange = true
         sendEvent(name: "trackImage", value: trackImg, descriptionText: "Track Image", display: false, displayed: false)
@@ -735,7 +740,7 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
     }
 
     //Media Source Provider
-    String mediaSource = playerInfo.provider?.providerName ?: "Not Set"
+    String mediaSource = playerInfo.provider?.providerName ?: "NA"
     if(isStateChange(device, "mediaSource", mediaSource)) {
         isMediaInfoChange = true
         sendEvent(name: "mediaSource", value: mediaSource, descriptionText: "Media Source", display: true, displayed: true)
@@ -1047,7 +1052,11 @@ private getDeviceActivity() {
                 if (didC) {
                     logDebug("lastVoiceActivity: ${spTx}")
                     sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
-                } else sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false)
+                    sendEvent(name: "phraseSpoken", value: spTx, display: false, displayed: false, isStateChange: true)
+                } else {
+                    sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false)
+                    sendEvent(name: "phraseSpoken", value: spTx, display: false, displayed: false)
+                }
             }
         } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastS)) {
             logDebug("wasLastSpokenToDevice: ${wasLastS}")
@@ -1277,7 +1286,7 @@ def playTrack(String uri, volume=null) {
     logWarn("Uh-Oh... The playTrack($uri, $volume) Command is NOT Supported by this Device!!!")
 }
 
-// capability musicPlayer  (above covers this
+// capability musicPlayer  (above covers this)
 /*def playTrack(String uri) {
     if(isCommandTypeAllowed("TTS")) {
         String tts = uriTrackParser(uri)
@@ -2567,7 +2576,6 @@ def playText(String msg, volume=null) {
 } */
 
 // capability audioNotification
-//def playTrackAndResume(String uri, duration, volume=null) {
 def playTrackAndResume(String uri, volume=null) {
     if(isCommandTypeAllowed("mediaPlayer")) {
         logDebug("playTrackAndResume($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
@@ -2586,7 +2594,7 @@ def playTextAndResume(String text, volume=null) {
     } else { speak(text) }
 }
 
-//def playTrackAndRestore(String uri, duration, volume=null) {
+// capability audioNotification
 def playTrackAndRestore(String uri, volume=null) {
     if(isCommandTypeAllowed("mediaPlayer")) {
         logDebug("playTrackAndRestore($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
@@ -2670,6 +2678,7 @@ void parallelSpeak(String msg) {
     }
 }
 
+// capability speechSynthesis
 void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
