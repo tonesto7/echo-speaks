@@ -45,7 +45,8 @@ jobs:
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Action test"
-          git commit -m "Update CHANGELOG HTML File" -a
+          git add ./CHANGELOG.html -f -v
+          git commit -m "Update CHANGELOG HTML File"
       
       - name: Push changes
         uses: ad-m/github-push-action@master
