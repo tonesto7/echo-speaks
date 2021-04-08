@@ -1,37 +1,43 @@
-## _**(April 5th, 2021)**_
+### _**Release (v4.1.4.0) - [April 8th, 2021]**_
 
-### _**All Apps and Devices (v4.1.3.0)**_
+#### _***All Apps and Devices***_
+- [FIX] Modified the changelog format to display correctly now.
+- [FIX] Modified the speech string cleanup to resolve some issues with time and other values in speak commands.
+- [FIX] Bugfixes and Optimizations
 
-- [UPDATE] Bugfixes and Optimizations
+### _**Release (v4.1.3.0) - [April 5th, 2021]**_
 
-## _**(April 2nd, 2021)**_
+#### _***All Apps and Devices***_
 
-### _**All Apps and Devices (v4.1.2.0)**_
+- [FIX] Bugfixes and Optimizations
 
-- [UPDATE] Bugfixes and Optimizations
+### _**Release (v4.1.2.0) - [April 2nd, 2021]**_
 
-## _**(March 31st, 2021)**_
+#### _***All Apps and Devices***_
 
-### _**All Apps and Devices (v4.1.1.1)**_
+- [FIX] Bugfixes and Optimizations
 
-- [UPDATE] Bugfixes and Optimizations
+### _**Release (v4.1.0.0) - [March 22nd, 2021]**_
 
-## _**(March 30th, 2021)**_
+#### _***All Apps and Devices***_
 
-### _**All Apps and Devices (v4.1.1.0)**_
+- [FIX] Bugfixes and Optimizations
 
-- [UPDATE] Bugfixes and Optimizations
+### _**Release (v4.1.1.0) - [March 30th, 2021]**_
 
-## _**(March 25th, 2021)**_
+#### _***All Apps and Devices***_
 
-### _**All Apps and Devices (v4.1.0.1)**_
+- [FIX] Bugfixes and Optimizations
+  
+### _**Release (v4.1.0.1) - [March 25th, 2021]**_
 
-- [UPDATE] Bugfixes and Optimizations
+#### _***All Apps and Devices***_
 
+- [FIX] Bugfixes and Optimizations
 
-## _**(March 22nd, 2021)**_
+### _**Release (v4.1.0.0) - [March 22nd, 2021]**_
 
-### _**Echo Speaks App (v4.1.0.0)**_
+#### _***Echo Speaks App***_
 
 - [UPDATE] Reduced overhead and resource usage
 - [UPDATE] Add new echo devices
@@ -42,17 +48,17 @@
 - [UPDATE] More use of asyncHttp calls
 - [NEW] Centralized speech queue to eliminate rate-limiting.
 - [NEW] Speech command optimizations to try and group like commands
+- [NEW] Restored Zone and Action duplications.
 - [UPDATE] UI improvements
 - [UPDATE] Improved status reporting and descriptions
 - [UPDATE] Cleanup of use of local server deployments
 - [UPDATE] Improved cookie refresh operations (in conjunction with server updates)
 - [UPDATE] Fixes for conditions, restrictions handling, time based conditions and restrictions
 - [UPDATE] Updates for operation with HSM,
-- [ADDED] Restored Zone and Action duplications.
 - [UPDATE] Added support for new Echo devices
 - [UPDATE] Significant reduction of platform resource usage.
-
-### _**Echo Speaks Actions (v4.1.0.0)**_
+  
+#### _***Echo Speaks Actions***_
 
 - [UPDATE] Integration with lock codes and security keypads, humidity sensors
 - [UPDATE] Ability to filter actions on specific security code usage
@@ -67,24 +73,24 @@
 - [UPDATE] Removed a lot of state and atomicState accesses
 - [UPDATE] Many JVM optimizations to reduce memory use in HE
 
-### _**Echo Speaks Zones (v4.1.0.0)**_
+#### _***Echo Speaks Zones***_
 
 - [UPDATE] Optimizations
 - [UPDATE] Improved time handling and transitioning
 - [UPDATE] Improved UI
 - [NEW] Create a virtual device for each zone to use in 3rd-party apps.
 
-### _**Echo Speaks Device (v4.1.0.0)**_
+#### _***Echo Speaks Device***_
 
 - [UPDATE] Improved labeling for command inputs
 - [UPDATE] Significant reduction of platform resource usage.
 - [NEW] Added new voiceCmdAsText() command to execute commands as if they are spoken to the device
 
-### _**Echo Speaks Zones Device (v4.1.0.0)**_
+#### _***Echo Speaks Zones Device***_
 
 - [NEW] Device can be used in 3rd Party apps like WebCoRE or Rule Machine
 
-### _**Echo Speaks WebSocket (v4.1.0.0)**_
+#### _***Echo Speaks WebSocket***_
 
 - [UPDATE] Significant reduction of platform resource usage.
 - [UPDATE] Improved operations with websockets.

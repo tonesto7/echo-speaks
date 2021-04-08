@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.1.3.0"
-@Field static final String appModifiedFLD = "2021-04-05"
+@Field static final String devVersionFLD  = "4.1.4.0"
+@Field static final String appModifiedFLD = "2021-04-08"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -53,14 +53,16 @@ static Boolean isZone()     { return true }
 
 metadata {
     definition (name: "Echo Speaks Zone Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-zone-device.groovy") {
-        capability "Audio Notification"
-        capability "Audio Volume"
-        capability "Music Player"
+        capability "AudioNotification"
+        capability "AudioVolume"
+        capability "MusicPlayer"
         capability "Notification"
         capability "Refresh"
         capability "Sensor"
-        capability "Speech Synthesis"
-
+        capability "SpeechSynthesis"
+if(!isZone()) {
+        capability "SpeechRecognition"
+}
         attribute "alarmVolume", "number"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaGuardStatus", "string"
@@ -95,7 +97,8 @@ metadata {
         attribute "wakeWords", "enum"
         attribute "wasLastSpokenToDevice", "string"
 	    
-	    attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
+        attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
+
         command "replayText"
 if(!isZone()) {
         command "doNotDisturbOn"
@@ -195,10 +198,10 @@ def installed() {
     if(!isZone()) {
         sendEvent(name: "status", value: "stopped")
         sendEvent(name: "deviceStatus", value: "stopped_echo_gen1")
-        sendEvent(name: "trackDescription", value: "Not Set")
+        sendEvent(name: "trackDescription", value: "NA")
         sendEvent(name: "followUpMode", value: sFALSE)
         sendEvent(name: "alexaWakeWord", value: "ALEXA")
-        sendEvent(name: "mediaSource", value: "Not Set")
+        sendEvent(name: "mediaSource", value: "NA")
         sendEvent(name: "wasLastSpokenToDevice", value: sFALSE)
         sendEvent(name: "alarmVolume", value: 0)
         sendEvent(name: "doNotDisturb", value: sFALSE)
@@ -224,8 +227,10 @@ def initialize() {
     schedDataRefresh(true)
     if(advLogsActive()) { runIn(1800, "logsOff") }
     state.websocketActive = isZone() ? parent?.relayGetWWebSocketStatus() : parent?.getWWebSocketStatus()
-    sendEvent(name: "lastAnnouncement", value: "Not Set")
-    sendEvent(name: "lastSpeakCmd", value: "Not Set")
+    sendEvent(name: "lastAnnouncement", value: "NA")
+    sendEvent(name: "lastSpeakCmd", value: "NA")
+    sendEvent(name: "lastVoiceActivity", value: "NA")
+    sendEvent(name: "phraseSpoken", value: "NA")
     refresh() //refreshData(true)
 }
 
@@ -430,7 +435,7 @@ void updateDeviceStatus(Map devData) {
         state.deviceOwnerCustomerId = (String)devData.deviceOwnerCustomerId
         state.deviceAccountId = (String)devData.deviceAccountId
 
-        String firmwareVer = devData.softwareVersion ?: "Not Set"
+        String firmwareVer = devData.softwareVersion ?: "NA"
         state.softwareVersion = firmwareVer
 
         // state.mainAccountCommsId = devData.mainAccountCommsId ?: null
@@ -470,19 +475,19 @@ void updateDeviceStatus(Map devData) {
         state.remove('deviceImage') //        state.deviceImage = (String)deviceStyle?.i
 
         if(isStateChange(device, "deviceStyle", devName)) {
-            sendEvent(name: "deviceStyle", value: devName, descriptionText: "Device Style is ${devName}", display: true, displayed: true)
+            sendEvent(name: "deviceStyle", value: devName, descriptionText: "Device Style", display: true, displayed: true)
             chg=true
         }
         if(isStateChange(device, "firmwareVer", firmwareVer)) {
-            sendEvent(name: "firmwareVer", value: firmwareVer, descriptionText: "Firmware Version is ${firmwareVer}", display: true, displayed: true)
+            sendEvent(name: "firmwareVer", value: firmwareVer, descriptionText: "Firmware Version", display: true, displayed: true)
             chg=true
         }
         if(isStateChange(device, "deviceFamily", devFamily)) {
-            sendEvent(name: "deviceFamily", value: devFamily, descriptionText: "Echo Device Family is ${devFamily}", display: true, displayed: true)
+            sendEvent(name: "deviceFamily", value: devFamily, descriptionText: "Echo Device Family", display: true, displayed: true)
             chg=true
         }
         if(isStateChange(device, "deviceSerial", devSerial)) {
-            sendEvent(name: "deviceSerial", value: devSerial, descriptionText: "Echo Device SerialNumber is ${devSerial}", display: true, displayed: true)
+            sendEvent(name: "deviceSerial", value: devSerial, descriptionText: "Echo Device Serial Number", display: true, displayed: true)
             chg=true
         }
         if(isStateChange(device, "deviceType", devType)) {
@@ -505,7 +510,7 @@ void updateDeviceStatus(Map devData) {
             updateMute('unmuted') // sendEvent(name: "mute", value: "unmuted")
             sendEvent(name: "status", value: "stopped")
             sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.i}")
-            sendEvent(name: "trackDescription", value: "Not Set")
+            sendEvent(name: "trackDescription", value: "NA")
         } else { if(chg) { state.fullRefreshOk = true; triggerDataRrshF('updateDeviceStatus') }}
     }
     setOnlineStatus(isOnline)
@@ -639,9 +644,6 @@ private void refreshStage2() {
 
 public void setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
-//    if(isStateChange(device, "DeviceWatch-DeviceStatus", onlStatus?.toString())) {
-//        sendEvent(name: "DeviceWatch-DeviceStatus", value: onlStatus?.toString(), display: false, displayed: false)
-//    }
     if(isStateChange(device, "onlineStatus", onlStatus?.toString())) {
         logDebug("OnlineStatus has changed to (${onlStatus})")
         sendEvent(name: "onlineStatus", value: onlStatus?.toString(), display: true, displayed: true)
@@ -701,7 +703,7 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
     Boolean iamWHAplaying = (device?.currentState('status') == 'playing') && iamWHA
 
     if(isPlayStateChange) {
-        sendEvent(name: "status", value: playState, descriptionText: "Player Status is ${playState}", display: true, displayed: true)
+        sendEvent(name: "status", value: playState, descriptionText: "Player Status", display: true, displayed: true)
         sendEvent(name: "deviceStatus", value: deviceStatus, display: false, displayed: false)
     }
 
@@ -711,37 +713,37 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
     }
 
     //Track Title
-    String title = playerInfo.infoText?.title ?: "Not Set"
+    String title = playerInfo.infoText?.title ?: "NA"
     if(isStateChange(device, "trackDescription", title)) {
         isMediaInfoChange = true
-        sendEvent(name: "trackDescription", value: title, descriptionText: "Track Description is ${title}", display: true, displayed: true)
+        sendEvent(name: "trackDescription", value: title, descriptionText: "Track Description", display: true, displayed: true)
     }
     //Track Sub-Text2
     String subText1 = playerInfo.infoText?.subText1 ?: "Idle"
     if(isStateChange(device, "currentAlbum", subText1)) {
         isMediaInfoChange = true
-        sendEvent(name: "currentAlbum", value: subText1, descriptionText: "Album is ${subText1}", display: true, displayed: true)
+        sendEvent(name: "currentAlbum", value: subText1, descriptionText: "Album", display: true, displayed: true)
     }
     //Track Sub-Text2
     String subText2 = playerInfo.infoText?.subText2 ?: "Idle"
     if(isStateChange(device, "currentStation", subText2)) {
         isMediaInfoChange = true
-        sendEvent(name: "currentStation", value: subText2, descriptionText: "Station is ${subText2}", display: true, displayed: true)
+        sendEvent(name: "currentStation", value: subText2, descriptionText: "Station", display: true, displayed: true)
     }
 
     //Track Art Image
-    String trackImg = playerInfo.mainArt?.url ?: "Not Set"
+    String trackImg = playerInfo.mainArt?.url ?: "NA"
     if(isStateChange(device, "trackImage", trackImg)) {
         isMediaInfoChange = true
-        sendEvent(name: "trackImage", value: trackImg, descriptionText: "Track Image is ${trackImg}", display: false, displayed: false)
+        sendEvent(name: "trackImage", value: trackImg, descriptionText: "Track Image", display: false, displayed: false)
         sendEvent(name: "trackImageHtml", value: """<img src="${trackImg?.toString()}"/>""", display: false, displayed: false)
     }
 
     //Media Source Provider
-    String mediaSource = playerInfo.provider?.providerName ?: "Not Set"
+    String mediaSource = playerInfo.provider?.providerName ?: "NA"
     if(isStateChange(device, "mediaSource", mediaSource)) {
         isMediaInfoChange = true
-        sendEvent(name: "mediaSource", value: mediaSource, descriptionText: "Media Source is ${mediaSource}", display: true, displayed: true)
+        sendEvent(name: "mediaSource", value: mediaSource, descriptionText: "Media Source", display: true, displayed: true)
     }
 
     //Update Audio Track Data
@@ -904,12 +906,12 @@ void getBluetoothDevices() {
     String btPairedJson = new groovy.json.JsonOutput().toJson(btMap)
     if(isStateChange(device, "btDevicesPaired", btPairedJson)) {
         logDebug("Paired Bluetooth Devices: ${btPairedJson}")
-        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices: ${btPairedJson}", display: true, displayed: true)
+        sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices", display: true, displayed: true)
     }
 
     if(isStateChange(device, "btDeviceConnected", curConnName)) {
         // log.info "Bluetooth Device Connected: (${curConnName})"
-        sendEvent(name: "btDeviceConnected", value: curConnName, descriptionText: "Bluetooth Device Connected (${curConnName})", display: true, displayed: true)
+        sendEvent(name: "btDeviceConnected", value: curConnName, descriptionText: "Bluetooth Device Connected", display: true, displayed: true)
     }
 }
 
@@ -950,7 +952,7 @@ private getDoNotDisturb() {
 //    state.doNotDisturb = dndEnabled
     if(isStateChange(device, "doNotDisturb", dndEnabled?.toString())) {
         logDebug("Do Not Disturb: (${(dndEnabled)})")
-        sendEvent(name: "doNotDisturb", value: dndEnabled?.toString(), descriptionText: "Do Not Disturb Enabled ${dndEnabled}", display: true, displayed: true)
+        sendEvent(name: "doNotDisturb", value: dndEnabled?.toString(), descriptionText: "Do Not Disturb Enabled", display: true, displayed: true)
     }
 }
 
@@ -1050,7 +1052,11 @@ private getDeviceActivity() {
                 if (didC) {
                     logDebug("lastVoiceActivity: ${spTx}")
                     sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false, isStateChange: true)
-                } else sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false)
+                    sendEvent(name: "phraseSpoken", value: spTx, display: false, displayed: false, isStateChange: true)
+                } else {
+                    sendEvent(name: "lastVoiceActivity", value: spTx, display: false, displayed: false)
+                    sendEvent(name: "phraseSpoken", value: spTx, display: false, displayed: false)
+                }
             }
         } else if(isStateChange(device, "wasLastSpokenToDevice", wasLastS)) {
             logDebug("wasLastSpokenToDevice: ${wasLastS}")
@@ -1260,7 +1266,7 @@ def play() {
     if(isCommandTypeAllowed("mediaPlayer")) {
         sendAmazonBasicCommand("PlayCommand")
         if(isStateChange(device, "status", "playing")) {
-            sendEvent(name: "status", value: "playing", descriptionText: "Player Status is playing", display: true, displayed: true)
+            sendEvent(name: "status", value: "playing", descriptionText: "Player Status", display: true, displayed: true)
             // log.debug "deviceStatus: playing_${state.deviceStyle?.i}"
             sendEvent(name: "deviceStatus", value: "playing_${state.deviceStyle?.i}", display: false, displayed: false)
         }
@@ -1280,7 +1286,7 @@ def playTrack(String uri, volume=null) {
     logWarn("Uh-Oh... The playTrack($uri, $volume) Command is NOT Supported by this Device!!!")
 }
 
-// capability musicPlayer  (above covers this
+// capability musicPlayer  (above covers this)
 /*def playTrack(String uri) {
     if(isCommandTypeAllowed("TTS")) {
         String tts = uriTrackParser(uri)
@@ -1302,7 +1308,7 @@ def pause() {
         if(isCommandTypeAllowed("mediaPlayer")) {
             sendAmazonBasicCommand("PauseCommand")
             if(isStateChange(device, "status", "stopped")) {
-                sendEvent(name: "status", value: "stopped", descriptionText: "Player Status is stopped", display: true, displayed: true)
+                sendEvent(name: "status", value: "stopped", descriptionText: "Player Status", display: true, displayed: true)
                 // log.debug "deviceStatus: stopped_${state.deviceStyle?.i}"
                 sendEvent(name: "deviceStatus", value: "stopped_${state.deviceStyle?.i}", display: false, displayed: false)
             }
@@ -1389,7 +1395,7 @@ void updateMute(String typ) {
         }
         if(isStateChange(device, "mute", typ)) {
             logDebug("Mute Changed to ${typ}")
-            sendEvent(name: "mute", value: typ, descriptionText: "Mute is set to ${typ}", display: true, displayed: true)
+            sendEvent(name: "mute", value: typ, descriptionText: "Mute", display: true, displayed: true)
         }
     }
 }
@@ -1538,7 +1544,7 @@ def setDoNotDisturb(Boolean val) {
                     enabled: val
                 ]
             ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
-            sendEvent(name: "doNotDisturb", value: val.toString(), descriptionText: "Do Not Disturb Enabled ${val}", display: true, displayed: true)
+            sendEvent(name: "doNotDisturb", value: val.toString(), descriptionText: "Do Not Disturb Enabled", display: true, displayed: true)
             parent?.getDoNotDisturb(true)
         }
     }
@@ -1578,7 +1584,7 @@ def deviceNotification(String msg) {
 
 def setVolumeAndSpeak(volume, String msg) {
     logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
-    speak(msg, volume)
+    speak(msg, volume.toInteger())
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
@@ -1590,7 +1596,7 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
             state.oldVolume = null // clear out any junk
             Boolean stored = mstoreCurrentVolume() // will set current volume for restore
         }
-        speak(msg, volume)
+        speak(msg, volume.toInteger())
     }
 }
 
@@ -2570,7 +2576,6 @@ def playText(String msg, volume=null) {
 } */
 
 // capability audioNotification
-//def playTrackAndResume(String uri, duration, volume=null) {
 def playTrackAndResume(String uri, volume=null) {
     if(isCommandTypeAllowed("mediaPlayer")) {
         logDebug("playTrackAndResume($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
@@ -2589,7 +2594,7 @@ def playTextAndResume(String text, volume=null) {
     } else { speak(text) }
 }
 
-//def playTrackAndRestore(String uri, duration, volume=null) {
+// capability audioNotification
 def playTrackAndRestore(String uri, volume=null) {
     if(isCommandTypeAllowed("mediaPlayer")) {
         logDebug("playTrackAndRestore($uri, $volume) | Attempting to parse out message from trackUri.  This might not work in all scenarios...")
@@ -2663,7 +2668,7 @@ void parallelSpeak(String msg) {
         if(isZone()) {
             parent.relaySpeakZone(parent.id.toString(), msg, true)
             String lastMsg = msg ?: "Nothing to Show Here..."
-            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
+            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken", display: true, displayed: true, isStateChange:true)
             //String t0 = getDtNow()
             //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
             logSpeech(msg, 200, sNULL)
@@ -2673,6 +2678,7 @@ void parallelSpeak(String msg) {
     }
 }
 
+// capability speechSynthesis
 void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
@@ -2684,7 +2690,7 @@ void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
             if(isZone()) {
                 parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]], true)
                 String lastMsg = msg ?: "Nothing to Show Here..."
-                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
+                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken", display: true, displayed: true, isStateChange:true)
                 //String t0 = getDtNow()
                 //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
                 updateLevel(restvol, newvol)
@@ -2709,7 +2715,7 @@ void updateLevel(oldvolume, newvolume) {
             logDebug("Volume Level Set to ${res}%")
         }
         if(res != 0) updateMute('unmuted')
-    } else logWarn("Uh-Oh... UpdateLevel without any values")
+    }// else logWarn("Uh-Oh... UpdateLevel without any values")
 }
 
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
@@ -2905,7 +2911,7 @@ void finishSendSpeak(Map resp, Integer statusCode, Map data){
 @SuppressWarnings('unused')
 void finishSendSpeakZ(Map resp, Integer statusCode, Map data){
     String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
-    sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
+    sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken", display: true, displayed: true, isStateChange:true)
     updateLevel((Integer)data.oldVolume, (Integer)data.newVolume)
     //String t0 = getDtNow()
     //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
@@ -2933,7 +2939,7 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data, Boolean zone
 
             String lastMsg = (String)data?.message ?: "Nothing to Show Here..."
             if((String)data?.cmdDesc == "SpeakCommand") {
-                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken: ${lastMsg}", display: true, displayed: true, isStateChange:true)
+                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken", display: true, displayed: true, isStateChange:true)
                 //String t0 = getDtNow()
                 //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
                 if(zoneAction) updateLevel((Integer)data.oldVolume, (Integer)data.newVolume)
