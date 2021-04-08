@@ -34,7 +34,10 @@ jobs:
       # Runs a single command using the runners shell
       - uses: docker://pandoc/core:2.9
         with:
-          args: "--standalone --output=CHANGELOG.html ${{ steps.changelog.outputs.content }}"
+          args: >-  # allows you to break string into multiple lines
+            --standalone 
+            --output=CHANGELOG.html
+            "${{ steps.changelog.outputs.content }}"
       
       - uses: actions/upload-artifact@master
         with:
