@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.1.3.0'
-@Field static final String appModifiedFLD = '2021-04-05'
+@Field static final String appVersionFLD  = '4.1.4.0'
+@Field static final String appModifiedFLD = '2021-04-08'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD    = [echoDevice: 4120, wsDevice: 4120, actionApp: 4120, zoneApp: 4120, zoneEchoDevice: 4120, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4140, wsDevice: 4140, actionApp: 4140, zoneApp: 4140, zoneEchoDevice: 4140, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1558,13 +1558,13 @@ void wsEvtHandler(evt) {
         if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
         if(evt.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) } }
+                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") } }
                 if(trigs?.size()) { eDev.websocketUpdEvt(trigs) }
             }
         } else {
             def eDev = findEchoDevice((String)evt.id)
             if(eDev) {
-                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v) }
+                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
                 if(trigs?.size()) { eDev?.websocketUpdEvt(trigs) }
             }
         }
@@ -3863,7 +3863,7 @@ private Map getZoneState(String znId) {
  */
 
 void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boolean parallel=false){
-    String nm = cmdMap.toString().tr('<', '&lt;').tr('>', '&gt;')
+    String nm = cmdMap.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     logTrace("sendSpeak cmdMap: $nm  callback: $callback,  device: $device")
 
     String bodyObj = sNULL
@@ -3960,7 +3960,7 @@ void addToQ(Map item) {
         def ss = item."${s}"
         if(ss) {
              if(fir) { fir=false; lmsg.push(spanSm("addToQ NEW COMMAND (${qsiz})", sCLRGRN2)) }
-             String nm = ss.toString().tr('<', '&lt;').tr('>', '&gt;')
+             String nm = ss.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
              lmsg.push("addToQ (${t}) | ${s}: ${nm}".toString())
         }
     }
@@ -4123,7 +4123,7 @@ void workQ() {
                     String nstr = cmdMap?.message?.toString()
                     nstr = nstr?.trim()
                     Boolean isSSML = (nstr?.toString()?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
-                    if(isSSML) nstr = nstr[7..-9]
+                    //if(isSSML) nstr = nstr[7..-9]
                     Integer msgLen = nstr?.length()
                     t_extData = [
                         cmdDt:(cmdMap.cmdDt ?: null),
@@ -4184,7 +4184,7 @@ void workQ() {
                 body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-              //String nm = params.toString().tr('<', '&lt;').tr('>', '&gt;')
+              //String nm = params.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
               //log.trace spanSm("workQ params: $nm extData: $extData", sCLRGRN)
 
             try{
@@ -4211,15 +4211,22 @@ void workQ() {
     if(mmsg) logDebug(mmsg)
 }
 
+// this does not handle SSML break commands
+// https://developer.amazon.com/en-US/docs/alexa/custom-skills/speech-synthesis-markup-language-ssml-reference.html
 Integer getMsgDur(String command, String type, String tv){
     Integer del = 0
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
         String nstr = valObj[1].trim()
+        nstr = nstr.replaceAll(/\s\s+/, sSPACE)
+        //String nm = nstr.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        //log.debug "getMsgDur $nm"
         Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
         if(isSSML) nstr = nstr[7..-9]
         isSSML = (isSSML || command == 'ssml')
         String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, sBLANK) : cleanString(nstr)
+        //nm = actMsg.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        //log.debug "getMsgDur1 $nm"
         Integer msgLen = actMsg.length()
         del = calcDelay(msgLen)
         if(devModeFLD) logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
@@ -4368,12 +4375,13 @@ static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
 static Integer getStringLen(String str) { return str?.length() ?: 0 }
 
 private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
-    // log.debug "msgSeqBuilder: $str"
+    //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "msgSeqBuilder: $nm"
     List seqCmds = []
     List strArr = []
     String nstr = str.trim()
     Boolean isSSML = (nstr.startsWith("<speak>") && nstr.endsWith("</speak>"))
-    if(isSSML) nstr = nstr[7..-9]
+    //if(isSSML) nstr = nstr[7..-9]
     str = nstr
     if(str.length() < 450) {
         seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str, deviceData: deviceData, cmdType: cmdType])
@@ -4395,10 +4403,18 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
 
 String cleanString(String str, Boolean frcTrans=false) {
     if(!str) { return sNULL }
+    //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "cleanString1: $nm"
+
     //Cleans up characters from message
-    str = str.replaceAll(~/[^a-zA-Z0-9-?%°., ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
+
+// some folks try to use ssml without <speak> markers.  It sometimes works and sometimes does not - below makes it always fail as it removes some ssml markup ( / for example)
+    //str = str.replaceAll(~/[^a-zA-Z0-9-?%°.,:&#;<>!\/ ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
+    str = str.replaceAll(/\s\s+/, sSPACE)
+
     str = textTransform(str, frcTrans)
-    // log.debug "cleanString: $str"
+    //nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "cleanString: $nm"
     return str
 }
 
@@ -4415,9 +4431,18 @@ private String textTransform(String str, Boolean force=false) {
     return str
 }
 
+private String timeTransform(String str, Boolean force=false) {
+    str.replaceAll(/^(?:(?:(?:0?[1-9]|1[0-2])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?\s?[aApP][mM])|(?:(?:0?\d|1\d|2[0-3])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?))$/) { 
+        log.debug "timeTransform: ${it[0]}"
+        // return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" 
+    }
+    return str
+}
+
 Map createSequenceNode(String command, value, Map deviceData = [:]) {
     //log.debug "createSequenceNode: command: $command   "
-    //log.debug "createSequenceNode: value:  $value   "
+    //String nm = value.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "createSequenceNode: value:  $nm"
     //log.debug "createSequenceNode: deviceData:  $deviceData   "
     try {
         Boolean remDevSpecifics = false
@@ -4586,7 +4611,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 // log.debug "valObj[1]: ${valObj[1]}"
                 String nstr = valObj[1].trim()
                 Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
-                if(isSSML) nstr = nstr[7..-9]
+                //if(isSSML) nstr = nstr[7..-9]
                 String str = nstr
                 String mtype = lcmd == "ssml" || isSSML ? "ssml" : "text"
                 String mval = lcmd == "ssml" || isSSML ? str : cleanString(str)
@@ -5036,23 +5061,15 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() {
-    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
-    txt = txt?.toString()?.replaceAll(/(\#\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h5 style="font-size: 1.0em; font-weight: bold;">')?.replaceAll(/(\*\*\_)/, "</h5>") // Replaces header format
-    txt = txt?.toString()?.replaceAll(/(\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h3 style="color: red; font-size: 1.3em; font-weight: bolder;">')?.replaceAll(/(\*\*\_)/, "</h3>") // Replaces header format
-    // txt = txt?.toString()?.replaceAll("#", sBLANK)?.replaceAll(/(_\*\*)/, "<p style='font-size: 1.5em; font-weight: bolder; color:${sCLR4D9};'>")?.replaceAll(/(\*\*\_)/, "</p>") // Replaces header format
-    txt = txt?.toString()?.replaceAll(/(- )/, "   ${sBULLET} ")
-    txt = txt?.toString()?.replaceAll(/(\[NEW\])/, "<u>[NEW]</u>")
-    txt = txt?.toString()?.replaceAll(/(\[UPDATE\])/, "<u>[FIX]</u>")
-    txt = txt?.toString()?.replaceAll(/(\[FIX\])/, "<u>[FIX]</u>")
-    txt += "<hr>"
-    // log.debug "txt: $txt"
-    return txt?.toString() // Replaces ## then **_ and _** in changelog data
+    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.html", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
+    return txt?.toString()
 }
+
 Boolean showChgLogOk() { return ((Boolean) state.isInstalled && !((String) state.curAppVer == appVersionFLD && (Boolean) getInstData('shownChgLog')) ) }
 
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: sBLANK, nextPage: "mainPage", install: false) {
-        section(sectTS("Release Notes:", getAppImg("change_log"), true)) { paragraph spanSm(changeLogData()) }
+        section(sectHead("Release Notes:", getAppImg("change_log"))) { paragraph "<span style='font-size: small;white-space: nowrap;'>${changeLogData()}</span>" }
         state.curAppVer = appVersionFLD
         updInstData("shownChgLog", true)
     }
@@ -5243,7 +5260,7 @@ void getConfigData() {
     Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/appData.json",
         contentType: sAPPJSON,
-        timeout: 20,
+        timeout: 20
     ]
     Map data = (Map)getWebData(params, "appData", false)
     if(data) {
@@ -5257,7 +5274,7 @@ void getNoticeData() {
     Map params = [
         uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/notices.json",
         contentType: sAPPJSON,
-        timeout: 20,
+        timeout: 20
     ]
     Map data = (Map)getWebData(params, "noticeData", false)
     if(data) {
@@ -6923,7 +6940,7 @@ def getShmIncidents() {
 }
 
 // This is incomplete (and currently unused)
-public setAlarmSystemMode(mode) {
+void setAlarmSystemMode(mode) {
     switch(mode) {
         case "armAway":
         case "away":

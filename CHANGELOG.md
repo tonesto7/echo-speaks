@@ -1,8 +1,15 @@
+### _**Release (v4.1.4.0) - [April 8th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Modified the changelog format to display correctly now.
+- [FIX] Modified the speech string cleanup to resolve some issues with time and other values in speak commands.
+- [FIX] Bugfixes and Optimizations
+
 ### _**Release (v4.1.3.0) - [April 5th, 2021]**_
 
 #### _***All Apps and Devices***_
 
-- [FIX] Bugfixes and Optimizations 
+- [FIX] Bugfixes and Optimizations
 
 ### _**Release (v4.1.2.0) - [April 2nd, 2021]**_
 
