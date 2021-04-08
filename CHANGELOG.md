@@ -2,7 +2,7 @@
 
 #### _***All Apps and Devices***_
 
-- [FIX] Bugfixes and Optimizations
+- [FIX] Bugfixes and Optimizations 
 
 ### _**Release (v4.1.2.0) - [April 2nd, 2021]**_
 
