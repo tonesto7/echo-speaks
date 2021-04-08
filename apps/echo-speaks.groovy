@@ -4211,11 +4211,14 @@ void workQ() {
     if(mmsg) logDebug(mmsg)
 }
 
+// this does not handle SSML break commands
+// https://developer.amazon.com/en-US/docs/alexa/custom-skills/speech-synthesis-markup-language-ssml-reference.html
 Integer getMsgDur(String command, String type, String tv){
     Integer del = 0
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
         String nstr = valObj[1].trim()
+        nstr = nstr.replaceAll(/\s\s+/, sSPACE)
         //String nm = nstr.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         //log.debug "getMsgDur $nm"
         Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
@@ -4407,6 +4410,7 @@ String cleanString(String str, Boolean frcTrans=false) {
 
 // some folks try to use ssml without <speak> markers.  It sometimes works and sometimes does not - below makes it always fail as it removes some ssml markup ( / for example)
     //str = str.replaceAll(~/[^a-zA-Z0-9-?%°.,:&#;<>!\/ ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
+    str = str.replaceAll(/\s\s+/, sSPACE)
 
     str = textTransform(str, frcTrans)
     //nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
