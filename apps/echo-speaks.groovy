@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.1.3.0'
-@Field static final String appModifiedFLD = '2021-04-05'
+@Field static final String appVersionFLD  = '4.1.4.0'
+@Field static final String appModifiedFLD = '2021-04-08'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD    = [echoDevice: 4120, wsDevice: 4120, actionApp: 4120, zoneApp: 4120, zoneEchoDevice: 4120, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4130, wsDevice: 4130, actionApp: 4130, zoneApp: 4130, zoneEchoDevice: 4130, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -4431,6 +4431,14 @@ private String textTransform(String str, Boolean force=false) {
     return str
 }
 
+private String timeTransform(String str, Boolean force=false) {
+    str.replaceAll(/^(?:(?:(?:0?[1-9]|1[0-2])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?\s?[aApP][mM])|(?:(?:0?\d|1\d|2[0-3])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?))$/) { 
+        log.debug "timeTransform: ${it[0]}"
+        // return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" 
+    }
+    return str
+}
+
 Map createSequenceNode(String command, value, Map deviceData = [:]) {
     //log.debug "createSequenceNode: command: $command   "
     //String nm = value.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -5053,23 +5061,15 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() {
-    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.md", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
-    txt = txt?.toString()?.replaceAll(/(\#\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h5 style="font-size: 1.0em; font-weight: bold;">')?.replaceAll(/(\*\*\_)/, "</h5>") // Replaces header format
-    txt = txt?.toString()?.replaceAll(/(\#\#\s)/, sBLANK)?.replaceAll(/(_\*\*)/, '<h3 style="color: red; font-size: 1.3em; font-weight: bolder;">')?.replaceAll(/(\*\*\_)/, "</h3>") // Replaces header format
-    // txt = txt?.toString()?.replaceAll("#", sBLANK)?.replaceAll(/(_\*\*)/, "<p style='font-size: 1.5em; font-weight: bolder; color:${sCLR4D9};'>")?.replaceAll(/(\*\*\_)/, "</p>") // Replaces header format
-    txt = txt?.toString()?.replaceAll(/(- )/, "   ${sBULLET} ")
-    txt = txt?.toString()?.replaceAll(/(\[NEW\])/, "<u>[NEW]</u>")
-    txt = txt?.toString()?.replaceAll(/(\[UPDATE\])/, "<u>[FIX]</u>")
-    txt = txt?.toString()?.replaceAll(/(\[FIX\])/, "<u>[FIX]</u>")
-    txt += "<hr>"
-    // log.debug "txt: $txt"
-    return txt?.toString() // Replaces ## then **_ and _** in changelog data
+    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.html", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
+    return txt?.toString()
 }
+
 Boolean showChgLogOk() { return ((Boolean) state.isInstalled && !((String) state.curAppVer == appVersionFLD && (Boolean) getInstData('shownChgLog')) ) }
 
 def changeLogPage() {
     return dynamicPage(name: "changeLogPage", title: sBLANK, nextPage: "mainPage", install: false) {
-        section(sectTS("Release Notes:", getAppImg("change_log"), true)) { paragraph spanSm(changeLogData()) }
+        section(sectHead("Release Notes:", getAppImg("change_log"))) { paragraph "<span style='font-size: small;white-space: nowrap;'>${changeLogData()}</span>" }
         state.curAppVer = appVersionFLD
         updInstData("shownChgLog", true)
     }
