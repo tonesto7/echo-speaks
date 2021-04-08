@@ -2706,7 +2706,7 @@ void updateLevel(oldvolume, newvolume) {
             logDebug("Volume Level Set to ${res}%")
         }
         if(res != 0) updateMute('unmuted')
-    } else logWarn("Uh-Oh... UpdateLevel without any values")
+    }// else logWarn("Uh-Oh... UpdateLevel without any values")
 }
 
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
