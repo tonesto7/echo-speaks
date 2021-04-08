@@ -4406,7 +4406,7 @@ String cleanString(String str, Boolean frcTrans=false) {
     //Cleans up characters from message
 
 // some folks try to use ssml without <speak> markers.  It sometimes works and sometimes does not - below makes it always fail as it removes some ssml markup ( / for example)
-    //str = str.replaceAll(~/[^a-zA-Z:42170-9-?%°.,:&#;<>! ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
+    //str = str.replaceAll(~/[^a-zA-Z0-9-?%°.,:&#;<>!\/ ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
 
     str = textTransform(str, frcTrans)
     //nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
