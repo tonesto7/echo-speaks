@@ -35,12 +35,8 @@ jobs:
       # Runs a single command using the runners shell
       - uses: docker://pandoc/core:2.9
         with:
-          args: >-  # allows you to break string into multiple lines
-            --standalone
-            --metadata title=""
-            --output=CHANGELOG.html
-            CHANGELOG.md
-      
+          args: CHANGELOG.md -f markdown -t html5 -s -o CHANGELOG.html --metadata title=""
+            
       - name: Commit ChangeLog HTML Files
         run: |
           git config --local user.email "actions@github.com"
