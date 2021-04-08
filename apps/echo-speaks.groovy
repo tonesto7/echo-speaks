@@ -22,7 +22,7 @@ import groovy.transform.Field
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4130, wsDevice: 4130, actionApp: 4130, zoneApp: 4130, zoneEchoDevice: 4130, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4140, wsDevice: 4140, actionApp: 4140, zoneApp: 4140, zoneEchoDevice: 4140, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
