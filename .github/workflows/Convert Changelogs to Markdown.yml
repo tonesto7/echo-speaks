@@ -35,7 +35,7 @@ jobs:
       # Runs a single command using the runners shell
       - uses: docker://pandoc/core:2.9
         with:
-          args: CHANGELOG.md -f markdown -t html5 -s -o CHANGELOG.html --metadata title=""
+          args: CHANGELOG.md -f markdown -t html5 -s -o CHANGELOG.html
             
       - name: Commit ChangeLog HTML Files
         run: |
@@ -44,7 +44,7 @@ jobs:
           git add ./CHANGELOG.html -f -v
           git commit -m "Update CHANGELOG HTML File"
       
-      - name: Push changes
+      - name: Push Changelog HTML Changes
         uses: ad-m/github-push-action@master
         with:
           branch: ${{ github.ref }}
