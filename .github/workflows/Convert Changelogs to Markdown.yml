@@ -25,11 +25,11 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
       
-      - name: Read CHANGELOG.MD
-        id: changelog
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: ./CHANGELOG.md
+#       - name: Read CHANGELOG.MD
+#         id: changelog
+#         uses: juliangruber/read-file-action@v1
+#         with:
+#           path: ./CHANGELOG.md
           
       # Runs a single command using the runners shell
       - uses: docker://pandoc/core:2.9
@@ -37,7 +37,7 @@ jobs:
           args: >-  # allows you to break string into multiple lines
             --standalone 
             --output=CHANGELOG.html
-            "${{ steps.changelog.outputs.content }}"
+            ./CHANGELOG.md
       
       - uses: actions/upload-artifact@master
         with:
