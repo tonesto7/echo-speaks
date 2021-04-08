@@ -35,7 +35,8 @@ jobs:
       - uses: docker://pandoc/core:2.9
         with:
           args: >-  # allows you to break string into multiple lines
-            --standalone 
+            --standalone
+            --metadata title="Changelog"
             --output=CHANGELOG.html
             CHANGELOG.md
       
