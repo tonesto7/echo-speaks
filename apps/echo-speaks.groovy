@@ -3863,7 +3863,7 @@ private Map getZoneState(String znId) {
  */
 
 void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boolean parallel=false){
-    String nm = cmdMap.toString().tr('<', '&lt;').tr('>', '&gt;')
+    String nm = cmdMap.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     logTrace("sendSpeak cmdMap: $nm  callback: $callback,  device: $device")
 
     String bodyObj = sNULL
@@ -3960,7 +3960,7 @@ void addToQ(Map item) {
         def ss = item."${s}"
         if(ss) {
              if(fir) { fir=false; lmsg.push(spanSm("addToQ NEW COMMAND (${qsiz})", sCLRGRN2)) }
-             String nm = ss.toString().tr('<', '&lt;').tr('>', '&gt;')
+             String nm = ss.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
              lmsg.push("addToQ (${t}) | ${s}: ${nm}".toString())
         }
     }
@@ -4123,7 +4123,7 @@ void workQ() {
                     String nstr = cmdMap?.message?.toString()
                     nstr = nstr?.trim()
                     Boolean isSSML = (nstr?.toString()?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
-                    if(isSSML) nstr = nstr[7..-9]
+                    //if(isSSML) nstr = nstr[7..-9]
                     Integer msgLen = nstr?.length()
                     t_extData = [
                         cmdDt:(cmdMap.cmdDt ?: null),
@@ -4184,7 +4184,7 @@ void workQ() {
                 body: new groovy.json.JsonOutput().toJson(seqObj)
             ]
 
-              //String nm = params.toString().tr('<', '&lt;').tr('>', '&gt;')
+              //String nm = params.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
               //log.trace spanSm("workQ params: $nm extData: $extData", sCLRGRN)
 
             try{
@@ -4211,15 +4211,22 @@ void workQ() {
     if(mmsg) logDebug(mmsg)
 }
 
+// this does not handle SSML break commands
+// https://developer.amazon.com/en-US/docs/alexa/custom-skills/speech-synthesis-markup-language-ssml-reference.html
 Integer getMsgDur(String command, String type, String tv){
     Integer del = 0
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
         String nstr = valObj[1].trim()
+        nstr = nstr.replaceAll(/\s\s+/, sSPACE)
+        //String nm = nstr.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        //log.debug "getMsgDur $nm"
         Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
         if(isSSML) nstr = nstr[7..-9]
         isSSML = (isSSML || command == 'ssml')
         String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, sBLANK) : cleanString(nstr)
+        //nm = actMsg.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        //log.debug "getMsgDur1 $nm"
         Integer msgLen = actMsg.length()
         del = calcDelay(msgLen)
         if(devModeFLD) logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
@@ -4368,12 +4375,13 @@ static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
 static Integer getStringLen(String str) { return str?.length() ?: 0 }
 
 private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
-    // log.debug "msgSeqBuilder: $str"
+    //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "msgSeqBuilder: $nm"
     List seqCmds = []
     List strArr = []
     String nstr = str.trim()
     Boolean isSSML = (nstr.startsWith("<speak>") && nstr.endsWith("</speak>"))
-    if(isSSML) nstr = nstr[7..-9]
+    //if(isSSML) nstr = nstr[7..-9]
     str = nstr
     if(str.length() < 450) {
         seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str, deviceData: deviceData, cmdType: cmdType])
@@ -4395,11 +4403,18 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
 
 String cleanString(String str, Boolean frcTrans=false) {
     if(!str) { return sNULL }
+    //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "cleanString1: $nm"
+
     //Cleans up characters from message
-    str = str.replaceAll(~/[^a-zA-Z0-9-?%°.,:&#;<>! ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
-// from https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/text-aplt.html
+
+// some folks try to use ssml without <speak> markers.  It sometimes works and sometimes does not - below makes it always fail as it removes some ssml markup ( / for example)
+    //str = str.replaceAll(~/[^a-zA-Z0-9-?%°.,:&#;<>!\/ ]+/, sSPACE)?.replaceAll(/\s\s+/, sSPACE)
+    str = str.replaceAll(/\s\s+/, sSPACE)
+
     str = textTransform(str, frcTrans)
-    // log.debug "cleanString: $str"
+    //nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "cleanString: $nm"
     return str
 }
 
@@ -4418,7 +4433,8 @@ private String textTransform(String str, Boolean force=false) {
 
 Map createSequenceNode(String command, value, Map deviceData = [:]) {
     //log.debug "createSequenceNode: command: $command   "
-    //log.debug "createSequenceNode: value:  $value   "
+    //String nm = value.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    //log.debug "createSequenceNode: value:  $nm"
     //log.debug "createSequenceNode: deviceData:  $deviceData   "
     try {
         Boolean remDevSpecifics = false
@@ -4587,7 +4603,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 // log.debug "valObj[1]: ${valObj[1]}"
                 String nstr = valObj[1].trim()
                 Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
-                if(isSSML) nstr = nstr[7..-9]
+                //if(isSSML) nstr = nstr[7..-9]
                 String str = nstr
                 String mtype = lcmd == "ssml" || isSSML ? "ssml" : "text"
                 String mval = lcmd == "ssml" || isSSML ? str : cleanString(str)
