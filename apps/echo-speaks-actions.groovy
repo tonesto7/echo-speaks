@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = '4.1.4.0'
-@Field static final String appModifiedFLD = '2021-04-08'
+@Field static final String appVersionFLD  = '4.1.5.0'
+@Field static final String appModifiedFLD = '2021-04-14'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -520,12 +520,12 @@ def triggersPage() {
             }
 
             if (valTrigEvt("securityKeypad")) {
-                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], sCHGTO, ["disarmed", "armed home", "armed away", "unknown"], "lock", trigItemCnt++, (!!settings.trig_securityKeypad_Codes), ((settings.trig_securityKeypad && settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
+                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], sCHGTO, ["disarmed", "armed home", "armed away", "unknown"], "keypad", trigItemCnt++, (!!settings.trig_securityKeypad_Codes), ((settings.trig_securityKeypad && settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
             }
 
             if (valTrigEvt("pushed")) {
                 section (sectHead("Button Pushed Events"), hideable: true) {
-                    input "trig_pushed", "capability.pushableButton", title: inTS1("Pushable Buttons", "button"), required: true, multiple: true, submitOnChange: true
+                    input "trig_pushed", "capability.pushableButton", title: inTS1("Pushable Buttons", "button_push"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_pushed) {
                         settingUpdate("trig_pushed_cmd", "pushed", sENUM)
                         //input "trig_pushed_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: ["pushed"], required: true, multiple: false, defaultValue: "pushed", submitOnChange: true
@@ -539,7 +539,7 @@ def triggersPage() {
 
             if (valTrigEvt("released")) {
                 section (sectHead("Button Released Events"), hideable: true) {
-                    input "trig_released", "capability.releasableButton", title: inTS1("Releasable Buttons", "button"), required: true, multiple: true, submitOnChange: true
+                    input "trig_released", "capability.releasableButton", title: inTS1("Releasable Buttons", "button_released"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_released) {
                         settingUpdate("trig_released_cmd", "released", sENUM)
                         //input "trig_released_cmd", sENUM, title: inTS1("Released changes", sCOMMAND), options: ["released"], required: true, multiple: false, defaultValue: "released", submitOnChange: true
@@ -553,7 +553,7 @@ def triggersPage() {
 
             if (valTrigEvt("held")) {
                 section (sectHead("Button Held Events"), hideable: true) {
-                    input "trig_held", "capability.holdableButton", title: inTS1("Holdable Buttons", "button"), required: true, multiple: true, submitOnChange: true
+                    input "trig_held", "capability.holdableButton", title: inTS1("Holdable Buttons", "button_held"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_held) {
                         settingUpdate("trig_held_cmd", "held", sENUM)
                         //input "trig_held_cmd", sENUM, title: inTS1("Held changes", sCOMMAND), options: ["held"], required: true, multiple: false, defaultValue: "held", submitOnChange: true
@@ -567,7 +567,7 @@ def triggersPage() {
 
             if (valTrigEvt("doubleTapped")) {
                 section (sectHead("Button Double Tap Events"), hideable: true) {
-                    input "trig_doubleTapped", "capability.doubleTapableButton", title: inTS1("Double Tap Buttons", "button"), required: true, multiple: true, submitOnChange: true
+                    input "trig_doubleTapped", "capability.doubleTapableButton", title: inTS1("Double Tap Buttons", "button_double"), required: true, multiple: true, submitOnChange: true
                     if (settings.trig_doubleTapped) {
                         settingUpdate("trig_doubleTapped_cmd", "doubleTapped", sENUM)
                         //input "trig_doubleTapped_cmd", sENUM, title: inTS1("Double Tapped changes", sCOMMAND), options: ["doubleTapped"], required: true, multiple: false, defaultValue: "doubleTapped", submitOnChange: true
@@ -868,7 +868,7 @@ def conditionsPage() {
 
         condNonNumSect("lock", "lock", "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", "lock")
 
-        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], "are", "lock")
+        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], "are", "keypad")
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", lOPNCLS, "are", "garage_door")
 
@@ -4717,7 +4717,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
 }
 
 String getOverallDesc() {
-    String str = spanSmBld("Action is ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
+    String str = spanSmBld("Action Condition Status: ")  + spanSmBr( ((Boolean)conditionStatus().ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)conditionStatus().ok))
 }
 
 String getConditionsDesc(Boolean addFoot=true) {
