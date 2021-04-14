@@ -484,8 +484,8 @@ def guardTriggerEvtHandler(evt) {
     String curState = (String)state.alexaGuardState ?: sNULL
     switch((String)evt?.name) {
         case "mode":
-            Boolean inAwayMode = isInMode(settings.guardAwayModes)
-            Boolean inHomeMode = isInMode(settings.guardHomeModes)
+            Boolean inAwayMode = isInMode((List)settings.guardAwayModes)
+            Boolean inHomeMode = isInMode((List)settings.guardHomeModes)
             if(inAwayMode && inHomeMode) { logError("Guard Control Trigger can't act because same mode is in both Home and Away input"); return }
             if(inAwayMode && !inHomeMode) { newState = sARM_AWAY }
             if(!inAwayMode && inHomeMode) { newState = sARM_STAY }
@@ -495,20 +495,20 @@ def guardTriggerEvtHandler(evt) {
             if(isFollowSwitch) {
                 newState = isSwitchOn(settings.guardFollowSwitch) ? sARM_AWAY : sARM_STAY
             } else {
-                Boolean inAwaySw = isSwitchOn(settings.guardAwaySwitch)
-                Boolean inHomeSw = isSwitchOn(settings.guardHomeSwitch)
+                Boolean inAwaySw = isSwitchOn((List)settings.guardAwaySwitch)
+                Boolean inHomeSw = isSwitchOn((List)settings.guardHomeSwitch)
                 if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return }
                 if(inAwaySw && !inHomeSw) { newState = sARM_AWAY }
                 if(!inAwaySw && inHomeSw) { newState = sARM_STAY }
             }
             break
         case "presence":
-            newState = isSomebodyHome(settings.guardAwayPresence) ? sARM_STAY : sARM_AWAY
+            newState = isSomebodyHome((List)settings.guardAwayPresence) ? sARM_STAY : sARM_AWAY
             break
         case "alarmSystemStatus":
         case "hsmStatus":
-            Boolean inAlarmHome = isInAlarmMode(settings.guardHomeAlarm)
-            Boolean inAlarmAway = isInAlarmMode(settings.guardAwayAlarm)
+            Boolean inAlarmHome = isInAlarmMode((List)settings.guardHomeAlarm)
+            Boolean inAlarmAway = isInAlarmMode((List)settings.guardAwayAlarm)
             if(inAlarmAway && !inAlarmHome) { newState = sARM_AWAY }
             if(!inAlarmAway && inAlarmHome) { newState = sARM_STAY }
             break
@@ -539,8 +539,8 @@ def guardTriggerEvtHandler(evt) {
 }
 
 Boolean guardRestrictOk() {
-    Boolean onSwOk = settings.guardRestrictOnSwitch ? isSwitchOn(settings.guardRestrictOnSwitch) : true
-    Boolean offSwOk = settings.guardRestrictOffSwitch ? !isSwitchOn(settings.guardRestrictOffSwitch) : true
+    Boolean onSwOk = settings.guardRestrictOnSwitch ? isSwitchOn((List)settings.guardRestrictOnSwitch) : true
+    Boolean offSwOk = settings.guardRestrictOffSwitch ? !isSwitchOn((List)settings.guardRestrictOffSwitch) : true
     return (onSwOk && offSwOk)
 }
 
@@ -1457,7 +1457,7 @@ def initialize() {
             if(settings.guardHomeSwitch) subscribe(settings.guardHomeSwitch, sSWITCH, guardTriggerEvtHandler)
             if(settings.guardAwaySwitch) subscribe(settings.guardAwaySwitch, sSWITCH, guardTriggerEvtHandler)
         }
-        if(settings?.guardAwayPresence) {
+        if(settings.guardAwayPresence) {
             subscribe(settings.guardAwayPresence, "presence", guardTriggerEvtHandler)
         }
     }
@@ -6894,33 +6894,33 @@ static String getObjType(obj) {
     else if(obj instanceof Date) {return "Date"}
     else { return sUNKNOWN}
 }
-
+/*
 Boolean isContactOpen(sensors) {
-    if(sensors) { sensors.each { if(sensors?.currentSwitch == "open") { return true } } }
+    if(sensors) { sensors.each { if(sensors?.currentValue("contact") == "open") { return true } } }
     return false
-}
+} */
 
 Boolean isSwitchOn(devs) {
-    if(devs instanceof List) { devs.each { if(it?.currentSwitch == "on") { return true } } }
-    else if(devs) if(devs?.currentSwitch == "on") { return true }
+    if(devs instanceof List) { devs.each { if(it?.currentValue("switch") == "on") { return true } } }
+    else if(devs) if(devs?.currentValue("switch") == "on") { return true }
+    return false
+}
+/*
+Boolean isSensorPresent(List sensors) {
+    if(sensors) { sensors.each { if(it?.currentValue("presence") == "present") { return true } } }
+    return false
+} */
+
+Boolean isSomebodyHome(List sensors) {
+    if(sensors) { return (sensors.findAll { it?.currentValue("presence") == "present" }.size() > 0) }
     return false
 }
 
-Boolean isSensorPresent(sensors) {
-    if(sensors) { sensors.each { if(it?.currentPresence == "present") { return true } } }
-    return false
-}
-
-Boolean isSomebodyHome(sensors) {
-    if(sensors) { return (sensors.findAll { it?.currentPresence == "present" }.size() > 0) }
-    return false
-}
-
-Boolean isInMode(modes) {
+Boolean isInMode(List modes) {
     return (location?.mode?.toString() in modes)
 }
 
-Boolean isInAlarmMode(modes) {
+Boolean isInAlarmMode(List modes) {
     if(!modes) return false
     return (getAlarmSystemStatus() in modes)
 }
@@ -6943,7 +6943,7 @@ def getShmIncidents() {
 } */
 
 // This is incomplete (and currently unused)
-void setAlarmSystemMode(mode) {
+void setAlarmSystemMode(String mode) {
     switch(mode) {
         case "armAway":
         case "away":
@@ -7411,7 +7411,6 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2LH725P8DQR2A" : [ c: [ "a", "t" ], i: "fabriq_riff", n: "Fabriq Riff" ],
         "A15ERDAKK5HQQG" : [ i: "sonos_generic", n: "Sonos" ],
         "A10L5JEZTKKCZ8" : [ c: [ "a", "t" ], i: "vobot_bunny", n: "Vobot Bunny" ],
-        "A16MZVIFVHX6P6" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Echo" ],
         "A17LGWINFBUTZZ" : [ c: [ "t", "a" ], i: "roav_viva", n: "Anker Roav Viva" ],
         "A18BI6KPKDOEI4" : [ c: [ "a", "t" ], i: "ecobee4", n: "Ecobee4" ],
         "A2R2GLZH1DFYQO" : [ c: [ "t", "a" ], i: "halo_speaker", n: "Zolo Halo Speaker" ],
