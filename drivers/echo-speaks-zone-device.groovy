@@ -21,8 +21,8 @@
 import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.1.4.0"
-@Field static final String appModifiedFLD = "2021-04-08"
+@Field static final String devVersionFLD  = "4.1.5.0"
+@Field static final String appModifiedFLD = "2021-04-14"
 @Field static final String branchFLD      = "master"
 @Field static final String platformFLD    = "Hubitat"
 @Field static final Boolean betaFLD       = false
@@ -74,6 +74,7 @@ if(!isZone()) {
         attribute "deviceFamily", "string"
         attribute "deviceSerial", "string"
 
+        attribute "deviceIcon", "string"
         attribute "deviceStatus", "string"
         attribute "deviceStyle", "string"
         attribute "deviceType", "string"
@@ -254,7 +255,7 @@ String getEchoAccountId() { return (String)state.deviceAccountId ?: sNULL }
 
 Map getEchoDevInfo(String cmd) {
     if(isCommandTypeAllowed(cmd)) {
-	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
+	    return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
     }
    return null
 }
@@ -469,6 +470,7 @@ void updateDeviceStatus(Map devData) {
 
         String devFamily = devData.deviceFamily ?: sBLANK
         String devName = (String)deviceStyle?.n
+        String devIcon = "<img style='width:64px;height:64px;' src='https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/${isZone() ? "es_groups.png" : "${(String)deviceStyle?.i ?: "echo_gen1"}.png"}'/>"
 
         // logInfo("deviceStyle (${devFamily}): ${devType} | Desc: ${devName}")
 
@@ -493,6 +495,9 @@ void updateDeviceStatus(Map devData) {
         if(isStateChange(device, "deviceType", devType)) {
             sendEvent(name: "deviceType", value: devType, display: false, displayed: false)
             chg=true
+        }
+        if(isStateChange(device, "deviceIcon", devIcon)) {
+            sendEvent(name: "deviceIcon", value: devIcon, display: false, displayed: false)
         }
 
         Map<String,String> musicProviders = (Map<String,String>)devData.musicProviders ?: [:]
@@ -2719,7 +2724,6 @@ void updateLevel(oldvolume, newvolume) {
 }
 
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
-
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
     String healthStatus = getHealthStatus()
     if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }
