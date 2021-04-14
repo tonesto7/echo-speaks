@@ -2724,7 +2724,6 @@ void updateLevel(oldvolume, newvolume) {
 }
 
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
-
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
     String healthStatus = getHealthStatus()
     if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }

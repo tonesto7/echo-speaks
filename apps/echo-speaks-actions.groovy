@@ -2702,7 +2702,7 @@ void afterEvtCheckHandler() {
                     // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
                     def devs = settings."trig_${nextVal.name}" ?: null
                     Boolean skipEvt = (nextVal.triggerState && nextVal.deviceId && nextVal.name && devs) ?
-                            !devCapValEqual(devs, nextVal.deviceId as String, (String)nextVal.name, nextVal.triggerState) : true
+                            !devAttValEqual(devs, nextVal.deviceId as String, (String)nextVal.name, nextVal.triggerState) : true
                     Boolean skipEvtCnt = (repeatCntMax && (repeatCnt > repeatCntMax))
                     aEvtMap[nextId]?.timeLeft = timeLeft
                     if(!skipEvt && !skipEvtCnt) {
@@ -2789,7 +2789,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
             if(d?.size() && dc) {
                 if(dc == sANY) { evtOk = true }
                 else {
-                    if(dca && (allDevCapValsEqual(d, dc, (String)evt?.value))) { evtOk = true; evtAd = true }
+                    if(dca && (allDevAttValsEqual(d, dc, (String)evt?.value))) { evtOk = true; evtAd = true }
                     else if(evt?.value == dc) { evtOk=true }
                 }
             }
@@ -3020,22 +3020,22 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
             case sEQUALS:
                 if(!dca && dce && dce == evtValue) {
                     evtOk=true
-                } else if(dca && dce && allDevCapNumValsEqual(devs, en, dce)) { evtOk=true; evtAd=true }
+                } else if(dca && dce && allDevAttNumValsEqual(devs, en, dce)) { evtOk=true; evtAd=true }
                 break
             case sBETWEEN:
                 if(!dca && dcl && dch && (evtValue in (dcl..dch))) {
                     evtOk=true
-                } else if(dca && dcl && dch && allDevCapNumValsBetween(devs, en, dcl, dch)) { evtOk=true; evtAd=true }
+                } else if(dca && dcl && dch && allDevAttNumValsBetween(devs, en, dcl, dch)) { evtOk=true; evtAd=true }
                 break
             case sABOVE:
                 if(!dca && dch && (evtValue > dch)) {
                     evtOk=true
-                } else if(dca && dch && allDevCapNumValsAbove(devs, en, dch)) { evtOk=true; evtAd=true }
+                } else if(dca && dch && allDevAttNumValsAbove(devs, en, dch)) { evtOk=true; evtAd=true }
                 break
             case sBELOW:
                 if(dcl && (evtValue < dcl)) {
                     evtOk=true
-                } else if(dca && dcl && allDevCapNumValsBelow(devs, en, dcl)) { evtOk=true; evtAd=true }
+                } else if(dca && dcl && allDevAttNumValsBelow(devs, en, dcl)) { evtOk=true; evtAd=true }
                 break
         }
     }
@@ -3238,7 +3238,7 @@ Boolean checkDeviceCondOk(String att) {
     def cmdVal = settings."cond_${att}_cmd" ?: null  // list or string
     Boolean all = ((Boolean)settings."cond_${att}_all" == true)
     if( !(att && devs && cmdVal) ) { return true }
-    return all ? allDevCapValsEqual(devs, att, cmdVal) : anyDevCapValsEqual(devs, att, cmdVal)
+    return all ? allDevAttValsEqual(devs, att, cmdVal) : anyDevAttValsEqual(devs, att, cmdVal)
 }
 
 Boolean checkDeviceNumCondOk(String att) {
@@ -3253,26 +3253,26 @@ Boolean checkDeviceNumCondOk(String att) {
     switch(cmd) {
         case sEQUALS:
             if(dce) {
-                if(dca) { return allDevCapNumValsEqual(devs, att, dce) }
-                else { return anyDevCapNumValEqual(devs, att, dce) }
+                if(dca) { return allDevAttNumValsEqual(devs, att, dce) }
+                else { return anyDevAttNumValEqual(devs, att, dce) }
             }
             break
         case sBETWEEN:
             if(dcl && dch) {
-                if(dca) { return allDevCapNumValsBetween(devs, att, dcl, dch) }
-                else { return anyDevCapNumValBetween(devs, att, dcl, dch) }
+                if(dca) { return allDevAttNumValsBetween(devs, att, dcl, dch) }
+                else { return anyDevAttNumValBetween(devs, att, dcl, dch) }
             }
             break
         case sABOVE:
             if(dch) {
-                if(dca) { return allDevCapNumValsAbove(devs, att, dch) }
-                else { return anyDevCapNumValAbove(devs, att, dch) }
+                if(dca) { return allDevAttNumValsAbove(devs, att, dch) }
+                else { return anyDevAttNumValAbove(devs, att, dch) }
             }
             break
         case sBELOW:
             if(dcl) {
-                if(dca) { return allDevCapNumValsBelow(devs, att, dcl) }
-                else { return anyDevCapNumValBelow(devs, att, dcl) }
+                if(dca) { return allDevAttNumValsBelow(devs, att, dcl) }
+                else { return anyDevAttNumValBelow(devs, att, dcl) }
             }
             break
     }
@@ -4363,60 +4363,60 @@ Boolean isInAlarmMode(List modes) {
     //return (modes) ? (parent?.getAlarmSystemStatus() in modes) : false
     return (modes) ? (a in modes) : false
 }
-
+/*
 Boolean areAllDevsSame(List devs, String attr, val) {
-    if(devs && attr && val) { return (devs?.findAll { it?.currentValue(attr) == val as String }?.size() == devs?.size()) }
+    if(devs && attr) { return (devs?.findAll { it?.currentValue(attr) == val as String }?.size() == devs?.size()) }
     return false
-}
+} */
 
-Boolean allDevCapValsEqual(List devs, String cap, val) {
-    if(devs) {
-        if(val instanceof List) return (devs.findAll { it?.currentValue(cap) in val }?.size() == devs?.size())
-        else return (devs.findAll { it?.currentValue(cap) == val }?.size() == devs?.size())
+Boolean allDevAttValsEqual(List devs, String att, val) {
+    if(devs && att) {
+        if(val instanceof List) return (devs.findAll { it?.currentValue(att) in val }?.size() == devs?.size())
+        else return (devs.findAll { it?.currentValue(att) == val }?.size() == devs?.size())
     }
     return false
 }
 
-Boolean anyDevCapValsEqual(List devs, String cap, val) {
-    if(devs && cap && val) {
-        if(val instanceof List) return (devs.findAll { it?.currentValue(cap) in (List)val }?.size() >= 1)
-        else return (devs.findAll { it?.currentValue(cap) == val }?.size() >= 1)
+Boolean anyDevAttValsEqual(List devs, String att, val) {
+    if(devs && att) {
+        if(val instanceof List) return (devs.findAll { it?.currentValue(att) in (List)val }?.size() >= 1)
+        else return (devs.findAll { it?.currentValue(att) == val }?.size() >= 1)
     }
     return false
 }
 
-Boolean anyDevCapNumValAbove(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() > val }?.size() >= 1) : false
+Boolean anyDevAttNumValAbove(List devs, String att, Double val) {
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() > val }?.size() >= 1) : false
 }
-Boolean anyDevCapNumValBelow(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() < val }?.size() >= 1) : false
+Boolean anyDevAttNumValBelow(List devs, String att, Double val) {
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() < val }?.size() >= 1) : false
 }
-Boolean anyDevCapNumValBetween(List devs, String cap, Double low, Double high) {
-    return (devs && cap && low && high) ? (devs?.findAll {
-        Double t = it?.currentValue(cap)?.toDouble()
+Boolean anyDevAttNumValBetween(List devs, String att, Double low, Double high) {
+    return (devs && att && (low < high)) ? (devs?.findAll {
+        Double t = it?.currentValue(att)?.toDouble()
         ( (t >= low) && (t <= high) ) }?.size() >= 1) : false
 }
-Boolean anyDevCapNumValEqual(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() == val }?.size() >= 1) : false
+Boolean anyDevAttNumValEqual(List devs, String att, Double val) {
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() == val }?.size() >= 1) : false
 }
 
-Boolean allDevCapNumValsAbove(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() > val }?.size() == devs?.size()) : false
+Boolean allDevAttNumValsAbove(List devs, String att, Double val) {
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() > val }?.size() == devs?.size()) : false
 }
-Boolean allDevCapNumValsBelow(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() < val }?.size() == devs?.size()) : false
+Boolean allDevAttNumValsBelow(List devs, String att, Double val) {
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() < val }?.size() == devs?.size()) : false
 }
-Boolean allDevCapNumValsBetween(List devs, String cap, Double low, Double high) {
-    return (devs && cap && low && high) ? (devs?.findAll {
-        Double t = it?.currentValue(cap)?.toDouble()
+Boolean allDevAttNumValsBetween(List devs, String att, Double low, Double high) {
+    return (devs && att && (low < high)) ? (devs?.findAll {
+        Double t = it?.currentValue(att)?.toDouble()
         ( (t >= low) && (t <= high) ) }?.size() == devs?.size()) : false
 }
-Boolean allDevCapNumValsEqual(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() == val }?.size() == devs?.size()) : false
+Boolean allDevAttNumValsEqual(List devs, String att, Double val) {
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() == val }?.size() == devs?.size()) : false
 }
 
-Boolean devCapValEqual(List devs, String devId, String cap, val) {
-    if(devs) { return (devs.find { it?.currentValue(cap) == val }) }
+Boolean devAttValEqual(List devs, String devId, String att, val) {
+    if(devs && att) { return (devs.find { it?.currentValue(att) == val }) }
     return false
 }
 
@@ -4692,7 +4692,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
 
 String getOverallDesc() {
     Map condStatus = conditionStatus()
-    return spanSmBld("Action Condition Status: ")  + spanSmBr( ((Boolean)condStatus.ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)condStatus.ok))
+    return spanSmBld("Action Condition Status: ") + spanSmBr( ((Boolean)condStatus.ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)condStatus.ok))
 }
 
 String getConditionsDesc(Boolean addFoot=true) {
@@ -4885,7 +4885,7 @@ static String randomString(Integer len) {
     return randChars.join()
 }
 
-static getRandomItem(List items) {
+static def getRandomItem(List items) {
     def list = [] // new ArrayList<String>()
     items?.each { list.add(it) }
     return list.get(new Random().nextInt(list.size()))
