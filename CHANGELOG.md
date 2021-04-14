@@ -1,3 +1,9 @@
+### _**Release (v4.1.5.0) - [April 14th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Icons are updated for keypad, buttons, and accelorometers.
+- [FIX] Significant Bugfixes and Optimizations for Actions and Zones.
+
 ### _**Release (v4.1.4.0) - [April 8th, 2021]**_
 
 #### _***All Apps and Devices***_
