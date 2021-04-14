@@ -4430,14 +4430,14 @@ private String textTransform(String str, Boolean force=false) {
     str = str.replaceAll("°"," degrees ")
     return str
 }
-
+/*
 private String timeTransform(String str, Boolean force=false) {
-    str.replaceAll(/^(?:(?:(?:0?[1-9]|1[0-2])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?\s?[aApP][mM])|(?:(?:0?\d|1\d|2[0-3])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?))$/) { 
+    str = str.replaceAll(/^(?:(?:(?:0?[1-9]|1[0-2])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?\s?[aApP][mM])|(?:(?:0?\d|1\d|2[0-3])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?))$/) {
         log.debug "timeTransform: ${it[0]}"
         // return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" 
     }
     return str
-}
+}*/
 
 Map createSequenceNode(String command, value, Map deviceData = [:]) {
     //log.debug "createSequenceNode: command: $command   "
@@ -5307,7 +5307,9 @@ static Map getAvailableSounds() {
     return getAvailableSoundsFLD
 }
 
+// https://developer.amazon.com/en-US/docs/alexa/custom-skills/ask-soundlibrary.html
 // TODO: https://m.media-amazon.com/images/G/01/mobile-apps/dex/ask-tech-docs/ask-soundlibrary._TTH_.json
+// send this to speak command:   <audio src="soundbank://soundlibrary/sports/crowds/crowds_12"/>
 @Field static final Map getAvailableSoundsFLD = [
         // Bells and Buzzer
         bells: "bell_02",
@@ -5707,6 +5709,7 @@ String time2Str(time) {
         f.setTimeZone(location?.timeZone ?: timeZone(time))
         return (String)f.format(t)
     }
+    return sNULL
 }
 
 Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
@@ -6164,7 +6167,7 @@ String htmlRowVerStr(String name, String ver) {
 } */
 
 String UrlParamBuilder(Map items) {
-    return items?.collect { k,v -> "${k}=${URLEncoder.encode(v?.toString())}" }?.join("&") as String
+    return items.collect { String k,String v -> "${k}=${URLEncoder.encode(v.toString())}" }?.join("&").toString()
 }
 
 def getRandomItem(items) {
@@ -6872,10 +6875,10 @@ String getTextEditorPath(String cId, String inName) {
 @Field static final List amazonDomainsFLD = ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"]
 @Field static final List localesFLD       = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"]
 
-private List amazonDomainOpts() { return (state.appData && state.appData?.amazonDomains?.size()) ? state.appData?.amazonDomains : amazonDomainsFLD }
-private List localeOpts() { return (state.appData && state.appData?.locales?.size()) ? state.appData?.locales : localesFLD }
+private List amazonDomainOpts() { return (state.appData && state.appData?.amazonDomains?.size()) ? state.appData.amazonDomains : amazonDomainsFLD }
+private List localeOpts() { return (state.appData && state.appData?.locales?.size()) ? state.appData.locales : localesFLD }
 
-String getObjType(obj) {
+static String getObjType(obj) {
     if(obj instanceof String) {return "String"}
     else if(obj instanceof GString) {return "GString"}
     else if(obj instanceof Map) {return "Map"}
@@ -6933,11 +6936,11 @@ static List getAlarmModes() {
 String getAlarmSystemStatus() {
     return location?.hsmStatus ?: "disarmed"
 }
-
+/*
 def getShmIncidents() {
     def incidentThreshold = now() - 604800000
     return location?.activeIncidents?.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
-}
+} */
 
 // This is incomplete (and currently unused)
 void setAlarmSystemMode(mode) {
@@ -7010,7 +7013,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
-        } catch (e) {
+        } catch (ignored) {
         }
         if(a) log.error logPrefix(a, sCLRRED)
     }
