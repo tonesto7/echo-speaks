@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.1.4.0'
+@Field static final String appVersionFLD  = '4.1.5.0'
 @Field static final String appModifiedFLD = '2021-04-08'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4140, wsDevice: 4140, actionApp: 4140, zoneApp: 4140, zoneEchoDevice: 4140, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4150, wsDevice: 4150, actionApp: 4150, zoneApp: 4150, zoneEchoDevice: 4150, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -4430,14 +4430,14 @@ private String textTransform(String str, Boolean force=false) {
     str = str.replaceAll("°"," degrees ")
     return str
 }
-
+/*
 private String timeTransform(String str, Boolean force=false) {
-    str.replaceAll(/^(?:(?:(?:0?[1-9]|1[0-2])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?\s?[aApP][mM])|(?:(?:0?\d|1\d|2[0-3])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?))$/) { 
+    str = str.replaceAll(/^(?:(?:(?:0?[1-9]|1[0-2])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?\s?[aApP][mM])|(?:(?:0?\d|1\d|2[0-3])(?::|\.)[0-5]\d(?:(?::|\.)[0-5]\d)?))$/) {
         log.debug "timeTransform: ${it[0]}"
         // return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" 
     }
     return str
-}
+}*/
 
 Map createSequenceNode(String command, value, Map deviceData = [:]) {
     //log.debug "createSequenceNode: command: $command   "
@@ -5307,7 +5307,9 @@ static Map getAvailableSounds() {
     return getAvailableSoundsFLD
 }
 
+// https://developer.amazon.com/en-US/docs/alexa/custom-skills/ask-soundlibrary.html
 // TODO: https://m.media-amazon.com/images/G/01/mobile-apps/dex/ask-tech-docs/ask-soundlibrary._TTH_.json
+// send this to speak command:   <audio src="soundbank://soundlibrary/sports/crowds/crowds_12"/>
 @Field static final Map getAvailableSoundsFLD = [
         // Bells and Buzzer
         bells: "bell_02",
@@ -5707,6 +5709,7 @@ String time2Str(time) {
         f.setTimeZone(location?.timeZone ?: timeZone(time))
         return (String)f.format(t)
     }
+    return sNULL
 }
 
 Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
@@ -6164,20 +6167,20 @@ String htmlRowVerStr(String name, String ver) {
 } */
 
 String UrlParamBuilder(Map items) {
-    return items?.collect { k,v -> "${k}=${URLEncoder.encode(v?.toString())}" }?.join("&") as String
+    return items.collect { String k,String v -> "${k}=${URLEncoder.encode(v.toString())}" }?.join("&").toString()
 }
 
-def getRandomItem(items) {
+static def getRandomItem(items) {
     def list = new ArrayList<String>()
     items?.each { list?.add(it) }
     return list?.get(new Random().nextInt(list?.size()))
 }
 
-String randomString(Integer len) {
+static String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
     Random rand = new Random(new Date().getTime())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
-    logDebug("randomString: ${randChars?.join()}")
+//    logDebug("randomString: ${randChars?.join()}")
     return randChars.join()
 }
 
@@ -6872,10 +6875,10 @@ String getTextEditorPath(String cId, String inName) {
 @Field static final List amazonDomainsFLD = ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx"]
 @Field static final List localesFLD       = ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY"]
 
-private List amazonDomainOpts() { return (state.appData && state.appData?.amazonDomains?.size()) ? state.appData?.amazonDomains : amazonDomainsFLD }
-private List localeOpts() { return (state.appData && state.appData?.locales?.size()) ? state.appData?.locales : localesFLD }
+private List amazonDomainOpts() { return (state.appData && state.appData?.amazonDomains?.size()) ? state.appData.amazonDomains : amazonDomainsFLD }
+private List localeOpts() { return (state.appData && state.appData?.locales?.size()) ? state.appData.locales : localesFLD }
 
-String getObjType(obj) {
+static String getObjType(obj) {
     if(obj instanceof String) {return "String"}
     else if(obj instanceof GString) {return "GString"}
     else if(obj instanceof Map) {return "Map"}
@@ -6933,11 +6936,11 @@ static List getAlarmModes() {
 String getAlarmSystemStatus() {
     return location?.hsmStatus ?: "disarmed"
 }
-
+/*
 def getShmIncidents() {
     def incidentThreshold = now() - 604800000
     return location?.activeIncidents?.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
-}
+} */
 
 // This is incomplete (and currently unused)
 void setAlarmSystemMode(mode) {
@@ -7010,7 +7013,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
-        } catch (e) {
+        } catch (ignored) {
         }
         if(a) log.error logPrefix(a, sCLRRED)
     }
@@ -7203,7 +7206,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _sirens: "alarm",
         _switch: "switch",
         _power: "powerMeter",
-        _shade: "windowShades",
+        _windowShade: "windowShades",
         _water: "waterSensor",
         _valve: "valve",
         _thermostatOperatingState: "thermostat",
@@ -7235,58 +7238,91 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 
 @Field static final Map deviceSupportMapFLD = [
     types: [
-        "A10A33FOX2NUBK" : [ c: [ "a", "t" ], i: "echo_spot_gen1", n: "Echo Spot" ],
-        "A10L5JEZTKKCZ8" : [ c: [ "a", "t" ], i: "vobot_bunny", n: "Vobot Bunny" ],
-        "A112LJ20W14H95" : [ ig: true ],
+        // Amazon Devices
+        "A3C9PE6TNYLTCH" : [ i: "echo_wha", n: "Multiroom" ],
+
+        // Amazon FireTV's
         "A12GXV8XMS007S" : [ c: [ "a", "t" ], i: "firetv_gen1", n: "Fire TV (Gen1)" ],
-        "A15ERDAKK5HQQG" : [ i: "sonos_generic", n: "Sonos" ],
-        "A16MZVIFVHX6P6" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Echo" ],
-        "A17LGWINFBUTZZ" : [ c: [ "t", "a" ], i: "roav_viva", n: "Anker Roav Viva" ],
-        "A18BI6KPKDOEI4" : [ c: [ "a", "t" ], i: "ecobee4", n: "Ecobee4" ],
-        "A18O6U1UQFJ0XK" : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo Plus (Gen2)" ],
-        "A1C66CX2XD756O" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet HD" ],
-        "A1DL2DVDQVK3Q"  : [ b: true, ig: true, n: "Mobile App" ],
+        "A2E0SNTXJVT7WK" : [ c: [ "a", "t" ], i: "firetv_gen2", n: "Fire TV (Gen2)" ],
+        "A2GFL5ZMWNE0PX" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
+        "AKPGW064GI9HE"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick 4K (Gen3)" ],
+        "AN630UQPG2CA4"  : [ c: [ "a", "t" ], i: "firetv_toshiba", n: "Fire TV (Toshiba)" ],
+        "A2JKHJ0PX4J3L3" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube (Gen2)" ],
+        "A265XOI9586NML" : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick" ],
+        "A2LWARUGJLBYEW" : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen2)" ],
         "A1F8D55J0FWDTN" : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV (Toshiba)" ],
-        "A1GC6GEE1XF1G9" : [ ig: true ],
-        "A1H0CMF1XM0ZP4" : [ b: true, n: "Bose SoundTouch 30" ],
-        "A1J16TEDOYCZTN" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
-        "A1JJ0KFC4ZPNJ3" : [ c: [ "a", "t" ], i: "echo_input", n: "Echo Input" ],
-        "A1M0A9L9HDBID3" : [ c: [ "t" ], i: "one-link", n: "One-Link Safe and Sound" ],
-        "A1MPSLFC7L5AFK" : [ ig: true ],
-        "A1N9SW0I0LUX5Y" : [ c: [ "a", "t" ], i: "unknown", n: "Ford/Lincoln Alexa App" ],
-        "A1NL4BVLQ4L3N3" : [ c: [ "a", "t" ], i: "echo_show_gen1", n: "Echo Show (Gen1)" ],
-        "A1ORT4KZ23OY88" : [ ig: true ],
-        "A1P31Q3MOWSHOD" : [ c: [ "t", "a" ], i: "halo_speaker", n: "Zolo Halo Speaker" ],
+        "AP4RS91ZQ0OOI"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV (Toshiba)" ],
+        "AFF5OAL5E3DIU"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV" ],
+        "A3HF4YRA2L7XGC" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube" ],
+        "AFF50AL5E3DIU"  : [ c: [ "a", "t" ], i: "insignia_firetv",  n: "Fire TV (Insignia)" ],
+        "ADVBD696BHNV5"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen1)" ],
+        
+        // Amazon Tablets
         "A1Q7QCGNMXAKYW" : [ c: [ "t", "a" ], i: "amazon_tablet", n: "Generic Tablet" ],
+        "A1J16TEDOYCZTN" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
+        "A2M4YX06LWP8WI" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
+        "A1C66CX2XD756O" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet HD" ],
+        "A3L0T0VL9A921N" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
+        "AVU7CPPF2ZRAS"  : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
+        "A38EHHIB10L47V" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
+        "A3R9S4ZZECZ6YL" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 10" ],
+
+        // Amazon Echo's
+        "AB72C64C86AW2"  : [ c: [ "a", "t" ], i: "echo_gen1", n: "Echo (Gen1)" ],
+        "A7WXQPH584YP"   : [ c: [ "a", "t" ], i: "echo_gen2", n: "Echo (Gen2)" ],
+        "A3FX4UWTP28V1P" : [ c: [ "a", "t" ], i: "echo_gen3", n: "Echo (Gen3)" ],
+        "A3RMGO6LYLH7YN" : [ c: [ "a", "t" ], i: "echo_gen4", n: "Echo (Gen4)" ],
+        "A2M35JJZWCQOMZ" : [ c: [ "a", "t" ], i: "echo_plus_gen1", n: "Echo Plus (Gen1)" ],
+        "A18O6U1UQFJ0XK" : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo Plus (Gen2)" ],
+
+        // Amazon Echo Dots
+        "AKNO1N0KSFN8L"  : [ c: [ "a", "t" ], i: "echo_dot_gen1", n: "Echo Dot (Gen1)" ],
+        "A3S5BH2HU6VAYF" : [ c: [ "a", "t" ], i: "echo_dot_gen2", n: "Echo Dot (Gen2)" ],
+        "A32DDESGESSHZA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
+        "A32DOYMUN6DTXA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
         "A1RABVCI4QCIKC" : [ c: [ "a", "t" ], i: "echo_dot_gen3", n: "Echo Dot (Gen3)" ],
-        "A1RTAM01W29CUP" : [ c: [ "a", "t" ], i: "alexa_windows", n: "Windows App" ],
+        "A2U21SRK4QGSE1" : [ c: [ "a", "t" ], i: "echo_dot_gen4",  n: "Echo Dot (Gen4)" ],
+        "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_dot_clock", n: "Echo Dot Clock" ],
+        "A2H4LV5GIZ1JFT" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen4",  n: "Echo Dot Clock (Gen4)" ],
+        
+        // Amazon Echo Spot's
+        "A10A33FOX2NUBK" : [ c: [ "a", "t" ], i: "echo_spot_gen1", n: "Echo Spot" ],
+
+        // Amazon Echo Show's
+        "A1NL4BVLQ4L3N3" : [ c: [ "a", "t" ], i: "echo_show_gen1", n: "Echo Show (Gen1)" ],
+        "AWZZ5CVHX2CD"   : [ c: [ "a", "t" ], i: "echo_show_gen2", n: "Echo Show (Gen2)" ],
+        "A4ZP7ZC4PI6TO"  : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen1)" ],
+        "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
+        "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
+        
+        // Amazon Echo Auto's
+        "A303PJF6ISQ7IC" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
+        "A195TXHV1M5D4A" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
+        "ALT9P69K6LORD"  : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
+
+        // Other Amazon Devices
+        "A38949IHXHRQ5P" : [ c: [ "a", "t" ], i: "echo_tap", n: "Echo Tap" ],
+        "A1JJ0KFC4ZPNJ3" : [ c: [ "a", "t" ], i: "echo_input", n: "Echo Input" ],
+        "A3IYPH06PH1HRA" : [ c: [ "a", "t" ], i: "echo_frames", n: "Echo Frames" ],
+        "A3RBAYBE7VM004" : [ c: [ "a", "t" ], i: "echo_studio", n: "Echo Studio" ],
+        "A2RU4B77X9R9NZ" : [ c: [ "a", "t" ], i: "echo_link_amp", n: "Echo Link Amp" ],
+        "A3VRME03NAXFUB" : [ c: [ "a", "t" ], i: "echo_flex", n: "Echo Flex" ],
+        "A3SSG6GR8UU7SN" : [ c: [ "a", "t" ], i: "echo_sub_gen1", n: "Echo Sub" ],
+        "A27VEYGQBW3YR5" : [ c: [ "a", "t" ], i: "echo_link", n: "Echo Link" ],
+        
+        // Ignored Devices
+        "A112LJ20W14H95" : [ ig: true ],
+        "A1GC6GEE1XF1G9" : [ ig: true ],
+        "A1MPSLFC7L5AFK" : [ ig: true ],
+        "A1ORT4KZ23OY88" : [ ig: true ],
         "A1VS6XVTGTLC00" : [ ig: true ],
         "A1VZJGJYCRI78V" : [ ig: true ],
-        "A1W2YILXTG9HA7" : [ c: [ "t", "a" ], i: "unknown", n: "Nextbase 522GW Dashcam" ],
-        "A1X7HJX9QL16M5" : [ b: true, ig: true, n: "Bespoken.io" ],
-        "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_gen2", n: "Echo Show 8" ],
         "A1ZB65LA390I4K" : [ ig: true ],
         "A21X6I4DKINIZU" : [ ig: true ],
         "A21Z3CGI8UIP0F" : [ ig: true ],
-        "A25EC4GIHFOCSG" : [ b: true, n: "Unrecognized Media Player" ],
-        "A27VEYGQBW3YR5" : [ c: [ "a", "t" ], i: "echo_link", n: "Echo Link" ],
         "A2825NDLA7WDZV" : [ ig: true ],
         "A29L394LN0I8HN" : [ ig: true ],
-        "A2E0SNTXJVT7WK" : [ c: [ "a", "t" ], i: "firetv_gen2", n: "Fire TV (Gen2)" ],
-        "A2GFL5ZMWNE0PX" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
-        "AN630UQPG2CA4"  : [ c: [ "a", "t" ], i: "firetv_toshiba", n: "Fire TV (Toshiba)" ],
-        "A2HZENIFNYTXZD" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal" ],
-        "A52ARKF0HM2T4"  : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal+" ],
         "A2IVLV5VM2W81"  : [ ig: true ],
-        "A2J0R2SD7G9LPA" : [ c: [ "a", "t" ], i: "lenovo_smarttab_m10", n: "Lenovo SmartTab M10" ],
-        "A2JKHJ0PX4J3L3" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube (Gen2)" ],
-        "A265XOI9586NML" : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick" ],
-        "A2LH725P8DQR2A" : [ c: [ "a", "t" ], i: "fabriq_riff", n: "Fabriq Riff" ],
-        "A2LWARUGJLBYEW" : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen2)" ],
-        "A2M35JJZWCQOMZ" : [ c: [ "a", "t" ], i: "echo_plus_gen1", n: "Echo Plus (Gen1)" ],
-        "A2M4YX06LWP8WI" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
-        "A2OSP3UA4VC85F" : [ i: "sonos_generic", n: "Sonos" ],
-        "A2R2GLZH1DFYQO" : [ c: [ "t", "a" ], i: "halo_speaker", n: "Zolo Halo Speaker" ],
         "A2T0P32DY3F7VB" : [ ig: true ],
         "A2TF17PFR55MTB" : [ ig: true ],
         "A2TOXM6L8SFS8A" : [ ig: true ],
@@ -7294,6 +7330,23 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1FWRGKHME4LXH" : [ ig: true ],
         "A26TRKU1GG059T" : [ ig: true ],
         "AU4IFDJDRSBC1"  : [ ig: true ],
+        "A2ZOTUOF1IBEYI" : [ ig: true ],
+        "ABP0V5EHO8A4U"  : [ ig: true ],
+        "AD2YUJTRVBNOF"  : [ ig: true ],
+        "ADQRVG6LYK4LQ"  : [ ig: true ],
+        "A1GPVMRI4IOS0M" : [ ig: true ],
+        "A2Z8O30CD35N8F" : [ ig: true ],
+        "A1XN1MKELB7WUF" : [ ig: true ],
+        "AINRG27IL8AS0"  : [ ig: true ],
+        "A3NVKTZUPX1J3X" : [ ig: true, n: "Onkyp VC30" ],
+        "A3NWHXTQ4EBCZS" : [ ig: true ],
+        "A2RG3FY1YV97SS" : [ ig: true ],
+        "A3H674413M2EKB" : [ ig: true ],
+        "AGZWSPR7FLP9E"  : [ ig: true ],
+        "AILBSA2LNTOYL"  : [ ig: true ],
+        "A2RJLFEH0UEKI9" : [ ig: true ],
+        "AKOAGQTKAS9YB"  : [ ig: true ],
+        "ATH4K2BAIXVHQ"  : [ ig: true ],
         "A324YMIUSWQDGE" : [ ig: true, i: "unknown", n: "Samsung 8K TV" ],
         "A18X8OBWBCSLD8" : [ ig: true, i: "unknown", n: "Samsung Soundbar" ],
         "A1GA2W150VBSDI" : [ ig: true, i: "unknown", n: "Sony On-Hear Headphones" ],
@@ -7303,102 +7356,80 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A3L2K717GERE73" : [ ig: true, i: "unknown", n: "Voice in a Can (iOS)" ],
         "A222D4HGE48EOR" : [ ig: true, i: "unknown", n: "Voice in a Can (Apple Watch)" ],
         "A19JK51Y4N50K5" : [ ig: true, i: "unknown", n: "Jabra(?)" ],
-        "A2X8WT9JELC577" : [ c: [ "a", "t" ], i: "ecobee4", n: "Ecobee5" ],
+
+        // Unknown or Needs Image
+        "A16MZVIFVHX6P6" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Echo" ],
         "A2XPGY5LRKB9BE" : [ c: [ "a", "t" ], i: "unknown", n: "Fitbit Versa 2" ],
         "A2Y04QPFCANLPQ" : [ c: [ "a", "t" ], i: "unknown", n: "Bose QuietComfort 35 II" ],
-        "A2ZOTUOF1IBEYI" : [ ig: true ],
-        "A303PJF6ISQ7IC" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
-        "A195TXHV1M5D4A" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
-        "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_dot_clock", n: "Echo Dot Clock" ],
-        "A32DDESGESSHZA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
-        "A32DOYMUN6DTXA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
-        "A2H4LV5GIZ1JFT" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen4",  n: "Echo Dot Clock (Gen4)" ],
-        "A2U21SRK4QGSE1" : [ c: [ "a", "t" ], i: "echo_dot_gen4",  n: "Echo Dot (Gen4)" ],
-        "A347G2JC8I4HC7" : [ c: [ "a", "t" ], i: "unknown", n: "Roav Car Charger Pro" ],
-        "A37CFAHI1O0CXT" : [ i: "logitech_blast", n: "Logitech Blast" ],
-        "A37SHHQ3NUL7B5" : [ b: true, n: "Bose Home Speaker 500" ],
-        "A38949IHXHRQ5P" : [ c: [ "a", "t" ], i: "echo_tap", n: "Echo Tap" ],
-        "A38BPK7OW001EX" : [ b: true, n: "Raspberry Alexa" ],
-        "A38EHHIB10L47V" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
         "A3B50IC5QPZPWP" : [ c: [ "a", "t" ], i: "unknown", n: "Polk Command Bar" ],
-        "A3B5K1G3EITBIF" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal" ],
-        "A3D4YURNTARP5K" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal TV" ],
         "A3CY98NH016S5F" : [ c: [ "a", "t" ], i: "unknown", n: "Facebook Portal Mini" ],
-        "A3BRT6REMPQWA8" : [ c: [ "a", "t" ], i: "sonos_generic", n: "Bose Home Speaker 450" ],
-        "A3C9PE6TNYLTCH" : [ i: "echo_wha", n: "Multiroom" ],
-        "A3F1S88NTZZXS9" : [ b: true, i: "dash_wand", n: "Dash Wand" ],
-        "A2WFDCBDEXOXR8" : [ b: true, i: "unknown", n: "Bose Soundbar 700" ],
-        "A3FX4UWTP28V1P" : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo (Gen3)" ],
-        "A3H674413M2EKB" : [ ig: true ],
+        "AO6HHP9UE6EOF"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown Media Device" ],
         "A3KULB3NQN7Z1F" : [ c: [ "a", "t" ], i: "unknown", n: "Unknown TV" ],
         "A18TCD9FP10WJ9" : [ c: [ "a", "t" ], i: "unknown", n: "Orbi Voice" ],
         "AGHZIK8D6X7QR"  : [ c: [ "a", "t" ], i: "unknown", n: "Fire TV" ],
-        "A3HF4YRA2L7XGC" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube" ],
-        "A3L0T0VL9A921N" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
-        "AVU7CPPF2ZRAS"  : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
-        "A3NPD82ABCPIDP" : [ c: [ "t" ], i: "sonos_beam", n: "Sonos Beam" ],
-        "A3NVKTZUPX1J3X" : [ ig: true, n: "Onkyp VC30" ],
-        "A3NWHXTQ4EBCZS" : [ ig: true ],
-        "A2RG3FY1YV97SS" : [ ig: true ],
-        "A3IYPH06PH1HRA" : [ c: [ "a", "t" ], i: "echo_frames", n: "Echo Frames" ],
-        "AKO51L5QAQKL2"  : [ c: [ "a", "t" ], i: "unknown", n: "Alexa Jams" ],
-        "A3K69RS3EIMXPI" : [ c: [ "a", "t" ], i: "unknown", n: "Hisense Smart TV" ],
-        "A1QKZ9D0IJY332" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung TV 2020-U" ],
-        "A3QPPX1R9W5RJV" : [ c: [ "a", "t" ], i: "fabriq_chorus", n: "Fabriq Chorus" ],
-        "A3R9S4ZZECZ6YL" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 10" ],
-        "A3RBAYBE7VM004" : [ c: [ "a", "t" ], i: "echo_studio", n: "Echo Studio" ],
-        "A2RU4B77X9R9NZ" : [ c: [ "a", "t" ], i: "echo_link_amp", n: "Echo Link Amp" ],
-        "A3S5BH2HU6VAYF" : [ c: [ "a", "t" ], i: "echo_dot_gen2", n: "Echo Dot (Gen2)" ],
-        "A3SSG6GR8UU7SN" : [ c: [ "a", "t" ], i: "echo_sub_gen1", n: "Echo Sub" ],
-        "A3BW5ZVFHRCQPO" : [ c: [ "a", "t" ], i: "unknown", n: "BMW Alexa Integration" ],
-        "A3SSWQ04XYPXBH" : [ b: true, i: "amazon_tablet", n: "Generic Tablet" ],
-        "A3VRME03NAXFUB" : [ c: [ "a", "t" ], i: "echo_flex", n: "Echo Flex" ],
-        "A4ZP7ZC4PI6TO"  : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen1)" ],
-        "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen4", n: "Echo Show 10 (Gen4)" ],
-        "A3RMGO6LYLH7YN" : [ c: [ "a", "t" ], i: "echo_gen4", n: "Echo (Gen4)" ],
-        "A7WXQPH584YP"   : [ c: [ "a", "t" ], i: "echo_gen2", n: "Echo (Gen2)" ],
-        "A81PNL0A63P93"  : [ c: [ "a", "t" ], i: "unknown", n: "Home Remote" ],
-        "AB72C64C86AW2"  : [ c: [ "a", "t" ], i: "echo_gen1", n: "Echo (Gen1)" ],
-        "A1SCI5MODUBAT1" : [ c: [ "a", "t"], i: "unknown", n: "Pioneer DMH-W466NEX" ],
-        "A1ETW4IXK2PYBP" : [ c: [ "a", "t"], i: "unknown", n: "Talk to Alexa" ],
-        "ABP0V5EHO8A4U"  : [ ig: true ],
-        "AD2YUJTRVBNOF"  : [ ig: true ],
-        "ADQRVG6LYK4LQ"  : [ ig: true ],
-        "A1GPVMRI4IOS0M" : [ ig: true ],
-        "A2Z8O30CD35N8F" : [ ig: true ],
-        "A1XN1MKELB7WUF" : [ ig: true ],
-        "AINRG27IL8AS0"  : [ ig: true ],
         "A1L4KDRIILU6N9" : [ c: [ "a", "t" ], i: "unknown", n: "Sony Speaker" ],
-        "ALT9P69K6LORD"  : [ c: [ "a", "t" ], i: "echo_auto_gen1", n: "Echo Auto" ],
         "A1F1F76XIW4DHQ" : [ c: [ "a", "t" ], i: "unknown", n: "Unknown TV" ],
-        "ADVBD696BHNV5"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen1)" ],
         "AE7X7Z227NFNS"  : [ c: [ "a", "t" ], i: "unknown", n: "HiMirror Mini" ],
         "AF473ZSOIRKFJ"  : [ c: [ "a", "t" ], i: "unknown", n: "Onkyo VC-PX30" ],
         "A2E5N6DMWCW8MZ" : [ c: [ "a", "t" ], i: "unknown", n: "Brilliant Smart Switch" ],
-        "AFF50AL5E3DIU"  : [ c: [ "a", "t" ], i: "insignia_firetv",  "name" : "Fire TV (Insignia)" ],
-        "AGZWSPR7FLP9E"  : [ ig: true ],
-        "AILBSA2LNTOYL"  : [ ig: true ],
-        "AKKLQD9FZWWQS"  : [ b: true, c: [ "a", "t" ], i: "unknown", n: "Jabra Elite" ],
-        "AKNO1N0KSFN8L"  : [ c: [ "a", "t" ], i: "echo_dot_gen1", n: "Echo Dot (Gen1)" ],
-        "AKPGW064GI9HE"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick 4K (Gen3)" ],
-        "AO6HHP9UE6EOF"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown Media Device" ],
-        "AP1F6KUH00XPV"  : [ b: true, n: "Stereo/Subwoofer Pair" ],
-        "AP4RS91ZQ0OOI"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV (Toshiba)" ],
-        "AFF5OAL5E3DIU"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV" ],
-        "ATH4K2BAIXVHQ"  : [ ig: true ],
-        "AVD3HM0HOJAAL"  : [ i: "sonos_generic", n: "Sonos" ],
-        "AVE5HX13UR5NO"  : [ c: [ "a", "t" ], i: "logitech_zero_touch", n: "Logitech Zero Touch" ],
-        "AVN2TMX8MU2YM"  : [ b: true, n: "Bose Home Speaker 500" ],
-        "AWZZ5CVHX2CD"   : [ c: [ "a", "t" ], i: "echo_show_gen2", n: "Echo Show (Gen2)" ],
         "A2C8J6UHV0KFCV" : [ c: [ "a", "t" ], i: "unknown", n: "Alexa Gear" ],
         "AUPUQSVCVHXP0"  : [ c: [ "a", "t" ], i: "unknown", n: "Ecobee Switch+" ],
-        "A2RJLFEH0UEKI9" : [ ig: true ],
-        "AKOAGQTKAS9YB"  : [ ig: true ],
         "A37M7RU8Z6ZFB"  : [ c: [ "a", "t" ], i: "unknown", n: "Garmin Speak" ],
         "A2WN1FJ2HG09UN" : [ c: [ "a", "t" ], i: "unknown", n: "Ultimate Alexa App" ],
         "A2BRQDVMSZD13S" : [ c: [ "a", "t" ], i: "unknown", n: "SURE Universal Remote" ],
         "A3TCJ8RTT3NVI7" : [ c: [ "a", "t" ], i: "unknown", n: "Alexa Listens" ],
         "A2VAXZ7UNGY4ZH" : [ c: [ "a", "t" ], i: "unknown", n: "Wyze Headphones"],
+        "AKO51L5QAQKL2"  : [ c: [ "a", "t" ], i: "unknown", n: "Alexa Jams" ],
+        "A3K69RS3EIMXPI" : [ c: [ "a", "t" ], i: "unknown", n: "Hisense Smart TV" ],
+        "A1QKZ9D0IJY332" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung TV 2020-U" ],
+        "A1SCI5MODUBAT1" : [ c: [ "a", "t"], i: "unknown", n: "Pioneer DMH-W466NEX" ],
+        "A1ETW4IXK2PYBP" : [ c: [ "a", "t"], i: "unknown", n: "Talk to Alexa" ],
+        "A81PNL0A63P93"  : [ c: [ "a", "t" ], i: "unknown", n: "Home Remote" ],
+        
+        
+        // Blocked Devices
+        "A1DL2DVDQVK3Q"  : [ b: true, ig: true, n: "Mobile App" ],
+        "A1H0CMF1XM0ZP4" : [ b: true, n: "Bose SoundTouch 30" ],
+        "A1X7HJX9QL16M5" : [ b: true, ig: true, n: "Bespoken.io" ],
+        "A3SSWQ04XYPXBH" : [ b: true, i: "amazon_tablet", n: "Generic Tablet" ],
+        "AKKLQD9FZWWQS"  : [ b: true, c: [ "a", "t" ], i: "unknown", n: "Jabra Elite" ],
+        "AP1F6KUH00XPV"  : [ b: true, n: "Stereo/Subwoofer Pair" ],
+        "A2WFDCBDEXOXR8" : [ b: true, i: "unknown", n: "Bose Soundbar 700" ],
+        "AVN2TMX8MU2YM"  : [ b: true, n: "Bose Home Speaker 500" ],
+        "A3F1S88NTZZXS9" : [ b: true, i: "dash_wand", n: "Dash Wand" ],
+        "A25EC4GIHFOCSG" : [ b: true, n: "Unrecognized Media Player" ],
+
+        // Other Devices
+        "A1W2YILXTG9HA7" : [ c: [ "t", "a" ], i: "unknown", n: "Nextbase 522GW Dashcam" ],
+        "A3NPD82ABCPIDP" : [ c: [ "t" ], i: "sonos_beam", n: "Sonos Beam" ],
+        "AVD3HM0HOJAAL"  : [ i: "sonos_generic", n: "Sonos" ],
+        "AVE5HX13UR5NO"  : [ c: [ "a", "t" ], i: "logitech_zero_touch", n: "Logitech Zero Touch" ],
+        "A1M0A9L9HDBID3" : [ c: [ "t" ], i: "one-link", n: "One-Link Safe and Sound" ],
+        "A1N9SW0I0LUX5Y" : [ c: [ "a", "t" ], i: "unknown", n: "Ford/Lincoln Alexa App" ],
+        "A1P31Q3MOWSHOD" : [ c: [ "t", "a" ], i: "halo_speaker", n: "Zolo Halo Speaker" ],
+        "A1RTAM01W29CUP" : [ c: [ "a", "t" ], i: "alexa_windows", n: "Windows App" ],
+        "A2LH725P8DQR2A" : [ c: [ "a", "t" ], i: "fabriq_riff", n: "Fabriq Riff" ],
+        "A15ERDAKK5HQQG" : [ i: "sonos_generic", n: "Sonos" ],
+        "A10L5JEZTKKCZ8" : [ c: [ "a", "t" ], i: "vobot_bunny", n: "Vobot Bunny" ],
+        "A16MZVIFVHX6P6" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Echo" ],
+        "A17LGWINFBUTZZ" : [ c: [ "t", "a" ], i: "roav_viva", n: "Anker Roav Viva" ],
+        "A18BI6KPKDOEI4" : [ c: [ "a", "t" ], i: "ecobee4", n: "Ecobee4" ],
+        "A2R2GLZH1DFYQO" : [ c: [ "t", "a" ], i: "halo_speaker", n: "Zolo Halo Speaker" ],
+        "A2J0R2SD7G9LPA" : [ c: [ "a", "t" ], i: "lenovo_smarttab_m10", n: "Lenovo SmartTab M10" ],
+        "A2OSP3UA4VC85F" : [ i: "sonos_generic", n: "Sonos" ],
+        "A2X8WT9JELC577" : [ c: [ "a", "t" ], i: "ecobee4", n: "Ecobee5" ],
+        "A347G2JC8I4HC7" : [ c: [ "a", "t" ], i: "unknown", n: "Roav Car Charger Pro" ],        
+        "A37CFAHI1O0CXT" : [ i: "logitech_blast", n: "Logitech Blast" ],
+        "A37SHHQ3NUL7B5" : [ b: true, n: "Bose Home Speaker 500" ],
+        "A38BPK7OW001EX" : [ b: true, n: "Raspberry Alexa" ],
+        "A3B5K1G3EITBIF" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal" ],
+        "A3D4YURNTARP5K" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal TV" ],
+        "A3QPPX1R9W5RJV" : [ c: [ "a", "t" ], i: "fabriq_chorus", n: "Fabriq Chorus" ],
+        "A3BW5ZVFHRCQPO" : [ c: [ "a", "t" ], i: "unknown", n: "BMW Alexa Integration" ],
+        "A3BRT6REMPQWA8" : [ c: [ "a", "t" ], i: "sonos_generic", n: "Bose Home Speaker 450" ],
+        "A2HZENIFNYTXZD" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal" ],
+        "A52ARKF0HM2T4"  : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal+" ],
+        
     ],
     families: [
         block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],
