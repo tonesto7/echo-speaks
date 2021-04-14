@@ -19,8 +19,8 @@
 
 import groovy.transform.Field
 
-@Field static final String appVersionFLD  = '4.1.4.0'
-@Field static final String appModifiedFLD = '2021-04-08'
+@Field static final String appVersionFLD  = '4.1.5.0'
+@Field static final String appModifiedFLD = '2021-04-14'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -4692,7 +4692,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
 
 String getOverallDesc() {
     Map condStatus = conditionStatus()
-    return spanSmBld("Action is ") + spanSmBr( ((Boolean)condStatus.ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)condStatus.ok))
+    return spanSmBld("Action Condition Status: ")  + spanSmBr( ((Boolean)condStatus.ok ? "Active " : "Inactive ") + getOkOrNotSymHTML((Boolean)condStatus.ok))
 }
 
 String getConditionsDesc(Boolean addFoot=true) {
