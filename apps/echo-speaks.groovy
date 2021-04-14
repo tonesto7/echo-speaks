@@ -7206,7 +7206,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _sirens: "alarm",
         _switch: "switch",
         _power: "powerMeter",
-        _shade: "windowShades",
+        _windowShade: "windowShades",
         _water: "waterSensor",
         _valve: "valve",
         _thermostatOperatingState: "thermostat",
