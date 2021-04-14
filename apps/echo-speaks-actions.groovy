@@ -94,6 +94,10 @@ import groovy.transform.Field
 @Field static final List<String> lOPNCLS       = ['open', 'closed']
 @Field static final List<String> lACTINACT     = ['active', 'inactive']
 @Field static final List<String> lSUNRISESET   = ['sunrise', 'sunset']
+@Field static final List<String> lWETDRY       = ['wet', 'dry']
+@Field static final List<String> lLOCKUNL      = ['locked', 'unlocked']
+@Field static final List<String> lDETECTCLR    = ['detected', 'clear']
+@Field static final List<String> lPRES         = ['present', 'not present']
 
 static String appVersion()  { return appVersionFLD }
 
@@ -507,7 +511,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("presence")) {
-                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", ["present", "not present", sANY], sCHGTO, ["present", "not present"], "presence", trigItemCnt++)
+                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", lPRES +[sANY], sCHGTO, lPRES, "presence", trigItemCnt++)
             }
 
             if (valTrigEvt(sCONTACT)) {
@@ -523,7 +527,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt(sLOCK)) {
-                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", ["locked", "unlocked", sANY], sCHGTO, ["locked", "unlocked"], sLOCK, trigItemCnt++, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
+                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", lLOCKUNL + [sANY], sCHGTO, lLOCKUNL, sLOCK, trigItemCnt++, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
             }
 
             if (valTrigEvt("securityKeypad")) {
@@ -595,7 +599,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt(sWATER)) {
-                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", ["wet", "dry", sANY], sCHGTO, ["wet", "dry"], sWATER, trigItemCnt++)
+                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", lWETDRY + [sANY], sCHGTO, lWETDRY, sWATER, trigItemCnt++)
             }
 
             if (valTrigEvt(sPOWER)) {
@@ -606,7 +610,7 @@ def triggersPage() {
                 section (sectHead("Carbon Monoxide Events"), hideable: true) {
                     input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true
                     if (settings.trig_carbonMonoxide) {
-                        input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: ["detected", "clear", sANY], required: true, submitOnChange: true
+                        input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + [sANY], required: true, submitOnChange: true
                         if(settings.trig_carbonMonoxide_cmd) {
                             if (settings.trig_carbonMonoxide?.size() > 1 && settings.trig_carbonMonoxide_cmd != sANY) {
                                 input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
@@ -621,7 +625,7 @@ def triggersPage() {
                 section (sectHead("Smoke Events"), hideable: true) {
                     input "trig_smoke", "capability.smokeDetector", title: inTS1("Smoke Detectors", "smoke"), required: !(settings.trig_carbonMonoxide), multiple: true, submitOnChange: true
                     if (settings.trig_smoke) {
-                        input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: ["detected", "clear", sANY], required: true, submitOnChange: true
+                        input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + [sANY], required: true, submitOnChange: true
                         if(settings.trig_smoke_cmd) {
                             if (settings.trig_smoke?.size() > 1 && settings.trig_smoke_cmd != sANY) {
                                 input "trig_smoke_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_smoke_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
@@ -858,13 +862,13 @@ def conditionsPage() {
 
         condNonNumSect(sMOTION, "motionSensor", "Motion Conditions", "Motion Sensors", lACTINACT, "are", sMOTION)
 
-        condNonNumSect("presence", "presenceSensor", "Presence Conditions", "Presence Sensors", ["present", "not present"], "are", "presence")
+        condNonNumSect("presence", "presenceSensor", "Presence Conditions", "Presence Sensors", lPRES, "are", "presence")
 
         condNonNumSect(sCONTACT, "contactSensor", "Door, Window, Contact Sensors Conditions", "Contact Sensors", lOPNCLS, "are", sCONTACT)
 
         condNonNumSect("acceleration", "accelerationSensor", "Accelorometer Conditions", "Accelorometer Sensors", lACTINACT, "are", "acceleration")
 
-        condNonNumSect(sLOCK, sLOCK, "Lock Conditions", "Smart Locks", ["locked", "unlocked"], "are", sLOCK)
+        condNonNumSect(sLOCK, sLOCK, "Lock Conditions", "Smart Locks", lLOCKUNL, "are", sLOCK)
 
         condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], "are", sLOCK)
 
@@ -878,7 +882,7 @@ def conditionsPage() {
 
         condNumValSect(sLEVEL, "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", sSPDKNB)
 
-        condNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water Sensors", ["wet", "dry"], "are", sWATER)
+        condNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water Sensors", lWETDRY, "are", sWATER)
 
         condNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER)
 
@@ -3405,10 +3409,10 @@ Map getRandomTrigEvt() {
         door: getRandomItem(lOPNCLS+["opening", "closing"]),
         (sCONTACT): getRandomItem(lOPNCLS),
         acceleration: getRandomItem(lACTINACT),
-        (sLOCK): getRandomItem(["locked", "unlocked", "unlocked with timeout"]),
+        (sLOCK): getRandomItem(lLOCKUNL +["unlocked with timeout"]),
         securityKeypad: getRandomItem(["disarmed", "armed home", "armed away"]),
-        (sWATER): getRandomItem(["wet", "dry"]),
-        presence: getRandomItem(["present", "not present"]),
+        (sWATER): getRandomItem(lWETDRY),
+        presence: getRandomItem(lPRES),
         (sMOTION): getRandomItem(lACTINACT),
         (sVALVE): getRandomItem(lOPNCLS),
         windowShade: getRandomItem(lOPNCLS+["opening", "closing"]),
@@ -3416,8 +3420,8 @@ Map getRandomTrigEvt() {
         released: getRandomItem(["released"]),
         held: getRandomItem(["held"]),
         doubleTapped: getRandomItem(["doubleTapped"]),
-        smoke: getRandomItem(["detected", "clear"]),
-        carbonMonoxide: getRandomItem(["detected", "clear"]),
+        smoke: getRandomItem(lDETECTCLR),
+        carbonMonoxide: getRandomItem(lDETECTCLR),
         (sTEMP): isC ? getRandomItem(-1..29) : getRandomItem(30..80),
         illuminance: getRandomItem(1..100),
         (sHUMID): getRandomItem(1..100),
@@ -4320,7 +4324,7 @@ static String webCore_icon(){ return "https://raw.githubusercontent.com/ady624/w
 
 Double getDevValueAvg(List devs, String attr) {
     List<Double> vals = devs?.findAll {
-        Double t = it?."current${attr?.capitalize()}"?.toDouble()
+        Double t = it?.currentValue(attr)?.toDouble()
         (t != null /* && t != 0 */ ) }?.collect { t }
     return vals?.size() ? (vals.sum()/vals.size()).round(1).toDouble() : null
 }
@@ -4366,52 +4370,52 @@ Boolean areAllDevsSame(List devs, String attr, val) {
 
 Boolean allDevCapValsEqual(List devs, String cap, val) {
     if(devs) {
-        if(val instanceof List) return (devs.findAll { it?."current${cap?.capitalize()}" in val }?.size() == devs?.size())
-        else return (devs.findAll { it?."current${cap?.capitalize()}" == val }?.size() == devs?.size())
+        if(val instanceof List) return (devs.findAll { it?.currentValue(cap) in val }?.size() == devs?.size())
+        else return (devs.findAll { it?.currentValue(cap) == val }?.size() == devs?.size())
     }
     return false
 }
 
 Boolean anyDevCapValsEqual(List devs, String cap, val) {
     if(devs && cap && val) {
-        if(val instanceof List) return (devs.findAll { it?."current${cap?.capitalize()}" in (List)val }?.size() >= 1)
-        else return (devs.findAll { it?."current${cap?.capitalize()}" == val }?.size() >= 1)
+        if(val instanceof List) return (devs.findAll { it?.currentValue(cap) in (List)val }?.size() >= 1)
+        else return (devs.findAll { it?.currentValue(cap) == val }?.size() >= 1)
     }
     return false
 }
 
 Boolean anyDevCapNumValAbove(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() > val }?.size() >= 1) : false
+    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() > val }?.size() >= 1) : false
 }
 Boolean anyDevCapNumValBelow(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() < val }?.size() >= 1) : false
+    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() < val }?.size() >= 1) : false
 }
 Boolean anyDevCapNumValBetween(List devs, String cap, Double low, Double high) {
     return (devs && cap && low && high) ? (devs?.findAll {
-        Double t = it?."current${cap?.capitalize()}"?.toDouble()
+        Double t = it?.currentValue(cap)?.toDouble()
         ( (t >= low) && (t <= high) ) }?.size() >= 1) : false
 }
 Boolean anyDevCapNumValEqual(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val }?.size() >= 1) : false
+    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() == val }?.size() >= 1) : false
 }
 
 Boolean allDevCapNumValsAbove(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() > val }?.size() == devs?.size()) : false
+    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() > val }?.size() == devs?.size()) : false
 }
 Boolean allDevCapNumValsBelow(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() < val }?.size() == devs?.size()) : false
+    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() < val }?.size() == devs?.size()) : false
 }
 Boolean allDevCapNumValsBetween(List devs, String cap, Double low, Double high) {
     return (devs && cap && low && high) ? (devs?.findAll {
-        Double t = it?."current${cap?.capitalize()}"?.toDouble()
+        Double t = it?.currentValue(cap)?.toDouble()
         ( (t >= low) && (t <= high) ) }?.size() == devs?.size()) : false
 }
 Boolean allDevCapNumValsEqual(List devs, String cap, Double val) {
-    return (devs && cap && val) ? (devs?.findAll { it?."current${cap?.capitalize()}"?.toDouble() == val }?.size() == devs?.size()) : false
+    return (devs && cap && val) ? (devs?.findAll { it?.currentValue(cap)?.toDouble() == val }?.size() == devs?.size()) : false
 }
 
 Boolean devCapValEqual(List devs, String devId, String cap, val) {
-    if(devs) { return (devs.find { it?."current${cap?.capitalize()}" == val }) }
+    if(devs) { return (devs.find { it?.currentValue(cap) == val }) }
     return false
 }
 
@@ -4726,7 +4730,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                     List devs = settings."${sPre}${evt}" ?: null
                     if(devs){
                         List myV = []
-                        if(!addFoot) devs.each { dev -> myV.push(dev?."current${evt.capitalize()}"?.toString()) }
+                        if(!addFoot) devs.each { dev -> myV.push(dev?.currentValue(evt)?.toString()) }
                         str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
                     }
 
@@ -5205,12 +5209,9 @@ private captureLightState(List devs) {
         devs.each { dev->
             String dId = dev?.id
             sMap[dId] = [:]
-            if(dev?.hasAttribute(sSWITCH)) { sMap[dId]?.switch = dev?.currentSwitch }
-            if(dev?.hasAttribute(sLEVEL)) { sMap[dId]?.level = dev?.currentLevel }
-            if(dev?.hasAttribute("hue")) { sMap[dId]?.hue = dev?.currentHue }
-            if(dev?.hasAttribute("saturation")) { sMap[dId]?.saturation = dev?.currentSaturation }
-            if(dev?.hasAttribute("colorTemperature")) { sMap[dId]?.colorTemperature = dev?.currentColorTemperature }
-            if(dev?.hasAttribute("color")) { sMap[dId]?.color = dev?.currentColor }
+            [sSWITCH, sLEVEL, "hue", "saturation", "colorTemperature", "color"].each { String att ->
+                if(dev?.hasAttribute(att)) { sMap[dId]."${att}" = dev?.currentValue(att) }
+            }
         }
     }
     //ERS
@@ -5219,7 +5220,6 @@ private captureLightState(List devs) {
 }
 
 private restoreLightState(List devs) {
-    //ERS
     Map sMap = atomicState.light_restore_map
     if(devs && sMap?.size()) {
         devs.each { dev->
