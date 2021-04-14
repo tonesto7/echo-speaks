@@ -333,7 +333,7 @@ def namePage() {
 }
 
 def actionHistoryPage() {
-    return dynamicPage(name: "actionHistoryPage", install: false, uninstall: false) {
+    return dynamicPage(name: "actionHistoryPage", title: "Action History", install: false, uninstall: false) {
         section() {
             getActionHistory()
         }
