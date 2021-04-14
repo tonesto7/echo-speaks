@@ -16,6 +16,7 @@
  */
 
 import groovy.transform.Field
+
 @Field static final String appVersionFLD  = "4.1.5.0"
 @Field static final String appModifiedFLD = "2021-04-14"
 @Field static final String branchFLD      = "master"
@@ -578,14 +579,14 @@ void handleZoneDevice() {
         try {
             deleteChildDevice(childDevice.deviceNetworkId)
         } catch(e) {
-            logError("RemoveDevice Error! } ${e}", false, ex)
+            logError("RemoveDevice Error! } ${e}", false, e)
         }
     }
 }
 
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { !(Boolean)it?.isWS() && (Boolean)it?.isZone() }
+    return getChildDevices()?.findAll { (Boolean)it?.isZone() }
 }
 
 void updateChildZoneState(Boolean zoneActive, Boolean active) {
@@ -1444,7 +1445,7 @@ static String attUnit(String attr) {
 }
 /*
 Double getDevValueAvg(devs, attr) {
-    List vals = devs?.findAll { it?."current${attr?.capitalize()}"?.isNumber() }?.collect { it?."current${attr?.capitalize()}" as Double }
+    List vals = devs?.findAll { it?.currentValue(attr)?.isNumber() }?.collect { it?.currentValue(attr).toDouble() }
     return vals?.size() ? (vals?.sum()/vals?.size())?.round(1) as Double : null
 } */
 
@@ -1473,58 +1474,58 @@ Boolean isInAlarmMode(List modes) {
 }
 /*
 Boolean areAllDevsSame(List devs, String attr, val) {
-    if(devs && attr && val) { return (devs?.findAll { it?.currentValue(attr) == val as String }?.size() == devs?.size()) }
+    if(devs && attr) { return (devs?.findAll { it?.currentValue(attr) == val as String }?.size() == devs?.size()) }
     return false
 } */
 
 Boolean allDevAttValsEqual(List devs, String att, val) {
-    if(devs) {
-        if(val instanceof List) return (devs.findAll { it?."current${att?.capitalize()}" in val }?.size() == devs.size())
-        else return (devs.findAll { it?."current${att?.capitalize()}" == val }?.size() == devs.size())
+    if(devs && att) {
+        if(val instanceof List) return (devs.findAll { it?.currentValue(att) in val }?.size() == devs.size())
+        else return (devs.findAll { it?.currentValue(att) == val }?.size() == devs.size())
     }
     return false
 }
 
 Boolean anyDevAttValsEqual(List devs, String att, val) {
-    if(devs && att && val) {
-        if(val instanceof List) return (devs.findAll { it?."current${att?.capitalize()}" in (List)val }?.size() >= 1)
-        else return (devs.findAll { it?."current${att?.capitalize()}" == val }?.size() >= 1)
+    if(devs && att) {
+        if(val instanceof List) return (devs.findAll { it?.currentValue(att) in (List)val }?.size() >= 1)
+        else return (devs.findAll { it?.currentValue(att) == val }?.size() >= 1)
     }
     return false
 }
 
 Boolean anyDevAttNumValAbove(List devs, String att, Double val) {
-    return (devs && att && val) ? (devs?.findAll { it?."current${att?.capitalize()}"?.toDouble() > val }?.size() >= 1) : false
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() > val }?.size() >= 1) : false
 }
 Boolean anyDevAttNumValBelow(List devs, String att, Double val) {
-    return (devs && att && val) ? (devs?.findAll { it?."current${att?.capitalize()}"?.toDouble() < val }?.size() >= 1) : false
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() < val }?.size() >= 1) : false
 }
 Boolean anyDevAttNumValBetween(List devs, String att, Double low, Double high) {
-    return (devs && att && low && high) ? (devs?.findAll {
-        Double t = it?."current${att?.capitalize()}"?.toDouble()
+    return (devs && att && (low < high)) ? (devs?.findAll {
+        Double t = it?.currentValue(att)?.toDouble()
         ( (t >= low) && (t <= high) ) }?.size() >= 1) : false
 }
 Boolean anyDevAttNumValEqual(List devs, String att, Double val) {
-    return (devs && att && val) ? (devs?.findAll { it?."current${att?.capitalize()}"?.toDouble() == val }?.size() >= 1) : false
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() == val }?.size() >= 1) : false
 }
 
 Boolean allDevAttNumValsAbove(List devs, String att, Double val) {
-    return (devs && att && val) ? (devs?.findAll { it?."current${att?.capitalize()}"?.toDouble() > val }?.size() == devs?.size()) : false
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() > val }?.size() == devs?.size()) : false
 }
 Boolean allDevAttNumValsBelow(List devs, String att, Double val) {
-    return (devs && att && val) ? (devs?.findAll { it?."current${att?.capitalize()}"?.toDouble() < val }?.size() == devs?.size()) : false
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() < val }?.size() == devs?.size()) : false
 }
 Boolean allDevAttNumValsBetween(List devs, String att, Double low, Double high) {
-    return (devs && att && low && high) ? (devs?.findAll {
-        Double t = it?."current${att?.capitalize()}"?.toDouble()
+    return (devs && att && (low < high)) ? (devs?.findAll {
+        Double t = it?.currentValue(att)?.toDouble()
         ( (t >= low) && (t <= high) ) }?.size() == devs?.size()) : false
 }
 Boolean allDevAttNumValsEqual(List devs, String att, Double val) {
-    return (devs && att && val) ? (devs?.findAll { it?."current${att?.capitalize()}"?.toDouble() == val }?.size() == devs?.size()) : false
+    return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() == val }?.size() == devs?.size()) : false
 }
 /*
-Boolean devCapValEqual(List devs, String devId, String att, val) {
-    if(devs) { return (devs.find { it?."current${att?.capitalize()}" == val }) }
+Boolean devAttValEqual(List devs, String devId, String att, val) {
+    if(devs && att) { return (devs.find { it?.currentValue(att) == val }) }
     return false
 } */
 
@@ -1876,7 +1877,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                     List devs = settings."${sPre}${att}" ?: null
                     if(devs){
                         List myV = []
-                        if(!addFoot) devs.each { dev -> myV.push(it?."current${att.capitalize()}") }
+                        if(!addFoot) devs.each { dev -> myV.push(it?.currentValue(att)) }
                         str += spanSmBr(" ${sBULLET} ${att?.capitalize()} (${settings."${sPre}${att}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
                     }
 
