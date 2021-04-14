@@ -7241,8 +7241,6 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         // Amazon Devices
         "A3C9PE6TNYLTCH" : [ i: "echo_wha", n: "Multiroom" ],
 
-        
-
         // Amazon FireTV's
         "A12GXV8XMS007S" : [ c: [ "a", "t" ], i: "firetv_gen1", n: "Fire TV (Gen1)" ],
         "A2E0SNTXJVT7WK" : [ c: [ "a", "t" ], i: "firetv_gen2", n: "Fire TV (Gen2)" ],
