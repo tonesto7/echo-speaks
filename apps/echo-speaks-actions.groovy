@@ -333,7 +333,7 @@ def namePage() {
 }
 
 def actionHistoryPage() {
-    return dynamicPage(name: "actionHistoryPage", install: false, uninstall: false) {
+    return dynamicPage(name: "actionHistoryPage", title: "Action History", install: false, uninstall: false) {
         section() {
             getActionHistory()
         }
@@ -1754,7 +1754,8 @@ private flashLights(data) {
 
 @SuppressWarnings('unused')
 private restoreLights(data) {
-    if(data?.type && settings."${data.type}lights") { restoreLightState((List)settings."${data.type}lights") }
+    String p = data?.type ?: sNULL
+    if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights") }
 }
 
 Boolean isActDevContConfigured() {
@@ -2701,8 +2702,12 @@ void afterEvtCheckHandler() {
                     timeLeft = reqDur
                     // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
                     def devs = settings."trig_${nextVal.name}" ?: null
-                    Boolean skipEvt = (nextVal.triggerState && nextVal.deviceId && nextVal.name && devs) ?
-                            !devAttValEqual(devs, nextVal.deviceId as String, (String)nextVal.name, nextVal.triggerState) : true
+                    Boolean skipEvt = true
+                    if(nextVal.triggerState && nextVal.deviceId && nextVal.name && devs) {
+                        String en = (String)nextVal.name
+                        en = en == "thermostatTemperature" ? sTEMP : en
+                        skipEvt = !devAttValEqual(devs, nextVal.deviceId as String, en, nextVal.triggerState)
+                    }
                     Boolean skipEvtCnt = (repeatCntMax && (repeatCnt > repeatCntMax))
                     aEvtMap[nextId]?.timeLeft = timeLeft
                     if(!skipEvt && !skipEvtCnt) {
@@ -2714,7 +2719,7 @@ void afterEvtCheckHandler() {
                             releaseTheLock(sHMLF)
                             state.afterEvtMap = aEvtMap
                             hasLock = false
-                            Map<String,Object> tt=[date: parseDate(nextVal?.repeatDt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap]
+                            Map<String,Object> tt=[date: parseDate(nextVal.repeatDt?.toString()), deviceId: nextVal.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap]
                             deviceEvtHandler(tt, true, isRepeat)
                         } else {
                             aEvtMap.remove(nextId)
@@ -2722,17 +2727,18 @@ void afterEvtCheckHandler() {
                             releaseTheLock(sHMLF)
                             state.afterEvtMap = aEvtMap
                             hasLock = false
-                            logDebug("Wait Threshold (${reqDur} sec) Reached for ${nextVal?.displayName} (${nextVal?.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal?.triggerState}) | EvtDuration: ${fullElap}")
-                            Map<String,Object> tt = [date: parseDate(nextVal?.dt?.toString()), deviceId: nextVal?.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data]
+                            logDebug("Wait Threshold (${reqDur} sec) Reached for ${nextVal.displayName} (${nextVal.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal.triggerState}) | EvtDuration: ${fullElap}")
+                            Map<String,Object> tt = [date: parseDate(nextVal.dt?.toString()), deviceId: nextVal.deviceId as String, displayName: nextVal.displayName, name: nextVal.name, value: nextVal.value, type: nextVal.type, data: nextVal.data]
                             deviceEvtHandler(tt, true)
                         }
                     } else {
                         aEvtMap.remove(nextId)
                         updMemStoreItem("afterEvtMap", aEvtMap)
+                        String msg1 = "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) "
                         if(!skipEvt && skipEvtCnt) {
-                            logDebug("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) has repeated ${repeatCntMax} times | Skipping Action Repeat...")
+                            logDebug(msg1 + "has repeated ${repeatCntMax} times | Skipping Action Repeat...")
                         } else {
-                            logDebug("${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) state is already ${nextVal?.triggerState} | Skipping Action...")
+                            logDebug(msg1 + "state is already ${nextVal?.triggerState} | Skipping Action...")
                         }
                     }
                 }
@@ -3014,6 +3020,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
     logDebug("deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}")
     if(devs?.size() && cmd && evt?.value?.toString()?.isNumber()) {
         String en = (String)evt?.name
+        en = en == "thermostatTemperature" ? sTEMP : en
         Double evtValue = (dcavg ? getDevValueAvg(devs, en) : evt?.value) as Double
         // log.debug "evtValue: ${evtValue}"
         switch(cmd) {
@@ -3568,7 +3575,7 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                     String t0 = getAttrPostfix(evntName)
                     String postfix = t0 ?: sBLANK
                     if(evtAd && devs?.size()>1) {
-                        return "All ${devs?.size()}${!evt?.displayName?.toLowerCase()?.contains(evntName) ? " ${evntName}" : sBLANK} devices are ${evt?.value} ${postfix}"
+                        return "All ${devs.size()}${!evt?.displayName?.toLowerCase()?.contains(evntName) ? " ${evntName}" : sBLANK} devices are ${evt?.value} ${postfix}"
                     } else {
                         return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evntName) ? " ${evntName}" : sBLANK} is ${evt?.value} ${postfix}"
                     }
@@ -3906,7 +3913,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 
 @SuppressWarnings('unused')
 private postTaskCommands(data) {
-    if(data?.type && settings."${data.type}sirens" && (String)settings."${data.type}siren_cmd") { settings."${data.type}sirens"*.off() }
+    String p = data?.type ?: sNULL
+    if(p && settings."${p}sirens" && (String)settings."${p}siren_cmd") { settings."${p}sirens"*.off() }
 }
 
 Map getInputData(String inName) {
