@@ -1754,7 +1754,8 @@ private flashLights(data) {
 
 @SuppressWarnings('unused')
 private restoreLights(data) {
-    if(data?.type && settings."${data.type}lights") { restoreLightState((List)settings."${data.type}lights") }
+    String p = data?.type ?: sNULL
+    if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights") }
 }
 
 Boolean isActDevContConfigured() {
@@ -3912,7 +3913,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 
 @SuppressWarnings('unused')
 private postTaskCommands(data) {
-    if(data?.type && settings."${data.type}sirens" && (String)settings."${data.type}siren_cmd") { settings."${data.type}sirens"*.off() }
+    String p = data?.type ?: sNULL
+    if(p && settings."${p}sirens" && (String)settings."${p}siren_cmd") { settings."${p}sirens"*.off() }
 }
 
 Map getInputData(String inName) {
