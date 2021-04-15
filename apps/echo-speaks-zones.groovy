@@ -221,7 +221,7 @@ private echoDevicesInputByPerm(String type) {
 }
 
 def zoneHistoryPage() {
-    return dynamicPage(name: "zoneHistoryPage", install: false, uninstall: false) {
+    return dynamicPage(name: "zoneHistoryPage", title: "Zone History", install: false, uninstall: false) {
         section() {
             getZoneHistory()
         }
