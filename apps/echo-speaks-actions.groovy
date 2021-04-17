@@ -192,7 +192,7 @@ private Map buildTriggerEnum() {
     buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
     buildItems["Thermostat Devices"] = ["coolingSetpoint":"Thermostat Cooling Setpoint", "heatingSetpoint":"Thermostat Heating Setpoint", "thermostatTemperature":"Thermostat Ambient Temp", "thermostatOperatingState":"Thermostat Operating State", "thermostatMode":"Thermostat Mode", "thermostatFanMode":"Thermostat Fan Mode"]?.sort{ it?.value }
     buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
-    buildItems["Safety & Security"] = ["alarm": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
+    buildItems["Safety & Security"] = ["alarmSystemStatus": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
@@ -450,16 +450,16 @@ def triggersPage() {
                 }
             }
 
-            if (valTrigEvt("alarm")) {
+            if (valTrigEvt("alarmSystemStatus")) {
                 section (sectHead("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events"), hideable: true) {
-                    input "trig_alarm", sENUM, title: inTS1("${getAlarmSystemName()} Modes", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true
-                    if(!("alerts" in (List)settings.trig_alarm)) {
-                        input "trig_alarm_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true
+                    input "trig_alarmSystemStatus", sENUM, title: inTS1("${getAlarmSystemName()} Modes", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true
+                    if("alerts" in (List)settings.trig_alarmSystemStatus) {
+                        input "trig_alarmSystemStatus_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true
                     }
-                    if((List)settings.trig_alarm) {
-                        // input "trig_alarm_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        // input "trig_alarm_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
-                        triggerVariableDesc("alarm", false, trigItemCnt++)
+                    if((List)settings.trig_alarmSystemStatus) {
+                        input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        triggerVariableDesc("alarmSystemStatus", false, trigItemCnt++)
                     }
                 }
             }
@@ -783,7 +783,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
 }
 
 Boolean locationTriggers() {
-    return  (valTrigEvt(sMODE) && (List)settings.trig_mode) || (valTrigEvt("alarm") && (List)settings.trig_alarm) ||
+    return  (valTrigEvt(sMODE) && (List)settings.trig_mode) || (valTrigEvt("alarmSystemStatus") && (List)settings.trig_alarmSystemStatus) ||
         (valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) ||
         (valTrigEvt("guard") && settings.trig_guard)
 }
@@ -859,7 +859,7 @@ def conditionsPage() {
             }
         }
         section (sectHead("Alarm Conditions")) {
-            input "cond_alarm", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true
+            input "cond_alarmSystemStatus", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true
         }
 
         condNonNumSect(sSWITCH, sSWITCH, "Switches/Outlets Conditions", "Switches/Outlets", lONOFF, "are", sSWITCH)
@@ -1376,7 +1376,7 @@ def actionsPage() {
                             //     input "act_alarm_rt", sENUM, title: inTS1("Repeat (Optional)", sCOMMAND), description: sBLANK, options: repeatOpts, required: true, submitOnChange: true
                             //     if(settings."act_alarm_rt") {
                             //         rptType = settings.act_alarm_rt
-                            //         if(settings."act_alarm_rt" == "daysofweek") {
+                            //         if(settings.act_alarm_rt == "daysofweek") {
                             //             input "act_alarm_rt_wd", sENUM, title: inTS1("Weekday", sCHKBOX), description: sBLANK, options: weekDaysAbrvEnum(), multiple: true, required: true, submitOnChange: true
                             //             if(settings.act_alarm_rt_wd) rptTypeOpts = settings.act_alarm_rt_wd
                             //         }
@@ -2082,6 +2082,26 @@ def initialize() {
         return
     }
     updDeviceInputs()
+
+// convert old alarm / hsm settings to new;  as attribute 'alarm' belongs to capability.alarm todo this will go away if we offer alarm attribute
+    if(settings.trig_alarm && !settings.trig_alarmSystemStatus){
+        settings.trig_alarmSystemStatus = settings.trig_alarm
+        if(settings.trig_alarm_events && !settings.trig_alarmSystemStatus_events){
+            settings.trig_alarmSystemStatus_events = settings.trig_alarm_events
+        }
+        settingRemove("trig_alarm")
+        settingRemove("trig_alarm_events")
+
+        ["wait", "all", "cmd", "once", "after", "txt", "nums"]?.each { ei->
+            if(settings."trig_alarm_${ei}") settings."trig_alarmSystemStatus_${ei}" = settings."trig_alarm_${ei}"
+            settingRemove("trig_alarm_${ei}")
+        }
+    }
+    if(settings.cond_alarm && !settings.cond_alarmSystemStatus){
+        settings.cond_alarmSystemStatus = settings.cond_alarm
+        settingRemove("cond_alarm")
+    }
+
     unsubscribe()
     unschedule()
     state.isInstalled = true
@@ -2383,10 +2403,10 @@ void subscribeToEvts() {
                     // Alexa Guard Status Events
                     if(settings.trig_guard) state.handleGuardEvents = true
                     break
-                case "alarm":
+                case "alarmSystemStatus":
                     // Location Alarm Events
                     subscribe(location, "hsmStatus", alarmEvtHandler)
-                    if("alerts" in (List)settings.trig_alarm) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
+                    if("alerts" in (List)settings.trig_alarmSystemStatus) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                     break
                 case sMODE:
                     // Location Mode Events
@@ -2518,27 +2538,31 @@ def alarmEvtHandler(evt) {
     Long evtDelay = now() - evt?.date?.getTime()
     String eN = (String)evt?.name
     def eV = evt?.value
-    logTrace( "${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
-    if(!(List)settings.trig_alarm) return
+    logTrace("${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
+    if(!(List)settings.trig_alarmSystemStatus) return
     Boolean ok2Run = true
     switch(eN) {
         case "hsmStatus":
         case "alarmSystemStatus":
-            if(!(eV in (List)settings.trig_alarm)) ok2Run = false
+            if(!(eV in (List)settings.trig_alarmSystemStatus)) ok2Run = false
             break
         case "hsmAlert":
-            if (!("alerts" in (List)settings.trig_alarm)) ok2Run = false
-            if (!(eV in (List)settings.trig_alarm_events)) ok2Run = false
+            if (!("alerts" in (List)settings.trig_alarmSystemStatus)) ok2Run = false
+            else if (!(eV in (List)settings.trig_alarmSystemStatus_events)) ok2Run = false
             break
         default:
             ok2Run = false
     }
     if(ok2Run) {
+        Boolean dco = ((Boolean)settings.trig_alarmSystemStatus_once == true)
+        Integer dcw = (Integer)settings.trig_alarmSystemStatus_wait ?: null
+        eventCompletion(evt, "alarmSystemStatus", dco, dcw, "alarmEvtHandler(${evt?.name})", eV, (String)evt?.displayName)
+ /*   if(ok2Run) {
         if(getConfStatusItem("tiers")) {
             processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "alarmEvtHandler(${evt?.name})", false, false) }
+        } else { executeAction(evt, false, "alarmEvtHandler(${evt?.name})", false, false) } */
     } else {
-        logDebug("alarmEvtHandler | Skipping event $eN  value: $eV,  did not match ${settings.trig_alarm}")
+        logDebug("alarmEvtHandler | Skipping event $eN  value: $eV, did not match ${settings.trig_alarmSystemStatus} ${settings.trig_alarmSystemStatus_events}")
     }
 }
 
@@ -3235,10 +3259,10 @@ Boolean locationCondOk() {
     Boolean result = null
     Boolean mOk
     Boolean aOk
-    if((List)settings.cond_mode || (String)settings.cond_mode_cmd || (List)settings.cond_alarm) {
+    if((List)settings.cond_mode || (String)settings.cond_mode_cmd || (List)settings.cond_alarmSystemStatus) {
         Boolean reqAll = reqAllCond()
         mOk = ((List)settings.cond_mode /*&& (String)settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, ((String)settings.cond_mode_cmd == "not"))) : reqAll //true
-        aOk = (List)settings.cond_alarm ? isInAlarmMode((List)settings.cond_alarm) : reqAll //true
+        aOk = (List)settings.cond_alarmSystemStatus ? isInAlarmMode((List)settings.cond_alarmSystemStatus) : reqAll //true
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
     logTrace("locationCondOk | $result | modeOk: $mOk | alarmOk: $aOk")
@@ -3362,7 +3386,7 @@ Boolean locationModeConfigured() {
 }
 
 Boolean locationAlarmConfigured() {
-    return ((List)settings.cond_alarm)
+    return ((List)settings.cond_alarmSystemStatus)
 }
 
 Boolean deviceCondConfigured() {
@@ -3442,7 +3466,7 @@ Map getRandomTrigEvt() {
         (sBATT): getRandomItem(1..100),
         (sPOWER): getRandomItem(100..3000),
         (sMODE): getRandomItem((List)location?.modes),
-        alarm: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
+        alarmSystemStatus: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
         thermostatTemperature: isC ? getRandomItem(10..33) : getRandomItem(50..90),
         coolingSetpoint: isC ? getRandomItem(10..33) : getRandomItem(50..90),
@@ -3463,9 +3487,9 @@ Map getRandomTrigEvt() {
 static String convEvtType(String type) {
     Map typeConv = [
         "pistonExecuted": "Piston",
-        "alarmSystemStatus": "Alarm system",
-        "hsmStatus": "Alarm system",
-        "hsmAlert": "Alarm system"
+        "alarmSystemStatus": "Alarm system status",
+        "hsmStatus": "Alarm system status",
+        "hsmAlert": "Alarm system alert"
     ]
     return (type && typeConv.containsKey(type)) ? typeConv[type] : type
 }
@@ -3547,7 +3571,6 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                     return  "The ${evt?.displayName} piston was just executed!."
                 case "scene":
                     return  "The ${evt?.value} scene was just executed!."
-                case "alarm":
                 case "hsmStatus":
                 case "alarmSystemStatus":
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
@@ -4654,8 +4677,9 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                             str += settings."${sPre}${evt}_sunState_offset"     ? spanSmBr("    ${sBULLETINV} Offset: (${settings."${sPre}${evt}_sunState_offset"})")      : sBLANK
                         }
                         break
-                    case "alarm":
+                    case "alarmSystemStatus":
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + (List)settings."${sPre}${evt}" ? " (${((List)settings."${sPre}${evt}")?.size()} Selected)" : sBLANK)
+                        if ("alerts" in (List)settings."${sPre}${evt}") str += (List)settings."${sPre}${evt}_events"  ? spanSmBr("    ${sBULLETINV} Alert Events: (${(List)settings."${sPre}${evt}_events"})") : sBLANK
                         str += (Boolean)settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
                         break
                     case "pistonExecuted":
@@ -4724,10 +4748,10 @@ String getConditionsDesc(Boolean addFoot=true) {
             str += (List)settings.cond_days    ? spanSmBr("    - Days Allowed: ${(List)settings.cond_days} " + getOkOrNotSymHTML(isDayOfWeek((List)settings.cond_days))) : sBLANK
             str += (List)settings.cond_months  ? spanSmBr("    - Months Allowed: ${(List)settings.cond_months} " + getOkOrNotSymHTML(isMonthOfYear((List)settings.cond_months)))  : sBLANK
         }
-        if((List)settings.cond_alarm || ((List)settings.cond_mode)) {
+        if((List)settings.cond_alarmSystemStatus || ((List)settings.cond_mode)) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
             String a = location?.hsmStatus ?: "disarmed"
-            str += (List)settings.cond_alarm ? spanSmBr("    - Alarm Mode ${a} in: ${(List)settings.cond_alarm} " + getOkOrNotSymHTML(isInAlarmMode((List)settings.cond_alarm))) : sBLANK
+            str += (List)settings.cond_alarmSystemStatus ? spanSmBr("    - Alarm Mode ${a} in: ${(List)settings.cond_alarmSystemStatus} " + getOkOrNotSymHTML(isInAlarmMode((List)settings.cond_alarmSystemStatus))) : sBLANK
             Boolean not = ((String)settings.cond_mode_cmd == "not")
             str += (List)settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${(List)settings.cond_mode} " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
         }
