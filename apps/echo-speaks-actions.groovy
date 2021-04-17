@@ -384,8 +384,8 @@ def triggersPage() {
         if (trigEvtCnt) {
             Integer trigItemCnt = 0
             Boolean fnd = false
-            if( "scheduled" in (List<String>)settings.triggerEvents ||
-                   sWEATH in (List<String>)settings.triggerEvents) { fnd = true }
+            //if( "scheduled" in (List<String>)settings.triggerEvents ||
+            //       sWEATH in (List<String>)settings.triggerEvents) { fnd = true }
             /*((List<String>)settings.triggerEvents)?.each { String tr ->
                 if(tr in ["scheduled", sWEATH]) { fnd = true }
             } */
@@ -443,6 +443,7 @@ def triggersPage() {
                                 input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false
                                 break
                         }
+                        triggerVariableDesc("scheduled", false, trigItemCnt++)
                     }
                 }
             }
@@ -1138,14 +1139,15 @@ void tierItemCleanup() {
     if(rem.size()) { logDebug("tierItemCleanup | Removing: ${rem}"); rem.each { settingRemove(it) } }
 }
 
-def actTextOrTiersInput(String type) {
+def actTextOrTiersInput(String type, Boolean req=false) {
     if(isTierAction()) {
         String tDesc = getTierRespDesc()
         href "actionTiersPage", title: inTS1("Create Tiered Responses?", sTEXT, (tDesc ? sCLR4D9 : sCLRRED)), description: (tDesc ? divSm(tDesc + inputFooter(sTTM), sCLR4D9) : inputFooter(sTTC, sCLRGRY))
         input "act_tier_stop_on_clear", sBOOL, title: inTS1("Stop responses when trigger is cleared?"), required: false, defaultValue: false, submitOnChange: true
     } else {
         String textUrl = parent?.getTextEditorPath(app?.id as String, type)
-        href url: textUrl, style: sEXTNRL, title: inTS1("Default Action Response", sTEXT) + optPrefix(), description: (String)settings."${type}" ? spanSm((String)settings."${type}", sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY, true)
+        String addr = !req ? optPrefix() : sBLANK
+        href url: textUrl, style: sEXTNRL, title: inTS1("Default Action Response", sTEXT) + addr, description: (String)settings."${type}" ? spanSm((String)settings."${type}", sCLR4D9) : inputFooter("Open Response Designer...", sCLRGRY, true)
     }
 }
 
@@ -1192,7 +1194,7 @@ def actionsPage() {
                             actTextOrTiersInput("act_announcement_txt")
                         }
                         actionVolumeInputs(devices)
-                        actionExecMap.config[myactionType] = [text: (String)settings.act_announcement_txt, evtText: ((state.showSpeakEvtVars && !(String)settings.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
+                        actionExecMap.config[myactionType] = [text: (String)settings.act_announcement_txt, evtText: ((state.showSpeakEvtVars && !(String)settings.act_announcement_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
                         if(settings.act_EchoDevices?.size() > 1) {
                             List devObj = []
                             devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
