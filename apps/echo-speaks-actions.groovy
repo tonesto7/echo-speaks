@@ -164,7 +164,6 @@ def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBldBr((String)app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
-    str += lineBr() + getOverallDesc()
     section() { paragraph divSm(str, sCLRGRY) }
 }
 /*
@@ -233,6 +232,8 @@ def mainPage() {
                 paragraph spanSmBld("This Action is currently in a paused state...<br>To edit the please un-pause", sCLRRED, "pause_orange")
             }
         } else {
+            section() { paragraph divSm(getOverallDesc(), sCLRGRY) }
+
             if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
             trigConf = triggersConfigured()
             //condConf = conditionsConfigured()
