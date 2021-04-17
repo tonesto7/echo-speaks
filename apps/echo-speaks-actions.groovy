@@ -188,6 +188,7 @@ private Map buildTriggerEnum() {
         buildItems.Location.remove("pistonExecuted")
     }
     buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
+// todo siren (capability.alarm, attr alarm)
     buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
     buildItems["Thermostat Devices"] = ["coolingSetpoint":"Thermostat Cooling Setpoint", "heatingSetpoint":"Thermostat Heating Setpoint", "thermostatTemperature":"Thermostat Ambient Temp", "thermostatOperatingState":"Thermostat Operating State", "thermostatMode":"Thermostat Mode", "thermostatFanMode":"Thermostat Fan Mode"]?.sort{ it?.value }
     buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
@@ -265,6 +266,7 @@ def mainPage() {
                         String t0 = getAppNotifDesc()
                         href "actNotifPage", title: inTS1("Send Notifications", "notification2"), description: t0 ? divSm(t0 + inputFooter(sTTM), sCLR4D9) : inactFoot(sTTC)
                     }
+
                     getTierStatusSection()
 
                     section(sectHead("Action History")) {
@@ -1568,6 +1570,7 @@ def actTrigTasksPage(params) {
                     break
             }
         }
+    //buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
         if(!settings.enableWebCoRE) {
             section (sectHead("Enable webCoRE Integration:")) {
                 input "enableWebCoRE", sBOOL, title: inTS("Enable webCoRE Integration", webCore_icon()), required: false, defaultValue: false, submitOnChange: true
@@ -2371,7 +2374,7 @@ void subscribeToEvts() {
                     if (schedulesConfigured()) {
                         if((String)settings.trig_scheduled_type in [sCSUNRISE, sCSUNSET]) {
                             scheduleSunriseSet()
-                            schedule('29 0 0 1/1 * ? * ', scheduleSunriseSet)  // run at 00:00:24 every day
+                            schedule('29 0 0 1/1 * ? * ', scheduleSunriseSet)  // run at 00:00:29 every day
                         }
                         else if((String)settings.trig_scheduled_type in ["One-Time", "Recurring"] && settings.trig_scheduled_time) { schedule(cronBuilder(), "scheduleTrigEvt") }
                     }
@@ -2473,7 +2476,7 @@ def scheduleTrigEvt(evt=null) {
     if(!evt) {
         Date adate = new Date()
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-        evt = [name: "Schedule", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
+        evt = [name: "scheduled", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
     }
     Long evtDelay = now() - ((Date)evt.date).getTime()
     logTrace( "${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
@@ -2507,7 +2510,7 @@ def scheduleTrigEvt(evt=null) {
         executeAction(evt, false, "scheduleTrigEvt", false, false)
     } else {
         releaseTheLock(sHMLF)
-        logDebug("scheduleTrigEvt | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
+        logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
     }
 }
 
@@ -3555,7 +3558,7 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                 case "sunriseTime":
                 case "sunsetTime":
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
-                case "schedule":
+                case "scheduled":
                     return "Your scheduled event has occurred at ${evt?.value}"
                 case "smoke":
                 case "carbonMonoxide":
