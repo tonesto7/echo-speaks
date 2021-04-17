@@ -126,7 +126,6 @@ def appInfoSect()	{
     String str = spanBldBr((String)app.name, "black", "es_groups")
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
-    str += lineBr() + getOverallDesc()
     section() { paragraph divSm(str, sCLRGRY) }
 }
 
@@ -139,12 +138,14 @@ def mainPage() {
             section() { paragraph spanBld("This Zone was created from an existing zone.<br><br>Please review the settings and save to activate...<br>${state.badMode ?: sBLANK}", sCLRORG, "pause_orange") }
         }
         appInfoSect()
+
         Boolean paused = isPaused()
         if(paused) {
             section() {
                 paragraph spanSmBlr("This Zone is currently disabled...<br>To edit the please re-enable it.", sCLRRED, "pause_orange")
             }
         } else {
+            section() { paragraph divSm(getOverallDesc(), sCLRGRY) }
 
             section(sectHead("Zone Devices:")) {
                 echoDevicesInputByPerm('announce')
@@ -221,7 +222,7 @@ private echoDevicesInputByPerm(String type) {
 }
 
 def zoneHistoryPage() {
-    return dynamicPage(name: "zoneHistoryPage", install: false, uninstall: false) {
+    return dynamicPage(name: "zoneHistoryPage", title: "Zone History", install: false, uninstall: false) {
         section() {
             getZoneHistory()
         }
