@@ -1569,6 +1569,8 @@ def actTrigTasksPage(params) {
                     dMap = [def: " with Tier stop", delay: "Tier Stop tasks"]
                     paragraph spanSm("These tasks will be performed with when the last tier of action is triggered.<br>(Delay is optional)", sCLR4D9)
                     break
+                default:
+                    logWarn("bad actTaskDesc t: ${t}", true)
             }
         }
     //buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
@@ -1656,6 +1658,7 @@ Boolean actTasksConfiguredByType(String pType) {
 
 private executeTaskCommands(data) {
     String p = data?.type ?: sNULL
+    logTrace("executeTaskCommands ${p} ${actTaskDesc(p)}")
 
     if((String)settings."${p}mode_run") { setLocationMode((String)settings."${p}mode_run") }
     if((String)settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: (String)settings."${p}alarm_run") }
@@ -2736,7 +2739,7 @@ void afterEvtCheckHandler() {
                     if(nextVal.triggerState && nextVal.deviceId && nextVal.name && devs) {
                         String en = (String)nextVal.name
                         en = en == "thermostatTemperature" ? sTEMP : en
-                        skipEvt = !devAttValEqual(devs, nextVal.deviceId as String, en, nextVal.triggerState)
+                        skipEvt = !devAttValEqual(devs, (String)nextVal.deviceId, en, nextVal.triggerState)
                     }
                     Boolean skipEvtCnt = (repeatCntMax && (repeatCnt > repeatCntMax))
                     aEvtMap[nextId]?.timeLeft = timeLeft
@@ -2749,7 +2752,7 @@ void afterEvtCheckHandler() {
                             releaseTheLock(sHMLF)
                             state.afterEvtMap = aEvtMap
                             hasLock = false
-                            Map<String,Object> tt=[date: parseDate(nextVal.repeatDt?.toString()), deviceId: nextVal.deviceId as String, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap]
+                            Map<String,Object> tt=[date: parseDate(nextVal.repeatDt?.toString()), deviceId: (String)nextVal.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap]
                             deviceEvtHandler(tt, true, isRepeat)
                         } else {
                             aEvtMap.remove(nextId)
@@ -2758,7 +2761,7 @@ void afterEvtCheckHandler() {
                             state.afterEvtMap = aEvtMap
                             hasLock = false
                             logDebug("Wait Threshold (${reqDur} sec) Reached for ${nextVal.displayName} (${nextVal.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal.triggerState}) | EvtDuration: ${fullElap}")
-                            Map<String,Object> tt = [date: parseDate(nextVal.dt?.toString()), deviceId: nextVal.deviceId as String, displayName: nextVal.displayName, name: nextVal.name, value: nextVal.value, type: nextVal.type, data: nextVal.data]
+                            Map<String,Object> tt = [date: parseDate(nextVal.dt?.toString()), deviceId: (String)nextVal.deviceId, displayName: nextVal.displayName, name: nextVal.name, value: nextVal.value, type: nextVal.type, data: nextVal.data]
                             deviceEvtHandler(tt, true)
                         }
                     } else {
@@ -5255,11 +5258,12 @@ private captureLightState(List devs) {
     }
     //ERS
     atomicState.light_restore_map = sMap
-    if(devModeFLD) log.debug "sMap: $sMap"
+    if(devModeFLD) log.debug "captureLightState: sMap: $sMap"
 }
 
 private restoreLightState(List devs) {
     Map sMap = atomicState.light_restore_map
+    if(devModeFLD) log.debug "restoreLightState: sMap: $sMap"
     if(devs && sMap?.size()) {
         devs.each { dev->
             if(sMap.containsKey(dev.id)) {
