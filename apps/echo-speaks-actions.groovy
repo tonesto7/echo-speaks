@@ -98,8 +98,9 @@ import groovy.transform.Field
 @Field static final List<String> lSUNRISESET   = ['sunrise', 'sunset']
 @Field static final List<String> lWETDRY       = ['wet', 'dry']
 @Field static final List<String> lLOCKUNL      = ['locked', 'unlocked']
-@Field static final List<String> lDETECTCLR    = ['detected', 'clear']
+@Field static final List<String> lDETECTCLR    = ['detected', 'clear', 'tested']
 @Field static final List<String> lPRES         = ['present', 'not present']
+@Field static final List<String> lSEC          = ['disarmed', 'armed home', 'armed away', 'unknown']
 
 static String appVersion()  { return appVersionFLD }
 
@@ -537,7 +538,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("securityKeypad")) {
-                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", ["disarmed", "armed home", "armed away", "unknown", sANY], sCHGTO, ["disarmed", "armed home", "armed away", "unknown"], sKEYPAD, trigItemCnt++, (!!(List)settings.trig_securityKeypad_Codes), (((String)settings.trig_securityKeypad && (String)settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
+                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", lSEC + lANY, sCHGTO, lSEC, sKEYPAD, trigItemCnt++, (!!(List)settings.trig_securityKeypad_Codes), (((String)settings.trig_securityKeypad && (String)settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
             }
 
             if (valTrigEvt("pushed")) {
@@ -876,7 +877,7 @@ def conditionsPage() {
 
         condNonNumSect(sLOCK, sLOCK, "Lock Conditions", "Smart Locks", lLOCKUNL, sARE, sLOCK)
 
-        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], sARE, sKEYPAD)
+        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", lSEC, sARE, sKEYPAD)
 
         condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", lOPNCLS, sARE, "garage_door")
 
@@ -915,7 +916,7 @@ static List<String> getThermModeOpts() {
 }
 
 static List<String> getThermOperStOpts() {
-    return ["cooling", "heating", "idle"]
+    return ["cooling", "heating", "idle", "fan only"]
 }
 
 static List<String> getThermFanOpts() {
@@ -3463,7 +3464,7 @@ Map getRandomTrigEvt() {
         (sCONTACT): getRandomItem(lOPNCLS),
         acceleration: getRandomItem(lACTINACT),
         (sLOCK): getRandomItem(lLOCKUNL +["unlocked with timeout"]),
-        securityKeypad: getRandomItem(["disarmed", "armed home", "armed away"]),
+        securityKeypad: getRandomItem(lSEC),
         (sWATER): getRandomItem(lWETDRY),
         presence: getRandomItem(lPRES),
         (sMOTION): getRandomItem(lACTINACT),
