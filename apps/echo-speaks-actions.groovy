@@ -65,6 +65,7 @@ import groovy.transform.Field
 @Field static final String sCHKBOX        = 'checkbox'
 @Field static final String sCOMMAND       = 'command'
 @Field static final String sANY           = 'any'
+@Field static final String sARE           = 'are'
 @Field static final String sBETWEEN       = 'between'
 @Field static final String sBELOW         = 'below'
 @Field static final String sABOVE         = 'above'
@@ -234,7 +235,7 @@ def mainPage() {
         } else {
             section() { paragraph divSm(getOverallDesc(), sCLRGRY) }
 
-            if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+            if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", sARE, sENUM) }
             trigConf = triggersConfigured()
             //condConf = conditionsConfigured()
             actConf = executionConfigured()
@@ -856,28 +857,28 @@ def conditionsPage() {
         section (sectHead("Mode Conditions")) {
             input "cond_mode", sMODE, title: inTS1("Location Modes...", sMODE), multiple: true, required: false, submitOnChange: true
             if((List)settings.cond_mode) {
-                input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"Not in these modes", "are":"In these Modes"], required: true, multiple: false, submitOnChange: true
+                input "cond_mode_cmd", sENUM, title: inTS1("are...", sCOMMAND), options: ["not":"Not in these modes", (sARE):"In these Modes"], required: true, multiple: false, submitOnChange: true
             }
         }
         section (sectHead("Alarm Conditions")) {
             input "cond_alarmSystemStatus", sENUM, title: inTS1("${getAlarmSystemName()} is...", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: false, submitOnChange: true
         }
 
-        condNonNumSect(sSWITCH, sSWITCH, "Switches/Outlets Conditions", "Switches/Outlets", lONOFF, "are", sSWITCH)
+        condNonNumSect(sSWITCH, sSWITCH, "Switches/Outlets Conditions", "Switches/Outlets", lONOFF, sARE, sSWITCH)
 
-        condNonNumSect(sMOTION, "motionSensor", "Motion Conditions", "Motion Sensors", lACTINACT, "are", sMOTION)
+        condNonNumSect(sMOTION, "motionSensor", "Motion Conditions", "Motion Sensors", lACTINACT, sARE, sMOTION)
 
-        condNonNumSect("presence", "presenceSensor", "Presence Conditions", "Presence Sensors", lPRES, "are", "presence")
+        condNonNumSect("presence", "presenceSensor", "Presence Conditions", "Presence Sensors", lPRES, sARE, "presence")
 
-        condNonNumSect(sCONTACT, "contactSensor", "Door, Window, Contact Sensors Conditions", "Contact Sensors", lOPNCLS, "are", sCONTACT)
+        condNonNumSect(sCONTACT, "contactSensor", "Door, Window, Contact Sensors Conditions", "Contact Sensors", lOPNCLS, sARE, sCONTACT)
 
-        condNonNumSect("acceleration", "accelerationSensor", "Accelerometer Conditions", "Accelerometer Sensors", lACTINACT, "are", "acceleration")
+        condNonNumSect("acceleration", "accelerationSensor", "Accelerometer Conditions", "Accelerometer Sensors", lACTINACT, sARE, "acceleration")
 
-        condNonNumSect(sLOCK, sLOCK, "Lock Conditions", "Smart Locks", lLOCKUNL, "are", sLOCK)
+        condNonNumSect(sLOCK, sLOCK, "Lock Conditions", "Smart Locks", lLOCKUNL, sARE, sLOCK)
 
-        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], "are", sKEYPAD)
+        condNonNumSect("securityKeypad", "securityKeypad", "Security Keypad Conditions", "Security Kepads", ["disarmed", "armed home", "armed away"], sARE, sKEYPAD)
 
-        condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", lOPNCLS, "are", "garage_door")
+        condNonNumSect("door", "garageDoorControl", "Garage Door Conditions", "Garage Doors", lOPNCLS, sARE, "garage_door")
 
         condNumValSect(sTEMP, "temperatureMeasurement", "Temperature Conditions", "Temperature Sensors", "Temperature", sTEMP)
 
@@ -887,13 +888,13 @@ def conditionsPage() {
 
         condNumValSect(sLEVEL, "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level (%)", sSPDKNB)
 
-        condNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water Sensors", lWETDRY, "are", sWATER)
+        condNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water Sensors", lWETDRY, sARE, sWATER)
 
         condNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER)
 
-        condNonNumSect("windowShade", "windowShade", "Window Shades", "Window Shades", lOPNCLS, "are", "shade")
+        condNonNumSect("windowShade", "windowShade", "Window Shades", "Window Shades", lOPNCLS, sARE, "shade")
 
-        condNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS, "are", sVALVE)
+        condNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS, sARE, sVALVE)
 
         condNumValSect(sBATT, sBATT, "Battery Level Conditions", "Batteries", "Level (%)", sBATT)
 
@@ -2425,7 +2426,7 @@ void subscribeToEvts() {
                     break
                 case sMODE:
                     // Location Mode Events
-                    if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+                    if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", sARE, sENUM) }
                     subscribe(location, sMODE, modeEvtHandler)
                     break
                 case "pistonExecuted":
@@ -3396,7 +3397,7 @@ Boolean dateCondConfigured() {
 }
 
 Boolean locationModeConfigured() {
-    if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", "are", sENUM) }
+    if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", sARE, sENUM) }
     return ((List)settings.cond_mode && (String)settings.cond_mode_cmd)
 }
 
