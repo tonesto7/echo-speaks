@@ -191,16 +191,16 @@ private Map buildTriggerEnum() {
     buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
     buildItems["Thermostat Devices"] = ["coolingSetpoint":"Thermostat Cooling Setpoint", "heatingSetpoint":"Thermostat Heating Setpoint", "thermostatTemperature":"Thermostat Ambient Temp", "thermostatOperatingState":"Thermostat Operating State", "thermostatMode":"Thermostat Mode", "thermostatFanMode":"Thermostat Fan Mode"]?.sort{ it?.value }
     buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
-    buildItems["Safety & Security"] = ["alarmSystemStatus": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbon":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
+    buildItems["Safety & Security"] = ["alarmSystemStatus": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
 private static Map buildActTypeEnum() {
     Map<String, Map> buildItems = [:]
-    buildItems["Speech"] = ["speak":"Speak", "announcement":"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
+    buildItems["Speech"] = [(sSPEAK):"Speak", (sANN):"Announcement", "speak_tiered":"Speak (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
     buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"]?.sort{ it?.key }
-    buildItems["Built-in Responses"] = ["weather":"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, News, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
+    buildItems["Built-in Responses"] = [(sWEATH):"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, News, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
     buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"]?.sort{ it?.key }
     buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
     buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
@@ -611,7 +611,7 @@ def triggersPage() {
                 trigNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER, trigItemCnt++)
             }
 
-            if (valTrigEvt("carbon")) {
+            if (valTrigEvt("carbonMonoxide")) {
                 section (sectHead("Carbon Monoxide Events"), hideable: true) {
                     input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true
                     if (settings.trig_carbonMonoxide) {
@@ -1105,7 +1105,7 @@ Boolean isTierAction() {
 Boolean isTierActConfigured() {
     if(!isTierAction()) { return false }
     Integer cnt = (Integer)settings.act_tier_cnt
-    List tierKeys = settings.findAll { it?.key?.startsWith("act_tier_item_") && it?.key?.endsWith("_txt") }?.collect { it?.key as String }
+    List tierKeys = settings.findAll { it?.key?.startsWith("act_tier_item_") && it?.key?.endsWith("_txt") }?.collect { (String)it?.key }
     return (tierKeys?.size() == cnt)
 }
 
@@ -1114,8 +1114,8 @@ Map getTierMap() {
     Integer cnt = (Integer)settings.act_tier_cnt
     if(isTierActConfigured() && cnt) {
         List tiers = (1..cnt)
-        tiers?.each { t->
-            exec[t as Integer] = [
+        tiers?.each { Integer t->
+            exec[t] = [
                 message: (String)settings["act_tier_item_${t}_txt"],
                 delay: settings["act_tier_item_${t+1}_delay"],
                 volume: [
@@ -2087,23 +2087,34 @@ def initialize() {
     }
     updDeviceInputs()
 
+// todo go away at some point
 // convert old alarm / hsm settings to new;  as attribute 'alarm' belongs to capability.alarm todo this will go away if we offer alarm attribute
     if(settings.trig_alarm && !settings.trig_alarmSystemStatus){
-        settings.trig_alarmSystemStatus = settings.trig_alarm
+        settingUpdate("alarmSystemStatus", settings.trig_alarm, sENUM)
         if(settings.trig_alarm_events && !settings.trig_alarmSystemStatus_events){
-            settings.trig_alarmSystemStatus_events = settings.trig_alarm_events
+            settingUpdate("alarmSystemStatus_events", settings.trig_alarm_events, sENUM)
         }
         settingRemove("trig_alarm")
         settingRemove("trig_alarm_events")
 
-        ["wait", "all", "cmd", "once", "after", "txt", "nums"]?.each { ei->
-            if(settings."trig_alarm_${ei}") settings."trig_alarmSystemStatus_${ei}" = settings."trig_alarm_${ei}"
-            settingRemove("trig_alarm_${ei}")
+        List<String> tl = [sNUMBER, sBOOL, sENUM, sBOOL, sNUMBER, sNUMBER, sNUMBER, sTEXT, sTEXT]
+        Integer i = 0
+        ["wait", "all", "cmd", "once", "after", "after_repeat", "after_repeat_cnt", "txt", "after_repeat_txt" ]?.each { ei->
+            if(settings."trig_alarm_${ei}") settingUpdate("trig_alarmSystemStatus_${ei}".toString(), settings."trig_alarm_${ei}", tl[i])
+            settingRemove("trig_alarm_${ei}".toString())
+            i++
         }
     }
     if(settings.cond_alarm && !settings.cond_alarmSystemStatus){
-        settings.cond_alarmSystemStatus = settings.cond_alarm
+        settingUpdate("cond_alarmSystemStatus", settings.cond_alarm, sENUM)
         settingRemove("cond_alarm")
+    }
+// convert carbon to attribute
+    if(valTrigEvt('carbon')) {
+        List<String> a = (List<String>)settings.triggerEvents
+        a.remove(a.indexOf('carbon'))
+        a.push('carbonMonoxide')
+        settingUpdate("triggerEvents", a, sENUM)
     }
 
     unsubscribe()
@@ -3470,7 +3481,7 @@ Map getRandomTrigEvt() {
         (sBATT): getRandomItem(1..100),
         (sPOWER): getRandomItem(100..3000),
         (sMODE): getRandomItem((List)location?.modes),
-        alarmSystemStatus: getRandomItem(getAlarmTrigOpts()?.collect {it?.value as String}),
+        alarmSystemStatus: getRandomItem(getAlarmTrigOpts()?.collect {(String)it.key}),
         guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
         thermostatTemperature: isC ? getRandomItem(10..33) : getRandomItem(50..90),
         coolingSetpoint: isC ? getRandomItem(10..33) : getRandomItem(50..90),
@@ -3726,8 +3737,8 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
         Map actConf = (Map)actMap.config
         Integer actDelay = (Integer)actMap.delay ?: 0
         Integer actDelayMs = actDelay*1000
-        Integer changeVol = actConf?.volume?.change as Integer ?: null
-        Integer restoreVol = actConf?.volume?.restore as Integer ?: null
+        Integer changeVol = actConf?.volume?.change != null ? (Integer)actConf?.volume?.change : null
+        Integer restoreVol = actConf?.volume?.restore != null ? (Integer)actConf?.volume?.restore : null
         //Integer alarmVol = actConf?.volume?.alarm ?: null
         Map zoneVolumeMap = (Map)actConf?.zoneVolume ?: null
         switch(actType) {
@@ -3747,7 +3758,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
 
                     String mCmd = actType.replaceAll("_tiered", sBLANK)
                     if(actZonesSiz) {
-                        parent?.sendZoneCmd([zones: activeZones.collect { it?.key as String }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs])
+                        parent?.sendZoneCmd([zones: activeZones.collect { (String)it?.key }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs])
                         logDebug("Sending ${mCmd} Command: (${txt}) to Zones via Parent (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
 
                     } else {
@@ -3755,7 +3766,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                             List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                             List devObjs = []
 
-                            String cmd = mCmd=='speak' ? "TTS" : "announce"
+                            String cmd = mCmd==sSPEAK ? "TTS" : "announce"
                             actDevices?.each {
                                 Map devInfo = it?.getEchoDevInfo(cmd)
                                 if(devInfo) {
@@ -3776,7 +3787,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 String mText= actConf[actType] ? (String)actConf[actType].text : sNULL
                 if(mText != sNULL) {
                     if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, message: mText, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { (String)it?.key }, cmd: actType, message: mText, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType.capitalize()} Command: (${mText}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
@@ -3792,7 +3803,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 String mCmd= actConf[actType] ? (String)actConf[actType].cmd : sNULL
                 if(mCmd != sNULL) {
                     if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones.collect { it?.key as String }, cmd: mCmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones.collect { (String)it?.key }, cmd: mCmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
@@ -3810,7 +3821,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             case sWEATH:
                 if(actConf[actType] && actConf[actType]?.cmd) {
                     if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { (String)it?.key }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
                         logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
