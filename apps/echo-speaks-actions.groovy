@@ -186,7 +186,7 @@ private Map buildTriggerEnum() {
     if(!settings.enableWebCoRE) {
         buildItems.Location.remove("pistonExecuted")
     }
-    buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelorometers"]?.sort{ it?.value }
+    buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
 // todo siren (capability.alarm, attr alarm)
     buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
     buildItems["Thermostat Devices"] = ["coolingSetpoint":"Thermostat Cooling Setpoint", "heatingSetpoint":"Thermostat Heating Setpoint", "thermostatTemperature":"Thermostat Ambient Temp", "thermostatOperatingState":"Thermostat Operating State", "thermostatMode":"Thermostat Mode", "thermostatFanMode":"Thermostat Fan Mode"]?.sort{ it?.value }
@@ -512,19 +512,19 @@ def triggersPage() {
             }
 
             if (valTrigEvt(sMOTION)) {
-                trigNonNumSect(sMOTION, "motionSensor", "Motion Sensors", "Motion Sensors", lACTINACT+[sANY], "become", lACTINACT, sMOTION, trigItemCnt++)
+                trigNonNumSect(sMOTION, "motionSensor", "Motion Sensors", "Motion Sensors", lACTINACT+lANY, "become", lACTINACT, sMOTION, trigItemCnt++)
             }
 
             if (valTrigEvt("presence")) {
-                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", lPRES +[sANY], sCHGTO, lPRES, "presence", trigItemCnt++)
+                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", lPRES +lANY, sCHGTO, lPRES, "presence", trigItemCnt++)
             }
 
             if (valTrigEvt(sCONTACT)) {
-                trigNonNumSect(sCONTACT, "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", lOPNCLS+[sANY], sCHGTO, lOPNCLS, sCONTACT, trigItemCnt++)
+                trigNonNumSect(sCONTACT, "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", lOPNCLS+lANY, sCHGTO, lOPNCLS, sCONTACT, trigItemCnt++)
             }
 
             if (valTrigEvt("acceleration")) {
-                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", lACTINACT+[sANY], sCHGTO, lACTINACT, "acceleration", trigItemCnt++)
+                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", lACTINACT+lANY, sCHGTO, lACTINACT, "acceleration", trigItemCnt++)
             }
 
             if (valTrigEvt("door")) {
@@ -532,7 +532,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt(sLOCK)) {
-                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", lLOCKUNL + [sANY], sCHGTO, lLOCKUNL, sLOCK, trigItemCnt++, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
+                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", lLOCKUNL + lANY, sCHGTO, lLOCKUNL, sLOCK, trigItemCnt++, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
             }
 
             if (valTrigEvt("securityKeypad")) {
@@ -604,7 +604,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt(sWATER)) {
-                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", lWETDRY + [sANY], sCHGTO, lWETDRY, sWATER, trigItemCnt++)
+                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", lWETDRY + lANY, sCHGTO, lWETDRY, sWATER, trigItemCnt++)
             }
 
             if (valTrigEvt(sPOWER)) {
@@ -615,7 +615,7 @@ def triggersPage() {
                 section (sectHead("Carbon Monoxide Events"), hideable: true) {
                     input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true
                     if (settings.trig_carbonMonoxide) {
-                        input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + [sANY], required: true, submitOnChange: true
+                        input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + lANY, required: true, submitOnChange: true
                         if(settings.trig_carbonMonoxide_cmd) {
                             if (settings.trig_carbonMonoxide?.size() > 1 && settings.trig_carbonMonoxide_cmd != sANY) {
                                 input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
@@ -630,7 +630,7 @@ def triggersPage() {
                 section (sectHead("Smoke Events"), hideable: true) {
                     input "trig_smoke", "capability.smokeDetector", title: inTS1("Smoke Detectors", "smoke"), required: !(settings.trig_carbonMonoxide), multiple: true, submitOnChange: true
                     if (settings.trig_smoke) {
-                        input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + [sANY], required: true, submitOnChange: true
+                        input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + lANY, required: true, submitOnChange: true
                         if(settings.trig_smoke_cmd) {
                             if (settings.trig_smoke?.size() > 1 && settings.trig_smoke_cmd != sANY) {
                                 input "trig_smoke_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_smoke_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
@@ -650,7 +650,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt(sVALVE)) {
-                trigNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS+[sANY], sCHGTO, lOPNCLS, sVALVE, trigItemCnt++)
+                trigNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS+lANY, sCHGTO, lOPNCLS, sVALVE, trigItemCnt++)
             }
 
             if (valTrigEvt("coolingSetpoint")) {
@@ -666,15 +666,15 @@ def triggersPage() {
             }
 
             if (valTrigEvt("thermostatOperatingState")) {
-                trigNonNumSect("thermostatOperatingState", sTHERM, "Thermostat Operating State Events", "Thermostat (Operating State)", getThermOperStOpts()+[sANY], sCHGTO, getThermOperStOpts(), sTHERM, trigItemCnt++)
+                trigNonNumSect("thermostatOperatingState", sTHERM, "Thermostat Operating State Events", "Thermostat (Operating State)", getThermOperStOpts()+lANY, sCHGTO, getThermOperStOpts(), sTHERM, trigItemCnt++)
             }
 
             if (valTrigEvt("thermostatMode")) {
-                trigNonNumSect("thermostatMode", sTHERM, "Thermostat Mode Events", "Thermostat (Mode)", getThermModeOpts()+[sANY], sCHGTO, getThermModeOpts(), sTHERM, trigItemCnt++)
+                trigNonNumSect("thermostatMode", sTHERM, "Thermostat Mode Events", "Thermostat (Mode)", getThermModeOpts()+lANY, sCHGTO, getThermModeOpts(), sTHERM, trigItemCnt++)
             }
 
             if (valTrigEvt("thermostatFanMode")) {
-                trigNonNumSect("thermostatFanMode", sTHERM, "Thermostat Fan Mode Events", "Thermostat (Fan Mode)", getThermFanOpts()+[sANY], sCHGTO, getThermFanOpts(), sTHERM, trigItemCnt++)
+                trigNonNumSect("thermostatFanMode", sTHERM, "Thermostat Fan Mode Events", "Thermostat (Fan Mode)", getThermFanOpts()+lANY, sCHGTO, getThermFanOpts(), sTHERM, trigItemCnt++)
             }
 
             if(triggersConfigured()) {
@@ -871,7 +871,7 @@ def conditionsPage() {
 
         condNonNumSect(sCONTACT, "contactSensor", "Door, Window, Contact Sensors Conditions", "Contact Sensors", lOPNCLS, "are", sCONTACT)
 
-        condNonNumSect("acceleration", "accelerationSensor", "Accelorometer Conditions", "Accelorometer Sensors", lACTINACT, "are", "acceleration")
+        condNonNumSect("acceleration", "accelerationSensor", "Accelerometer Conditions", "Accelerometer Sensors", lACTINACT, "are", "acceleration")
 
         condNonNumSect(sLOCK, sLOCK, "Lock Conditions", "Smart Locks", lLOCKUNL, "are", sLOCK)
 
@@ -909,15 +909,15 @@ def conditionsPage() {
     }
 }
 
-static List getThermModeOpts() {
+static List<String> getThermModeOpts() {
     return ["auto", "cool", " heat", "emergency heat", "off"]
 }
 
-static List getThermOperStOpts() {
+static List<String> getThermOperStOpts() {
     return ["cooling", "heating", "idle"]
 }
 
-static List getThermFanOpts() {
+static List<String> getThermFanOpts() {
     return ["on", "circulate", "auto"]
 }
 
