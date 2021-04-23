@@ -792,7 +792,7 @@ def triggerMsgInput(String inType, Boolean showRepInputs=false, Integer itemCnt=
         String str = spanSmBldBr("Response Options", sCLR4D9)
         str += spanSmBr("Available Options:")
         str += spanSmBr("   ${sBULLET} ${strUnder("1")}: Leave the text empty below and text will be generated for each ${inType} trigger event.")
-        str += spanSmBr("   ${sBULLET} ${strUnder("2")}: Wait till the Execution config step and define a single global response for all triggers selected here.")
+        str += spanSmBr("   ${sBULLET} ${strUnder("2")}: Wait till the Execution config step and define a single global response for all triggers selected.")
         str += spanSmBr("   ${sBULLET} ${strUnder("3")}: Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)")
         paragraph divSm(str, sCLRGRY, "info")
         //Custom Text Options
@@ -3964,43 +3964,44 @@ private postTaskCommands(data) {
     if(p && settings."${p}sirens" && (String)settings."${p}siren_cmd") { settings."${p}sirens"*.off() }
 }
 
-Map getInputData(String inName) {
-    // TODO
-    if(devModeFLD) log.debug "getInputData inName: $inName"
-    String desc = sNULL
+
+// parent calls for editing
+
+public Map getInputData(String inName) {
+    String desc = "<li>Add custom responses to use when this action is executed.</li>"
     String title = sNULL
-    String template = sNULL
-    String vDesc = "<li>Example: %name% %type% is now %value% would translate into The garage door contact is now open</li>"
-    vDesc += "<li>To make beep sounds use: <b>wop, wop, wop</b> (equals 3 beeps)</li>"
+    String tmplt = '%name% %type% is now %value% %unit%'
+    String vDesc = "<li>Example: %name% %type% is now %value% would translate into The garage door contact is now open</li><li>To make beep sounds use: <b>wop, wop, wop</b> (equals 3 beeps)</li>"
     switch(inName) {
         case "act_speak_txt":
             title = "Global Action Speech Event"
-            desc = "<li>Add custom responses to use when this action is executed.</li>"
-            template = '%name% %type% is now %value% %unit%'
             break
         case "act_announcement_txt":
             title = "Global Announcement Speech Event"
-            desc = "<li>Add custom responses to use when this action is executed.</li>"
-            template = '%name% %type% is now %value% %unit%'
             break
         default:
             if(inName?.startsWith("trig_")) {
-                def i = inName?.tokenize("_")
-                if(i?.contains("repeat")) {
-                    title = "(${i[1]?.toString()?.capitalize()}) Trigger Repeat Events"
-                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} events which have to be repeated.</li>${vDesc}"
-                    template = '%name% %type% is now %value% %unit%'
+                List<String> i = inName.tokenize("_")
+                title = "(${i[1]?.capitalize()}) Trigger "
+                desc = "<li>Add custom responses for ${i[1]?.capitalize()} "
+                if(i.contains("repeat")) {
+                    title += "Repeat "
+                    desc += "events which have to be repeated"
                 } else {
-                    title = "(${i[1]?.toString()?.capitalize()}) Trigger Events"
-                    desc = "<li>Add custom responses for ${i[1]?.toString()?.capitalize()} trigger events.</li>${vDesc}"
-                    template = '%name% %type% is now %value% %unit%'
+                    desc += "trigger events"
                 }
+                title += "Events"
+                desc += ".</li>${vDesc}"
             }
             else if(inName?.startsWith("act_tier_item_") && inName?.endsWith("_txt")) {
-                def i = inName?.tokenize("_")
+                List<String> i = inName.tokenize("_")
                 title = "Tier Response (${i[3]})"
                 desc = "<li>Add custom responses to use when this action is executed.</li>"
-                template = "Custom tier ${i[3]} message here."
+                tmplt = "Custom tier ${i[3]} message here."
+            } else {
+                desc = sNULL
+                title = sNULL
+                tmplt = sNULL
             }
             break
     }
@@ -4008,9 +4009,10 @@ Map getInputData(String inName) {
         val: settings."${inName}" ? settings."${inName}"?.toString()?.replaceAll("\'", sBLANK) : null,
         desc: """<ul class="pl-3" style="list-style-type: bullet;">${desc}</ul>""",
         title: title,
-        template: template,
+        template: tmplt,
         version: appVersionFLD
     ]
+    if(devModeFLD) log.debug "getInputData inName: $inName result: $o"
     return o
 }
 
