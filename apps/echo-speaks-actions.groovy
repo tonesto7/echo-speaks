@@ -614,22 +614,24 @@ def triggersPage() {
             }
 
             if (valTrigEvt("carbonMonoxide")) {
-                section (sectHead("Carbon Monoxide Events"), hideable: true) {
+                trigNonNumSect("carbonMonoxide", "carbonMonoxideDetector", "Carbon Monoxide Events", "Carbon Monoxide Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "co", trigItemCnt++)
+/*                section (sectHead("Carbon Monoxide Events"), hideable: true) {
                     input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true
                     if (settings.trig_carbonMonoxide) {
                         input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + lANY, required: true, submitOnChange: true
                         if(settings.trig_carbonMonoxide_cmd) {
                             if (settings.trig_carbonMonoxide?.size() > 1 && settings.trig_carbonMonoxide_cmd != sANY) {
-                                input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
+                                input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Carbon Monoxide Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                             }
                             triggerVariableDesc("carbonMonoxide", false, trigItemCnt++)
                         }
                     }
-                }
+                } */
             }
 
             if (valTrigEvt("smoke")) {
-                section (sectHead("Smoke Events"), hideable: true) {
+                trigNonNumSect("smoke", "smokeDetector", "Smoke Detector Events", "Smoke Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "smoke", trigItemCnt++)
+/*                section (sectHead("Smoke Events"), hideable: true) {
                     input "trig_smoke", "capability.smokeDetector", title: inTS1("Smoke Detectors", "smoke"), required: !(settings.trig_carbonMonoxide), multiple: true, submitOnChange: true
                     if (settings.trig_smoke) {
                         input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + lANY, required: true, submitOnChange: true
@@ -640,7 +642,7 @@ def triggersPage() {
                             triggerVariableDesc("smoke", false, trigItemCnt++)
                         }
                     }
-                }
+                } */
             }
 
             if (valTrigEvt("illuminance")) {
@@ -717,13 +719,13 @@ Map<String,Map> getCodes(List devs, String code=sNULL) {
 def dummy(a,b) {}
 
 def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
-    Boolean done = false
+    //Boolean done = false
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, required: devReq, submitOnChange: true
         if (settings."trig_${inType}") {
             input "trig_${inType}_cmd", sENUM, title: spanSmBld("${cmdTitle}...", sNULL, sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true
             if((String)settings."trig_${inType}_cmd") {
-                done=true
+                //done=true
                 if (settings."trig_${inType}"?.size() > 1 && (String)settings."trig_${inType}_cmd" != sANY) {
                     input "trig_${inType}_all", sBOOL, title: spanSmBld("Require ALL ${devTitle} to be (${settings."trig_${inType}_cmd"})?", sNULL, sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                 }
