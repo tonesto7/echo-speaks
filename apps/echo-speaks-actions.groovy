@@ -787,6 +787,28 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
     }
 }
 
+def triggerVariableDesc(String inType, Boolean showRepInputs=false, Integer itemCnt=0) {
+    if((String)settings.actionType in [sSPEAK, sANN]) {
+        String str = spanSmBldBr("Response Options", sCLR4D9)
+        str += spanSmBr("Available Options:")
+        str += spanSmBr("   ${sBULLET} ${strUnder("1")}: Leave the text empty below and text will be generated for each ${inType} trigger event.")
+        str += spanSmBr("   ${sBULLET} ${strUnder("2")}: Wait till the Execution config step and define a single global response for all triggers selected here.")
+        str += spanSmBr("   ${sBULLET} ${strUnder("3")}: Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)")
+        paragraph divSm(str, sCLRGRY, "info")
+        //Custom Text Options
+        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(),
+                description: ((String)settings."trig_${inType}_txt" ? spanSm((String)settings."trig_${inType}_txt", sCLR4D9) : sBLANK) + ' ' + spanSm("Open Response Designer...", sCLRGRY)
+        if(showRepInputs) {
+            if((Integer)settings."trig_${inType}_after_repeat") {
+                //Custom Repeat Text Options
+                paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info"), false, sCLR4D9)
+                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: spanSm("Custom ${inType?.capitalize()} Repeat Responses", sNULL, sTEXT) + optPrefix(),
+                        description: (String)settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", submitOnChange: true
+            }
+        }
+    }
+}
+
 Boolean locationTriggers() {
     return  (valTrigEvt(sMODE) && (List)settings.trig_mode) || (valTrigEvt("alarmSystemStatus") && (List)settings.trig_alarmSystemStatus) ||
         (valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) ||
@@ -1005,28 +1027,6 @@ def actVariableDesc(String actType, Boolean hideUserTxt=false) {
                 }
                 paragraph spanSmBld(str, sCLR4D9)
                 paragraph spanSmBld("WARNING:<br>Entering text below will override the text you defined for the trigger types under Step 2.", sCLRRED)
-            }
-        }
-    }
-}
-
-def triggerVariableDesc(String inType, Boolean showRepInputs=false, Integer itemCnt=0) {
-    if((String)settings.actionType in [sSPEAK, sANN]) {
-        String str = spanSmBldBr("Response Options", sCLR4D9)
-        str += spanSmBr("Available Options:")
-        str += spanSmBr("   ${sBULLET} ${strUnder("1")}: Leave the text empty below and text will be generated for each ${inType} trigger event.")
-        str += spanSmBr("   ${sBULLET} ${strUnder("2")}: Wait till the Execution config step and define a single global response for all triggers selected here.")
-        str += spanSmBr("   ${sBULLET} ${strUnder("3")}: Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)")
-        paragraph divSm(str, sCLRGRY, "info")
-        //Custom Text Options
-        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(), 
-            description: ((String)settings."trig_${inType}_txt" ? spanSm((String)settings."trig_${inType}_txt", sCLR4D9) : sBLANK) + ' ' + spanSm("Open Response Designer...", sCLRGRY)
-        if(showRepInputs) {
-            if((Integer)settings."trig_${inType}_after_repeat") {
-                //Custom Repeat Text Options
-                paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info"), false, sCLR4D9)
-                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: spanSm("Custom ${inType?.capitalize()} Repeat Responses", sNULL, sTEXT) + optPrefix(),
-                        description: (String)settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", submitOnChange: true
             }
         }
     }
