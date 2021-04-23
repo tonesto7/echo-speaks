@@ -1549,23 +1549,24 @@ void appCleanup() {
     cleanUpdVerMap()
 }
 
-void wsEvtHandler(evt) {
+void wsEvtHandler(Map evt) {
     if(devModeFLD) logTrace("wsEvtHandler evt: ${evt}")
-    if(evt && evt.id && (evt.attributes?.size() || evt.triggers?.size())) {
-        List<String> trigs = evt.triggers
+    if(evt && /* evt.id && */ (evt.attributes?.size() || evt.triggers?.size())) {
+        List<String> trigs = (List<String>)evt.triggers
+        Map<String,Object> atts = (Map<String,Object>)evt.attributes
         if("bluetooth" in trigs) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
         if("activity" in trigs) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
         if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
         if((Boolean)evt.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") } }
-                if(trigs?.size()) { eDev.websocketUpdEvt(trigs) }
+                atts.each { String k,v-> eDev.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
+                if(trigs.size()) { eDev.websocketUpdEvt(trigs) }
             }
         } else {
             def eDev = findEchoDevice((String)evt.id)
             if(eDev) {
-                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
-                if(trigs?.size()) { eDev?.websocketUpdEvt(trigs) }
+                atts.each { String k,v-> eDev.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
+                if(trigs.size()) { eDev.websocketUpdEvt(trigs) }
             }
         }
     }
