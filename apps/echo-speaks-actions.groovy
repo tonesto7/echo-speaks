@@ -2094,9 +2094,9 @@ def initialize() {
 // todo go away at some point
 // convert old alarm / hsm settings to new;  as attribute 'alarm' belongs to capability.alarm todo this will go away if we offer alarm attribute
     if(settings.trig_alarm && !settings.trig_alarmSystemStatus){
-        settingUpdate("alarmSystemStatus", settings.trig_alarm, sENUM)
+        settingUpdate("trig_alarmSystemStatus", settings.trig_alarm, sENUM)
         if(settings.trig_alarm_events && !settings.trig_alarmSystemStatus_events){
-            settingUpdate("alarmSystemStatus_events", settings.trig_alarm_events, sENUM)
+            settingUpdate("trig_alarmSystemStatus_events", settings.trig_alarm_events, sENUM)
         }
         settingRemove("trig_alarm")
         settingRemove("trig_alarm_events")
