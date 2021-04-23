@@ -448,7 +448,7 @@ def triggersPage() {
                                 input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false
                                 break
                         }
-                        triggerVariableDesc("scheduled", false, trigItemCnt++)
+                        triggerMsgInput("scheduled", false, trigItemCnt++)
                     }
                 }
             }
@@ -462,7 +462,7 @@ def triggersPage() {
                     if((List)settings.trig_alarmSystemStatus) {
                         input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
                         input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
-                        triggerVariableDesc("alarmSystemStatus", false, trigItemCnt++)
+                        triggerMsgInput("alarmSystemStatus", false, trigItemCnt++)
                     }
                 }
             }
@@ -473,7 +473,7 @@ def triggersPage() {
                     if(settings.trig_guard) {
                         // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
                         // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
-                        triggerVariableDesc("guard", false, trigItemCnt++)
+                        triggerMsgInput("guard", false, trigItemCnt++)
                     }
                 }
             }
@@ -484,7 +484,7 @@ def triggersPage() {
                     if((List)settings.trig_mode) {
                         input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
                         input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
-                        triggerVariableDesc(sMODE, false, trigItemCnt++)
+                        triggerMsgInput(sMODE, false, trigItemCnt++)
                     }
                 }
             }
@@ -496,7 +496,7 @@ def triggersPage() {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", "question"), required: false, defaultValue: false, submitOnChange: true
                         input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
-                        triggerVariableDesc("pistonExecuted", false, trigItemCnt++)
+                        triggerMsgInput("pistonExecuted", false, trigItemCnt++)
                     }
                 }
             }
@@ -549,7 +549,7 @@ def triggersPage() {
                         //input "trig_pushed_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: ["pushed"], required: true, multiple: false, defaultValue: "pushed", submitOnChange: true
                         input "trig_pushed_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true
                         if(settings.trig_pushed_nums) {
-                            triggerVariableDesc("pushed", false, trigItemCnt++)
+                            triggerMsgInput("pushed", false, trigItemCnt++)
                         }
                     }
                 }
@@ -563,7 +563,7 @@ def triggersPage() {
                         //input "trig_released_cmd", sENUM, title: inTS1("Released changes", sCOMMAND), options: ["released"], required: true, multiple: false, defaultValue: "released", submitOnChange: true
                         input "trig_released_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_released_nums) {
-                            triggerVariableDesc("released", false, trigItemCnt++)
+                            triggerMsgInput("released", false, trigItemCnt++)
                         }
                     }
                 }
@@ -577,7 +577,7 @@ def triggersPage() {
                         //input "trig_held_cmd", sENUM, title: inTS1("Held changes", sCOMMAND), options: ["held"], required: true, multiple: false, defaultValue: "held", submitOnChange: true
                         input "trig_held_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true,  multiple: true, submitOnChange: true
                         if(settings.trig_held_nums) {
-                            triggerVariableDesc("held", false, trigItemCnt++)
+                            triggerMsgInput("held", false, trigItemCnt++)
                         }
                     }
                 }
@@ -591,7 +591,7 @@ def triggersPage() {
                         //input "trig_doubleTapped_cmd", sENUM, title: inTS1("Double Tapped changes", sCOMMAND), options: ["doubleTapped"], required: true, multiple: false, defaultValue: "doubleTapped", submitOnChange: true
                         input "trig_doubleTapped_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_doubleTapped_nums) {
-                            triggerVariableDesc("doubleTapped", false, trigItemCnt++)
+                            triggerMsgInput("doubleTapped", false, trigItemCnt++)
                         }
                     }
                 }
@@ -623,7 +623,7 @@ def triggersPage() {
                             if (settings.trig_carbonMonoxide?.size() > 1 && settings.trig_carbonMonoxide_cmd != sANY) {
                                 input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Carbon Monoxide Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                             }
-                            triggerVariableDesc("carbonMonoxide", false, trigItemCnt++)
+                            triggerMsgInput("carbonMonoxide", false, trigItemCnt++)
                         }
                     }
                 } */
@@ -639,7 +639,7 @@ def triggersPage() {
                             if (settings.trig_smoke?.size() > 1 && settings.trig_smoke_cmd != sANY) {
                                 input "trig_smoke_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_smoke_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                             }
-                            triggerVariableDesc("smoke", false, trigItemCnt++)
+                            triggerMsgInput("smoke", false, trigItemCnt++)
                         }
                     }
                 } */
@@ -744,7 +744,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, "question") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
                     input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                 }
-                triggerVariableDesc(inType, true, trigItemCnt)
+                triggerMsgInput(inType, true, trigItemCnt)
             }
         }
     }
@@ -780,14 +780,14 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                     }
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, "question") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
                     input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (In Seconds)?", sNULL, "question") + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
-                    triggerVariableDesc(inType, false, trigItemCnt)
+                    triggerMsgInput(inType, false, trigItemCnt)
                 }
             }
         }
     }
 }
 
-def triggerVariableDesc(String inType, Boolean showRepInputs=false, Integer itemCnt=0) {
+def triggerMsgInput(String inType, Boolean showRepInputs=false, Integer itemCnt=0) {
     if((String)settings.actionType in [sSPEAK, sANN]) {
         String str = spanSmBldBr("Response Options", sCLR4D9)
         str += spanSmBr("Available Options:")
