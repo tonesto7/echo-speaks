@@ -1556,7 +1556,7 @@ void wsEvtHandler(evt) {
         if("bluetooth" in trigs) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
         if("activity" in trigs) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
         if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
-        if(evt.all == true) {
+        if((Boolean)evt.all == true) {
             getEsDevices()?.each { eDev->
                 if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") } }
                 if(trigs?.size()) { eDev.websocketUpdEvt(trigs) }
@@ -3553,10 +3553,10 @@ public Map getDeviceFamilyMap() {
     return (Map)state.appData?.deviceFamilies ?: (Map)deviceSupportMapFLD.families
 }
 
-List getDevicesFromSerialList(List serialList) {
+List getDevicesFromSerialList(List<String> serialList) {
     //logTrace("getDevicesFromSerialList called with: ${serialList}")
-    if (serialList == null) {
-       logDebug("SerialNumberList is null")
+    if (!serialList) {
+       logDebug("Serial List is empty")
        return null
     }
     List devs = []
