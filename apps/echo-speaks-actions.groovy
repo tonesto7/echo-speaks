@@ -1893,8 +1893,10 @@ def ssmlInfoSection() {
 Map customTxtItems() {
     Map items = [:]
     ((List<String>)settings.triggerEvents)?.each { String tr->
-        if((String)settings."trig_${tr}_txt") { if(!items[tr]) { items[tr] = [:] }; items[tr].event = (String)settings."trig_${tr}_txt"?.tokenize(";") }
-        if((String)settings."trig_${tr}_after_repeat_txt") { if(!items[tr]) { items[tr] = [:] };  items[tr].repeat = (String)settings."trig_${tr}_after_repeat_txt"?.tokenize(";") }
+        String a=(String)settings."trig_${tr}_txt"
+        if(a) { if(!items[tr]) { items[tr] = [:] }; items[tr].event = a.tokenize(";") }
+        a = (String)settings."trig_${tr}_after_repeat_txt"
+        if(a) { if(!items[tr]) { items[tr] = [:] }; items[tr].repeat = a.tokenize(";") }
     }
     return items
 }
@@ -1902,7 +1904,8 @@ Map customTxtItems() {
 Boolean hasRepeatTriggers() {
     Map items = [:]
     ((List<String>)settings.triggerEvents)?.each { String tr->
-        if((String)settings."trig_${tr}_after_repeat_txt") { if(!items[tr]) { items[tr] = [:] };  items[tr].repeat = (String)settings."trig_${tr}_after_repeat_txt"?.tokenize(";") }
+        String a=(String)settings."trig_${tr}_after_repeat_txt"
+        if(a) { if(!items[tr]) { items[tr] = [:] }; items[tr].repeat = a.tokenize(";") }
     }
     return (items.size() > 0)
 }
@@ -3564,7 +3567,7 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
         List<String> eTxtItems = glbText.tokenize(";")
         return decodeVariables(evt, (String)getRandomItem(eTxtItems))
     } else if(tierMsg) {
-        List<String> eTxtItems = tierMsg?.tokenize(";")
+        List<String> eTxtItems = tierMsg.tokenize(";")
         return decodeVariables(evt, (String)getRandomItem(eTxtItems))
     } else {
         String evntName = (String)evt?.name
