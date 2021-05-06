@@ -17,7 +17,7 @@
 
 import groovy.transform.Field
 @Field static final String appVersionFLD  = '4.1.6.0'
-@Field static final String appModifiedFLD = '2021-04-20'
+@Field static final String appModifiedFLD = '2021-05-06'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
@@ -3710,7 +3710,7 @@ void sendZoneCmd(Map cmdData) {
     String myCmd = cmdData ? (String)cmdData.cmd : sNULL
     List znList = (List)cmdData.zones
     if(myCmd && znList && znList.size()) {
-        List devObj = getZoneDevices(znList, myCmd=='speak' ? "TTS" : "announce")
+        List devObj = getZoneDevices(znList, myCmd in ['speak', 'speak_parallel'] ? "TTS" : "announce")
 
         String newmsg = (String)cmdData.message
         String title = (String)cmdData.title
@@ -3726,7 +3726,7 @@ void sendZoneCmd(Map cmdData) {
                     newmsg = "${title ?: "Echo Speaks"}::${newmsg}".toString()
                     zn.relayFinishAnnouncement(newmsg, [vol:volume, restvol:restoreVolume])
                 }
-                if(myCmd == 'speak') {
+                if(myCmd in ['speak', 'speak_parallel']) {
                     zn.relayFinishSpeak([:], 200, cmdData)
                 }
             }
@@ -3751,6 +3751,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                 String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
                 newmsg = "${title ?: "Echo Speaks"}::${newmsg}::${zoneDevJson}"
             case "speak":
+            case "speak_parallel":
                 logDebug("sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
                 String myMsg = "sendDevObjCmd ${myCmd}"
                 if(volume != null) {
@@ -3767,12 +3768,13 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                     queueMultiSequenceCommand(mainSeqa, myMsg+"-VolumeSet")
                 }
                 List mainSeq = []
-                if (myCmd == 'speak') {
-                    devObj.each { dev-> 
+                if(myCmd in ['speak', 'speak_parallel']) {
+                    Boolean para = myCmd == 'speak_parallel'
+                    devObj.each { dev->
                         //mainSeq.push([command: 'sendspeak', value:cmdData.message, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber])
                         Map cmdMap = [
                             cmdDt: now(),
-                            cmdDesc: "SpeakCommand",
+                            cmdDesc: !para ? "SpeakCommand" : "SpeakParallel",
                             message: newmsg,
                             msgLen: newmsg.length(),
                             oldVolume: restoreVolume,
@@ -3787,8 +3789,9 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
 
                         queueMultiSequenceCommand(
                             [ [command: 'sendspeak', value:newmsg, deviceData: deviceData] ],
-                            myMsg+" to device ${dev.dni}", false, cmdMap, (String)dev.dni, "finishSendSpeakZ")
+                            myMsg+" to device ${dev.dni}", para, cmdMap, (String)dev.dni, "finishSendSpeakZ")
                     }
+                    if(para) queueNopCommand()
                 } else if (myCmd == 'announcement') {
                     Map myDev = devObj[0]
                     Map deviceData = [
