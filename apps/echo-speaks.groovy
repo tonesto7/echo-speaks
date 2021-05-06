@@ -16,13 +16,13 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.1.5.0'
-@Field static final String appModifiedFLD = '2021-04-08'
+@Field static final String appVersionFLD  = '4.1.7.0'
+@Field static final String appModifiedFLD = '2021-05-06'
 @Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4150, wsDevice: 4150, actionApp: 4150, zoneApp: 4150, zoneEchoDevice: 4150, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4170, wsDevice: 4170, actionApp: 4170, zoneApp: 4170, zoneEchoDevice: 4170, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -484,8 +484,8 @@ def guardTriggerEvtHandler(evt) {
     String curState = (String)state.alexaGuardState ?: sNULL
     switch((String)evt?.name) {
         case "mode":
-            Boolean inAwayMode = isInMode(settings.guardAwayModes)
-            Boolean inHomeMode = isInMode(settings.guardHomeModes)
+            Boolean inAwayMode = isInMode((List)settings.guardAwayModes)
+            Boolean inHomeMode = isInMode((List)settings.guardHomeModes)
             if(inAwayMode && inHomeMode) { logError("Guard Control Trigger can't act because same mode is in both Home and Away input"); return }
             if(inAwayMode && !inHomeMode) { newState = sARM_AWAY }
             if(!inAwayMode && inHomeMode) { newState = sARM_STAY }
@@ -495,20 +495,20 @@ def guardTriggerEvtHandler(evt) {
             if(isFollowSwitch) {
                 newState = isSwitchOn(settings.guardFollowSwitch) ? sARM_AWAY : sARM_STAY
             } else {
-                Boolean inAwaySw = isSwitchOn(settings.guardAwaySwitch)
-                Boolean inHomeSw = isSwitchOn(settings.guardHomeSwitch)
+                Boolean inAwaySw = isSwitchOn((List)settings.guardAwaySwitch)
+                Boolean inHomeSw = isSwitchOn((List)settings.guardHomeSwitch)
                 if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return }
                 if(inAwaySw && !inHomeSw) { newState = sARM_AWAY }
                 if(!inAwaySw && inHomeSw) { newState = sARM_STAY }
             }
             break
         case "presence":
-            newState = isSomebodyHome(settings.guardAwayPresence) ? sARM_STAY : sARM_AWAY
+            newState = isSomebodyHome((List)settings.guardAwayPresence) ? sARM_STAY : sARM_AWAY
             break
         case "alarmSystemStatus":
         case "hsmStatus":
-            Boolean inAlarmHome = isInAlarmMode(settings.guardHomeAlarm)
-            Boolean inAlarmAway = isInAlarmMode(settings.guardAwayAlarm)
+            Boolean inAlarmHome = isInAlarmMode((List)settings.guardHomeAlarm)
+            Boolean inAlarmAway = isInAlarmMode((List)settings.guardAwayAlarm)
             if(inAlarmAway && !inAlarmHome) { newState = sARM_AWAY }
             if(!inAlarmAway && inAlarmHome) { newState = sARM_STAY }
             break
@@ -539,8 +539,8 @@ def guardTriggerEvtHandler(evt) {
 }
 
 Boolean guardRestrictOk() {
-    Boolean onSwOk = settings.guardRestrictOnSwitch ? isSwitchOn(settings.guardRestrictOnSwitch) : true
-    Boolean offSwOk = settings.guardRestrictOffSwitch ? !isSwitchOn(settings.guardRestrictOffSwitch) : true
+    Boolean onSwOk = settings.guardRestrictOnSwitch ? isSwitchOn((List)settings.guardRestrictOnSwitch) : true
+    Boolean offSwOk = settings.guardRestrictOffSwitch ? !isSwitchOn((List)settings.guardRestrictOffSwitch) : true
     return (onSwOk && offSwOk)
 }
 
@@ -1457,7 +1457,7 @@ def initialize() {
             if(settings.guardHomeSwitch) subscribe(settings.guardHomeSwitch, sSWITCH, guardTriggerEvtHandler)
             if(settings.guardAwaySwitch) subscribe(settings.guardAwaySwitch, sSWITCH, guardTriggerEvtHandler)
         }
-        if(settings?.guardAwayPresence) {
+        if(settings.guardAwayPresence) {
             subscribe(settings.guardAwayPresence, "presence", guardTriggerEvtHandler)
         }
     }
@@ -1549,23 +1549,24 @@ void appCleanup() {
     cleanUpdVerMap()
 }
 
-void wsEvtHandler(evt) {
+void wsEvtHandler(Map evt) {
     if(devModeFLD) logTrace("wsEvtHandler evt: ${evt}")
-    if(evt && evt.id && (evt.attributes?.size() || evt.triggers?.size())) {
-        List<String> trigs = evt.triggers
+    if(evt && /* evt.id && */ (evt.attributes?.size() || evt.triggers?.size())) {
+        List<String> trigs = (List<String>)evt.triggers
+        Map<String,Object> atts = (Map<String,Object>)evt.attributes
         if("bluetooth" in trigs) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
         if("activity" in trigs) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
         if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
-        if(evt.all == true) {
+        if((Boolean)evt.all == true) {
             getEsDevices()?.each { eDev->
-                if(evt.attributes?.size()) { evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") } }
-                if(trigs?.size()) { eDev.websocketUpdEvt(trigs) }
+                atts.each { String k,v-> eDev.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
+                if(trigs.size()) { eDev.websocketUpdEvt(trigs) }
             }
         } else {
             def eDev = findEchoDevice((String)evt.id)
             if(eDev) {
-                evt.attributes?.each { String k,v-> eDev?.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
-                if(trigs?.size()) { eDev?.websocketUpdEvt(trigs) }
+                atts.each { String k,v-> eDev.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
+                if(trigs.size()) { eDev.websocketUpdEvt(trigs) }
             }
         }
     }
@@ -3553,10 +3554,10 @@ public Map getDeviceFamilyMap() {
     return (Map)state.appData?.deviceFamilies ?: (Map)deviceSupportMapFLD.families
 }
 
-List getDevicesFromSerialList(List serialList) {
+List getDevicesFromSerialList(List<String> serialList) {
     //logTrace("getDevicesFromSerialList called with: ${serialList}")
-    if (serialList == null) {
-       logDebug("SerialNumberList is null")
+    if (!serialList) {
+       logDebug("Serial List is empty")
        return null
     }
     List devs = []
@@ -3709,7 +3710,7 @@ void sendZoneCmd(Map cmdData) {
     String myCmd = cmdData ? (String)cmdData.cmd : sNULL
     List znList = (List)cmdData.zones
     if(myCmd && znList && znList.size()) {
-        List devObj = getZoneDevices(znList, myCmd=='speak' ? "TTS" : "announce")
+        List devObj = getZoneDevices(znList, myCmd in ['speak', 'speak_parallel'] ? "TTS" : "announce")
 
         String newmsg = (String)cmdData.message
         String title = (String)cmdData.title
@@ -3725,7 +3726,7 @@ void sendZoneCmd(Map cmdData) {
                     newmsg = "${title ?: "Echo Speaks"}::${newmsg}".toString()
                     zn.relayFinishAnnouncement(newmsg, [vol:volume, restvol:restoreVolume])
                 }
-                if(myCmd == 'speak') {
+                if(myCmd in ['speak', 'speak_parallel']) {
                     zn.relayFinishSpeak([:], 200, cmdData)
                 }
             }
@@ -3750,6 +3751,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                 String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
                 newmsg = "${title ?: "Echo Speaks"}::${newmsg}::${zoneDevJson}"
             case "speak":
+            case "speak_parallel":
                 logDebug("sendDevObjCmd | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
                 String myMsg = "sendDevObjCmd ${myCmd}"
                 if(volume != null) {
@@ -3766,12 +3768,13 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                     queueMultiSequenceCommand(mainSeqa, myMsg+"-VolumeSet")
                 }
                 List mainSeq = []
-                if (myCmd == 'speak') {
-                    devObj.each { dev-> 
+                if(myCmd in ['speak', 'speak_parallel']) {
+                    Boolean para = myCmd == 'speak_parallel'
+                    devObj.each { dev->
                         //mainSeq.push([command: 'sendspeak', value:cmdData.message, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber])
                         Map cmdMap = [
                             cmdDt: now(),
-                            cmdDesc: "SpeakCommand",
+                            cmdDesc: !para ? "SpeakCommand" : "SpeakParallel",
                             message: newmsg,
                             msgLen: newmsg.length(),
                             oldVolume: restoreVolume,
@@ -3786,8 +3789,9 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
 
                         queueMultiSequenceCommand(
                             [ [command: 'sendspeak', value:newmsg, deviceData: deviceData] ],
-                            myMsg+" to device ${dev.dni}", false, cmdMap, (String)dev.dni, "finishSendSpeakZ")
+                            myMsg+" to device ${dev.dni}", para, cmdMap, (String)dev.dni, "finishSendSpeakZ")
                     }
+                    if(para) queueNopCommand()
                 } else if (myCmd == 'announcement') {
                     Map myDev = devObj[0]
                     Map deviceData = [
@@ -6894,33 +6898,33 @@ static String getObjType(obj) {
     else if(obj instanceof Date) {return "Date"}
     else { return sUNKNOWN}
 }
-
+/*
 Boolean isContactOpen(sensors) {
-    if(sensors) { sensors.each { if(sensors?.currentSwitch == "open") { return true } } }
+    if(sensors) { sensors.each { if(sensors?.currentValue("contact") == "open") { return true } } }
     return false
-}
+} */
 
 Boolean isSwitchOn(devs) {
-    if(devs instanceof List) { devs.each { if(it?.currentSwitch == "on") { return true } } }
-    else if(devs) if(devs?.currentSwitch == "on") { return true }
+    if(devs instanceof List) { devs.each { if(it?.currentValue("switch") == "on") { return true } } }
+    else if(devs) if(devs?.currentValue("switch") == "on") { return true }
+    return false
+}
+/*
+Boolean isSensorPresent(List sensors) {
+    if(sensors) { sensors.each { if(it?.currentValue("presence") == "present") { return true } } }
+    return false
+} */
+
+Boolean isSomebodyHome(List sensors) {
+    if(sensors) { return (sensors.findAll { it?.currentValue("presence") == "present" }.size() > 0) }
     return false
 }
 
-Boolean isSensorPresent(sensors) {
-    if(sensors) { sensors.each { if(it?.currentPresence == "present") { return true } } }
-    return false
-}
-
-Boolean isSomebodyHome(sensors) {
-    if(sensors) { return (sensors.findAll { it?.currentPresence == "present" }.size() > 0) }
-    return false
-}
-
-Boolean isInMode(modes) {
+Boolean isInMode(List modes) {
     return (location?.mode?.toString() in modes)
 }
 
-Boolean isInAlarmMode(modes) {
+Boolean isInAlarmMode(List modes) {
     if(!modes) return false
     return (getAlarmSystemStatus() in modes)
 }
@@ -6943,7 +6947,7 @@ def getShmIncidents() {
 } */
 
 // This is incomplete (and currently unused)
-void setAlarmSystemMode(mode) {
+void setAlarmSystemMode(String mode) {
     switch(mode) {
         case "armAway":
         case "away":
@@ -7411,7 +7415,6 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2LH725P8DQR2A" : [ c: [ "a", "t" ], i: "fabriq_riff", n: "Fabriq Riff" ],
         "A15ERDAKK5HQQG" : [ i: "sonos_generic", n: "Sonos" ],
         "A10L5JEZTKKCZ8" : [ c: [ "a", "t" ], i: "vobot_bunny", n: "Vobot Bunny" ],
-        "A16MZVIFVHX6P6" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Echo" ],
         "A17LGWINFBUTZZ" : [ c: [ "t", "a" ], i: "roav_viva", n: "Anker Roav Viva" ],
         "A18BI6KPKDOEI4" : [ c: [ "a", "t" ], i: "ecobee4", n: "Ecobee4" ],
         "A2R2GLZH1DFYQO" : [ c: [ "t", "a" ], i: "halo_speaker", n: "Zolo Halo Speaker" ],
