@@ -3096,8 +3096,8 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
             case sBETWEEN:
                 if(!dca && dcl && dch && (evtValue in (dcl..dch))) {
                     evtOk=true
-                } else if(dca && dcl && dch && allDevAttNumValsBetween(devs, en, dcl, dch)) { evtOk=true; evtAd=true }
-                if(not) evtOk=!evtOk
+                    if(not) evtOk=!evtOk
+                } else if(dca && dcl && dch && allDevAttNumValsBetween(devs, en, dcl, dch, not)) { evtOk=true; evtAd=true }
                 break
             case sABOVE:
                 if(!dca && dch && (evtValue > dch)) {
@@ -3336,8 +3336,7 @@ Boolean checkDeviceNumCondOk(String att) {
         case sBETWEEN:
             if(dcl && dch) {
                 Boolean a
-                a = dca ? allDevAttNumValsBetween(devs, att, dcl, dch) : anyDevAttNumValBetween(devs, att, dcl, dch)
-                if(not){ a = !a }
+                a = dca ? allDevAttNumValsBetween(devs, att, dcl, dch, not) : anyDevAttNumValBetween(devs, att, dcl, dch, not)
                 return a
             }
             break
@@ -4475,10 +4474,11 @@ Boolean anyDevAttNumValAbove(List devs, String att, Double val) {
 Boolean anyDevAttNumValBelow(List devs, String att, Double val) {
     return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() < val }?.size() >= 1) : false
 }
-Boolean anyDevAttNumValBetween(List devs, String att, Double low, Double high) {
+Boolean anyDevAttNumValBetween(List devs, String att, Double low, Double high, Boolean not) {
     return (devs && att && (low < high)) ? (devs?.findAll {
         Double t = it?.currentValue(att)?.toDouble()
-        ( (t >= low) && (t <= high) ) }?.size() >= 1) : false
+        if(not) ( (t < low) || (t > high) )
+        else ( (t >= low) && (t <= high) ) }?.size() >= 1) : false
 }
 Boolean anyDevAttNumValEqual(List devs, String att, Double val) {
     return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() == val }?.size() >= 1) : false
@@ -4490,10 +4490,11 @@ Boolean allDevAttNumValsAbove(List devs, String att, Double val) {
 Boolean allDevAttNumValsBelow(List devs, String att, Double val) {
     return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() < val }?.size() == devs?.size()) : false
 }
-Boolean allDevAttNumValsBetween(List devs, String att, Double low, Double high) {
+Boolean allDevAttNumValsBetween(List devs, String att, Double low, Double high, Boolean not) {
     return (devs && att && (low < high)) ? (devs?.findAll {
         Double t = it?.currentValue(att)?.toDouble()
-        ( (t >= low) && (t <= high) ) }?.size() == devs?.size()) : false
+        if(not) ( (t < low) || (t > high) )
+        else ( (t >= low) && (t <= high) ) }?.size() == devs?.size()) : false
 }
 Boolean allDevAttNumValsEqual(List devs, String att, Double val) {
     return (devs && att) ? (devs?.findAll { it?.currentValue(att)?.toDouble() == val }?.size() == devs?.size()) : false
