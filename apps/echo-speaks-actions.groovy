@@ -67,6 +67,7 @@ import groovy.transform.Field
 @Field static final String sANY           = 'any'
 @Field static final String sARE           = 'are'
 @Field static final String sBETWEEN       = 'between'
+@Field static final String sNBETWEEN      = 'not_between'
 @Field static final String sBELOW         = 'below'
 @Field static final String sABOVE         = 'above'
 @Field static final String sEQUALS        = 'equals'
@@ -436,11 +437,11 @@ def triggersPage() {
                                                 break
 
                                             case "Monthly":
-                                                input "trig_scheduled_daynums", sENUM, title: inTS1("Days of the Month?", "day_calendar"), description: (!settings.trig_scheduled_weeks ? spanSm("(Optional)", "violet") : sBLANK), multiple: true, required: (!settings.trig_scheduled_weeks), submitOnChange: true, options: (1..31)?.collect { it as String }
+                                                input "trig_scheduled_daynums", sENUM, title: inTS1("Days of the Month?", "day_calendar"), description: (!settings.trig_scheduled_weeks ? optPrefix(): sBLANK), multiple: true, required: (!settings.trig_scheduled_weeks), submitOnChange: true, options: (1..31)?.collect { it as String }
                                                 if(!settings.trig_scheduled_daynums) {
-                                                    input "trig_scheduled_weeks", sENUM, title: inTS1("Weeks of the Month?", "day_calendar"), description: (!settings.trig_scheduled_daynums ? spanSm("(Optional)", "violet") : sBLANK), multiple: true, required: (!settings.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap()
+                                                    input "trig_scheduled_weeks", sENUM, title: inTS1("Weeks of the Month?", "day_calendar"), description: (!settings.trig_scheduled_daynums ? optPrefix(): sBLANK), multiple: true, required: (!settings.trig_scheduled_daynums), submitOnChange: true, options: weeksOfMonthMap()
                                                 }
-                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: spanSm("(Optional)", "violet"), multiple: true, required: false, submitOnChange: true, options: monthMap()
+                                                input "trig_scheduled_months", sENUM, title: inTS1("Only on these Months?", "day_calendar"), description: optPrefix(), multiple: true, required: false, submitOnChange: true, options: monthMap()
                                                 break
                                         }
                                     }
@@ -463,8 +464,8 @@ def triggersPage() {
                         input "trig_alarmSystemStatus_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true
                     }
                     if((List)settings.trig_alarmSystemStatus) {
-                        input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput("alarmSystemStatus", false, trigItemCnt++)
                     }
                 }
@@ -486,7 +487,7 @@ def triggersPage() {
                     input "trig_mode", sMODE, title: inTS1("Location Modes", sMODE), multiple: true, required: true, submitOnChange: true
                     if((List)settings.trig_mode) {
                         input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput(sMODE, false, trigItemCnt++)
                     }
                 }
@@ -498,7 +499,7 @@ def triggersPage() {
                     if(settings.trig_pistonExecuted) {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput("pistonExecuted", false, trigItemCnt++)
                     }
                 }
@@ -739,7 +740,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     if((Integer)settings."trig_${inType}_after") {
                         input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, "delay_time"), required: false, defaultValue: null, submitOnChange: true
                         if((Integer)settings."trig_${inType}_after_repeat") {
-                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, "question")  + spanSm("(Optional)", "violet"), required: false, defaultValue: null, submitOnChange: true
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, "question")  + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         }
                     }
                 }
@@ -758,17 +759,18 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, submitOnChange: true, required: devReq
         if(settings."trig_${inType}") {
-            input "trig_${inType}_cmd", sENUM, title: spanSmBld("${cmdTitle} is...", sNULL, sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
+            input "trig_${inType}_cmd", sENUM, title: spanSmBld("${cmdTitle} is...", sNULL, sCOMMAND), options: [sBETWEEN, sNBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
             if (settings."trig_${inType}_cmd") {
-                if ((String)settings."trig_${inType}_cmd" in [sBETWEEN, sBELOW]) {
-                    input "trig_${inType}_low", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" == sBETWEEN ? "Between a Low" : "a low") + " ${cmdTitle} of...", sNULL, "low"), required: true, submitOnChange: true
+                if ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN, sBELOW]) {
+                    String snot = (String)settings."trig_${inType}_cmd" in [sNBETWEEN] ? "Not " : sBLANK
+                    input "trig_${inType}_low", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN] ? "${snot}Between a Low" : "a low") + " ${cmdTitle} of...", sNULL, "low"), required: true, submitOnChange: true
                 }
                 if(settings."trig_${inType}_low" && ((String)settings."trig_${inType}_cmd" in [sBELOW]) ) done=true
-                if ((String)settings."trig_${inType}_cmd" in [sBETWEEN, sABOVE]) {
-                    input "trig_${inType}_high", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" == sBETWEEN ? "and a High of..." : "a High") + " ${cmdTitle} of...", sNULL, "high"), required: true, submitOnChange: true
+                if ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN, sABOVE]) {
+                    input "trig_${inType}_high", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN] ? "and a High of..." : "a High") + " ${cmdTitle} of...", sNULL, "high"), required: true, submitOnChange: true
                 }
                 if(settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sABOVE])) done=true
-                if(settings."trig_${inType}_low" && settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sBETWEEN])) done=true
+                if(settings."trig_${inType}_low" && settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN])) done=true
 
                 if ((String)settings."trig_${inType}_cmd" == sEQUALS) {
                     input "trig_${inType}_equal", sNUMBER, title: spanSmBld("a ${cmdTitle} of...", sNULL, "equal"), required: true, submitOnChange: true
@@ -782,7 +784,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                         }
                     }
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, "question") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (In Seconds)?", sNULL, "question") + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, "question") + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
                     triggerMsgInput(inType, false, trigItemCnt)
                 }
             }
@@ -979,19 +981,20 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
     section (sectHead(sectStr)) {
         input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false
         if((List)settings."cond_${inType}") {
-            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
-            if ((String)settings."cond_${inType}_cmd") {
-                if ((String)settings."cond_${inType}_cmd" in [sBETWEEN, sBELOW]) {
-                    input "cond_${inType}_low", sNUMBER, title: inTS1("a ${(String)settings."cond_${inType}_cmd" == sBETWEEN ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true
+            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sNBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
+            String c_cmd = (String)settings."cond_${inType}_cmd"
+            if (c_cmd) {
+                if (c_cmd in [sNBETWEEN, sBETWEEN, sBELOW]) {
+                    input "cond_${inType}_low", sNUMBER, title: inTS1("a ${c_cmd in [sNBETWEEN, sBETWEEN] ? "Low " : sBLANK}${cmdTitle} of...", "low"), required: true, submitOnChange: true
                 }
-                if ((String)settings."cond_${inType}_cmd" in [sBETWEEN, sABOVE]) {
-                    input "cond_${inType}_high", sNUMBER, title: inTS1("${(String)settings."cond_${inType}_cmd" == sBETWEEN ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true
+                if (c_cmd in [sNBETWEEN, sBETWEEN, sABOVE]) {
+                    input "cond_${inType}_high", sNUMBER, title: inTS1("${c_cmd in [sNBETWEEN, sBETWEEN] ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true
                 }
-                if ((String)settings."cond_${inType}_cmd" == sEQUALS) {
+                if (c_cmd == sEQUALS) {
                     input "cond_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true
                 }
                 if (((List)settings."cond_${inType}")?.size() > 1) {
-                    input "cond_${inType}_all", sBOOL, title: inTS1("Require ALL devices to be (${settings."cond_${inType}_cmd"}) values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
+                    input "cond_${inType}_all", sBOOL, title: inTS1("Require ALL devices to be (${c_cmd}) values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                     if(!(Boolean)settings."cond_${inType}_all") {
                         input "cond_${inType}_avg", sBOOL, title: inTS1("Use the average of all selected device values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                     }
@@ -1525,7 +1528,7 @@ def actionsPage() {
             }
             if(done) {
                 section(sectHead("Delay Config:")) {
-                    input "act_delay", sNUMBER, title: inTS1("Delay Action in Seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
+                    input "act_delay", sNUMBER, title: inTS1("Delay Action in seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
                 }
                 if(isTierAct && (Integer)settings.act_tier_cnt > 1) {
                     section(sectHead("Tier Action Start Tasks:")) {
@@ -1653,7 +1656,7 @@ def actTrigTasksPage(params) {
 
         if(actTasksConfiguredByType(t)) {
             section("Delay before running Tasks: ") {
-                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in Seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
+                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
             }
         }
     }
@@ -3081,16 +3084,20 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
         en = en == "thermostatTemperature" ? sTEMP : en
         Double evtValue = (dcavg ? getDevValueAvg(devs, en) : evt?.value) as Double
         // log.debug "evtValue: ${evtValue}"
+        Boolean not=false
         switch(cmd) {
             case sEQUALS:
                 if(!dca && dce && dce == evtValue) {
                     evtOk=true
                 } else if(dca && dce && allDevAttNumValsEqual(devs, en, dce)) { evtOk=true; evtAd=true }
                 break
+            case sNBETWEEN:
+                not=true
             case sBETWEEN:
                 if(!dca && dcl && dch && (evtValue in (dcl..dch))) {
                     evtOk=true
                 } else if(dca && dcl && dch && allDevAttNumValsBetween(devs, en, dcl, dch)) { evtOk=true; evtAd=true }
+                if(not) evtOk=!evtOk
                 break
             case sABOVE:
                 if(!dca && dch && (evtValue > dch)) {
@@ -3314,30 +3321,38 @@ Boolean checkDeviceNumCondOk(String att) {
     Double dce = settings."cond_${att}_equal" ?: null
     Boolean dca = ((Boolean)settings."cond_${att}_all" == true) ?: false
     if( !(att && devs && cmd) ) { return true }
+    Boolean not=false
 
     switch(cmd) {
         case sEQUALS:
             if(dce) {
-                if(dca) { return allDevAttNumValsEqual(devs, att, dce) }
-                else { return anyDevAttNumValEqual(devs, att, dce) }
+                Boolean a
+                a = dca ? allDevAttNumValsEqual(devs, att, dce) : anyDevAttNumValEqual(devs, att, dce)
+                return a
             }
             break
+        case sNBETWEEN:
+            not=true
         case sBETWEEN:
             if(dcl && dch) {
-                if(dca) { return allDevAttNumValsBetween(devs, att, dcl, dch) }
-                else { return anyDevAttNumValBetween(devs, att, dcl, dch) }
+                Boolean a
+                a = dca ? allDevAttNumValsBetween(devs, att, dcl, dch) : anyDevAttNumValBetween(devs, att, dcl, dch)
+                if(not){ a = !a }
+                return a
             }
             break
         case sABOVE:
             if(dch) {
-                if(dca) { return allDevAttNumValsAbove(devs, att, dch) }
-                else { return anyDevAttNumValAbove(devs, att, dch) }
+                Boolean a
+                a = dca ? allDevAttNumValsAbove(devs, att, dch) : anyDevAttNumValAbove(devs, att, dch)
+                return a
             }
             break
         case sBELOW:
             if(dcl) {
-                if(dca) { return allDevAttNumValsBelow(devs, att, dcl) }
-                else { return anyDevAttNumValBelow(devs, att, dcl) }
+                Boolean a
+                a = dca ? allDevAttNumValsBelow(devs, att, dcl) : anyDevAttNumValBelow(devs, att, dcl)
+                return a
             }
             break
     }
@@ -4728,16 +4743,17 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         adder = "Button "
                     default:
                         str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Device${settings."${sPre}${evt}"?.size()>1 ? "s" : sBLANK})" : sBLANK}")
-                        if((String)settings."${sPre}${evt}_cmd" in [sABOVE, sBELOW, "equal", sBETWEEN]) {
-                            if ((String)settings."${sPre}${evt}_cmd" == sBETWEEN) {
-                                str += (String)settings."${sPre}${evt}_cmd"  ? spanSmBr("    ${sPLUS} Trigger Value ${settings."${sPre}${evt}_cmd".capitalize()}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})") : sBLANK
+                        String t_cmd = (String)settings."${sPre}${evt}_cmd"
+                        if(t_cmd in [sABOVE, sBELOW, sEQUALS, sBETWEEN, sNBETWEEN]) {
+                            if (t_cmd in [sBETWEEN, sNBETWEEN]) {
+                                str += spanSmBr("    ${sPLUS} Trigger Value ${t_cmd.capitalize()}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})")
                             } else {
-                                str += ((String)settings."${sPre}${evt}_cmd" == sABOVE && settings."${sPre}${evt}_high")    ? spanSmBr("    ${sPLUS} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
-                                str += ((String)settings."${sPre}${evt}_cmd" == sBELOW && settings."${sPre}${evt}_low")     ? spanSmBr("    ${sPLUS} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
-                                str += ((String)settings."${sPre}${evt}_cmd" == "equal" && settings."${sPre}${evt}_equal")  ? spanSmBr("    ${sPLUS} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
+                                str += (t_cmd == sABOVE && settings."${sPre}${evt}_high")    ? spanSmBr("    ${sPLUS} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
+                                str += (t_cmd == sBELOW && settings."${sPre}${evt}_low")     ? spanSmBr("    ${sPLUS} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
+                                str += (t_cmd == sEQUALS && settings."${sPre}${evt}_equal")  ? spanSmBr("    ${sPLUS} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
                             }
                         } else {
-                            str += settings."${sPre}${evt}_cmd"  ? spanSmBr("    ${sPLUS} Trigger State: (${settings."${sPre}${evt}_cmd"})") : sBLANK
+                            str += t_cmd  ? spanSmBr("    ${sPLUS} Trigger State: (${t_cmd})") : sBLANK
                         }
                         str += settings."${sPre}${evt}_nums"               ? spanSmBr("    ${sPLUS} Button Numbers: ${settings."${sPre}${evt}_nums"}") : sBLANK
                         str += (Integer)settings."${sPre}${evt}_after"              ? spanSmBr("    ${sPLUS} Only After: (${settings."${sPre}${evt}_after"} sec)") : sBLANK
@@ -4806,17 +4822,19 @@ String getConditionsDesc(Boolean addFoot=true) {
                     }
 
                     String a = "    - Desired Value: "
+                    String aG = (Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
-                    if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
+                    if(cmd in [sBETWEEN, sNBETWEEN, sBELOW, sABOVE, sEQUALS]) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
-                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}${attUnit(evt)})" + ((Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr(a+"(${cmdLow-cmdHigh}${attUnit(evt)})" + ((Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr(a+"( >${cmdHigh}${attUnit(evt)})" + ((Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sBELOW && cmdLow) ? spanSmBr(a+"( <${cmdLow}${attUnit(evt)})" + ((Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        String aU = attUnit(evt)
+                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}${aU})" + aG) : sBLANK
+                        str += (cmd in [sBETWEEN, sNBETWEEN] && cmdLow && cmdHigh) ? spanSmBr(a+cmd.capitalize()+" (${cmdLow-cmdHigh}${aU})" + aG) : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr(a+"( >${cmdHigh}${aU})" + aG) : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? spanSmBr(a+"( <${cmdLow}${aU})" + aG) : sBLANK
                     } else {
-                        str += cmd ? spanSmBr(a+"(${cmd})" + ((Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += cmd ? spanSmBr(a+"(${cmd})" + aG) : sBLANK
                     }
                     str += ((Boolean)settings."${sPre}${evt}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                 }
