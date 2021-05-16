@@ -759,7 +759,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, submitOnChange: true, required: devReq
         if(settings."trig_${inType}") {
-            input "trig_${inType}_cmd", sENUM, title: spanSmBld("${cmdTitle} is...", sNULL, sCOMMAND), options: [sBETWEEN, sNBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
+            input "trig_${inType}_cmd", sENUM, title: spanSmBld("${cmdTitle} is...", sNULL, sCOMMAND), options: numOpts(), required: true, multiple: false, submitOnChange: true
             if (settings."trig_${inType}_cmd") {
                 if ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN, sBELOW]) {
                     String snot = (String)settings."trig_${inType}_cmd" in [sNBETWEEN] ? "Not " : sBLANK
@@ -977,11 +977,15 @@ def condNonNumSect(String inType, String capType, String sectStr, String devTitl
     }
 }
 
+static List<String> numOpts() {
+    return [sBETWEEN, sNBETWEEN, sBELOW, sABOVE, sEQUALS]
+}
+
 def condNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image) {
     section (sectHead(sectStr)) {
         input "cond_${inType}", "capability.${capType}", title: inTS1(devTitle, image), multiple: true, submitOnChange: true, required: false
         if((List)settings."cond_${inType}") {
-            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: [sBETWEEN, sNBETWEEN, sBELOW, sABOVE, sEQUALS], required: true, multiple: false, submitOnChange: true
+            input "cond_${inType}_cmd", sENUM, title: inTS1("${cmdTitle} is...", sCOMMAND), options: numOpts(), required: true, multiple: false, submitOnChange: true
             String c_cmd = (String)settings."cond_${inType}_cmd"
             if (c_cmd) {
                 if (c_cmd in [sNBETWEEN, sBETWEEN, sBELOW]) {
@@ -4709,8 +4713,8 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                 String adder = sBLANK
                 switch(evt) {
                     case "scheduled":
-                        String schedTyp = settings."${sPre}${evt}_type" ? settings."${sPre}${evt}_type" : sNULL
-                        str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())}${settings."${sPre}${evt}_type" ? " (${settings."${sPre}${evt}_type"})" : ""}")
+                        String schedTyp = settings."${sPre}${evt}_type" ?: sNULL
+                        str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())}${schedTyp ? " (${schedTyp})" : ""}")
                         if(schedTyp == "Recurring") {
                             str += settings."${sPre}${evt}_recurrence"  ? spanSmBr("    ${sBULLETINV} Recurrence: (${settings."${sPre}${evt}_recurrence"})")            : sBLANK
                             str += settings."${sPre}${evt}_time"        ? spanSmBr("    ${sBULLETINV} Time: (${fmtTime(settings."${sPre}${evt}_time")})")               : sBLANK
@@ -4745,7 +4749,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                     default:
                         str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Device${settings."${sPre}${evt}"?.size()>1 ? "s" : sBLANK})" : sBLANK}")
                         String t_cmd = (String)settings."${sPre}${evt}_cmd"
-                        if(t_cmd in [sABOVE, sBELOW, sEQUALS, sBETWEEN, sNBETWEEN]) {
+                        if(t_cmd in numOpts()) {
                             if (t_cmd in [sBETWEEN, sNBETWEEN]) {
                                 str += spanSmBr("    ${sPLUS} Trigger Value ${t_cmd.capitalize()}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})")
                             } else {
@@ -4825,7 +4829,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                     String a = "    - Desired Value: "
                     String aG = (Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK
                     def cmd = settings."${sPre}${evt}_cmd" ?: null
-                    if(cmd in [sBETWEEN, sNBETWEEN, sBELOW, sABOVE, sEQUALS]) {
+                    if(cmd in numOpts()) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
