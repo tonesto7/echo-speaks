@@ -95,6 +95,9 @@ import groovy.transform.Field
 @Field static final String sVALVE         = 'valve'
 @Field static final String sCHGTO         = 'changes to'
 @Field static final String sTTS           = 'TTS'
+@Field static final String sQUES          = 'question'
+@Field static final String sDELAYT        = 'delay_time'
+@Field static final String sEQ            = 'equal'
 @Field static final List<String> lONOFF        = ['on', 'off']
 @Field static final List<String> lANY          = ['any']
 @Field static final List<String> lOPNCLS       = ['open', 'closed']
@@ -464,8 +467,8 @@ def triggersPage() {
                         input "trig_alarmSystemStatus_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true
                     }
                     if((List)settings.trig_alarmSystemStatus) {
-                        input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput("alarmSystemStatus", false, trigItemCnt++)
                     }
                 }
@@ -475,8 +478,8 @@ def triggersPage() {
                 section (sectHead("Alexa Guard Events"), hideable: true) {
                     input "trig_guard", sENUM, title: inTS1("Alexa Guard Modes", "alarm_home"), options: ["ARMED_STAY", "ARMED_AWAY", sANY], multiple: true, required: true, submitOnChange: true
                     if(settings.trig_guard) {
-                        // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
+                        // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", sDELAYT), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput("guard", false, trigItemCnt++)
                     }
                 }
@@ -486,8 +489,8 @@ def triggersPage() {
                 section (sectHead("Mode Events"), hideable: true) {
                     input "trig_mode", sMODE, title: inTS1("Location Modes", sMODE), multiple: true, required: true, submitOnChange: true
                     if((List)settings.trig_mode) {
-                        input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput(sMODE, false, trigItemCnt++)
                     }
                 }
@@ -498,8 +501,8 @@ def triggersPage() {
                     input "trig_pistonExecuted", sENUM, title: inTS1("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_pistonExecuted) {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
-                        input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", "question"), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", sQUES), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput("pistonExecuted", false, trigItemCnt++)
                     }
                 }
@@ -736,17 +739,17 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                 extraMeth(inType, extraStr)
 
                 if(!isTierAction() && (String)settings."trig_${inType}_cmd" in cmdAfterOpts) {
-                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) seconds?", sNULL, "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
                     if((Integer)settings."trig_${inType}_after") {
-                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, "delay_time"), required: false, defaultValue: null, submitOnChange: true
+                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
                         if((Integer)settings."trig_${inType}_after_repeat") {
-                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, "question")  + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, sQUES)  + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         }
                     }
                 }
                 if(!(Integer)settings."trig_${inType}_after") {
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, "question") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, "delay_time") + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                 }
                 triggerMsgInput(inType, true, trigItemCnt)
             }
@@ -773,7 +776,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                 if(settings."trig_${inType}_low" && settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN])) done=true
 
                 if ((String)settings."trig_${inType}_cmd" == sEQUALS) {
-                    input "trig_${inType}_equal", sNUMBER, title: spanSmBld("a ${cmdTitle} of...", sNULL, "equal"), required: true, submitOnChange: true
+                    input "trig_${inType}_equal", sNUMBER, title: spanSmBld("a ${cmdTitle} of...", sNULL, sEQ), required: true, submitOnChange: true
                     if(settings."trig_${inType}_equal") done=true
                 }
                 if(done) {
@@ -783,8 +786,8 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                             input "trig_${inType}_avg", sBOOL, title: spanSmBld("Use the average of all selected device values?", sNULL, sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, "question") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, "question") + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
+                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
                     triggerMsgInput(inType, false, trigItemCnt)
                 }
             }
@@ -995,7 +998,7 @@ def condNumValSect(String inType, String capType, String sectStr, String devTitl
                     input "cond_${inType}_high", sNUMBER, title: inTS1("${c_cmd in [sNBETWEEN, sBETWEEN] ? "and a high " : "a "}${cmdTitle} of...", "high"), required: true, submitOnChange: true
                 }
                 if (c_cmd == sEQUALS) {
-                    input "cond_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", "equal"), required: true, submitOnChange: true
+                    input "cond_${inType}_equal", sNUMBER, title: inTS1("a ${cmdTitle} of...", sEQ), required: true, submitOnChange: true
                 }
                 if (((List)settings."cond_${inType}")?.size() > 1) {
                     input "cond_${inType}_all", sBOOL, title: inTS1("Require ALL devices to be (${c_cmd}) values?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
@@ -1073,14 +1076,14 @@ String actionTypeDesc() {
 def actionTiersPage() {
     return dynamicPage(name: "actionTiersPage", title: sBLANK, install: false, uninstall: false) {
         section() {
-            input "act_tier_cnt", sNUMBER, title: inTS1("How many Tiers?", "equal"), required: true, submitOnChange: true
+            input "act_tier_cnt", sNUMBER, title: inTS1("How many Tiers?", sEQ), required: true, submitOnChange: true
         }
         Integer tierCnt = (Integer)settings.act_tier_cnt
         if(tierCnt) {
             (1..tierCnt)?.each { Integer ti->
                 section(sectHead("Tier Item (${ti}) Config:")) {
                     if(ti > 1) {
-                        input "act_tier_item_${ti}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", "equal"), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true
+                        input "act_tier_item_${ti}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", sEQ), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true
                     }
                     if(ti==1 || settings."act_tier_item_${ti}_delay") {
                         String inTxt = (String)settings."act_tier_item_${ti}_txt"
@@ -1532,7 +1535,7 @@ def actionsPage() {
             }
             if(done) {
                 section(sectHead("Delay Config:")) {
-                    input "act_delay", sNUMBER, title: inTS1("Delay Action in seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
+                    input "act_delay", sNUMBER, title: inTS1("Delay Action in seconds", sDELAYT) + optPrefix(), required: false, submitOnChange: true
                 }
                 if(isTierAct && (Integer)settings.act_tier_cnt > 1) {
                     section(sectHead("Tier Action Start Tasks:")) {
@@ -1660,7 +1663,7 @@ def actTrigTasksPage(params) {
 
         if(actTasksConfiguredByType(t)) {
             section("Delay before running Tasks: ") {
-                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in seconds", "delay_time") + optPrefix(), required: false, submitOnChange: true
+                input "${t}tasks_delay", sNUMBER, title: inTS1("Delay running ${dMap?.delay} in seconds", sDELAYT) + optPrefix(), required: false, submitOnChange: true
             }
         }
     }
@@ -1829,7 +1832,7 @@ def actNotifPage() {
                 } else {
                     paragraph pTS("When using speak or announcement actions custom notification is optional and a notification will be sent with speech text.", sNULL, false, sCLRGRY)
                 }
-                input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", "question"), required: false, defaultValue: false, submitOnChange: true
+                input "notif_use_custom", sBOOL, title: inTS1("Send a custom notification...", sQUES), required: false, defaultValue: false, submitOnChange: true
                 if(settings.notif_use_custom || custMsgReq) {
                     input "notif_custom_message", sTEXT, title: inTS1("Enter custom message...", sTEXT), required: custMsgReq, submitOnChange: true
                 }
@@ -1974,7 +1977,7 @@ private actionVolumeInputs(List devices, Boolean showVolOnly=false, Boolean show
             Integer devSiz = devices?.size()
             if(settings.act_EchoZones?.size() > 1) {
                 section(sectHead("(Per Zone) Volume Options:"), hideable: true) {
-                    input "act_EchoZones_vol_per_zone", sBOOL, title: inTS1("Set Per Zone Volume?", "question"), defaultValue: false, submitOnChange: true
+                    input "act_EchoZones_vol_per_zone", sBOOL, title: inTS1("Set Per Zone Volume?", sQUES), defaultValue: false, submitOnChange: true
                     if((Boolean)settings.act_EchoZones_vol_per_zone) {
                         Map<String, Map> echoZones = (Map<String,Map>)((Map<String,Map>)getZones() ?: [:]).findAll { it.key in settings.act_EchoZones }
                         paragraph htmlLine(sCLR4D9)
