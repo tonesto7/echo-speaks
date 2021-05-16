@@ -743,7 +743,7 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     if((Integer)settings."trig_${inType}_after") {
                         input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
                         if((Integer)settings."trig_${inType}_after_repeat") {
-                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, sQUES)  + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         }
                     }
                 }
@@ -1087,7 +1087,7 @@ def actionTiersPage() {
                     }
                     if(ti==1 || settings."act_tier_item_${ti}_delay") {
                         String inTxt = (String)settings."act_tier_item_${ti}_txt"
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT) + (!inTxt ? spanSm(" (Required)", sCLRRED) : sBLANK), 
+                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT) + (!inTxt ? spanSm(" (Required)", sCLRRED) : sBLANK),
                                 description: inTxt ? spanSm(inTxt, sCLR4D9) : inactFoot("Open Response Designer...")
                     }
                     input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", sSPDKNB) + optPrefix(), defaultValue: null, required: false, submitOnChange: true
@@ -1984,8 +1984,8 @@ private actionVolumeInputs(List devices, Boolean showVolOnly=false, Boolean show
                         echoZones.each { String znId, Map znData->
                             paragraph spanBld("Zone: ${znData.name}")
                             input "act_EchoZones_${znId}_volume_change", sNUMBER, title: inTS1("Volume Level (0% - 100%)", sSPDKNB) + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
-                            if(!showVolOnly) { 
-                                input "act_EchoZones_${znId}_volume_restore", sNUMBER, title: inTS1("Restore Volume (0% - 100%)", sSPDKNB) + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true 
+                            if(!showVolOnly) {
+                                input "act_EchoZones_${znId}_volume_restore", sNUMBER, title: inTS1("Restore Volume (0% - 100%)", sSPDKNB) + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
                             }
                         }
                     }
@@ -2059,9 +2059,9 @@ private void updDeviceInputs() {
     } catch (ignored) {
         devIds = aa.collect { it?.toString() }
     }
-    if(updList && devIds) { 
+    if(updList && devIds) {
         if(devModeFLD) log.debug "updList: $devIds"
-        app.updateSetting( "act_EchoDevices", [type: "enum", value: devIds.unique()]) 
+        app.updateSetting( "act_EchoDevices", [type: "enum", value: devIds.unique()])
     }
     if(devIds) { app.updateSetting( "act_EchoDeviceList", [type: "capability", value: devIds.unique()]) } // this won't take effect until next execution
 }
@@ -3680,7 +3680,7 @@ public getActionHistory(Boolean asObj=false) {
             hList.push([name: "Source:", val: h?.src])
             hList.push([name: "DateTime:", val: h?.dt])
             if(hList.size()) {
-                output.push(spanSm(kvListToHtmlTable(hList, sCLR4D9), sCLRGRY)) 
+                output.push(spanSm(kvListToHtmlTable(hList, sCLR4D9), sCLRGRY))
             }
         }
     } else { output.push("No History Items Found...") }
@@ -3695,7 +3695,7 @@ private static String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
     String str = sBLANK
     if(tabList?.size()) {
         str += "<table style='border: 1px solid ${color};border-collapse: collapse;'>"
-        tabList.each { it->  
+        tabList.each { it->
             str += "<tr style='border: 1px solid ${color};'><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBld((String)it.name)}</td><td style='border: 1px solid ${color};padding: 0px 3px 0px 3px;'>${spanSmBr("${it.val}")}</td></tr>"
         }
         str += "</table>"
@@ -4649,7 +4649,7 @@ String getAppNotifDesc(Boolean hide=false) {
     String str = sBLANK
     if(isActNotifConfigured()) {
         Boolean ok = getOk2Notify()
-        str += hide ? sBLANK : spanSmBr(strUnder("Send allowed: ") +  getOkOrNotSymHTML(ok))
+        str += hide ? sBLANK : spanSmBr(strUnder("Send allowed: ") + getOkOrNotSymHTML(ok))
         str += ((List)settings.notif_devs) ? spanSmBr("  ${sBULLET} Notification Device${pluralizeStr((List)settings.notif_devs)} (${((List)settings.notif_devs).size()})") : sBLANK
         str += (Boolean)settings.notif_alexa_mobile ? spanSmBr("  ${sBULLET} Alexa Mobile App") : sBLANK
         String res = getNotifSchedDesc(true)
