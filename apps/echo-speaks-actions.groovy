@@ -3329,40 +3329,32 @@ Boolean checkDeviceNumCondOk(String att) {
     Boolean dca = ((Boolean)settings."cond_${att}_all" == true) ?: false
     if( !(att && devs && cmd) ) { return true }
     Boolean not=false
-
+    Boolean a = true
     switch(cmd) {
         case sEQUALS:
             if(dce) {
-                Boolean a
                 a = dca ? allDevAttNumValsEqual(devs, att, dce) : anyDevAttNumValEqual(devs, att, dce)
-                return a
             }
             break
         case sNBETWEEN:
             not=true
         case sBETWEEN:
             if(dcl && dch) {
-                Boolean a
                 a = dca ? allDevAttNumValsBetween(devs, att, dcl, dch, not) : anyDevAttNumValBetween(devs, att, dcl, dch, not)
-                return a
             }
             break
         case sABOVE:
             if(dch) {
-                Boolean a
                 a = dca ? allDevAttNumValsAbove(devs, att, dch) : anyDevAttNumValAbove(devs, att, dch)
-                return a
             }
             break
         case sBELOW:
             if(dcl) {
-                Boolean a
                 a = dca ? allDevAttNumValsBelow(devs, att, dcl) : anyDevAttNumValBelow(devs, att, dcl)
-                return a
             }
             break
     }
-    return true
+    return a
 }
 
 @Field static List<String> lDATTSTR = ["switch", "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "windowShade", "valve", "water", "thermostatMode", "thermostatOperatingState", "thermostatFanMode"]
@@ -4831,7 +4823,7 @@ String getConditionsDesc(Boolean addFoot=true) {
 
                     String a = "    - Desired Value: "
                     String aG = (Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK
-                    def cmd = settings."${sPre}${evt}_cmd" ?: null
+                    String cmd = settings."${sPre}${evt}_cmd" ?: sNULL
                     if(cmd in numOpts()) {
                         def cmdLow = settings."${sPre}${evt}_low" ?: null
                         def cmdHigh = settings."${sPre}${evt}_high" ?: null
