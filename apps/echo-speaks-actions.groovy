@@ -4830,7 +4830,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                         def cmdEq = settings."${sPre}${evt}_equal" ?: null
                         String aU = attUnit(evt) ')' + aG
                         str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}"+aU) : sBLANK
-                        str += (cmd in [sBETWEEN, sNBETWEEN] && cmdLow && cmdHigh) ? spanSmBr(a+cmd.capitalize()+" (${cmdLow-cmdHigh}"+aU) : sBLANK
+                        str += (cmd in [sBETWEEN, sNBETWEEN] && cmdLow && cmdHigh) ? spanSmBr(a+cmd.capitalize()+" (${cmdLow}-${cmdHigh}"+aU) : sBLANK
                         str += (cmd == sABOVE && cmdHigh) ? spanSmBr(a+"( >${cmdHigh}"+aU) : sBLANK
                         str += (cmd == sBELOW && cmdLow) ? spanSmBr(a+"( <${cmdLow}"+aU) : sBLANK
                     } else {
