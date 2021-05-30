@@ -395,7 +395,6 @@ def triggersPage() {
         }
         Integer trigEvtCnt = ((List)settings.triggerEvents)?.size()
         if (trigEvtCnt) {
-//            Integer trigItemCnt = 0
             Boolean fnd = false
             //if( "scheduled" in (List<String>)settings.triggerEvents ||
             //       sWEATH in (List<String>)settings.triggerEvents) { fnd = true }
@@ -456,7 +455,7 @@ def triggersPage() {
                                 input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false
                                 break
                         }
-                        triggerMsgInput("scheduled", false /* , trigItemCnt++ */)
+                        triggerMsgInput("scheduled", false)
                     }
                 }
             }
@@ -470,7 +469,7 @@ def triggersPage() {
                     if((List)settings.trig_alarmSystemStatus) {
                         input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("alarmSystemStatus", false /*, trigItemCnt++ */)
+                        triggerMsgInput("alarmSystemStatus", false)
                     }
                 }
             }
@@ -481,7 +480,7 @@ def triggersPage() {
                     if(settings.trig_guard) {
                         // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("guard", false /* , trigItemCnt++ */)
+                        triggerMsgInput("guard", false)
                     }
                 }
             }
@@ -492,7 +491,7 @@ def triggersPage() {
                     if((List)settings.trig_mode) {
                         input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput(sMODE, false /* , trigItemCnt++ */)
+                        triggerMsgInput(sMODE, false)
                     }
                 }
             }
@@ -504,49 +503,49 @@ def triggersPage() {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("pistonExecuted", false /* , trigItemCnt++ */)
+                        triggerMsgInput("pistonExecuted", false)
                     }
                 }
             }
 
             if (valTrigEvt(sSWITCH)) {
-                trigNonNumSect(sSWITCH, sSWITCH, "Switches", "Switches", lONOFF+lANY, "are turned", lONOFF, sSWITCH /* , trigItemCnt++ */)
+                trigNonNumSect(sSWITCH, sSWITCH, "Switches", "Switches", lONOFF+lANY, "are turned", lONOFF, sSWITCH)
             }
 
             if (valTrigEvt(sLEVEL)) {
-                trigNumValSect(sLEVEL, "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level is", sSPDKNB /* , trigItemCnt++ */)
+                trigNumValSect(sLEVEL, "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level is", sSPDKNB)
             }
 
             if (valTrigEvt(sBATT)) {
-                trigNumValSect(sBATT, sBATT, "Battery Level", "Batteries", "Level is", sSPDKNB /* , trigItemCnt++ */)
+                trigNumValSect(sBATT, sBATT, "Battery Level", "Batteries", "Level is", sSPDKNB)
             }
 
             if (valTrigEvt(sMOTION)) {
-                trigNonNumSect(sMOTION, "motionSensor", "Motion Sensors", "Motion Sensors", lACTINACT+lANY, "become", lACTINACT, sMOTION /* , trigItemCnt++ */)
+                trigNonNumSect(sMOTION, "motionSensor", "Motion Sensors", "Motion Sensors", lACTINACT+lANY, "become", lACTINACT, sMOTION)
             }
 
             if (valTrigEvt("presence")) {
-                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", lPRES +lANY, sCHGTO, lPRES, "presence" /* , trigItemCnt++ */)
+                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", lPRES +lANY, sCHGTO, lPRES, "presence")
             }
 
             if (valTrigEvt(sCONTACT)) {
-                trigNonNumSect(sCONTACT, "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", lOPNCLS+lANY, sCHGTO, lOPNCLS, sCONTACT /* , trigItemCnt++ */)
+                trigNonNumSect(sCONTACT, "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", lOPNCLS+lANY, sCHGTO, lOPNCLS, sCONTACT)
             }
 
             if (valTrigEvt("acceleration")) {
-                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", lACTINACT+lANY, sCHGTO, lACTINACT, "acceleration" /* , trigItemCnt++ */)
+                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", lACTINACT+lANY, sCHGTO, lACTINACT, "acceleration")
             }
 
             if (valTrigEvt("door")) {
-                trigNonNumSect("door", "garageDoorControl", "Garage Door Openers", "Garage Doors", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "garage_door" /* , trigItemCnt++ */)
+                trigNonNumSect("door", "garageDoorControl", "Garage Door Openers", "Garage Doors", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "garage_door")
             }
 
             if (valTrigEvt(sLOCK)) {
-                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", lLOCKUNL + lANY, sCHGTO, lLOCKUNL, sLOCK /* , trigItemCnt++ */, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
+                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", lLOCKUNL + lANY, sCHGTO, lLOCKUNL, sLOCK, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
             }
 
             if (valTrigEvt("securityKeypad")) {
-                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", lSEC + lANY, sCHGTO, lSEC, sKEYPAD /* , trigItemCnt++ */, (!!(List)settings.trig_securityKeypad_Codes), (((String)settings.trig_securityKeypad && (String)settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
+                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", lSEC + lANY, sCHGTO, lSEC, sKEYPAD, (!!(List)settings.trig_securityKeypad_Codes), (((String)settings.trig_securityKeypad && (String)settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
             }
 
             if (valTrigEvt("pushed")) {
@@ -557,7 +556,7 @@ def triggersPage() {
                         //input "trig_pushed_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: ["pushed"], required: true, multiple: false, defaultValue: "pushed", submitOnChange: true
                         input "trig_pushed_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true
                         if(settings.trig_pushed_nums) {
-                            triggerMsgInput("pushed", false /* , trigItemCnt++ */)
+                            triggerMsgInput("pushed", false)
                         }
                     }
                 }
@@ -571,7 +570,7 @@ def triggersPage() {
                         //input "trig_released_cmd", sENUM, title: inTS1("Released changes", sCOMMAND), options: ["released"], required: true, multiple: false, defaultValue: "released", submitOnChange: true
                         input "trig_released_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_released_nums) {
-                            triggerMsgInput("released", false /* , trigItemCnt++ */)
+                            triggerMsgInput("released", false)
                         }
                     }
                 }
@@ -585,7 +584,7 @@ def triggersPage() {
                         //input "trig_held_cmd", sENUM, title: inTS1("Held changes", sCOMMAND), options: ["held"], required: true, multiple: false, defaultValue: "held", submitOnChange: true
                         input "trig_held_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true,  multiple: true, submitOnChange: true
                         if(settings.trig_held_nums) {
-                            triggerMsgInput("held", false /* , trigItemCnt++ */)
+                            triggerMsgInput("held", false)
                         }
                     }
                 }
@@ -599,94 +598,70 @@ def triggersPage() {
                         //input "trig_doubleTapped_cmd", sENUM, title: inTS1("Double Tapped changes", sCOMMAND), options: ["doubleTapped"], required: true, multiple: false, defaultValue: "doubleTapped", submitOnChange: true
                         input "trig_doubleTapped_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_doubleTapped_nums) {
-                            triggerMsgInput("doubleTapped", false /*, trigItemCnt++ */)
+                            triggerMsgInput("doubleTapped", false)
                         }
                     }
                 }
             }
 
             if (valTrigEvt(sTEMP)) {
-                trigNumValSect(sTEMP, "temperatureMeasurement", "Temperature Sensor", "Temperature Sensors", "Temperature", sTEMP /* , trigItemCnt++ */)
+                trigNumValSect(sTEMP, "temperatureMeasurement", "Temperature Sensor", "Temperature Sensors", "Temperature", sTEMP)
             }
 
             if (valTrigEvt(sHUMID)) {
-                trigNumValSect(sHUMID, "relativeHumidityMeasurement", "Humidity Sensors", "Relative Humidity Sensors", "Relative Humidity (%)", sHUMID /* , trigItemCnt++ */)
+                trigNumValSect(sHUMID, "relativeHumidityMeasurement", "Humidity Sensors", "Relative Humidity Sensors", "Relative Humidity (%)", sHUMID)
             }
 
             if (valTrigEvt(sWATER)) {
-                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", lWETDRY + lANY, sCHGTO, lWETDRY, sWATER /* , trigItemCnt++ */)
+                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", lWETDRY + lANY, sCHGTO, lWETDRY, sWATER)
             }
 
             if (valTrigEvt(sPOWER)) {
-                trigNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER /* , trigItemCnt++ */)
+                trigNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER)
             }
 
             if (valTrigEvt("carbonMonoxide")) {
-                trigNonNumSect("carbonMonoxide", "carbonMonoxideDetector", "Carbon Monoxide Events", "Carbon Monoxide Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "co" /* , trigItemCnt++ */)
-/*                section (sectHead("Carbon Monoxide Events"), hideable: true) {
-                    input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true
-                    if (settings.trig_carbonMonoxide) {
-                        input "trig_carbonMonoxide_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + lANY, required: true, submitOnChange: true
-                        if(settings.trig_carbonMonoxide_cmd) {
-                            if (settings.trig_carbonMonoxide?.size() > 1 && settings.trig_carbonMonoxide_cmd != sANY) {
-                                input "trig_carbonMonoxide_all", sBOOL, title: inTS1("Require ALL Carbon Monoxide Detectors to be (${settings.trig_carbonMonoxide_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
-                            }
-                            triggerMsgInput("carbonMonoxide", false, trigItemCnt++)
-                        }
-                    }
-                } */
+                trigNonNumSect("carbonMonoxide", "carbonMonoxideDetector", "Carbon Monoxide Events", "Carbon Monoxide Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "co")
             }
 
             if (valTrigEvt("smoke")) {
-                trigNonNumSect("smoke", "smokeDetector", "Smoke Detector Events", "Smoke Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "smoke" /* , trigItemCnt++ */)
-/*                section (sectHead("Smoke Events"), hideable: true) {
-                    input "trig_smoke", "capability.smokeDetector", title: inTS1("Smoke Detectors", "smoke"), required: !(settings.trig_carbonMonoxide), multiple: true, submitOnChange: true
-                    if (settings.trig_smoke) {
-                        input "trig_smoke_cmd", sENUM, title: inTS1("changes to?", sCOMMAND), options: lDETECTCLR + lANY, required: true, submitOnChange: true
-                        if(settings.trig_smoke_cmd) {
-                            if (settings.trig_smoke?.size() > 1 && settings.trig_smoke_cmd != sANY) {
-                                input "trig_smoke_all", sBOOL, title: inTS1("Require ALL Smoke Detectors to be (${settings.trig_smoke_cmd})?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
-                            }
-                            triggerMsgInput("smoke", false, trigItemCnt++)
-                        }
-                    }
-                } */
+                trigNonNumSect("smoke", "smokeDetector", "Smoke Detector Events", "Smoke Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "smoke")
             }
 
             if (valTrigEvt("illuminance")) {
-                trigNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Events", "Illuminance Sensors", "Lux Level (%)", "illuminance" /* , trigItemCnt++ */)
+                trigNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Events", "Illuminance Sensors", "Lux Level (%)", "illuminance")
             }
 
             if (valTrigEvt("windowShade")) {
-                trigNonNumSect("windowShade", "windowShade", "Window Shades", "Window Shades", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "shade" /* , trigItemCnt++ */)
+                trigNonNumSect("windowShade", "windowShade", "Window Shades", "Window Shades", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "shade")
             }
 
             if (valTrigEvt(sVALVE)) {
-                trigNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS+lANY, sCHGTO, lOPNCLS, sVALVE /* , trigItemCnt++ */)
+                trigNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS+lANY, sCHGTO, lOPNCLS, sVALVE)
             }
 
             if (valTrigEvt("coolingSetpoint")) {
-                trigNumValSect("coolingSetpoint", sTHERM, "Thermostat Cooling Setpoint Events", "Thermostat (Cooling Setpoint)", "Setpoint temp", sTHERM /* , trigItemCnt++ */)
+                trigNumValSect("coolingSetpoint", sTHERM, "Thermostat Cooling Setpoint Events", "Thermostat (Cooling Setpoint)", "Setpoint temp", sTHERM)
             }
 
             if (valTrigEvt("heatingSetpoint")) {
-                trigNumValSect("heatingSetpoint", sTHERM, "Thermostat Heating Setpoint Events", "Thermostat (HeatingSetpoint)", "Setpoint temp", sTHERM /* , trigItemCnt++ */)
+                trigNumValSect("heatingSetpoint", sTHERM, "Thermostat Heating Setpoint Events", "Thermostat (HeatingSetpoint)", "Setpoint temp", sTHERM)
             }
 
             if (valTrigEvt(sTHERMTEMP)) {
-                trigNumValSect(sTHERMTEMP, sTHERM, "Thermostat Ambient Temperature Events", "Thermostat (Ambient Temperature)", "Ambient Temp", sTHERM /* , trigItemCnt++ */)
+                trigNumValSect(sTHERMTEMP, sTHERM, "Thermostat Ambient Temperature Events", "Thermostat (Ambient Temperature)", "Ambient Temp", sTHERM)
             }
 
             if (valTrigEvt("thermostatOperatingState")) {
-                trigNonNumSect("thermostatOperatingState", sTHERM, "Thermostat Operating State Events", "Thermostat (Operating State)", getThermOperStOpts()+lANY, sCHGTO, getThermOperStOpts(), sTHERM /* , trigItemCnt++ */)
+                trigNonNumSect("thermostatOperatingState", sTHERM, "Thermostat Operating State Events", "Thermostat (Operating State)", getThermOperStOpts()+lANY, sCHGTO, getThermOperStOpts(), sTHERM)
             }
 
             if (valTrigEvt("thermostatMode")) {
-                trigNonNumSect("thermostatMode", sTHERM, "Thermostat Mode Events", "Thermostat (Mode)", getThermModeOpts()+lANY, sCHGTO, getThermModeOpts(), sTHERM /*, trigItemCnt++ */)
+                trigNonNumSect("thermostatMode", sTHERM, "Thermostat Mode Events", "Thermostat (Mode)", getThermModeOpts()+lANY, sCHGTO, getThermModeOpts(), sTHERM)
             }
 
             if (valTrigEvt("thermostatFanMode")) {
-                trigNonNumSect("thermostatFanMode", sTHERM, "Thermostat Fan Mode Events", "Thermostat (Fan Mode)", getThermFanOpts()+lANY, sCHGTO, getThermFanOpts(), sTHERM/* , trigItemCnt++ */)
+                trigNonNumSect("thermostatFanMode", sTHERM, "Thermostat Fan Mode Events", "Thermostat (Fan Mode)", getThermFanOpts()+lANY, sCHGTO, getThermFanOpts(), sTHERM)
             }
 
             if(triggersConfigured()) {
@@ -727,7 +702,7 @@ Map<String,Map> getCodes(List devs, String code=sNULL) {
 @SuppressWarnings('unused')
 def dummy(a,b) {}
 
-def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image,/* Integer trigItemCnt,*/ Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
+def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
     //Boolean done = false
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, required: devReq, submitOnChange: true
@@ -753,13 +728,13 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
                     input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                 }
-                triggerMsgInput(inType, true /* , trigItemCnt */)
+                triggerMsgInput(inType, true)
             }
         }
     }
 }
 
-def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image,/* Integer trigItemCnt,*/ Boolean devReq=true) {
+def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Boolean devReq=true) {
     Boolean done = false
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, submitOnChange: true, required: devReq
@@ -790,7 +765,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                     }
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
                     input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
-                    triggerMsgInput(inType, false /*, trigItemCnt */)
+                    triggerMsgInput(inType, false)
                 }
             }
         }
