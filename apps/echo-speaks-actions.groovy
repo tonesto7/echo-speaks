@@ -21,18 +21,18 @@ import groovy.transform.Field
 
 @Field static final String appVersionFLD  = '4.1.7.0'
 @Field static final String appModifiedFLD = '2021-05-06'
-@Field static final String branchFLD      = 'master'
 @Field static final String platformFLD    = 'Hubitat'
-@Field static final Boolean betaFLD       = false
+@Field static final String branchFLD      = 'master'
+//@Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sBULLET        = '\u2022'
 @Field static final String sBULLETINV     = '\u25E6'
-@Field static final String sSQUARE        = '\u29C8'
+//@Field static final String sSQUARE        = '\u29C8'
 @Field static final String sPLUS          = '\u002B'
-@Field static final String sRIGHTARR      = '\u02C3'
+//@Field static final String sRIGHTARR      = '\u02C3'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
 @Field static final String sPAUSESymFLD   = "\u275A\u275A"
@@ -53,7 +53,7 @@ import groovy.transform.Field
 @Field static final String sCLRRED        = 'red'
 @Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-@Field static final String sCLRGRN        = 'green'
+//@Field static final String sCLRGRN        = 'green'
 @Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
 @Field static final String sTTM           = 'Tap to modify...'
@@ -82,6 +82,7 @@ import groovy.transform.Field
 @Field static final String sSPDKNB        = 'speed_knob'
 @Field static final String sSWITCH        = 'switch'
 @Field static final String sTEMP          = 'temperature'
+@Field static final String sTHERMTEMP     = 'thermostatTemperature'
 @Field static final String sMOTION        = 'motion'
 @Field static final String sLEVEL         = 'level'
 @Field static final String sBATT          = 'battery'
@@ -115,7 +116,7 @@ definition(
     name: 'Echo Speaks - Actions',
     namespace: 'tonesto7',
     author: 'Anthony Santilli',
-    description: 'DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your SmartThings/Hubitat home.',
+    description: 'DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your home.',
     category: 'My Apps',
     parent: 'tonesto7:Echo Speaks',
     iconUrl: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
@@ -198,7 +199,7 @@ private Map buildTriggerEnum() {
     buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
 // todo siren (capability.alarm, attr alarm)
     buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
-    buildItems["Thermostat Devices"] = ["coolingSetpoint":"Thermostat Cooling Setpoint", "heatingSetpoint":"Thermostat Heating Setpoint", "thermostatTemperature":"Thermostat Ambient Temp", "thermostatOperatingState":"Thermostat Operating State", "thermostatMode":"Thermostat Mode", "thermostatFanMode":"Thermostat Fan Mode"]?.sort{ it?.value }
+    buildItems["Thermostat Devices"] = ["coolingSetpoint":"Thermostat Cooling Setpoint", "heatingSetpoint":"Thermostat Heating Setpoint", (sTHERMTEMP):"Thermostat Ambient Temp", "thermostatOperatingState":"Thermostat Operating State", "thermostatMode":"Thermostat Mode", "thermostatFanMode":"Thermostat Fan Mode"]?.sort{ it?.value }
     buildItems["Button Devices"] = ["pushed":"Button (Pushable)", "released":"Button (Releasable)", "held":"Button (Holdable)", "doubleTapped":"Button (Double Tapable)"]?.sort{ it?.value }
     buildItems["Safety & Security"] = ["alarmSystemStatus": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
@@ -293,7 +294,7 @@ def mainPage() {
                 if((Boolean)settings.actionPause) { unsubscribe() }
                 else {
                     input "actTestRun", sBOOL, title: inTS1("Test this action?", "testing"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
-                    if(actTestRun) { executeActTest() }
+                    if((Boolean)settings.actTestRun) { executeActTest() }
                 }
             }
         }
@@ -394,7 +395,7 @@ def triggersPage() {
         }
         Integer trigEvtCnt = ((List)settings.triggerEvents)?.size()
         if (trigEvtCnt) {
-            Integer trigItemCnt = 0
+//            Integer trigItemCnt = 0
             Boolean fnd = false
             //if( "scheduled" in (List<String>)settings.triggerEvents ||
             //       sWEATH in (List<String>)settings.triggerEvents) { fnd = true }
@@ -455,7 +456,7 @@ def triggersPage() {
                                 input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false
                                 break
                         }
-                        triggerMsgInput("scheduled", false, trigItemCnt++)
+                        triggerMsgInput("scheduled", false /* , trigItemCnt++ */)
                     }
                 }
             }
@@ -469,7 +470,7 @@ def triggersPage() {
                     if((List)settings.trig_alarmSystemStatus) {
                         input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("alarmSystemStatus", false, trigItemCnt++)
+                        triggerMsgInput("alarmSystemStatus", false /*, trigItemCnt++ */)
                     }
                 }
             }
@@ -480,7 +481,7 @@ def triggersPage() {
                     if(settings.trig_guard) {
                         // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("guard", false, trigItemCnt++)
+                        triggerMsgInput("guard", false /* , trigItemCnt++ */)
                     }
                 }
             }
@@ -491,61 +492,61 @@ def triggersPage() {
                     if((List)settings.trig_mode) {
                         input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput(sMODE, false, trigItemCnt++)
+                        triggerMsgInput(sMODE, false /* , trigItemCnt++ */)
                     }
                 }
             }
 
             if(valTrigEvt("pistonExecuted")) {
                 section(sectHead("webCoRE Piston Executed Events"), hideable: true) {
-                    input "trig_pistonExecuted", sENUM, title: inTS1("Pistons", webCore_icon()), options: webCoRE_list('name'), multiple: true, required: true, submitOnChange: true
+                    input "trig_pistonExecuted", sENUM, title: inTS1("Pistons", webCore_icon()), options: webCoRE_list(), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_pistonExecuted) {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("pistonExecuted", false, trigItemCnt++)
+                        triggerMsgInput("pistonExecuted", false /* , trigItemCnt++ */)
                     }
                 }
             }
 
             if (valTrigEvt(sSWITCH)) {
-                trigNonNumSect(sSWITCH, sSWITCH, "Switches", "Switches", lONOFF+lANY, "are turned", lONOFF, sSWITCH, trigItemCnt++)
+                trigNonNumSect(sSWITCH, sSWITCH, "Switches", "Switches", lONOFF+lANY, "are turned", lONOFF, sSWITCH /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sLEVEL)) {
-                trigNumValSect(sLEVEL, "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level is", sSPDKNB, trigItemCnt++)
+                trigNumValSect(sLEVEL, "switchLevel", "Dimmers/Levels", "Dimmers/Levels", "Level is", sSPDKNB /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sBATT)) {
-                trigNumValSect(sBATT, sBATT, "Battery Level", "Batteries", "Level is", sSPDKNB, trigItemCnt++)
+                trigNumValSect(sBATT, sBATT, "Battery Level", "Batteries", "Level is", sSPDKNB /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sMOTION)) {
-                trigNonNumSect(sMOTION, "motionSensor", "Motion Sensors", "Motion Sensors", lACTINACT+lANY, "become", lACTINACT, sMOTION, trigItemCnt++)
+                trigNonNumSect(sMOTION, "motionSensor", "Motion Sensors", "Motion Sensors", lACTINACT+lANY, "become", lACTINACT, sMOTION /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("presence")) {
-                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", lPRES +lANY, sCHGTO, lPRES, "presence", trigItemCnt++)
+                trigNonNumSect("presence", "presenceSensor", "Presence Sensors", "Presence Sensors", lPRES +lANY, sCHGTO, lPRES, "presence" /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sCONTACT)) {
-                trigNonNumSect(sCONTACT, "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", lOPNCLS+lANY, sCHGTO, lOPNCLS, sCONTACT, trigItemCnt++)
+                trigNonNumSect(sCONTACT, "contactSensor", "Contacts, Doors, Windows", "Contacts, Doors, Windows", lOPNCLS+lANY, sCHGTO, lOPNCLS, sCONTACT /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("acceleration")) {
-                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", lACTINACT+lANY, sCHGTO, lACTINACT, "acceleration", trigItemCnt++)
+                trigNonNumSect("acceleration", "accelerationSensor", "Accelerometers", "Accelerometers", lACTINACT+lANY, sCHGTO, lACTINACT, "acceleration" /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("door")) {
-                trigNonNumSect("door", "garageDoorControl", "Garage Door Openers", "Garage Doors", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "garage_door", trigItemCnt++)
+                trigNonNumSect("door", "garageDoorControl", "Garage Door Openers", "Garage Doors", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "garage_door" /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sLOCK)) {
-                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", lLOCKUNL + lANY, sCHGTO, lLOCKUNL, sLOCK, trigItemCnt++, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
+                trigNonNumSect(sLOCK, sLOCK, "Locks", "Smart Locks", lLOCKUNL + lANY, sCHGTO, lLOCKUNL, sLOCK /* , trigItemCnt++ */, (!!(List)settings.trig_lock_Codes), (((String)settings.trig_lock && (String)settings.trig_lock_cmd in ["unlocked", sANY])  ? this.&handleCodeSect : this.&dummy), "Unlocked" )
             }
 
             if (valTrigEvt("securityKeypad")) {
-                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", lSEC + lANY, sCHGTO, lSEC, sKEYPAD, trigItemCnt++, (!!(List)settings.trig_securityKeypad_Codes), (((String)settings.trig_securityKeypad && (String)settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
+                trigNonNumSect("securityKeypad", "securityKeypad", "Security Keypad", "Security Keypad", lSEC + lANY, sCHGTO, lSEC, sKEYPAD /* , trigItemCnt++ */, (!!(List)settings.trig_securityKeypad_Codes), (((String)settings.trig_securityKeypad && (String)settings.trig_securityKeypad_cmd in ["disarmed", sANY]) ? this.&handleCodeSect : this.&dummy), "Keypad Disarmed" )
             }
 
             if (valTrigEvt("pushed")) {
@@ -556,7 +557,7 @@ def triggersPage() {
                         //input "trig_pushed_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: ["pushed"], required: true, multiple: false, defaultValue: "pushed", submitOnChange: true
                         input "trig_pushed_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true
                         if(settings.trig_pushed_nums) {
-                            triggerMsgInput("pushed", false, trigItemCnt++)
+                            triggerMsgInput("pushed", false /* , trigItemCnt++ */)
                         }
                     }
                 }
@@ -570,7 +571,7 @@ def triggersPage() {
                         //input "trig_released_cmd", sENUM, title: inTS1("Released changes", sCOMMAND), options: ["released"], required: true, multiple: false, defaultValue: "released", submitOnChange: true
                         input "trig_released_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_released_nums) {
-                            triggerMsgInput("released", false, trigItemCnt++)
+                            triggerMsgInput("released", false /* , trigItemCnt++ */)
                         }
                     }
                 }
@@ -584,7 +585,7 @@ def triggersPage() {
                         //input "trig_held_cmd", sENUM, title: inTS1("Held changes", sCOMMAND), options: ["held"], required: true, multiple: false, defaultValue: "held", submitOnChange: true
                         input "trig_held_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true,  multiple: true, submitOnChange: true
                         if(settings.trig_held_nums) {
-                            triggerMsgInput("held", false, trigItemCnt++)
+                            triggerMsgInput("held", false /* , trigItemCnt++ */)
                         }
                     }
                 }
@@ -598,30 +599,30 @@ def triggersPage() {
                         //input "trig_doubleTapped_cmd", sENUM, title: inTS1("Double Tapped changes", sCOMMAND), options: ["doubleTapped"], required: true, multiple: false, defaultValue: "doubleTapped", submitOnChange: true
                         input "trig_doubleTapped_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true, submitOnChange: true
                         if(settings.trig_doubleTapped_nums) {
-                            triggerMsgInput("doubleTapped", false, trigItemCnt++)
+                            triggerMsgInput("doubleTapped", false /*, trigItemCnt++ */)
                         }
                     }
                 }
             }
 
             if (valTrigEvt(sTEMP)) {
-                trigNumValSect(sTEMP, "temperatureMeasurement", "Temperature Sensor", "Temperature Sensors", "Temperature", sTEMP, trigItemCnt++)
+                trigNumValSect(sTEMP, "temperatureMeasurement", "Temperature Sensor", "Temperature Sensors", "Temperature", sTEMP /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sHUMID)) {
-                trigNumValSect(sHUMID, "relativeHumidityMeasurement", "Humidity Sensors", "Relative Humidity Sensors", "Relative Humidity (%)", sHUMID, trigItemCnt++)
+                trigNumValSect(sHUMID, "relativeHumidityMeasurement", "Humidity Sensors", "Relative Humidity Sensors", "Relative Humidity (%)", sHUMID /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sWATER)) {
-                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", lWETDRY + lANY, sCHGTO, lWETDRY, sWATER, trigItemCnt++)
+                trigNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water/Moisture Sensors", lWETDRY + lANY, sCHGTO, lWETDRY, sWATER /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sPOWER)) {
-                trigNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER, trigItemCnt++)
+                trigNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("carbonMonoxide")) {
-                trigNonNumSect("carbonMonoxide", "carbonMonoxideDetector", "Carbon Monoxide Events", "Carbon Monoxide Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "co", trigItemCnt++)
+                trigNonNumSect("carbonMonoxide", "carbonMonoxideDetector", "Carbon Monoxide Events", "Carbon Monoxide Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "co" /* , trigItemCnt++ */)
 /*                section (sectHead("Carbon Monoxide Events"), hideable: true) {
                     input "trig_carbonMonoxide", "capability.carbonMonoxideDetector", title: inTS1("Carbon Monoxide Sensors", "co"), required: !(settings.trig_smoke), multiple: true, submitOnChange: true
                     if (settings.trig_carbonMonoxide) {
@@ -637,7 +638,7 @@ def triggersPage() {
             }
 
             if (valTrigEvt("smoke")) {
-                trigNonNumSect("smoke", "smokeDetector", "Smoke Detector Events", "Smoke Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "smoke", trigItemCnt++)
+                trigNonNumSect("smoke", "smokeDetector", "Smoke Detector Events", "Smoke Detectors", lDETECTCLR+lANY, sCHGTO, lDETECTCLR, "smoke" /* , trigItemCnt++ */)
 /*                section (sectHead("Smoke Events"), hideable: true) {
                     input "trig_smoke", "capability.smokeDetector", title: inTS1("Smoke Detectors", "smoke"), required: !(settings.trig_carbonMonoxide), multiple: true, submitOnChange: true
                     if (settings.trig_smoke) {
@@ -653,39 +654,39 @@ def triggersPage() {
             }
 
             if (valTrigEvt("illuminance")) {
-                trigNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Events", "Illuminance Sensors", "Lux Level (%)", "illuminance", trigItemCnt++)
+                trigNumValSect("illuminance", "illuminanceMeasurement", "Illuminance Events", "Illuminance Sensors", "Lux Level (%)", "illuminance" /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("windowShade")) {
-                trigNonNumSect("windowShade", "windowShade", "Window Shades", "Window Shades", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "shade", trigItemCnt++)
+                trigNonNumSect("windowShade", "windowShade", "Window Shades", "Window Shades", lOPNCLS+["opening", "closing", sANY], sCHGTO, lOPNCLS, "shade" /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt(sVALVE)) {
-                trigNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS+lANY, sCHGTO, lOPNCLS, sVALVE, trigItemCnt++)
+                trigNonNumSect(sVALVE, sVALVE, "Valves", "Valves", lOPNCLS+lANY, sCHGTO, lOPNCLS, sVALVE /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("coolingSetpoint")) {
-                trigNumValSect("coolingSetpoint", sTHERM, "Thermostat Cooling Setpoint Events", "Thermostat (Cooling Setpoint)", "Setpoint temp", sTHERM, trigItemCnt++)
+                trigNumValSect("coolingSetpoint", sTHERM, "Thermostat Cooling Setpoint Events", "Thermostat (Cooling Setpoint)", "Setpoint temp", sTHERM /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("heatingSetpoint")) {
-                trigNumValSect("heatingSetpoint", sTHERM, "Thermostat Heating Setpoint Events", "Thermostat (HeatingSetpoint)", "Setpoint temp", sTHERM, trigItemCnt++)
+                trigNumValSect("heatingSetpoint", sTHERM, "Thermostat Heating Setpoint Events", "Thermostat (HeatingSetpoint)", "Setpoint temp", sTHERM /* , trigItemCnt++ */)
             }
 
-            if (valTrigEvt("thermostatTemperature")) {
-                trigNumValSect("thermostatTemperature", sTHERM, "Thermostat Ambient Temperature Events", "Thermostat (Ambient Temperature)", "Ambient Temp", sTHERM, trigItemCnt++)
+            if (valTrigEvt(sTHERMTEMP)) {
+                trigNumValSect(sTHERMTEMP, sTHERM, "Thermostat Ambient Temperature Events", "Thermostat (Ambient Temperature)", "Ambient Temp", sTHERM /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("thermostatOperatingState")) {
-                trigNonNumSect("thermostatOperatingState", sTHERM, "Thermostat Operating State Events", "Thermostat (Operating State)", getThermOperStOpts()+lANY, sCHGTO, getThermOperStOpts(), sTHERM, trigItemCnt++)
+                trigNonNumSect("thermostatOperatingState", sTHERM, "Thermostat Operating State Events", "Thermostat (Operating State)", getThermOperStOpts()+lANY, sCHGTO, getThermOperStOpts(), sTHERM /* , trigItemCnt++ */)
             }
 
             if (valTrigEvt("thermostatMode")) {
-                trigNonNumSect("thermostatMode", sTHERM, "Thermostat Mode Events", "Thermostat (Mode)", getThermModeOpts()+lANY, sCHGTO, getThermModeOpts(), sTHERM, trigItemCnt++)
+                trigNonNumSect("thermostatMode", sTHERM, "Thermostat Mode Events", "Thermostat (Mode)", getThermModeOpts()+lANY, sCHGTO, getThermModeOpts(), sTHERM /*, trigItemCnt++ */)
             }
 
             if (valTrigEvt("thermostatFanMode")) {
-                trigNonNumSect("thermostatFanMode", sTHERM, "Thermostat Fan Mode Events", "Thermostat (Fan Mode)", getThermFanOpts()+lANY, sCHGTO, getThermFanOpts(), sTHERM, trigItemCnt++)
+                trigNonNumSect("thermostatFanMode", sTHERM, "Thermostat Fan Mode Events", "Thermostat (Fan Mode)", getThermFanOpts()+lANY, sCHGTO, getThermFanOpts(), sTHERM/* , trigItemCnt++ */)
             }
 
             if(triggersConfigured()) {
@@ -723,9 +724,10 @@ Map<String,Map> getCodes(List devs, String code=sNULL) {
     return result
 }
 
+@SuppressWarnings('unused')
 def dummy(a,b) {}
 
-def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Integer trigItemCnt, Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
+def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image,/* Integer trigItemCnt,*/ Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
     //Boolean done = false
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, required: devReq, submitOnChange: true
@@ -751,13 +753,13 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
                     input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                 }
-                triggerMsgInput(inType, true, trigItemCnt)
+                triggerMsgInput(inType, true /* , trigItemCnt */)
             }
         }
     }
 }
 
-def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image, Integer trigItemCnt, Boolean devReq=true) {
+def trigNumValSect(String inType, String capType, String sectStr, String devTitle, String cmdTitle, String image,/* Integer trigItemCnt,*/ Boolean devReq=true) {
     Boolean done = false
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, submitOnChange: true, required: devReq
@@ -788,14 +790,14 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                     }
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
                     input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
-                    triggerMsgInput(inType, false, trigItemCnt)
+                    triggerMsgInput(inType, false /*, trigItemCnt */)
                 }
             }
         }
     }
 }
 
-def triggerMsgInput(String inType, Boolean showRepInputs=false, Integer itemCnt=0) {
+def triggerMsgInput(String inType, Boolean showRepInputs=false /*, Integer itemCnt=0 */) {
     if((String)settings.actionType in [sSPEAK, sSPEAKP, sANN]) {
         String str = spanSmBldBr("Response Options", sCLR4D9)
         str += spanSmBr("Available Options:")
@@ -838,7 +840,7 @@ Boolean deviceTriggers() {
 
 Boolean thermostatTriggers() {
     List okList = []
-    ["coolingSetpoint", "heatingSetpoint", "thermostatTemperature"].each { String att-> // Thermostat number value validation
+    ["coolingSetpoint", "heatingSetpoint", sTHERMTEMP].each { String att-> // Thermostat number value validation
         if(valTrigEvt(att)) { okList.push((Boolean)(settings."trig_${att}" && settings."trig_${att}_cmd" && (settings."trig_${att}_low" || settings."trig_${att}_high" || settings."trig_${att}_equal"))) }
     }
     ["thermostatMode", "thermostatOperatingState", "thermostatFanMode"].each { String att-> // Thermostat non number validation
@@ -1657,7 +1659,7 @@ def actTrigTasksPage(params) {
             input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}", "alarm_home") + optPrefix(), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true
 
             if(settings.enableWebCoRE) {
-                input "${t}piston_run", sENUM, title: inTS("Execute a piston${dMap?.def}", webCore_icon()) + optPrefix(), options: webCoRE_list('name'), multiple: false, required: false, submitOnChange: true
+                input "${t}piston_run", sENUM, title: inTS("Execute a piston${dMap?.def}", webCore_icon()) + optPrefix(), options: webCoRE_list(), multiple: false, required: false, submitOnChange: true
             }
         }
 
@@ -1799,7 +1801,7 @@ def actionSimulationSect() {
         str += settings.act_EchoZones ? spanSm("  ${sBULLET} Testing with zones requires you to save the app and come back in to test.") : sBLANK
         paragraph spanSm(str, sCLRGRY)
         input "actTestRun", sBOOL, title: inTS1("Test this action?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
-        if(actTestRun) { executeActTest() }
+        if((Boolean)settings.actTestRun) { executeActTest() }
     }
 }
 
@@ -2369,7 +2371,7 @@ String cronBuilder() {
     Boolean recur = (schedType == "Recurring")
     def time = settings.trig_scheduled_time ?: null
     List dayNums = recur && settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
-    List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
+//    List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
     List monthNums = recur && settings.trig_scheduled_months ? settings.trig_scheduled_months?.collect { it as Integer }?.sort() : null
     if(time) {
         String hour = fmtTime(time, "HH") ?: "0"
@@ -2454,7 +2456,7 @@ void subscribeToEvts() {
                     break
                 case "pistonExecuted":
                     break
-                case "thermostatTemperature":
+                case sTHERMTEMP:
                     if (settings."trig_${te}_cmd") subscribe(settings."trig_${te}", sTEMP, getThermEvtHandlerName(te))
                     break
                 default:
@@ -2476,12 +2478,122 @@ private getThermEvtHandlerName(String type) {
     return (type && (Integer)settings."trig_${type}_after") ? "devAfterThermEvtHandler" : "thermostatEvtHandler"
 }
 
+private executeActTest() {
+    logTrace("executeActTest STARTING")
+    try {
+        if((String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sWEATH, "builtin", "calendar"]) {
+            Map evt = getRandomTrigEvt()
+            if(!evt) logWarn("no random event found")
+            else {
+                String te = (String)evt.name
+
+                switch (te) {
+                    case "scheduled":
+                        // Scheduled Trigger Events
+                        scheduleTrigEvt([date: new Date(), name: "test", value: "Stest", displayName: "Schedule Test"])
+                        break
+                    case "webCoRE": // "pistonExecuted":
+                        webCoRE_handler(evt)
+                        break
+                    case sTHERMTEMP:
+                        String hand = getThermEvtHandlerName(te)
+                        evt.name = sTEMP
+                        "${hand}"(evt)
+                        break
+                    case "guard":
+                        // Alexa Guard Status Events
+                        guardEventHandler((String)evt.value)
+                        break
+                    case "alarmSystemStatus":
+                        // Location Alarm Events
+                        alarmEvtHandler(evt)
+                        // two cases hsmStatus (above) and hsmAlert todo
+                        //if("alerts" in (List)settings.trig_alarmSystemStatus) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
+                        break
+                    case sMODE:
+                        // Location Mode Events
+                        modeEvtHandler(evt)
+                        break
+                    default:
+                        String hand = getDevEvtHandlerName(te)
+                        // Handles Remaining Device Events
+                        "${hand}"(evt)
+                        break
+                }
+            }
+//        }
+//        if(!fnd) executeAction(evt, true, "executeActTest", false, false)
+        } else logWarn("TEST of Action type ${settings.actionType} SKIPPED")
+    } catch (ignored) {}
+    settingUpdate("actTestRun", sFALSE, sBOOL)
+    logTrace("executeActTest ENDING")
+}
+
+Map getRandomTrigEvt() {
+    String trig = (String)getRandomItem((List)settings.triggerEvents)
+    List trigItems = settings."trig_${trig}" ?: null
+    def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
+    def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
+            (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
+    if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | trigItems: ${trigItems}")
+    Boolean isC = (getTemperatureScale()=="C")
+    Map attVal = [
+        (sSWITCH): getRandomItem(lONOFF),
+        door: getRandomItem(lOPNCLS+["opening", "closing"]),
+        (sCONTACT): getRandomItem(lOPNCLS),
+        acceleration: getRandomItem(lACTINACT),
+        (sLOCK): getRandomItem(lLOCKUNL +["unlocked with timeout"]),
+        securityKeypad: getRandomItem(lSEC),
+        (sWATER): getRandomItem(lWETDRY),
+        presence: getRandomItem(lPRES),
+        (sMOTION): getRandomItem(lACTINACT),
+        (sVALVE): getRandomItem(lOPNCLS),
+        windowShade: getRandomItem(lOPNCLS+["opening", "closing"]),
+        pushed: getRandomItem(["pushed"]),
+        released: getRandomItem(["released"]),
+        held: getRandomItem(["held"]),
+        doubleTapped: getRandomItem(["doubleTapped"]),
+        smoke: getRandomItem(lDETECTCLR),
+        carbonMonoxide: getRandomItem(lDETECTCLR),
+        (sTEMP): isC ? getRandomItem(-1..29) : getRandomItem(30..80),
+        illuminance: getRandomItem(1..100),
+        (sHUMID): getRandomItem(1..100),
+        (sLEVEL): getRandomItem(1..100),
+        (sBATT): getRandomItem(1..100),
+        (sPOWER): getRandomItem(100..3000),
+        (sMODE): getRandomItem((List)location?.modes),
+        alarmSystemStatus: getRandomItem(getAlarmTrigOpts()?.collect {(String)it.key}),
+        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
+        thermostatTemperature: isC ? getRandomItem(10..33) : getRandomItem(50..90),
+        coolingSetpoint: isC ? getRandomItem(10..33) : getRandomItem(50..90),
+        heatingSetpoint: isC ? getRandomItem(10..33) : getRandomItem(50..90),
+        thermostatMode: getRandomItem(getThermModeOpts()),
+        thermostatFanMode: getRandomItem(getThermFanOpts()),
+        thermostatOperatingState: getRandomItem(getThermOperStOpts()),
+    ]
+    Map evt = [ date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
+    if(settings.enableWebCoRE && trig == 'pistonExecuted') {
+        attVal.webCoRE = 'pistonExecuted'
+        trig = 'webCoRE'
+        trigItem.displayName = 'webcore piston executed'
+        String id = getRandomItem(getLocationPistons())
+        evt = evt + [ jsonData: [id: id, name: getPistonById(id) ] ]
+    }
+    if(attVal.containsKey(trig)) {
+        evt = evt + [ name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig]]
+    } else evt = null
+    if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
+    return evt
+}
+
 @Field volatile static Map<String,Map> zoneStatusMapFLD = [:]
 
+@SuppressWarnings('unused')
 def zoneStateHandler(evt) {
     // TODO This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
 }
 
+@SuppressWarnings('unused')
 def zoneRemovedHandler(evt) {
     // TODO This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
 }
@@ -2527,10 +2639,6 @@ public List getActiveZoneNames() {
     EVENT HANDLER FUNCTIONS
 ************************************************************************************************************/
 
-def scheduleTest() {
-    scheduleTrigEvt([date: new Date(), name: "test", value: "Stest", displayName: "Schedule Test"])
-}
-
 def scheduleTrigEvt(evt=null) {
     if(!evt) {
         Date adate = new Date()
@@ -2538,7 +2646,7 @@ def scheduleTrigEvt(evt=null) {
         evt = [name: "scheduled", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
     }
     Long evtDelay = now() - ((Date)evt.date).getTime()
-    logTrace( "${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
+    logTrace("${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
     String schedType = (String)settings.trig_scheduled_type
     Boolean recur = schedType == "Recurring"
@@ -2551,7 +2659,7 @@ def scheduleTrigEvt(evt=null) {
     List months = recur ? (List)settings.trig_scheduled_months : null
 
 
-    Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
+    getTheLock(sHMLF, "scheduleTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
     if(!sTrigMap) sTrigMap = (Map)state.schedTrigMap ?: [:]
@@ -2607,7 +2715,7 @@ def alarmEvtHandler(evt) {
 
 public guardEventHandler(String guardState) {
     def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), deviceId: null]
-    logTrace( "${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
+    logTrace("${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
     if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
         executeAction(evt, false, "guardEventHandler", false, false)
     }
@@ -2624,7 +2732,7 @@ def eventCompletion(evt, String dId, Boolean dco, Integer dcw, String meth, evtV
 def webcoreEvtHandler(evt) {
     String disN = evt?.jsonData?.name
     String pId = evt?.jsonData?.id
-    logTrace( "${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
+    logTrace("${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
     if(pId in settings.trig_pistonExecuted) {
         Boolean dco = ((Boolean)settings.trig_pistonExecuted_once == true)
         Integer dcw = (Integer)settings.trig_pistonExecuted_wait ?: null
@@ -2633,7 +2741,7 @@ def webcoreEvtHandler(evt) {
 }
 // todo not in use
 def sceneEvtHandler(evt) {
-    logTrace( "${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    logTrace("${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     Boolean dco = ((Boolean)settings.trig_scene_once == true)
     Integer dcw = (Integer)settings.trig_scene_wait ?: null
     eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, (String)evt?.displayName)
@@ -2652,7 +2760,7 @@ Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
 
 void afterEvtCheckWatcher() {
 
-    Boolean aa = getTheLock(sHMLF, "afterEvtCheckWatcher")
+    getTheLock(sHMLF, "afterEvtCheckWatcher")
     // log.trace "lock wait: ${aa}"
 
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
@@ -2668,7 +2776,7 @@ void afterEvtCheckWatcher() {
 }
 
 void devAfterThermEvtHandler(evt) {
-    evt.name = (String)evt.name == sTEMP ? "thermostatTemperature" : (String)evt.name
+    evt.name = (String)evt.name == sTEMP ? sTHERMTEMP : (String)evt.name
     devAfterEvtHandler(evt)
 }
 
@@ -2681,10 +2789,10 @@ void devAfterEvtHandler(evt) {
     Integer dcafrc = (Integer)settings."trig_${evntName}_after_repeat_cnt" ?: null
     String eid = "${evt?.deviceId}_${evntName}"
     Boolean schedChk = (dc && dcaf && evt?.value == dc)
-    logTrace( "Device Event | ${evntName?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
+    logTrace("Device Event | ${evntName?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
     Boolean rem = false
 
-    Boolean aa = getTheLock(sHMLF, "scheduleTrigEvt")
+    getTheLock(sHMLF, "scheduleTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
@@ -2718,7 +2826,7 @@ void devAfterEvtHandler(evt) {
 
     if(ok) {
         runIn(2, "afterEvtCheckHandler")
-        logTrace( "Scheduled afterEvent in 2 seconds")
+        logTrace("Scheduled afterEvent in 2 seconds")
         if(!(Boolean)state.afterEvtCheckWatcherSched) {
             state.afterEvtCheckWatcherSched = true
             runEvery5Minutes("afterEvtCheckWatcher")
@@ -2728,7 +2836,7 @@ void devAfterEvtHandler(evt) {
 
 void afterEvtCheckHandler() {
 
-    Boolean aa = getTheLock(sHMLF, "afterEvtCheckHandler")
+    getTheLock(sHMLF, "afterEvtCheckHandler")
     // log.trace "lock wait: ${aa}"
     Map<String,Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
@@ -2773,7 +2881,7 @@ void afterEvtCheckHandler() {
                     Boolean skipEvt = true
                     if(nextVal.triggerState && nextVal.deviceId && nextVal.name && devs) {
                         String en = (String)nextVal.name
-                        en = en == "thermostatTemperature" ? sTEMP : en
+                        en = en == sTHERMTEMP ? sTEMP : en
                         skipEvt = !devAttValEqual(devs, (String)nextVal.deviceId, en, nextVal.triggerState)
                     }
                     Boolean skipEvtCnt = (repeatCntMax && (repeatCnt > repeatCntMax))
@@ -2815,8 +2923,8 @@ void afterEvtCheckHandler() {
         // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
         if(hasLock) releaseTheLock(sHMLF)
         runIn(1, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
-        logTrace( "afterEvtCheckHandler scheduleAfterCheck in 1 second")
-        // logTrace( "afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
+        logTrace("afterEvtCheckHandler scheduleAfterCheck in 1 second")
+        // logTrace("afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
     } else {
         releaseTheLock(sHMLF)
         clearAfterCheckSchedule()
@@ -2825,7 +2933,7 @@ void afterEvtCheckHandler() {
 }
 
 void thermostatEvtHandler(evt) {
-    evt.name = (String)evt.name == sTEMP ? "thermostatTemperature" : (String)evt.name
+    evt.name = (String)evt.name == sTEMP ? sTHERMTEMP : (String)evt.name
     deviceEvtHandler(evt)
 }
 
@@ -2836,6 +2944,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     String evntName = (String)evt.name
     List d = settings."trig_${evntName}"
     String dc = settings."trig_${evntName}_cmd"
+    logTrace("Device Event | ${evntName.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (aftEvt)" : sBLANK}")
     Boolean dca = ((Boolean)settings."trig_${evntName}_all" == true)
     Boolean dcavg = (!dca && (Boolean)settings."trig_${evntName}_avg" == true)
     Boolean dco = (!(Integer)settings."trig_${evntName}_after" && (Boolean)settings."trig_${evntName}_once" == true)
@@ -2899,7 +3008,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
             break
         case "coolingSetpoint":
         case "heatingSetpoint":
-        case "thermostatTemperature":
+        case sTHERMTEMP:
         case sHUMID:
         case sTEMP:
         case sPOWER:
@@ -2915,7 +3024,6 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
             break
     }
     Boolean execOk = (evtOk && devEvtWaitOk)
-    logTrace("Device Event | ${evntName.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (aftEvt)" : sBLANK} ${extra ?: sBLANK}")
     logDebug("deviceEvtHandler | execOk: ${execOk} | evtOk :${evtOk} | devEvtWaitOk: ${devEvtWaitOk} | evtAd: $evtAd | aftRepEvt: ${aftRepEvt}${extra}")
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
@@ -2925,7 +3033,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
 private void processTierTrigEvt(evt, Boolean evtOk) {
     logDebug("processTierTrigEvt | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
 
-    Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
+    getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
@@ -2965,7 +3073,7 @@ def getTierStatusSection() {
         Map lTierMap = getTierMap()
         Boolean tsa = (Boolean)atomicState.tierSchedActive == true
 
-        Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
+        getTheLock(sHMLF, "processTierTrigEvt")
         // log.trace "lock wait: ${aa}"
         Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
         if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
@@ -2992,7 +3100,7 @@ def getTierStatusSection() {
 
 private void resumeTierJobs() {
     //ERS
-    Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
+    getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
@@ -3000,8 +3108,7 @@ private void resumeTierJobs() {
     //if(atomicState.actTierState?.size() && (Boolean)atomicState.tierSchedActive) {
     if(aTierSt?.size()) {
         releaseTheLock(sHMLF)
-        Boolean tsa = (Boolean)atomicState.tierSchedActive == true
-        if(tsa) {
+        if((Boolean)atomicState.tierSchedActive == true) {
             tierEvtHandler()
         }
         return
@@ -3018,7 +3125,7 @@ private void tierEvtHandler(evt=null) {
     Map t0 = getTierMap()
     Map tierMap = t0 ?: [:]
     //ERS
-    Boolean aa = getTheLock(sHMLF, "processTierTrigEvt")
+    getTheLock(sHMLF, "processTierTrigEvt")
     // log.trace "lock wait: ${aa}"
     Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
@@ -3085,40 +3192,47 @@ private void tierSchedHandler(data) {
 Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null, Double dch=null, Double dce=null, Boolean dca=false, Boolean dcavg=false) {
     Boolean evtOk = false
     Boolean evtAd = false
-    logDebug("deviceEvtProcNumValue | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca}")
-    if(devs?.size() && cmd && evt?.value?.toString()?.isNumber()) {
+    String eV = evt?.value?.toString()
+    if(devs?.size() && cmd && eV?.isNumber()) {
         String en = (String)evt?.name
-        en = en == "thermostatTemperature" ? sTEMP : en
+        en = en == sTHERMTEMP ? sTEMP : en
         Double evtValue = (dcavg ? getDevValueAvg(devs, en) : evt?.value) as Double
         // log.debug "evtValue: ${evtValue}"
         Boolean not=false
         switch(cmd) {
             case sEQUALS:
-                if(!dca && dce && dce == evtValue) {
-                    evtOk=true
-                } else if(dca && dce && allDevAttNumValsEqual(devs, en, dce)) { evtOk=true; evtAd=true }
+                if(dce) {
+                    if(!dca && dce == evtValue) evtOk=true
+                    else if(dca && allDevAttNumValsEqual(devs, en, dce)) { evtOk=true; evtAd=true }
+                }
                 break
             case sNBETWEEN:
                 not=true
             case sBETWEEN:
-                if(!dca && dcl && dch && (evtValue in (dcl..dch))) {
-                    evtOk=true
-                    if(not) evtOk=!evtOk
-                } else if(dca && dcl && dch && allDevAttNumValsBetween(devs, en, dcl, dch, not)) { evtOk=true; evtAd=true }
+                if(dcl && dch) {
+                    if(!dca) {
+                        evtOk = (evtValue in (dcl..dch))
+                        if(not) evtOk=!evtOk
+                    } else if(dca && allDevAttNumValsBetween(devs, en, dcl, dch, not)) { evtOk=true; evtAd=true }
+                }
                 break
             case sABOVE:
-                if(!dca && dch && (evtValue > dch)) {
-                    evtOk=true
-                } else if(dca && dch && allDevAttNumValsAbove(devs, en, dch)) { evtOk=true; evtAd=true }
+                if(dch) {
+                    if(!dca && (evtValue > dch)) evtOk=true
+                    else if(dca && allDevAttNumValsAbove(devs, en, dch)) { evtOk=true; evtAd=true }
+                }
                 break
             case sBELOW:
-                if(dcl && (evtValue < dcl)) {
-                    evtOk=true
-                } else if(dca && dcl && allDevAttNumValsBelow(devs, en, dcl)) { evtOk=true; evtAd=true }
+                if(dcl) {
+                    if(!dca && (evtValue < dcl)) evtOk=true
+                    else if(dca && allDevAttNumValsBelow(devs, en, dcl)) { evtOk=true; evtAd=true }
+                }
                 break
         }
     }
-    return [evtOk: evtOk, evtAd: evtAd]
+    Map result = [evtOk: evtOk, evtAd: evtAd]
+    logDebug("deviceEvtProcNumValue | result: $result | evtVal: $eV | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca} | avg: $dcavg")
+    return result
 }
 
 static String evtValueCleanup(val) {
@@ -3131,7 +3245,7 @@ static String evtValueCleanup(val) {
 private void clearEvtHistory() {
     settingUpdate("clrEvtHistory", sFALSE, sBOOL)
 
-    Boolean aa = getTheLock(sHMLF, "clearEvtHistory")
+    getTheLock(sHMLF, "clearEvtHistory")
     // log.trace "lock wait: ${aa}"
     updMemStoreItem("valEvtHistory", [:])
     state.valEvtHistory = [:]
@@ -3145,10 +3259,10 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean waitOk
     Boolean dayOk
     String n = (String)evt?.name
-    String msg = "Last ${n?.capitalize()} Event for Device"
+    String msg = "evtWaitRestrictionOk: Last ${n?.capitalize()} Event for Device"
     Date evtDt = (Date)evt?.date // parseDate(evt?.date?.toString())
 
-    Boolean aa = getTheLock(sHMLF, "evtWaitRestrictionOk")
+    getTheLock(sHMLF, "evtWaitRestrictionOk")
     // log.trace "lock wait: ${aa}"
 //    Map t0 = atomicState.valEvtHistory
 //    Map evtHistMap = t0 ?: [:]
@@ -3184,7 +3298,7 @@ static String getAttrPostfix(String attr) {
         case sLEVEL:
         case sBATT:
             return " percent"
-        case "thermostatTemperature":
+        case sTHERMTEMP:
         case sTEMP:
             return " degrees"
         case "illuminance":
@@ -3201,7 +3315,7 @@ def scheduleAfterCheck(data) {
     String id = data?.id?.toString() ?: null
     Boolean rep = (data?.repeat == true)
 
-    Boolean aa = getTheLock(sHMLF, "scheduleafterCheck")
+    getTheLock(sHMLF, "scheduleafterCheck")
     // log.trace "lock wait: ${aa}"
     Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
     if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
@@ -3224,7 +3338,7 @@ private clearAfterCheckSchedule() {
     state.afterEvtCheckWatcherSched = false
     logDebug("Clearing After Event Check Schedule...")
 
-    Boolean aa = getTheLock(sHMLF, "clearAfterCheckSchedule")
+    getTheLock(sHMLF, "clearAfterCheckSchedule")
     // log.trace "lock wait: ${aa}"
     //Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
     //if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
@@ -3460,72 +3574,6 @@ Boolean multipleConditions() {
     ACTION EXECUTION
 ************************************************************************************************************/
 
-private executeActTest() {
-    settingUpdate("actTestRun", sFALSE, sBOOL)
-    Map evt = [name: sCONTACT, displayName: "some test device", value: "open", date: new Date()]
-    if(getConfStatusItem("tiers")) {
-        processTierTrigEvt(evt, true) // evt was null
-    } else {
-        if((String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sWEATH, "builtin", "calendar"]) {
-            Map aevt = getRandomTrigEvt()
-            if(!aevt) log.warn "no random event"
-            else evt = aevt
-        }
-        executeAction(evt, true, "executeActTest", false, false)
-    }
-}
-
-Map getRandomTrigEvt() {
-    String trig = (String)getRandomItem((List)settings.triggerEvents)
-    List trigItems = settings."trig_${trig}" ?: null
-    def randItem = trigItems?.size() ? getRandomItem(trigItems) : null
-    def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
-            (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
-    if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | Evt: ${evt}")
-    Boolean isC = (getTemperatureScale()=="C")
-    Map attVal = [
-        (sSWITCH): getRandomItem(lONOFF),
-        door: getRandomItem(lOPNCLS+["opening", "closing"]),
-        (sCONTACT): getRandomItem(lOPNCLS),
-        acceleration: getRandomItem(lACTINACT),
-        (sLOCK): getRandomItem(lLOCKUNL +["unlocked with timeout"]),
-        securityKeypad: getRandomItem(lSEC),
-        (sWATER): getRandomItem(lWETDRY),
-        presence: getRandomItem(lPRES),
-        (sMOTION): getRandomItem(lACTINACT),
-        (sVALVE): getRandomItem(lOPNCLS),
-        windowShade: getRandomItem(lOPNCLS+["opening", "closing"]),
-        pushed: getRandomItem(["pushed"]),
-        released: getRandomItem(["released"]),
-        held: getRandomItem(["held"]),
-        doubleTapped: getRandomItem(["doubleTapped"]),
-        smoke: getRandomItem(lDETECTCLR),
-        carbonMonoxide: getRandomItem(lDETECTCLR),
-        (sTEMP): isC ? getRandomItem(-1..29) : getRandomItem(30..80),
-        illuminance: getRandomItem(1..100),
-        (sHUMID): getRandomItem(1..100),
-        (sLEVEL): getRandomItem(1..100),
-        (sBATT): getRandomItem(1..100),
-        (sPOWER): getRandomItem(100..3000),
-        (sMODE): getRandomItem((List)location?.modes),
-        alarmSystemStatus: getRandomItem(getAlarmTrigOpts()?.collect {(String)it.key}),
-        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        thermostatTemperature: isC ? getRandomItem(10..33) : getRandomItem(50..90),
-        coolingSetpoint: isC ? getRandomItem(10..33) : getRandomItem(50..90),
-        heatingSetpoint: isC ? getRandomItem(10..33) : getRandomItem(50..90),
-        thermostatMode: getRandomItem(getThermModeOpts()),
-        thermostatFanMode: getRandomItem(getThermFanOpts()),
-        thermostatOperatingState: getRandomItem(getThermOperStOpts()),
-    ]
-    if(settings.enableWebCoRE) attVal.pistonExecuted = getRandomItem(getLocationPistons())
-    Map evt = [:]
-    if(attVal.containsKey(trig)) {
-        evt = [ name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
-    }
-    if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
-    return evt
-}
-
 static String convEvtType(String type) {
     Map typeConv = [
         "pistonExecuted": "Piston",
@@ -3581,7 +3629,7 @@ private List decamelizeStr(String str) {
 } */
 
 String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
-    // log.debug "getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}"
+    logTrace("getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}")
     String glbText = (String)settings."act_${(String)settings.actionType}_txt" ?: sNULL
     if(glbText) {
         List<String> eTxtItems = glbText.tokenize(";")
@@ -3625,22 +3673,24 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
                 case "scheduled":
                     return "Your scheduled event has occurred at ${evt?.value}"
-                case "smoke":
-                case "carbonMonoxide":
-                    return "${evntName} is ${evt?.value} on ${evt?.displayName}!"
                 case "pushed":
                 case "held":
                 case "released":
                 case "doubleTapped":
                     return "Button ${evt?.value} was ${evntName == "doubleTapped" ? "double tapped" : evntName} on ${evt?.displayName}"
 
-                case "thermostatTemperature":
+                case sTHERMTEMP:
                     evntName = sTEMP
+                /*
                 case "coolingSetpoint":
                 case "heatingSetpoint":
                 case "thermostatMode":
                 case "thermostatFanMode":
                 case "thermostatOperatingState":
+                case "smoke":
+                case "carbonMonoxide":
+                    return "${evntName} is ${evt?.value} on ${evt?.displayName}!"
+                */
                 default:
                     String t0 = getAttrPostfix(evntName)
                     String postfix = t0 ?: sBLANK
@@ -3696,7 +3746,7 @@ private static String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
 }
 
 private addToActHistory(evt, data, Integer max=10) {
-    Boolean aa = getTheLock(sHMLF, "addToActHistory")
+    getTheLock(sHMLF, "addToActHistory")
     // log.trace "lock wait: ${aa}"
 
     List eData = (List)getMemStoreItem("actionHistory")
@@ -3722,7 +3772,7 @@ private addToActHistory(evt, data, Integer max=10) {
 }
 
 void clearActHistory(){
-    Boolean aa = getTheLock(sHMLF, "clearActHistory")
+    getTheLock(sHMLF, "clearActHistory")
     // log.trace "lock wait: ${aa}"
     updMemStoreItem("actionHistory", [])
 
@@ -3732,7 +3782,8 @@ void clearActHistory(){
 
 private void executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
     Long startTime = now()
-    logTrace( "executeAction${src ? "($src)" : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
+    if((Boolean)settings.actTestRun) testMode = true
+    logTrace("executeAction ${src ? '('+src+')' : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
     if(isPaused(true)) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
@@ -3961,26 +4012,26 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             if(firstTierMsg) {
                 Integer del = (Integer)settings.act_tier_start_delay
                 if(del) {
-                    logTrace( "scheduled executeTaskCommands in $del seconds - start delay")
+                    logTrace("scheduled executeTaskCommands in $del seconds - start delay")
                     runIn(del, "executeTaskCommands", [data:[type: "act_tier_start_"]])
                 } else { executeTaskCommands([type:"act_tier_start_"]) }
             }
             if(lastTierMsg) {
                 Integer del = (Integer)settings.act_tier_stop_delay
                 if(del) {
-                    logTrace( "scheduled executeTaskCommands in $del seconds - stop delay")
+                    logTrace("scheduled executeTaskCommands in $del seconds - stop delay")
                     runIn(del, "executeTaskCommands", [data:[type: "act_tier_stop_"]])
                 } else { executeTaskCommands([type:"act_tier_stop_"]) }
             }
         } else {
             Integer del = (Integer)settings.act_tasks_delay
             if(del) {
-                logTrace( "scheduled executeTaskCommands in $del seconds - action tasks delay")
+                logTrace("scheduled executeTaskCommands in $del seconds - action tasks delay")
                 runIn(del, "executeTaskCommands", [data:[type: "act_"]])
             } else { executeTaskCommands([type: "act_"]) }
         }
     }
-    logDebug("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
+    logTrace("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
 }
 
 @SuppressWarnings('unused')
@@ -3994,7 +4045,7 @@ private postTaskCommands(data) {
 
 public Map getInputData(String inName) {
     String desc = "<li>Add custom responses to use when this action is executed.</li>"
-    String title = sNULL
+    String title
     String tmplt = '%name% %type% is now %value% %unit%'
     String vDesc = "<li>Example: %name% %type% is now %value% would translate into The garage door contact is now open</li><li>To make beep sounds use: <b>wop, wop, wop</b> (equals 3 beeps)</li>"
     switch(inName) {
@@ -4124,6 +4175,7 @@ private void updAppFlag(String key, val) {
     atomicState.appFlagsMap = data
 }
 
+@SuppressWarnings('unused')
 private void remAppFlag(key) {
     //ERS
     Map t0 = atomicState.appFlagsMap
@@ -4360,7 +4412,7 @@ private void webCoRE_execute(String pistonIdOrName,Map data=[:]) {
     if(i){sendLocationEvent([name:i,value:app.label,isStateChange:true,displayed:false,data:data])}
 }
 
-private static List webCoRE_list(String mode){
+private static List webCoRE_list(){
     return ((List)webCoREFLD?.pistons)?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
 }
 /*
@@ -4369,7 +4421,7 @@ private static String getPistonByName(String pistonIdOrName) {
 } */
 
 private static String getPistonById(String rId) {
-    Map a = webCoRE_list('name')?.find { it.containsKey(rId) }
+    Map a = webCoRE_list()?.find { it.containsKey(rId) }
     String aaa = (String)a?."${rId}"
     return aaa ?: "Refresh to display piston name..."
 }
@@ -4384,7 +4436,7 @@ void webCoRE_handler(evt){
             p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name}
             Boolean a = (Boolean)webCoREFLD?.cbk
 
-            Boolean aa = getTheLock(sHMLF, "webCoRE_Handler")
+            getTheLock(sHMLF, "webCoRE_Handler")
             webCoREFLD = [cbk: a, updated: now(), pistons: p]
             releaseTheLock(sHMLF)
 
@@ -4981,7 +5033,7 @@ static def getRandomItem(List items) {
 
 Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !(Boolean)state.shownChgLog) }
 
-static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
+static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${branchFLD}/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
@@ -4991,7 +5043,7 @@ static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { re
 
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 
-static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
+static String inTS1(String str, String img = sNULL, String clr=sNULL) { return spanSmBldUnd(str, clr, img) }
 static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", " ")?.replaceAll("<br>", " "), und), clr, img) }
 
 // Root HTML Objects
@@ -5066,7 +5118,7 @@ String getAppDebugDesc() {
 private addToLogHistory(String logKey, String data, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() > 70)
 
-    Boolean aa = getTheLock(sHMLF, "addToHistory(${logKey})")
+    getTheLock(sHMLF, "addToHistory(${logKey})")
     // log.trace "lock wait: ${aa}"
 
     List<Map> eData = (List<Map>)getMemStoreItem(logKey)
@@ -5119,7 +5171,7 @@ static String logPrefix(String msg, String color = sNULL) {
 }
 
 Map getLogHistory() {
-    Boolean aa = getTheLock(sHMLF, "getLogHistory")
+    getTheLock(sHMLF, "getLogHistory")
     // log.trace "lock wait: ${aa}"
     List warn = (List)getMemStoreItem("warnHistory")
     List errs = (List)getMemStoreItem("errorHistory")
@@ -5127,13 +5179,14 @@ Map getLogHistory() {
     return [ warnings: []+warn, errors: []+errs ]
 }
 
+/*
 private void clearLogHistory() {
-    Boolean aa = getTheLock(sHMLF, "clearLogHistory")
+    getTheLock(sHMLF, "clearLogHistory")
     // log.trace "lock wait: ${aa}"
     updMemStoreItem("warnHistory", [])
     updMemStoreItem("errorHistory", [])
     releaseTheLock(sHMLF)
-}
+} */
 
 @Field volatile static Map<String,Map> historyMapFLD = [:]
 // FIELD VARIABLE FUNCTIONS
@@ -5152,13 +5205,14 @@ private getMemStoreItem(String key, defVal=[]){
     return memStore[key] ?: defVal
 }
 
+/*
 // Memory Barrier
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
 static void mb(String meth=sNULL){
     if((Boolean)theMBLockFLD.tryAcquire()){
         theMBLockFLD.release()
     }
-}
+} */
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
 @Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
@@ -5184,9 +5238,9 @@ java.util.concurrent.Semaphore getSema(Integer snum){
 @Field volatile static Map<String,Long> lockTimesFLD = [:]
 @Field volatile static Map<String,String> lockHolderFLD = [:]
 
-Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
+void getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     Long waitT = longWait ? 1000L : 60L
-    Boolean wait = false
+//    Boolean wait = false
     Integer semaNum = getSemaNum(qname)
     String semaSNum = semaNum.toString()
     def sema = getSema(semaNum)
@@ -5200,7 +5254,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
         }
         if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
         pauseExecution(waitT)
-        wait = true
+//        wait = true
         if((now() - timeL) > 30000L) {
             releaseTheLock(qname)
             if(devModeFLD) log.warn "overriding lock $meth"
@@ -5210,7 +5264,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     lockTimesFLD = lockTimesFLD
     lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
-    return wait
+//    return wait
 }
 
 void releaseTheLock(String qname){
