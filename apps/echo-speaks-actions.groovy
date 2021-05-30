@@ -3231,7 +3231,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
         }
     }
     Map result = [evtOk: evtOk, evtAd: evtAd]
-    logDebug("deviceEvtProcNumValue | result: $result | evtVal: $eV | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca} | avg: $dcavg")
+    logDebug("deviceEvtProcNumValue | result: $result | evtName: ${evt?.name} | evtVal: $eV | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca} | avg: $dcavg")
     return result
 }
 
