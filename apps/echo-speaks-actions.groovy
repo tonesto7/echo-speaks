@@ -229,6 +229,7 @@ def mainPage() {
 
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
+            webCoRE_poll()
         }
         appInfoSect()
         Boolean paused = isPaused()
@@ -388,6 +389,7 @@ def triggersPage() {
         }
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
+            webCoRE_poll()
         }
         Boolean showSpeakEvtVars = false
         section (sectHead("Select Capabilities")) {
@@ -1579,6 +1581,7 @@ def actTrigTasksPage(params) {
         }
         if(settings.enableWebCoRE) {
             if(!webCoREFLD) webCoRE_init()
+            webCoRE_poll()
         }
         section(sectHead("Control Devices:")) {
             input "${t}switches_on", "capability.switch", title: inTS1("Turn ON these Switches${dMap?.def}", sSWITCH) + optPrefix(), multiple: true, required: false, submitOnChange: true
@@ -4362,8 +4365,8 @@ private void webCoRE_init(pistonExecutedCbk=null){
 //    if(pistonExecutedCbk)subscribe(location,"${webCoRE_handle()}.pistonExecuted",webCoRE_handler);
     if(!webCoREFLD) {
         webCoREFLD = [:] + [cbk:true] // pistonExecutedCbk]
-        webCoRE_poll(true)
     }
+    webCoRE_poll(true)
 }
 
 @Field static final String sLASTWU = 'lastwebCoREUpdDt'
@@ -4387,8 +4390,9 @@ private void webCoRE_execute(String pistonIdOrName,Map data=[:]) {
     if(i){sendLocationEvent([name:i,value:app.label,isStateChange:true,displayed:false,data:data])}
 }
 
-private static List webCoRE_list(){
-    return ((List)webCoREFLD?.pistons)?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
+private List webCoRE_list(){
+    List ret = ((List)webCoREFLD?.pistons)?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
+    return ret
 }
 /*
 private static String getPistonByName(String pistonIdOrName) {
@@ -4404,6 +4408,12 @@ private static String getPistonById(String rId) {
 void webCoRE_handler(evt){
     switch((String)evt.value){
       case 'pistonList':
+        getTheLock(sHMLF, "webCoRE_Handler")
+        Long rUpd = (Long)webCoREFLD.updated
+        if(rUpd && (now() < (rUpd+1000L))) {
+            releaseTheLock(sHMLF)
+            return
+        }
         List p=(List)webCoREFLD?.pistons ?: []
         Map d=evt.jsonData?:[:]
         if(d.id && d.pistons && (d.pistons instanceof List)){
@@ -4411,12 +4421,11 @@ void webCoRE_handler(evt){
             p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name}
             Boolean a = (Boolean)webCoREFLD?.cbk
 
-            getTheLock(sHMLF, "webCoRE_Handler")
             webCoREFLD = [cbk: a, updated: now(), pistons: p]
             releaseTheLock(sHMLF)
 
             updTsVal(sLASTWU)
-        }
+        } else releaseTheLock(sHMLF)
         break
       case 'pistonExecuted':
         if(valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) {
@@ -4733,6 +4742,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
             String str = spanSmBldBr("Triggers${!addFoot ? " for ("+(String)buildActTypeEnum()."${(String)settings.actionType}" + ")" : sBLANK}:", sNULL)
             setItem.each { String evt->
                 String adder = sBLANK
+                List myL = (List)settings."${sPre}${evt}"
                 switch(evt) {
                     case "scheduled":
                         String schedTyp = settings."${sPre}${evt}_type" ?: sNULL
@@ -4753,14 +4763,15 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         }
                         break
                     case "alarmSystemStatus":
-                        str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + (List)settings."${sPre}${evt}" ? " (${((List)settings."${sPre}${evt}")?.size()} Selected)" : sBLANK)
-                        if ("alerts" in (List)settings."${sPre}${evt}") str += (List)settings."${sPre}${evt}_events"  ? spanSmBr("    ${sBULLETINV} Alert Events: (${(List)settings."${sPre}${evt}_events"})") : sBLANK
+                        str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + myL ? " (${myL?.size()} Selected)" : sBLANK)
+                        if ("alerts" in myL) str += (List)settings."${sPre}${evt}_events"  ? spanSmBr("    ${sBULLETINV} Alert Events: (${(List)settings."${sPre}${evt}_events"})") : sBLANK
                         str += (Boolean)settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
                         break
                     case "pistonExecuted":
                     case sMODE:
-                    case "scene":
-                        str += spanSmBr(" ${sBULLET} ${strUnder(evt == "pistonExecuted" ? "Piston" : evt?.capitalize())}" + (List)settings."${sPre}${evt}" ? " (${((List)settings."${sPre}${evt}")?.size()} Scene${settings."${sPre}${evt}"?.size()>1 ? "s" : sBLANK})" : sBLANK)
+//                    case "scene":
+                        String typ = evt == sMODE ? "Mode" : "Piston"
+                        str += myL    ? spanSmBr(" ${sBULLET} "+ strUnder(typ) + pluralizeStr(myL) + " (${myL?.size()})") : sBLANK
                         str += (Boolean)settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
                         break
                     case "pushed":
@@ -4769,7 +4780,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                     case "doubleTapped":
                         adder = "Button "
                     default:
-                        str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${settings."${sPre}${evt}" ? " (${settings."${sPre}${evt}"?.size()} Device${settings."${sPre}${evt}"?.size()>1 ? "s" : sBLANK})" : sBLANK}")
+                        str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${myL ? " (${myL?.size()} Device"+pluralizeStr(myL)+')' : sBLANK}")
                         String t_cmd = (String)settings."${sPre}${evt}_cmd"
                         if(t_cmd in numOpts()) {
                             if (t_cmd in [sBETWEEN, sNBETWEEN]) {
