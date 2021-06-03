@@ -2692,8 +2692,8 @@ def webcoreEvtHandler(evt) {
     logTrace("${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
     String inT = "trig_${sPISTNEXEC}"
     if(pId in (List)settings."${inT}") {
-        Boolean dco = ((Boolean)settings."${inT}_once == true)
-        Integer dcw = (Integer)settings."${inT}_wait ?: null
+        Boolean dco = ((Boolean)settings."${inT}_once" == true)
+        Integer dcw = (Integer)settings."${inT}_wait" ?: null
         eventCompletion(evt, sPISTNEXEC, dco, dcw, "webcoreEvtHandler", disN, disN)
     }
 }
