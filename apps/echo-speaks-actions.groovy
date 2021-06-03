@@ -510,7 +510,7 @@ def triggersPage() {
                 section(sectHead("webCoRE Piston Executed Events"), hideable: true) {
                     String inT = sPISTNEXEC
                     input "trig_${inT}", sENUM, title: inTS1("Pistons", webCore_icon()), options: webCoRE_list(), multiple: true, required: true, submitOnChange: true
-                    if(settings.trig_pistonExecuted) {
+                    if(settings."trig_${inT}") {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_${inT}_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_${inT}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
@@ -2530,8 +2530,8 @@ Map getRandomTrigEvt() {
         thermostatOperatingState: getRandomItem(getThermOperStOpts()),
     ]
     Map evt = [ date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
-    if(settings.enableWebCoRE && trig == 'pistonExecuted') {
-        attVal.webCoRE = 'pistonExecuted'
+    if(settings.enableWebCoRE && trig == sPISTNEXEC) {
+        attVal.webCoRE = sPISTNEXEC
         trig = 'webCoRE'
         trigItem.displayName = 'webcore piston executed'
         String id = getRandomItem(getLocationPistons())
@@ -2690,9 +2690,10 @@ def webcoreEvtHandler(evt) {
     String disN = evt?.jsonData?.name
     String pId = evt?.jsonData?.id
     logTrace("${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
-    if(pId in settings.trig_pistonExecuted) {
-        Boolean dco = ((Boolean)settings.trig_pistonExecuted_once == true)
-        Integer dcw = (Integer)settings.trig_pistonExecuted_wait ?: null
+    String inT = "trig_${sPISTNEXEC}"
+    if(pId in (List)settings."${inT}") {
+        Boolean dco = ((Boolean)settings."${inT}_once == true)
+        Integer dcw = (Integer)settings."${inT}_wait ?: null
         eventCompletion(evt, sPISTNEXEC, dco, dcw, "webcoreEvtHandler", disN, disN)
     }
 }
@@ -2706,9 +2707,10 @@ def sceneEvtHandler(evt) {
 
 def modeEvtHandler(evt) {
     logTrace("${evt?.name?.toUpperCase()} Event | Mode: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
-    if(evt?.value in (List)settings.trig_mode) {
-        Boolean dco = ((Boolean)settings.trig_mode_once == true)
-        Integer dcw = (Integer)settings.trig_mode_wait ?: null
+    String inT = "trig_mode"
+    if(evt?.value in (List)settings."${inT}") {
+        Boolean dco = ((Boolean)settings."${inT}_once" == true)
+        Integer dcw = (Integer)settings."${inT}_wait" ?: null
         eventCompletion(evt, sMODE, dco, dcw, "modeEvtHandler", evt?.value, (String)evt?.displayName)
     }
 }
@@ -2762,7 +2764,7 @@ void devAfterEvtHandler(evt) {
             dt: evt?.date?.toString(),
             deviceId: evt?.deviceId as String,
             displayName: evt?.displayName,
-            name: evt?.name,
+            name: evntName,
             value: evt?.value,
             type: evt?.type,
             data: evt?.data,
@@ -2778,7 +2780,7 @@ void devAfterEvtHandler(evt) {
     updMemStoreItem("afterEvtMap", aEvtMap)
     releaseTheLock(sHMLF)
 
-    if(rem) logDebug("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evt?.name?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
+    if(rem) logDebug("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evntName?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
 
     if(ok) {
         runIn(2, "afterEvtCheckHandler")
@@ -4399,7 +4401,7 @@ void webCoRE_handler(evt){
             updTsVal(sLASTWU)
         } else releaseTheLock(sHMLF)
         break
-      case 'pistonExecuted':
+      case sPISTNEXEC:
         if(valTrigEvt(sPISTNEXEC) && settings.trig_pistonExecuted) {
             webcoreEvtHandler(evt)
         }
