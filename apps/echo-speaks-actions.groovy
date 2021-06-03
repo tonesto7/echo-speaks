@@ -2687,14 +2687,19 @@ def eventCompletion(evt, String dId, Boolean dco, Integer dcw, String meth, evtV
 }
 
 def webcoreEvtHandler(evt) {
+    String eN = (String)evt?.name
+    def eV = evt?.value
     String disN = evt?.jsonData?.name
     String pId = evt?.jsonData?.id
+    List lT = (List)settings."${inT}"
     logTrace("${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
     String inT = "trig_${sPISTNEXEC}"
-    if(pId in (List)settings."${inT}") {
+    if(pId in lT) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
         Integer dcw = (Integer)settings."${inT}_wait" ?: null
         eventCompletion(evt, sPISTNEXEC, dco, dcw, "webcoreEvtHandler", disN, disN)
+    } else {
+        logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
     }
 }
 // TODO not in use
@@ -2707,11 +2712,16 @@ def sceneEvtHandler(evt) {
 
 def modeEvtHandler(evt) {
     logTrace("${evt?.name?.toUpperCase()} Event | Mode: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    String eN = (String)evt?.name
+    def eV = evt?.value
     String inT = "trig_mode"
-    if(evt?.value in (List)settings."${inT}") {
+    List lT = (List)settings."${inT}"
+    if(eV in lT) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
         Integer dcw = (Integer)settings."${inT}_wait" ?: null
-        eventCompletion(evt, sMODE, dco, dcw, "modeEvtHandler", evt?.value, (String)evt?.displayName)
+        eventCompletion(evt, sMODE, dco, dcw, "modeEvtHandler", eV, (String)evt?.displayName)
+    } else {
+        logTrace("modeEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT}")
     }
 }
 
@@ -2740,14 +2750,15 @@ void devAfterThermEvtHandler(evt) {
 
 void devAfterEvtHandler(evt) {
     Long evtDelay = now() - (Long)((Date)evt.date).getTime()
-    String evntName = (String)evt?.name
-    String dc = settings."trig_${evntName}_cmd" ?: null
-    Integer dcaf = (Integer)settings."trig_${evntName}_after" ?: null
-    Integer dcafr = (Integer)settings."trig_${evntName}_after_repeat" ?: null
-    Integer dcafrc = (Integer)settings."trig_${evntName}_after_repeat_cnt" ?: null
-    String eid = "${evt?.deviceId}_${evntName}"
-    Boolean schedChk = (dc && dcaf && evt?.value == dc)
-    logTrace("Device Event | ${evntName?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
+    String eN = (String)evt?.name
+    def eV = evt?.value
+    String dc = settings."trig_${eN}_cmd" ?: null
+    Integer dcaf = (Integer)settings."trig_${eN}_after" ?: null
+    Integer dcafr = (Integer)settings."trig_${eN}_after_repeat" ?: null
+    Integer dcafrc = (Integer)settings."trig_${eN}_after_repeat_cnt" ?: null
+    String eid = "${evt?.deviceId}_${eN}"
+    Boolean schedChk = (dc && dcaf && eV == dc)
+    logTrace("Device Event | ${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
     Boolean rem = false
 
     getTheLock(sHMLF, "scheduleTrigEvt")
@@ -2764,8 +2775,8 @@ void devAfterEvtHandler(evt) {
             dt: evt?.date?.toString(),
             deviceId: evt?.deviceId as String,
             displayName: evt?.displayName,
-            name: evntName,
-            value: evt?.value,
+            name: eN,
+            value: eV,
             type: evt?.type,
             data: evt?.data,
             triggerState: dc,
@@ -2780,7 +2791,7 @@ void devAfterEvtHandler(evt) {
     updMemStoreItem("afterEvtMap", aEvtMap)
     releaseTheLock(sHMLF)
 
-    if(rem) logDebug("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${evntName?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
+    if(rem) logDebug("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${eN?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
 
     if(ok) {
         runIn(2, "afterEvtCheckHandler")
@@ -2899,16 +2910,17 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     Long evtDelay = now() - (Long)((Date)evt.date).getTime()
     Boolean evtOk = false
     Boolean evtAd = false
-    String evntName = (String)evt.name
-    List d = settings."trig_${evntName}"
-    String dc = settings."trig_${evntName}_cmd"
-    logTrace("Device Event | ${evntName.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)}) with a delay of ${evtDelay}ms${aftEvt ? " | (aftEvt)" : sBLANK}")
-    Boolean dca = ((Boolean)settings."trig_${evntName}_all" == true)
-    Boolean dcavg = (!dca && (Boolean)settings."trig_${evntName}_avg" == true)
-    Boolean dco = (!(Integer)settings."trig_${evntName}_after" && (Boolean)settings."trig_${evntName}_once" == true)
-    Integer dcw = (!(Integer)settings."trig_${evntName}_after" && (Integer)settings."trig_${evntName}_wait") ? (Integer)settings."trig_${evntName}_wait" : null
+    String eN = (String)evt.name
+    def eV = evt?.value
+    List d = settings."trig_${eN}"
+    String dc = settings."trig_${eN}_cmd"
+    logTrace("Device Event | ${eN.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms${aftEvt ? " | (aftEvt)" : sBLANK}")
+    Boolean dca = ((Boolean)settings."trig_${eN}_all" == true)
+    Boolean dcavg = (!dca && (Boolean)settings."trig_${eN}_avg" == true)
+    Boolean dco = (!(Integer)settings."trig_${eN}_after" && (Boolean)settings."trig_${eN}_once" == true)
+    Integer dcw = (!(Integer)settings."trig_${eN}_after" && (Integer)settings."trig_${eN}_wait") ? (Integer)settings."trig_${eN}_wait" : null
     String extra = sBLANK
-    switch(evntName) {
+    switch(eN) {
         case sSWITCH:
         case sLOCK:
         case "securityKeypad":
@@ -2929,26 +2941,22 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
             if(d?.size() && dc) {
                 if(dc == sANY) { evtOk = true }
                 else {
-                    if(dca && (allDevAttValsEqual(d, dc, (String)evt?.value))) { evtOk = true; evtAd = true }
-                    else if(evt?.value == dc) { evtOk=true }
+                    if(dca && (allDevAttValsEqual(d, dc, (String)eV))) { evtOk = true; evtAd = true }
+                    else if(eV == dc) { evtOk=true }
                 }
             }
-            if(evtOk && evntName in [sLOCK, "securityKeypad"] && (String)evt.value in ["disarmed", "unlocked"]) {
-                List dcn = settings."trig_${evntName}_Codes"
+            if(evtOk && eN in [sLOCK, "securityKeypad"] && (String)evt.value in ["disarmed", "unlocked"]) {
+                List dcn = settings."trig_${eN}_Codes"
                 if(dcn) {
                     String theCode = evt?.data
                     Map data = null
-                    if(theCode) {
-                        data = getCodes(null, theCode)
-//                        if(theCode[0] == "{") data = parseJson(theCode)
-//                        else data = parseJson(decrypt(theCode))
-                    }
+                    if(theCode) data = getCodes(null, theCode)
 //                    log.debug "converted $theCode to ${data}  starting with ${evt?.data}"
                     List<String> theCList = data?.collect { (String)it.key }
 //                    log.debug "found code $theCList"
                     if(!theCList || !(theCList[0] in dcn)) {
                         evtOk = false
-                        extra = " FILTER REMOVED the received code (${theCode}), code did not match trig_${evntName}_Codes (${dcn})"
+                        extra = " FILTER REMOVED the received code (${theCode}), code did not match trig_${eN}_Codes (${dcn})"
                     }
                 }
             }
@@ -2957,11 +2965,11 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
         case sRELEASED:
         case sHELD:
         case sDBLTAP:
-            def dcn = settings."trig_${evntName}_nums"
+            def dcn = settings."trig_${eN}_nums"
             if(d?.size() && dc && dcn && dcn?.size() > 0) {
-                if(dcn?.contains(evt?.value)) { evtOk = true }
+                if(dcn?.contains(eV)) { evtOk = true }
             }
-//log.debug "deviceEvtHandler: dcn: $dcn | d: $d | dc: $dc | dco: $dco | dcw: $dcw | evt.value: ${evt?.value}"
+//log.debug "deviceEvtHandler: dcn: $dcn | d: $d | dc: $dc | dco: $dco | dcw: $dcw | evt.value: ${eV}"
             break
         case sCOOLSP:
         case sHEATSP:
@@ -2972,13 +2980,15 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
         case "illuminance":
         case sLEVEL:
         case sBATT:
-            Double dcl = settings."trig_${evntName}_low"
-            Double dch = settings."trig_${evntName}_high"
-            Double dce = settings."trig_${evntName}_equal"
+            Double dcl = settings."trig_${eN}_low"
+            Double dch = settings."trig_${eN}_high"
+            Double dce = settings."trig_${eN}_equal"
             Map valChk = deviceEvtProcNumValue(evt, d, dc, dcl, dch, dce, dca, dcavg)
             evtOk = valChk.evtOk
             evtAd = valChk.evtAd
             break
+        default:
+            logDebug("deviceEvtHandler | unknown event ${eN}  value: ${eV}")
     }
     Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     Boolean execOk = (evtOk && devEvtWaitOk)
@@ -2986,7 +2996,10 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     //if(!devEvtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
-    } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evntName})", evtAd, aftRepEvt) }
+    } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${eN})", evtAd, aftRepEvt) }
+    else {
+        logTrace("deviceEvtHandler | Skipping event ${eN}  value: ${eV}")
+    }
 }
 
 private void processTierTrigEvt(evt, Boolean evtOk) {
@@ -3585,7 +3598,9 @@ private List decamelizeStr(String str) {
 } */
 
 String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
-    logTrace("getResponseItem | EvtName: ${evt?.name} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${evt?.value} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}")
+    String eN = (String)evt?.name
+    def eV = evt?.value
+    logTrace("getResponseItem | EvtName: ${eN} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${eV} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}")
     String glbText = (String)settings."act_${(String)settings.actionType}_txt" ?: sNULL
     if(glbText) {
         List<String> eTxtItems = glbText.tokenize(";")
@@ -3594,12 +3609,11 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
         List<String> eTxtItems = tierMsg.tokenize(";")
         return decodeVariables(evt, (String)getRandomItem(eTxtItems))
     } else {
-        String evntName = (String)evt?.name
-        List devs = settings."trig_${evntName}" ?: []
-        // String dc = (String)settings."trig_${evntName}_cmd"
-        // Boolean dca = ((Boolean)settings."trig_${evntName}_all" == true)
-        String dct = (String)settings."trig_${evntName}_txt" ?: sNULL
-        String dcart = (Integer)settings."trig_${evntName}_after_repeat" && (String)settings."trig_${evntName}_after_repeat_txt" ? (String)settings."trig_${evntName}_after_repeat_txt" : sNULL
+        List devs = settings."trig_${eN}" ?: []
+        // String dc = (String)settings."trig_${eN}_cmd"
+        // Boolean dca = ((Boolean)settings."trig_${eN}_all" == true)
+        String dct = (String)settings."trig_${eN}_txt" ?: sNULL
+        String dcart = (Integer)settings."trig_${eN}_after_repeat" && (String)settings."trig_${eN}_after_repeat_txt" ? (String)settings."trig_${eN}_after_repeat_txt" : sNULL
         List<String> eTxtItems = dct ? dct.tokenize(";") : []
         List<String> rTxtItems = dcart ? dcart.tokenize(";") : []
         List<String> testItems = eTxtItems + rTxtItems
@@ -3610,33 +3624,33 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
         } else if(!testMode && eTxtItems?.size()) {
             return  decodeVariables(evt, (String)getRandomItem(eTxtItems))
         } else {
-            switch(evntName) {
+            switch(eN) {
                 case sMODE:
-                    return  "The location mode is now set to ${evt?.value}"
+                    return  "The location mode is now set to ${eV}"
                 case sPISTNEXEC:
                     return  "The ${evt?.displayName} piston was just executed!."
                 case "scene":
-                    return  "The ${evt?.value} scene was just executed!."
+                    return  "The ${eV} scene was just executed!."
                 case "hsmStatus":
                 case sALRMSYSST:
-                    return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
+                    return "The ${getAlarmSystemName()} is now set to ${eV}"
                 case "guard":
-                    return "Alexa Guard is now set to ${evt?.value}"
+                    return "Alexa Guard is now set to ${eV}"
                 case "hsmAlert":
-                    return "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${evt?.value} has occurred."
+                    return "A ${getAlarmSystemName()} ${evt?.displayName} alert with ${eV} has occurred."
                 case "sunriseTime":
                 case "sunsetTime":
-                    return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
+                    return "The ${getAlarmSystemName()} is now set to ${eV}"
                 case "scheduled":
-                    return "Your scheduled event has occurred at ${evt?.value}"
+                    return "Your scheduled event has occurred at ${eV}"
                 case sPUSHED:
                 case sHELD:
                 case sRELEASED:
                 case sDBLTAP:
-                    return "Button ${evt?.value} was ${evntName == sDBLTAP ? "double tapped" : evntName} on ${evt?.displayName}"
+                    return "Button ${eV} was ${eN == sDBLTAP ? "double tapped" : eN} on ${evt?.displayName}"
 
                 case sTHERMTEMP:
-                    evntName = sTEMP
+                    eN = sTEMP
                 /*
                 case sCOOLSP:
                 case sHEATSP:
@@ -3645,15 +3659,15 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
                 case "thermostatOperatingState":
                 case "smoke":
                 case "carbonMonoxide":
-                    return "${evntName} is ${evt?.value} on ${evt?.displayName}!"
+                    return "${eN} is ${eV} on ${evt?.displayName}!"
                 */
                 default:
-                    String t0 = getAttrPostfix(evntName)
+                    String t0 = getAttrPostfix(eN)
                     String postfix = t0 ?: sBLANK
                     if(evtAd && devs?.size()>1) {
-                        return "All ${devs.size()}${!evt?.displayName?.toLowerCase()?.contains(evntName) ? " ${evntName}" : sBLANK} devices are ${evt?.value} ${postfix}"
+                        return "All ${devs.size()}${!evt?.displayName?.toLowerCase()?.contains(eN) ? " ${eN}" : sBLANK} devices are ${eV} ${postfix}"
                     } else {
-                        return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(evntName) ? " ${evntName}" : sBLANK} is ${evt?.value} ${postfix}"
+                        return "${evt?.displayName}${!evt?.displayName?.toLowerCase()?.contains(eN) ? " ${eN}" : sBLANK} is ${eV} ${postfix}"
                     }
                     break
             }
@@ -4380,6 +4394,7 @@ private static String getPistonById(String rId) {
 }
 
 void webCoRE_handler(evt){
+    logTrace("${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     switch((String)evt.value){
       case 'pistonList':
         getTheLock(sHMLF, "webCoRE_Handler")
