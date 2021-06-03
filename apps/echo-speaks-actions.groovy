@@ -105,6 +105,8 @@ import groovy.transform.Field
 @Field static final String sRELEASED      = 'released'
 @Field static final String sHELD          = 'held'
 @Field static final String sDBLTAP        = 'doubleTapped'
+@Field static final String sALRMSYSST     = 'alarmSystemStatus'
+@Field static final String sPISTNEXEC     = 'pistonExecuted'
 @Field static final List<String> lONOFF        = ['on', 'off']
 @Field static final List<String> lANY          = ['any']
 @Field static final List<String> lOPNCLS       = ['open', 'closed']
@@ -198,16 +200,16 @@ String selTriggerTypes(type) {
 private Map buildTriggerEnum() {
     Map<String,Map> buildItems = [:]
     buildItems["Date/Time"] = ["scheduled":"Scheduled Time"]?.sort{ it?.key }
-    buildItems["Location"] = [(sMODE):"Modes", "pistonExecuted":"Pistons"]?.sort{ it?.key }
+    buildItems["Location"] = [(sMODE):"Modes", (sPISTNEXEC):"Pistons"]?.sort{ it?.key }
     if(!settings.enableWebCoRE) {
-        buildItems.Location.remove("pistonExecuted")
+        buildItems.Location.remove(sPISTNEXEC)
     }
     buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
-// todo siren (capability.alarm, attr alarm)
     buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
     buildItems["Thermostat Devices"] = [(sCOOLSP):"Thermostat Cooling Setpoint", (sHEATSP):"Thermostat Heating Setpoint", (sTHERMTEMP):"Thermostat Ambient Temp", "thermostatOperatingState":"Thermostat Operating State", "thermostatMode":"Thermostat Mode", "thermostatFanMode":"Thermostat Fan Mode"]?.sort{ it?.value }
     buildItems["Button Devices"] = [(sPUSHED):"Button (Pushable)", (sRELEASED):"Button (Releasable)", (sHELD):"Button (Holdable)", (sDBLTAP):"Button (Double Tapable)"]?.sort{ it?.value }
-    buildItems["Safety & Security"] = ["alarmSystemStatus": "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
+// TODO siren (capability.alarm, attr alarm - ENUM ["strobe", "off", "both", "siren"]
+    buildItems["Safety & Security"] = [(sALRMSYSST): "${getAlarmSystemName()}", "smoke":"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
     if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
@@ -360,8 +362,7 @@ def actionHistoryPage() {
         if( ((List)getMemStoreItem("actionHistory")).size() ) {
             section(sBLANK) {
                 input "clearActionHistory", sBOOL, title: inTS1("Clear Action History?", sRESET), description: spanSm("Clears Stored Action History.", sCLRGRY), defaultValue: false, submitOnChange: true
-                //private List getMemStoreItem(String key){
-                if(settings.clearActionHistory) {
+                if((Boolean)settings.clearActionHistory) {
                     settingUpdate("clearActionHistory", sFALSE, sBOOL)
                     clearActHistory()
                 }
@@ -468,16 +469,17 @@ def triggersPage() {
                 }
             }
 
-            if (valTrigEvt("alarmSystemStatus")) {
+            if (valTrigEvt(sALRMSYSST)) {
                 section (sectHead("${getAlarmSystemName()} (${getAlarmSystemName(true)}) Events"), hideable: true) {
-                    input "trig_alarmSystemStatus", sENUM, title: inTS1("${getAlarmSystemName()} Modes", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true
+                    String inT = sALRMSYSST
+                    input "trig_${inT}", sENUM, title: inTS1("${getAlarmSystemName()} Modes", "alarm_home"), options: getAlarmTrigOpts(), multiple: true, required: true, submitOnChange: true
                     if("alerts" in (List)settings.trig_alarmSystemStatus) {
-                        input "trig_alarmSystemStatus_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true
+                        input "trig_${inT}_events", sENUM, title: inTS1("${getAlarmSystemName()} Alert Events", "alarm_home"), options: getAlarmSystemAlertOptions(), multiple: true, required: true, submitOnChange: true
                     }
                     if((List)settings.trig_alarmSystemStatus) {
-                        input "trig_alarmSystemStatus_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_alarmSystemStatus_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("alarmSystemStatus", false)
+                        input "trig_${inT}_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_${inT}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                        triggerMsgInput(sALRMSYSST, false)
                     }
                 }
             }
@@ -504,14 +506,15 @@ def triggersPage() {
                 }
             }
 
-            if(valTrigEvt("pistonExecuted")) {
+            if(valTrigEvt(sPISTNEXEC)) {
                 section(sectHead("webCoRE Piston Executed Events"), hideable: true) {
-                    input "trig_pistonExecuted", sENUM, title: inTS1("Pistons", webCore_icon()), options: webCoRE_list(), multiple: true, required: true, submitOnChange: true
+                    String inT = sPISTNEXEC
+                    input "trig_${inT}", sENUM, title: inTS1("Pistons", webCore_icon()), options: webCoRE_list(), multiple: true, required: true, submitOnChange: true
                     if(settings.trig_pistonExecuted) {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
-                        input "trig_pistonExecuted_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", sQUES), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_pistonExecuted_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("pistonExecuted", false)
+                        input "trig_${inT}_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", sQUES), required: false, defaultValue: false, submitOnChange: true
+                        input "trig_${inT}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                        triggerMsgInput(sPISTNEXEC, false)
                     }
                 }
             }
@@ -777,13 +780,12 @@ def triggerMsgInput(String inType, Boolean showRepInputs=false /*, Integer itemC
 }
 
 Boolean locationTriggers() {
-    return  (valTrigEvt(sMODE) && (List)settings.trig_mode) || (valTrigEvt("alarmSystemStatus") && (List)settings.trig_alarmSystemStatus) ||
-        (valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) ||
+    return  (valTrigEvt(sMODE) && (List)settings.trig_mode) || (valTrigEvt(sALRMSYSST) && (List)settings.trig_alarmSystemStatus) ||
+        (valTrigEvt(sPISTNEXEC) && settings.trig_pistonExecuted) ||
         (valTrigEvt("guard") && settings.trig_guard)
 }
 
 Boolean deviceTriggers() {
-//ERS
     return (settings.trig_windowShade && settings.trig_windowShade_cmd) || (settings.trig_door && settings.trig_door_cmd) || (settings.trig_valve && settings.trig_valve_cmd) ||
         (settings.trig_switch && settings.trig_switch_cmd) || (settings.trig_level && settings.trig_level_cmd) || (settings.trig_lock && settings.trig_lock_cmd) ||
         (settings.trig_securityKeypad && settings.trig_securityKeypad_cmd) ||
@@ -1931,7 +1933,7 @@ private actionVolumeInputs(List devices, Boolean showVolOnly=false, Boolean show
             input "act_alarm_volume", sNUMBER, title: inTS1("Alarm Volume (0% - 100%)", sSPDKNB) + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
         }
     } else {
-        if((devices || settings.act_EchoZones) && (String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sWEATH, "sounds", "builtin", "music", "calendar", "playback"]) {
+        if((devices || settings.act_EchoZones) && (String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sWEATH, "calendar", "music", "sounds", "builtin", "playback"]) {
             Map volMap = devsSupportVolume(devices)
             Integer volMapSiz = volMap?.n?.size()
             Integer devSiz = devices?.size()
@@ -2071,8 +2073,8 @@ def initialize() {
     }
     updDeviceInputs()
 
-// todo go away at some point
-// convert old alarm / hsm settings to new;  as attribute 'alarm' belongs to capability.alarm todo this will go away if we offer alarm attribute
+// TODO go away at some point
+// convert old alarm / hsm settings to new;  as attribute 'alarm' belongs to capability.alarm TODO this will go away if we offer alarm attribute
     if(settings.trig_alarm && !settings.trig_alarmSystemStatus){
         settingUpdate("trig_alarmSystemStatus", settings.trig_alarm, sENUM)
         if(settings.trig_alarm_events && !settings.trig_alarmSystemStatus_events){
@@ -2173,7 +2175,6 @@ private void updAppLabel() {
 }
 
 private void updConfigStatusMap() {
-    //ERS
     Map sMap = [:]
     sMap.triggers = triggersConfigured()
     sMap.conditions = conditionsConfigured()
@@ -2183,7 +2184,6 @@ private void updConfigStatusMap() {
 }
 
 Boolean getConfStatusItem(String item) {
-    //ERS
     switch(item) {
        case "tiers": return isTierActConfigured()
        case "actions": return executionConfigured()
@@ -2402,7 +2402,7 @@ void subscribeToEvts() {
                     // Alexa Guard Status Events
                     if(settings.trig_guard) state.handleGuardEvents = true
                     break
-                case "alarmSystemStatus":
+                case sALRMSYSST:
                     // Location Alarm Events
                     subscribe(location, "hsmStatus", alarmEvtHandler)
                     if("alerts" in (List)settings.trig_alarmSystemStatus) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
@@ -2412,7 +2412,7 @@ void subscribeToEvts() {
                     if((List)settings.cond_mode && !(String)settings.cond_mode_cmd) { settingUpdate("cond_mode_cmd", sARE, sENUM) }
                     subscribe(location, sMODE, modeEvtHandler)
                     break
-                case "pistonExecuted":
+                case sPISTNEXEC:
                     break
                 case sTHERMTEMP:
                     if (settings."trig_${te}_cmd") subscribe(settings."trig_${te}", sTEMP, getThermEvtHandlerName(te))
@@ -2450,7 +2450,7 @@ private executeActTest() {
                         // Scheduled Trigger Events
                         scheduleTrigEvt([date: new Date(), name: "test", value: "Stest", displayName: "Schedule Test"])
                         break
-                    case "webCoRE": // "pistonExecuted":
+                    case "webCoRE": // sPISTNEXEC:
                         webCoRE_handler(evt)
                         break
                     case sTHERMTEMP:
@@ -2462,10 +2462,10 @@ private executeActTest() {
                         // Alexa Guard Status Events
                         guardEventHandler((String)evt.value)
                         break
-                    case "alarmSystemStatus":
+                    case sALRMSYSST:
                         // Location Alarm Events
                         alarmEvtHandler(evt)
-                        // two cases hsmStatus (above) and hsmAlert todo
+                        // two cases hsmStatus (above) and hsmAlert TODO
                         //if("alerts" in (List)settings.trig_alarmSystemStatus) { subscribe(location, "hsmAlert", alarmEvtHandler) } // Only on Hubitat
                         break
                     case sMODE:
@@ -2618,7 +2618,7 @@ def scheduleTrigEvt(evt=null) {
 
 
     getTheLock(sHMLF, "scheduleTrigEvt")
-    // log.trace "lock wait: ${aa}"
+
     Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
     if(!sTrigMap) sTrigMap = (Map)state.schedTrigMap ?: [:]
 
@@ -2644,30 +2644,29 @@ def alarmEvtHandler(evt) {
     String eN = (String)evt?.name
     def eV = evt?.value
     logTrace("${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
-    if(!(List)settings.trig_alarmSystemStatus) return
-    Boolean ok2Run = true
-    switch(eN) {
-        case "hsmStatus":
-        case "alarmSystemStatus":
-            if(!(eV in (List)settings.trig_alarmSystemStatus)) ok2Run = false
-            break
-        case "hsmAlert":
-            if (!("alerts" in (List)settings.trig_alarmSystemStatus)) ok2Run = false
-            else if (!(eV in (List)settings.trig_alarmSystemStatus_events)) ok2Run = false
-            break
-        default:
-            ok2Run = false
+    String inT = "trig_${sALRMSYSST}"
+    List lT = (List)settings."${inT}"
+    List lE = (List)settings."${inT}_events"
+    Boolean ok2Run = !!(lT)
+    if(ok2Run) {
+        switch(eN) {
+            case "hsmStatus":
+            case sALRMSYSST:
+                if(!(eV in lT)) ok2Run = false
+                break
+            case "hsmAlert":
+                if (!("alerts" in lT && eV in lE)) ok2Run = false
+                break
+            default:
+                ok2Run = false
+        }
     }
     if(ok2Run) {
-        Boolean dco = ((Boolean)settings.trig_alarmSystemStatus_once == true)
-        Integer dcw = (Integer)settings.trig_alarmSystemStatus_wait ?: null
-        eventCompletion(evt, "alarmSystemStatus", dco, dcw, "alarmEvtHandler(${evt?.name})", eV, (String)evt?.displayName)
- /*   if(ok2Run) {
-        if(getConfStatusItem("tiers")) {
-            processTierTrigEvt(evt, true)
-        } else { executeAction(evt, false, "alarmEvtHandler(${evt?.name})", false, false) } */
+        Boolean dco = ((Boolean)settings."${inT}_once" == true)
+        Integer dcw = (Integer)settings."${inT}_wait" ?: null
+        eventCompletion(evt, sALRMSYSST, dco, dcw, "alarmEvtHandler(${eN})", eV, (String)evt?.displayName)
     } else {
-        logDebug("alarmEvtHandler | Skipping event $eN  value: $eV, did not match ${settings.trig_alarmSystemStatus} ${settings.trig_alarmSystemStatus_events}")
+        logDebug("alarmEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT} ${lE}")
     }
 }
 
@@ -2694,10 +2693,10 @@ def webcoreEvtHandler(evt) {
     if(pId in settings.trig_pistonExecuted) {
         Boolean dco = ((Boolean)settings.trig_pistonExecuted_once == true)
         Integer dcw = (Integer)settings.trig_pistonExecuted_wait ?: null
-        eventCompletion(evt, "pistonExecuted", dco, dcw, "webcoreEvtHandler", disN, disN)
+        eventCompletion(evt, sPISTNEXEC, dco, dcw, "webcoreEvtHandler", disN, disN)
     }
 }
-// todo not in use
+// TODO not in use
 def sceneEvtHandler(evt) {
     logTrace("${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     Boolean dco = ((Boolean)settings.trig_scene_once == true)
@@ -2719,7 +2718,6 @@ Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
 void afterEvtCheckWatcher() {
 
     getTheLock(sHMLF, "afterEvtCheckWatcher")
-    // log.trace "lock wait: ${aa}"
 
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
@@ -2751,7 +2749,7 @@ void devAfterEvtHandler(evt) {
     Boolean rem = false
 
     getTheLock(sHMLF, "scheduleTrigEvt")
-    // log.trace "lock wait: ${aa}"
+
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
 
@@ -2795,7 +2793,7 @@ void devAfterEvtHandler(evt) {
 void afterEvtCheckHandler() {
 
     getTheLock(sHMLF, "afterEvtCheckHandler")
-    // log.trace "lock wait: ${aa}"
+
     Map<String,Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
     Boolean hasLock = true
@@ -2907,7 +2905,6 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     Boolean dcavg = (!dca && (Boolean)settings."trig_${evntName}_avg" == true)
     Boolean dco = (!(Integer)settings."trig_${evntName}_after" && (Boolean)settings."trig_${evntName}_once" == true)
     Integer dcw = (!(Integer)settings."trig_${evntName}_after" && (Integer)settings."trig_${evntName}_wait") ? (Integer)settings."trig_${evntName}_wait" : null
-    Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     String extra = sBLANK
     switch(evntName) {
         case sSWITCH:
@@ -2981,62 +2978,64 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
             evtAd = valChk.evtAd
             break
     }
+    Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
     Boolean execOk = (evtOk && devEvtWaitOk)
     logDebug("deviceEvtHandler | execOk: ${execOk} | evtOk :${evtOk} | devEvtWaitOk: ${devEvtWaitOk} | evtAd: $evtAd | aftRepEvt: ${aftRepEvt}${extra}")
+    //if(!devEvtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
     } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${evntName})", evtAd, aftRepEvt) }
 }
 
 private void processTierTrigEvt(evt, Boolean evtOk) {
-    logDebug("processTierTrigEvt | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
+    String meth = "processTierTrigEvt"
+    String msg = " | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}"
+    logTrace(meth + msg)
 
-    getTheLock(sHMLF, "processTierTrigEvt")
-    // log.trace "lock wait: ${aa}"
+    getTheLock(sHMLF, meth)
+
     Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
 
     if (evtOk) {
         if(aTierSt.size()) {
+            msg = meth + " found already active tier state ${aTierSt}"+msg
+        } else {
             releaseTheLock(sHMLF)
-            logDebug("processTierTrigEvt  found tier state | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
+            logDebug(meth + " activating tier state" + msg)
+            tierEvtHandler(evt)
             return
         }
-        releaseTheLock(sHMLF)
-        tierEvtHandler(evt)
-
     } else if(!evtOk && settings.act_tier_stop_on_clear == true) {
-        //def tierConf = atomicState.actTierState?.evt
         def tierConf = aTierSt.evt
         if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
             updMemStoreItem("actTierState", [:])
             state.actTierState = [:]
-//            atomicState.actTierState = [:]
+
             releaseTheLock(sHMLF)
-            logDebug("Tier Trigger no longer valid... Clearing TierState and Schedule...")
+            logDebug(meth + " Tier Trigger no longer valid... Clearing TierState and Schedule..."+msg)
             unschedule("tierEvtHandler")
             atomicState.tierSchedActive = false
             updTsVal("lastTierRespStopDt")
-        }
-    } else {
-        releaseTheLock(sHMLF)
-        logDebug("processTierTrigEvt no action | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}")
-    }
+            return
+        } else msg = meth + " Tier Trigger valid... exiting...${aTierSt}"+msg
+    } else msg = meth + " no action ${aTierSt}"+msg
+
+    releaseTheLock(sHMLF)
+    logDebug(msg)
 }
 
 def getTierStatusSection() {
     String str = sBLANK
     if(isTierAction()) {
-        //ERS
         Map lTierMap = getTierMap()
         Boolean tsa = (Boolean)atomicState.tierSchedActive == true
 
-        getTheLock(sHMLF, "processTierTrigEvt")
-        // log.trace "lock wait: ${aa}"
+        getTheLock(sHMLF, "getTierStatusSection")
+
         Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
         if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
 
-//        Map tS = atomicState.actTierState
         Map tS = aTierSt
         str += "Tier Size: ${lTierMap?.size()}\n"
         str += "Schedule Active: ${tsa}\n"
@@ -3057,13 +3056,12 @@ def getTierStatusSection() {
 }
 
 private void resumeTierJobs() {
-    //ERS
-    getTheLock(sHMLF, "processTierTrigEvt")
-    // log.trace "lock wait: ${aa}"
+
+    getTheLock(sHMLF, "resumeTierJobs")
+
     Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
 
-    //if(atomicState.actTierState?.size() && (Boolean)atomicState.tierSchedActive) {
     if(aTierSt?.size()) {
         releaseTheLock(sHMLF)
         if((Boolean)atomicState.tierSchedActive == true) {
@@ -3080,19 +3078,20 @@ private void tierEvtHandler(evt=null) {
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         evt = [name: "Tiered Schedule", displayName: "Scheduled Tiered Trigger", value: fmtTime(dt), date: adate, deviceId: null]
     }
+    logTrace("tierEvtHandler: received event ${evt?.name} ${evt?.value}")
+
     Map t0 = getTierMap()
     Map tierMap = t0 ?: [:]
-    //ERS
-    getTheLock(sHMLF, "processTierTrigEvt")
-    // log.trace "lock wait: ${aa}"
+
+    getTheLock(sHMLF, "tierEvtHandler")
+
     Map aTierSt = (Map)getMemStoreItem("actTierState", [:])
     if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
 
-//    t0 = atomicState.actTierState
     Map tierState = aTierSt
     // TODO
-    log.debug "tierState: ${tierState}"
-    log.debug "tierMap: ${tierMap}"
+    //log.debug "tierState: ${tierState}"
+    //log.debug "tierMap: ${tierMap}"
     if(tierMap.size()) {
         Map newEvt = (Map)tierState.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
         Integer curPass = (tierState.cycle && tierState.cycle.toString()?.isNumber()) ? tierState.cycle.toInteger()+1 : 1
@@ -3106,42 +3105,41 @@ private void tierEvtHandler(evt=null) {
             tierState.evt = newEvt
             tierState.lastMsg = (curPass+1 > tierMap.size())
 
-            logTrace("tierSize: (${tierMap.size()}) | cycle: ${tierState.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState.schedDelay}) | Message: (${tierState.message}) | LastMsg: (${tierState.lastMsg})")
-
             updMemStoreItem("actTierState", tierState)
             state.actTierState = tierState
-//            atomicState.actTierState = tierState
+
             releaseTheLock(sHMLF)
+
+            logTrace("tierEvtHandler: tierSize: (${tierMap.size()}) | cycle: ${tierState.cycle} | curPass: (${curPass}) | nextPass: ${curPass+1} | schedDelay: (${tierState.schedDelay}) | Message: (${tierState.message}) | LastMsg: (${tierState.lastMsg})")
 
             if(curPass == 1) { updTsVal("lastTierRespStartDt"); remTsVal("lastTierRespStopDt") }
 
             tierSchedHandler([sched: true, tierState: tierState])
         } else {
-            logDebug("Tier Cycle has completed... Clearing TierState...")
-            //atomicState.actTierState = [:]
+
             updMemStoreItem("actTierState", [:])
             state.actTierState = [:]
             releaseTheLock(sHMLF)
             atomicState.tierSchedActive = false
             updTsVal("lastTierRespStopDt")
+            logDebug("tierEvtHandler: Tier Cycle has completed... Clearing TierState...")
         }
     } else releaseTheLock(sHMLF)
 }
 
 private void tierSchedHandler(data) {
     if(data && data.tierState?.size() && data.tierState?.message) {
-        // log.debug "tierSchedHandler(${data})"
+        logTrace("tierSchedHandler(${data})")
         Map evt = data.tierState.evt
         executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
-                logDebug("Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)")
+                logDebug("tierSchedHandler: Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)")
                 runIn(data.tierState.schedDelay, "tierEvtHandler")
             } else {
-                logDebug("Scheduling cleanup for (5 seconds) as this was the last message")
+                logDebug("tierSchedHandler: Scheduling cleanup for (5 seconds) as this was the last message")
                 runIn(5, "tierEvtHandler")
             }
-            //ERS
             atomicState.tierSchedActive = true
         }
     }
@@ -3204,28 +3202,27 @@ private void clearEvtHistory() {
     settingUpdate("clrEvtHistory", sFALSE, sBOOL)
 
     getTheLock(sHMLF, "clearEvtHistory")
-    // log.trace "lock wait: ${aa}"
+
     updMemStoreItem("valEvtHistory", [:])
     state.valEvtHistory = [:]
+
     releaseTheLock(sHMLF)
 }
 
 private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     Boolean ok = true
-
     Long dur
     Boolean waitOk
     Boolean dayOk
     String n = (String)evt?.name
-    String msg = "evtWaitRestrictionOk: Last ${n?.capitalize()} Event for Device"
-    Date evtDt = (Date)evt?.date // parseDate(evt?.date?.toString())
+    String msg = "evtWaitRestrictionOk: Last ${n?.capitalize()} Event for Device "
+    Date evtDt = (Date)evt?.date
 
     getTheLock(sHMLF, "evtWaitRestrictionOk")
-    // log.trace "lock wait: ${aa}"
-//    Map t0 = atomicState.valEvtHistory
-//    Map evtHistMap = t0 ?: [:]
+
     Map evtHistMap = (Map)getMemStoreItem("valEvtHistory", [:])
     if(!evtHistMap) evtHistMap = (Map)state.valEvtHistory ?: [:]
+
     // log.debug "prevDt: ${evtHistMap[n]?.dt ? parseDate(evtHistMap[n]?.dt as String) : null} | evtDt: ${evtDt}"
     if(evtHistMap.containsKey(n) && evtHistMap[n]?.dt) {
         Date prevDt = parseDate(evtHistMap[n].dt)
@@ -3235,15 +3232,15 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
             waitOk = ( (wait && dur) && (wait < dur))
             dayOk = !once || (once && !isDateToday(prevDt))
             ok = (waitOk && dayOk)
-            msg += " Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - ($waitOk && $dayOk)"
+            msg += "Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - ($waitOk && $dayOk)"
         }
-    } else msg = "No "+msg
+    } else msg += "No history found"
     if(ok) {
         evtHistMap[n] = [dt: evt?.date?.toString(), value: evt?.value, name: n]
         updMemStoreItem("valEvtHistory", evtHistMap)
         state.valEvtHistory = evtHistMap
     }
-    // log.debug "evtWaitRestrictionOk: $ok"
+
     releaseTheLock(sHMLF)
     msg += " Status: (${ok ? okSymFLD : notOkSymFLD}) | OnceDaily: (${once})"
     logDebug(msg)
@@ -3273,21 +3270,22 @@ def scheduleAfterCheck(data) {
     String id = data?.id?.toString() ?: null
     Boolean rep = (data?.repeat == true)
 
-    getTheLock(sHMLF, "scheduleafterCheck")
-    // log.trace "lock wait: ${aa}"
+    getTheLock(sHMLF, "scheduleAfterCheck")
+
     Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
     if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
-//    Map t0 = atomicState.afterEvtChkSchedMap
-//    Map aSchedMap = t0 ?: null
-    if(aSchedMap && aSchedMap?.id?.toString() && id && aSchedMap?.id?.toString() == id) {
-        // log.debug "Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
-    }
+
     runIn(val, "afterEvtCheckHandler")
-    //atomicState.afterEvtChkSchedMap = [id: id, dur: val, dt: getDtNow()]
+
     Map a = [id: id, dur: val, dt: getDtNow()]
     state.afterEvtChkSchedMap = a
     updMemStoreItem("afterEvtChkSchedMap", a)
+
     releaseTheLock(sHMLF)
+
+    if(devModeFLD && aSchedMap && aSchedMap?.id?.toString() && id && aSchedMap?.id?.toString() == id) {
+        log.debug "scheduleAfterCheck: Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
+    }
     logDebug("Schedule After Event Check${rep ? " (Repeat)" : sBLANK} in (${val} seconds) | Id: ${id}")
 }
 
@@ -3297,12 +3295,10 @@ private clearAfterCheckSchedule() {
     logDebug("Clearing After Event Check Schedule...")
 
     getTheLock(sHMLF, "clearAfterCheckSchedule")
-    // log.trace "lock wait: ${aa}"
-    //Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
-    //if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
+
     updMemStoreItem("afterEvtChkSchedMap", null)
     state.afterEvtChkSchedMap = null
-//    atomicState.afterEvtChkSchedMap = null
+
     releaseTheLock(sHMLF)
 }
 
@@ -3534,8 +3530,8 @@ Boolean multipleConditions() {
 
 static String convEvtType(String type) {
     Map typeConv = [
-        "pistonExecuted": "Piston",
-        "alarmSystemStatus": "Alarm system status",
+        (sPISTNEXEC): "Piston",
+        (sALRMSYSST): "Alarm system status",
         "hsmStatus": "Alarm system status",
         "hsmAlert": "Alarm system alert"
     ]
@@ -3615,12 +3611,12 @@ String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean i
             switch(evntName) {
                 case sMODE:
                     return  "The location mode is now set to ${evt?.value}"
-                case "pistonExecuted":
+                case sPISTNEXEC:
                     return  "The ${evt?.displayName} piston was just executed!."
                 case "scene":
                     return  "The ${evt?.value} scene was just executed!."
                 case "hsmStatus":
-                case "alarmSystemStatus":
+                case sALRMSYSST:
                     return "The ${getAlarmSystemName()} is now set to ${evt?.value}"
                 case "guard":
                     return "Alexa Guard is now set to ${evt?.value}"
@@ -3705,7 +3701,6 @@ private static String kvListToHtmlTable(List tabList, String color=sCLRGRY) {
 
 private addToActHistory(evt, data, Integer max=10) {
     getTheLock(sHMLF, "addToActHistory")
-    // log.trace "lock wait: ${aa}"
 
     List eData = (List)getMemStoreItem("actionHistory")
     if(eData == null)eData = []
@@ -3731,7 +3726,7 @@ private addToActHistory(evt, data, Integer max=10) {
 
 void clearActHistory(){
     getTheLock(sHMLF, "clearActHistory")
-    // log.trace "lock wait: ${aa}"
+
     updMemStoreItem("actionHistory", [])
 
     releaseTheLock(sHMLF)
@@ -4126,7 +4121,6 @@ Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
 }
 
 private void updAppFlag(String key, val) {
-    //ERS
     Map t0 = atomicState.appFlagsMap
     Map data = t0 ?: [:]
     if(key) { data[key] = val }
@@ -4135,7 +4129,6 @@ private void updAppFlag(String key, val) {
 
 @SuppressWarnings('unused')
 private void remAppFlag(key) {
-    //ERS
     Map t0 = atomicState.appFlagsMap
     Map data = t0 ?: [:]
     if(key) {
@@ -4147,7 +4140,6 @@ private void remAppFlag(key) {
 }
 
 Boolean getAppFlag(String val) {
-    //ERS
     Map aMap = atomicState.appFlagsMap
     if(val && aMap && aMap[val]) { return aMap[val] }
     return false
@@ -4408,7 +4400,7 @@ void webCoRE_handler(evt){
         } else releaseTheLock(sHMLF)
         break
       case 'pistonExecuted':
-        if(valTrigEvt("pistonExecuted") && settings.trig_pistonExecuted) {
+        if(valTrigEvt(sPISTNEXEC) && settings.trig_pistonExecuted) {
             webcoreEvtHandler(evt)
         }
         break
@@ -4742,12 +4734,12 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                             str += settings."${sPre}${evt}_sunState_offset"     ? spanSmBr("    ${sBULLETINV} Offset: (${settings."${sPre}${evt}_sunState_offset"})")      : sBLANK
                         }
                         break
-                    case "alarmSystemStatus":
+                    case sALRMSYSST:
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + myL ? " (${myL?.size()} Selected)" : sBLANK)
                         if ("alerts" in myL) str += (List)settings."${sPre}${evt}_events"  ? spanSmBr("    ${sBULLETINV} Alert Events: (${(List)settings."${sPre}${evt}_events"})") : sBLANK
                         str += (Boolean)settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
                         break
-                    case "pistonExecuted":
+                    case sPISTNEXEC:
                     case sMODE:
 //                    case "scene":
                         String typ = evt == sMODE ? "Mode" : "Piston"
@@ -5085,7 +5077,7 @@ private addToLogHistory(String logKey, String data, Integer max=10) {
     Boolean ssOk = true // (stateSizePerc() > 70)
 
     getTheLock(sHMLF, "addToHistory(${logKey})")
-    // log.trace "lock wait: ${aa}"
+
 
     List<Map> eData = (List<Map>)getMemStoreItem(logKey)
     if(!(eData.find { it?.data == data })) {
@@ -5138,7 +5130,7 @@ static String logPrefix(String msg, String color = sNULL) {
 
 Map getLogHistory() {
     getTheLock(sHMLF, "getLogHistory")
-    // log.trace "lock wait: ${aa}"
+
     List warn = (List)getMemStoreItem("warnHistory")
     List errs = (List)getMemStoreItem("errorHistory")
     releaseTheLock(sHMLF)
@@ -5148,7 +5140,7 @@ Map getLogHistory() {
 /*
 private void clearLogHistory() {
     getTheLock(sHMLF, "clearLogHistory")
-    // log.trace "lock wait: ${aa}"
+
     updMemStoreItem("warnHistory", [])
     updMemStoreItem("errorHistory", [])
     releaseTheLock(sHMLF)
@@ -5323,7 +5315,6 @@ private captureLightState(List devs) {
             }
         }
     }
-    //ERS
     atomicState.light_restore_map = sMap
     if(devModeFLD) log.debug "captureLightState: sMap: $sMap"
 }
