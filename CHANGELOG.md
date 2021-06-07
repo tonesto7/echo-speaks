@@ -1,3 +1,9 @@
+### _**Release (v4.1.8.0) - [June 4th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Bugfixes and Optimizations.
+- [NEW] Added support for not_between for conditions and triggers in ES Actions.
+
 ### _**Release (v4.1.7.0) - [May 6th, 2021]**_
 
 #### _***All Apps and Devices***_
