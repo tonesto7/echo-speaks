@@ -3,11 +3,11 @@
     "author": "Anthony S.",
     "version": "4.1.8.0",
     "minimumHEVersion": "2.2.4",
-    "dateReleased": "2021-06-04",
+    "dateReleased": "2021-06-07",
     "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
     "communityLink": "https://community.hubitat.com/t/release-echo-speaks-v4/68843",
     "licenseFile": "",
-    "releaseNotes": "Please see Changelog at https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/changelog.txt for recent changes.",
+    "releaseNotes": "Please see Changelog at https://raw.githubusercontent.com/tonesto7/echo-speaks/master/CHANGELOG.html for recent changes.",
     "apps": [{
             "id": "4216cb09-591c-452d-9dc7-20f330de8624",
             "name": "Echo Speaks",
