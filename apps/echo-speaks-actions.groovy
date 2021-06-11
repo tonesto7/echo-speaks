@@ -747,18 +747,18 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                     String snot = (String)settings."trig_${inType}_cmd" in [sNBETWEEN] ? "Not " : sBLANK
                     input "trig_${inType}_low", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN] ? "${snot}Between a Low" : "a low") + " ${cmdTitle} of...", sNULL, "low"), required: true, submitOnChange: true
                 }
-                if(settings."trig_${inType}_low" && ((String)settings."trig_${inType}_cmd" in [sBELOW]) ) done=true
+                if(settings."trig_${inType}_low"!=null && ((String)settings."trig_${inType}_cmd" in [sBELOW]) ) done=true
 
                 if ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN, sABOVE]) {
                     input "trig_${inType}_high", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN] ? "and a High of..." : "a High") + " ${cmdTitle} of...", sNULL, "high"), required: true, submitOnChange: true
                 }
-                if(settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sABOVE])) done=true
+                if(settings."trig_${inType}_high"!=null && ((String)settings."trig_${inType}_cmd" in [sABOVE])) done=true
 
-                if(settings."trig_${inType}_low" && settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN])) done=true
+                if(settings."trig_${inType}_low"!=null && settings."trig_${inType}_high"!=null && ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN])) done=true
 
                 if ((String)settings."trig_${inType}_cmd" == sEQUALS) {
                     input "trig_${inType}_equal", sNUMBER, title: spanSmBld("a ${cmdTitle} of...", sNULL, sEQ), required: true, submitOnChange: true
-                    if(settings."trig_${inType}_equal") done=true
+                    if(settings."trig_${inType}_equal"!=null) done=true
                 }
                 if(done) {
                     if (settings."trig_${inType}"?.size() > 1) {
@@ -845,7 +845,7 @@ Boolean deviceTriggers() {
 Boolean thermostatTriggers() {
     List okList = []
     [sCOOLSP, sHEATSP, sTHERMTEMP].each { String att-> // Thermostat number value validation
-        if(valTrigEvt(att)) { okList.push((Boolean)(settings."trig_${att}" && settings."trig_${att}_cmd" && (settings."trig_${att}_low" || settings."trig_${att}_high" || settings."trig_${att}_equal"))) }
+        if(valTrigEvt(att)) { okList.push((Boolean)(settings."trig_${att}" && settings."trig_${att}_cmd" && (settings."trig_${att}_low"!=null || settings."trig_${att}_high"!=null || settings."trig_${att}_equal"!=null))) }
     }
     ["thermostatMode", "thermostatOperatingState", "thermostatFanMode"].each { String att-> // Thermostat non number validation
         if(valTrigEvt(att)) { okList.push((Boolean)(settings."trig_${att}" && settings."trig_${att}_cmd")) }
@@ -858,7 +858,7 @@ Boolean sensorTriggers() {
     return (settings.trig_temperature && settings.trig_temperature_cmd) || (settings.trig_carbonMonoxide && settings.trig_carbonMonoxide_cmd) || (settings.trig_humidity && settings.trig_humidity_cmd) ||
         (settings.trig_battery && settings.trig_battery_cmd) ||
         (settings.trig_water && settings.trig_water_cmd) || (settings.trig_smoke && settings.trig_smoke_cmd) || (settings.trig_presence && settings.trig_presence_cmd) || (settings.trig_motion && settings.trig_motion_cmd) ||
-        (settings.trig_contact && settings.trig_contact_cmd) || (settings.trig_power && settings.trig_power_cmd) || (settings.trig_illuminance && settings.trig_illuminance_low && settings.trig_illuminance_high) ||
+        (settings.trig_contact && settings.trig_contact_cmd) || (settings.trig_power && settings.trig_power_cmd) || (settings.trig_illuminance && settings.trig_illuminance_low!=null && settings.trig_illuminance_high!=null) ||
         (settings.trig_acceleration && settings.trig_acceleration_cmd)
 }
 
@@ -3651,9 +3651,9 @@ Boolean checkDeviceCondOk(String att) {
 Boolean checkDeviceNumCondOk(String att) {
     List devs = (List)settings."cond_${att}" ?: null
     String cmd = settings."cond_${att}_cmd" ?: null
-    Double dcl = settings."cond_${att}_low" ?: null
-    Double dch = settings."cond_${att}_high" ?: null
-    Double dce = settings."cond_${att}_equal" ?: null
+    Double dcl = settings."cond_${att}_low"!=null ? settings."cond_${att}_low" : null
+    Double dch = settings."cond_${att}_high"!=null ? settings."cond_${att}_high" : null
+    Double dce = settings."cond_${att}_equal"!=null ? settings."cond_${att}_equal" : null
     Boolean dca = ((Boolean)settings."cond_${att}_all" == true) ?: false
     if( !(att && devs && cmd) ) { return true }
     Boolean not=false
@@ -3735,7 +3735,7 @@ Boolean devCondConfigured(String att) {
 }
 
 Boolean devNumCondConfigured(String att) {
-    return (settings."cond_${att}_cmd" && (settings."cond_${att}_low" || settings."cond_${att}_high" || settings."trig_${att}_equal"))
+    return (settings."cond_${att}_cmd" && (settings."cond_${att}_low"!=null || settings."cond_${att}_high"!=null || settings."trig_${att}_equal"!=null))
 }
 
 Boolean timeCondConfigured() {
@@ -5023,9 +5023,9 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                             if (t_cmd in [sBETWEEN, sNBETWEEN]) {
                                 str += spanSmBr("    ${sPLUS} Trigger Value ${t_cmd.capitalize()}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})")
                             } else {
-                                str += (t_cmd == sABOVE && settings."${sPre}${evt}_high")    ? spanSmBr("    ${sPLUS} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
-                                str += (t_cmd == sBELOW && settings."${sPre}${evt}_low")     ? spanSmBr("    ${sPLUS} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
-                                str += (t_cmd == sEQUALS && settings."${sPre}${evt}_equal")  ? spanSmBr("    ${sPLUS} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
+                                str += (t_cmd == sABOVE && settings."${sPre}${evt}_high"!=null)    ? spanSmBr("    ${sPLUS} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
+                                str += (t_cmd == sBELOW && settings."${sPre}${evt}_low"!=null)     ? spanSmBr("    ${sPLUS} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
+                                str += (t_cmd == sEQUALS && settings."${sPre}${evt}_equal"!=null)  ? spanSmBr("    ${sPLUS} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
                             }
                         } else {
                             str += t_cmd  ? spanSmBr("    ${sPLUS} Trigger State: (${t_cmd})") : sBLANK
@@ -5100,9 +5100,9 @@ String getConditionsDesc(Boolean addFoot=true) {
                     String aG = (Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK
                     String cmd = settings."${sPre}${evt}_cmd" ?: sNULL
                     if(cmd in numOpts()) {
-                        def cmdLow = settings."${sPre}${evt}_low" ?: null
-                        def cmdHigh = settings."${sPre}${evt}_high" ?: null
-                        def cmdEq = settings."${sPre}${evt}_equal" ?: null
+                        def cmdLow = settings."${sPre}${evt}_low"!=null ? settings."${sPre}${evt}_low" : null
+                        def cmdHigh = settings."${sPre}${evt}_high"!=null ? settings."${sPre}${evt}_high" : null
+                        def cmdEq = settings."${sPre}${evt}_equal"!=null ?  settings."${sPre}${evt}_equal" : null
                         String aU = attUnit(evt) ')' + aG
                         str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}"+aU) : sBLANK
                         str += (cmd in [sBETWEEN, sNBETWEEN] && cmdLow && cmdHigh) ? spanSmBr(a+cmd.capitalize()+" (${cmdLow}-${cmdHigh}"+aU) : sBLANK
