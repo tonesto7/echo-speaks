@@ -3423,7 +3423,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
             case sBETWEEN:
                 if(dcl && dch) {
                     if(!dca) {
-                        evtOk = (evtValue in (dcl..dch))
+                        evtOk = (evtValue >= dcl) && (evtValue <= dch)
                         if(not) evtOk=!evtOk
                     } else if(dca && allDevAttNumValsBetween(devs, en, dcl, dch, not)) { evtOk=true; evtAd=true }
                 }
