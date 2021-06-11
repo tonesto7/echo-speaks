@@ -107,6 +107,7 @@ import groovy.transform.Field
 @Field static final String sDBLTAP        = 'doubleTapped'
 @Field static final String sALRMSYSST     = 'alarmSystemStatus'
 @Field static final String sPISTNEXEC     = 'pistonExecuted'
+@Field static final String sLRM           = "light_restore_map"
 @Field static final List<String> lONOFF        = ['on', 'off']
 @Field static final List<String> lANY          = ['any']
 @Field static final List<String> lOPNCLS       = ['open', 'closed']
@@ -1619,15 +1620,12 @@ def actTrigTasksPage(params) {
             input "${t}lights", "capability.switch", title: inTS1("Turn ON these Lights${dMap?.def}", "light") + optPrefix(), multiple: true, required: false, submitOnChange: true
             if((List)settings."${t}lights") {
                 List lights = (List)settings."${t}lights"
+                input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?", "delay") + optPrefix(), required: false, submitOnChange: true
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
                     paragraph spanSmBld("Not all selected devices support color. So color options are hidden.", sCLRRED)
                     settingRemove("${t}lights_color".toString())
-                    settingRemove("${t}lights_color_delay".toString())
                 } else {
                     input "${t}lights_color", sENUM, title: inTS1("To this color?", sCOMMAND) + optPrefix(), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true
-                    if(settings."${t}lights_color") {
-                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?", "delay") + optPrefix(), required: false, submitOnChange: true
-                    }
                 }
                 if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
                     paragraph spanSmBld("Not all selected devices support level. So level option is hidden.", sCLRRED)
@@ -1686,7 +1684,7 @@ Boolean actTasksConfiguredByType(String pType) {
 
 private executeTaskCommands(data) {
     String p = data?.type ?: sNULL
-    logTrace("executeTaskCommands ${p} ${actTaskDesc(p)}")
+    logTrace("executeTaskCommands | type: ${p} actions: ${actTaskDesc(p)}")
 
     if((String)settings."${p}mode_run") { setLocationMode((String)settings."${p}mode_run") }
     if((String)settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: (String)settings."${p}alarm_run") }
@@ -1707,10 +1705,10 @@ private executeTaskCommands(data) {
         if(settings."${p}siren_time") runIn(settings."${p}siren_time", postTaskCommands, [data:[type: p]])
     }
     if(settings."${p}lights") {
-        if(settings."${p}lights_color_delay") { captureLightState((List)settings."${p}lights") }
+        if(settings."${p}lights_color_delay") { captureLightState((List)settings."${p}lights",p) }
         settings."${p}lights"*.on()
-        if(settings."${p}lights_level") { settings."${p}lights"*.setLevel(getColorName(settings."${p}lights_level")) }
-        if(settings."${p}lights_color") { settings."${p}lights"*.setColor(getColorName(settings."${p}lights_color", settings."${p}lights_level")) }
+        if(settings."${p}lights_level") { settings."${p}lights"*.setLevel(settings."${p}lights_level") }
+        if(settings."${p}lights_color") { settings."${p}lights"*.setColor(getColorName(settings."${p}lights_color")) }
         if(settings."${p}lights_color_delay") runIn(settings."${p}lights_color_delay", restoreLights, [data:[type: p]])
     }
 }
@@ -1735,7 +1733,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
         str += settings."${t}lights" ? aStr + "Lights: (${settings."${t}lights"?.size()})" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_level" ? "\n    - Level: (${settings."${t}lights_level"}%)" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_color" ? "\n    - Color: (${settings."${t}lights_color"})" : sBLANK
-        str += settings."${t}lights" && settings."${t}lights_color" && settings."${t}lights_color_delay" ? "\n    - Restore After: (${settings."${t}lights_color_delay"} sec.)" : sBLANK
+        str += settings."${t}lights" && settings."${t}lights_color_delay" ? "\n    - Restore After: (${settings."${t}lights_color_delay"} sec.)" : sBLANK
         str += settings."${t}locks_unlock" ? aStr + "Locks Unlock: (${settings."${t}locks_unlock"?.size()})" : sBLANK
         str += settings."${t}locks_lock" ? aStr + "Locks Lock: (${settings."${t}locks_lock"?.size()})" : sBLANK
         str += settings."${t}securityKeypads_disarm" ? aStr + "KeyPads Disarm: (${settings."${t}securityKeypads_disarm".size()})" : sBLANK
@@ -1751,48 +1749,6 @@ String actTaskDesc(String t, Boolean isInpt=false) {
         str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr + "Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
     return str != sBLANK ? (isInpt ? divSm(spanSmBr(str) + inputFooter(sTTM), sCLR4D9) : str) : (isInpt ? spanSm("On trigger control devices, set mode, set alarm state, execute WebCore Pistons", sCLRGRY) + inactFoot(sTTC) : sNULL)
-}
-
-@SuppressWarnings('unused')
-private flashLights(data) {
-    // log.debug "data: ${data}"
-    String p = data?.type
-    if(!p) return
-    List devs = (List)settings."${p}lights"
-    if(devs) {
-        // log.debug "devs: $devs"
-        if(data.cycle <= data.cycles ) {
-            logDebug("state: ${data.state} | color1Map: ${data.color1Map} | color2Map: ${data.color2Map}")
-            if(data.state == "off" || (data.color1Map && data.color2Map && data.state == data.color2Map)) {
-                if(data.color1Map) {
-                    data.state = data.color1Map
-                    devs*.setColor(data.color1Map)
-                } else {
-                    data.state = "on"
-                }
-                devs*.on()
-                runIn(1, "flashLights", [data: data])
-            } else {
-                if(data.color2Map) {
-                    data.state = data.color2Map
-                    devs*.setColor(data.color2Map)
-                } else {
-                    data.state = "off"; devs*.off()
-                }
-                data.cycle = data.cycle + 1
-                runIn(1, "flashLights", [data: data])
-            }
-        } else {
-            logDebug("restoring state")
-            restoreLightState((List)settings."${p}lights")
-        }
-    }
-}
-
-@SuppressWarnings('unused')
-private restoreLights(data) {
-    String p = data?.type ?: sNULL
-    if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights") }
 }
 
 Boolean isActDevContConfigured() {
@@ -2241,11 +2197,13 @@ private void actionCleanup() {
     // State Cleanup
 
     // keep actionExecMap configStatusMap schedTrigMap
-    List items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive", "zoneStatusMap"]
+    List<String> items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive", "zoneStatusMap", sLRM]
     updMemStoreItem("afterEvtMap", [:])
-    updMemStoreItem("afterEvtChkSchedMap", [:])
+//    updMemStoreItem("afterEvtChkSchedMap", [:])
     updMemStoreItem("actTierState", [:])
+    ["act_", "act_tier_start_", "act_tier_stop_"]?.each { String it -> items.push((it+sLRM)) }
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
+
     //Cleans up unused action setting items
     List setItems = []
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_piston_run", "act_mode_run", "act_alarm_run"]
@@ -2801,7 +2759,10 @@ void devAfterEvtHandler(evt) {
     Integer dcafrc = (Integer)settings."trig_${eN}_after_repeat_cnt" ?: null
     String eid = "${evt?.deviceId}_${eN}"
     Boolean okpt1 = (dc && dcaf!=null)
-    Boolean okpt2 = (okpt1 && eV == dc)
+    Boolean okpt2 = okpt1
+    if(!(eN in [sCOOLSP, sHEATSP, sTHERMTEMP, sHUMID, sTEMP, sPOWER, "illuminance", sLEVEL, sBATT])) {
+        okpt2 = (okpt1 && eV == dc)
+    }
     String msg = "Device Event After | "
 
     logTrace(msg+"${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${okpt1}, ${okpt2})")
@@ -2920,7 +2881,7 @@ void afterEvtCheckHandler() {
 
             Boolean skipEvt = true
             if(eN in [sCOOLSP, sHEATSP, sTHERMTEMP, sHUMID, sTEMP, sPOWER, "illuminance", sLEVEL, sBATT]) {
-                String dc = settings."trig_${eN}_cmd" // desired number comparison
+                String dc = settings."trig_${eN}_cmd" // desired comparison for numbers
                 Boolean dca = ((Boolean)settings."trig_${eN}_all" == true)
                 Boolean dcavg = (!dca && (Boolean)settings."trig_${eN}_avg" == true)
                 Double dcl = settings."trig_${eN}_low"
@@ -3171,12 +3132,12 @@ private clearAfterCheckSchedule() {
     state.afterEvtCheckWatcherSched = false
     logTrace("Clearing After Event Check Schedule...")
 
-    getTheLock(sHMLF, "clearAfterCheckSchedule")
+//    getTheLock(sHMLF, "clearAfterCheckSchedule")
 
-    updMemStoreItem("afterEvtChkSchedMap", null)
-    state.afterEvtChkSchedMap = null
+//    updMemStoreItem("afterEvtChkSchedMap", null)
+//    state.afterEvtChkSchedMap = null
 
-    releaseTheLock(sHMLF)
+//    releaseTheLock(sHMLF)
 }
 
 void thermostatEvtHandler(evt) {
@@ -5567,11 +5528,78 @@ private static getColorName(desiredColor, level=null) {
             return [hue: hue, saturation: color.s, level: level]
         }
     }
+    logWarn("getColorName ${desC} not found")
 }
 
-private captureLightState(List devs) {
-    Map sMap = [:]
-    if(devs) {
+//  if there is no colorMaps, then flash lights
+@SuppressWarnings('unused')
+private void startFlashLights(String p, Integer cycles, Integer cycleT, Map color1Map=null, Map color2Map=null) {
+    logDebug("startFlashLights ${p} | cycles: ${cycles} | cycle time: ${cycleT} | color1Map: ${color1Map} | color2Map: ${color2Map}")
+    Map data = [type: p, first: true, cycles: cycles, cycleT: cycleT, color1Map: color1Map, colorMap2: color2Map ]
+    flashLights(data)
+}
+
+private void flashLights(Map data) {
+    String msg = "flashLights | "
+    if(devModeFLD) logTrace(msg+"state: ${data}")
+
+    String p = data?.type
+    if(!data || !p) return
+    List devs = (List)settings."${p}lights"
+    Integer cT = (Integer)data.cycleT
+    Integer cS = (Integer)data.cycles
+    if(!devs || !cT || !cS || cT < 1 || cS < 1) return
+    if(cT > 60) data.cycleT=60
+    if(cS > 200) data.cycles = 200
+
+    if((Boolean)data.first) {
+        data.first = false
+        logTrace(msg+"capturing state")
+        captureLightState(devs, p)
+        if(data.color1Map && data.color2Map) {
+            data.state = "a"
+            devs*.on()
+        } else data.state = "off"
+        data.cycle = 1
+    }
+
+    switch(data.state){
+        case "off":
+            data.state = "on"; devs*.on()
+            break
+        case "on":
+            data.state = "off"; devs*.off()
+            data.cycle = data.cycle + 1
+            break
+        case "a":
+            data.state = "b"; devs*.setColor(data.color1Map)
+            break
+        case "b":
+            data.state = "a"; devs*.setColor(data.color2Map)
+            data.cycle = data.cycle + 1
+            break
+    }
+    if(data.cycle <= cS ) {
+        runIn(cT, "flashLights", [data: data])
+    } else {
+        logTrace(msg+"restoring state")
+        restoreLightState(devs, p)
+        logDebug(msg+"Ending")
+    }
+}
+
+@SuppressWarnings('unused')
+private restoreLights(data) {
+    String p = data?.type ?: sNULL
+    if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights", p) }
+}
+
+void captureLightState(List devs, String p) {
+    String e = p+sLRM
+    String msg = "captureLightState | ${e} | "
+    logTrace(msg+"${devs}")
+    Map<String, Map> sMap = [:]
+    if(devs && p) {
         devs.each { dev->
             String dId = dev?.id
             sMap[dId] = [:]
@@ -5579,27 +5607,62 @@ private captureLightState(List devs) {
                 if(dev?.hasAttribute(att)) { sMap[dId]."${att}" = dev?.currentValue(att) }
             }
         }
+        state."${e}" = sMap
     }
-    atomicState.light_restore_map = sMap
-    if(devModeFLD) log.debug "captureLightState: sMap: $sMap"
+    if(devModeFLD) logDebug(msg+"sMap: $sMap")
 }
 
-private restoreLightState(List devs) {
-    Map sMap = atomicState.light_restore_map
-    if(devModeFLD) log.debug "restoreLightState: sMap: $sMap"
-    if(devs && sMap?.size()) {
-        devs.each { dev->
-            if(sMap.containsKey(dev.id)) {
-                if(sMap?.level) {
-                    if(sMap.saturation && sMap.hue) { dev?.setColor([h: sMap.hue, s: sMap.saturation, l: sMap.level]) }
-                    else { dev?.setLevel(sMap.level) }
-                }
-                if(sMap.colorTemperature) { dev?.setColorTemperature(sMap.colorTemperature) }
-                if(sMap.switch) { dev?."${sMap.switch}"() }
+void restoreLightState(List devs, String p) {
+    String e = p+sLRM
+    String msg = "restoreLightState | ${e} | "
+    logTrace(msg+"${devs}")
+    if(devs && p) {
+        Boolean doP = true  // do pauses
+        Long paus = 100L
+        Boolean dco = false // disable command optimization
+
+        Map<String,Map> sMap = state."${e}"
+        if(devModeFLD) logDebug(msg+"sMap: $sMap")
+        if(sMap?.size()) {
+            devs.each { dev->
+                String dId = dev?.id
+                if(sMap.containsKey(dId)) {
+                    Map sD = sMap[dId]
+                    if(devModeFLD) logDebug(msg+"${sD}")
+                    Boolean wOn = (sD.switch == "on")
+                    Boolean isOn = (dev.currentValue(sSWITCH) == "on")
+                    Boolean chgLvl = sD.level ? (dev.currentValue(sLEVEL) != sD.level) : false
+                    Boolean chgHSL = (sD.level && sD.saturation && sD.hue && dev.hasCommand("setColor"))
+                    Boolean chgCtemp = sD.colorTemperature ? (dev.currentValue("colorTemperature") != sD.colorTemperature) : false
+                    // CHECK IF ANYTHING NEEDS CHANGES?
+                    if((sD.level || sD.colorTemperature) && (dco || !isOn))  {
+                        dev.on()
+                        isOn = true
+                        if(doP) pauseExecution(paus)
+                    }
+                    if(sD.level) {
+                        if(chgHSL) {
+                            dev?.setColor([h: sD.hue, s: sD.saturation, l: sD.level])
+                            if(doP) pauseExecution(paus)
+                        } else{
+                           if((dco || chgLvl) && dev.hasCommand("setLevel")) {
+                                    dev?.setLevel(sD.level)
+                                    if(!wOn && doP) pauseExecution(paus)
+                            }
+                        }
+                    }
+                    if(sD.colorTemperature) {
+                        if((dco || chgCtemp) && dev.hasCommand("setColorTemperature")) {
+                            dev?.setColorTemperature(sD.colorTemperature)
+                            if(!wOn && doP) pauseExecution(paus)
+                        }
+                    }
+                    if(dco || (wOn != isOn)) dev?."${sD.switch}"()
+                } else logWarn(msg+"no saved state for device found")
             }
-        }
+        } else logWarn(msg+"no saved state found")
+        state.remove(e)
     }
-    state.remove("light_restore_map")
 }
 
 @Field static final List colorSettingsListFLD = [
