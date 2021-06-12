@@ -713,11 +713,11 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     }
                 }
 //                }
- //               if((Integer)settings."trig_${inType}_after" == null) {
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                    triggerMsgInput(inType)
-  //              }
+                //               if((Integer)settings."trig_${inType}_after" == null) {
+                input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                triggerMsgInput(inType)
+                //              }
             }
         }
     }
@@ -2866,7 +2866,8 @@ void afterEvtCheckHandler() {
             def newVal = null // could be number or string
             if (devs && eN) {
                 def dev = devs.find { it?.id?.toString() == edId }
-                if (dev) newVal = dev?.currentValue(eN)
+                String en = eN == sTHERMTEMP ? sTEMP : eN
+                if (dev) newVal = dev?.currentValue(en)
                 if (newVal != nextVal.value) msg1 = msg1 + "value changed old: ${nextVal.value} new: ${newVal} | "
             }
             Map<String, Object> evt = [
