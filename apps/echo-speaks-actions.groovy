@@ -713,11 +713,11 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                     }
                 }
 //                }
- //               if((Integer)settings."trig_${inType}_after" == null) {
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                    triggerMsgInput(inType)
-  //              }
+                //               if((Integer)settings."trig_${inType}_after" == null) {
+                input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                triggerMsgInput(inType)
+                //              }
             }
         }
     }
@@ -2545,7 +2545,7 @@ Map getRandomTrigEvt() {
         thermostatFanMode: getRandomItem(getThermFanOpts()),
         thermostatOperatingState: getRandomItem(getThermOperStOpts()),
     ]
-    Map evt = [ date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
+    Map evt = [ date: new Date(), device: [id: trigItem?.id?.toString() ?: null] ]
     if(settings.enableWebCoRE && trig == sPISTNEXEC) {
         attVal.webCoRE = sPISTNEXEC
         trig = 'webCoRE'
@@ -2617,7 +2617,7 @@ def scheduleTrigEvt(evt=null) {
     if(!evt) {
         Date adate = new Date()
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-        evt = [name: "scheduled", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
+        evt = [name: "scheduled", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, device: [id: null]]
     }
     Long evtDelay = now() - ((Date)evt.date).getTime()
     logTrace("${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
@@ -2687,7 +2687,7 @@ def alarmEvtHandler(evt) {
 }
 
 public guardEventHandler(String guardState) {
-    def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), deviceId: null]
+    def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
     logTrace("${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
     if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
         executeAction(evt, false, "guardEventHandler", false, false)
@@ -2695,7 +2695,7 @@ public guardEventHandler(String guardState) {
 }
 
 def eventCompletion(evt, String dId, Boolean dco, Integer dcw, String meth, evtVal, String evtDis) {
-    Boolean evtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk([date: evt?.date, deviceId: dId, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw) : true)
+    Boolean evtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk([date: evt?.date, device: evt?.device, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw) : true)
     if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true)
@@ -2757,7 +2757,7 @@ void devAfterEvtHandler(evt) {
     Integer dcaf = (Integer)settings."trig_${eN}_after"!=null ? (Integer)settings."trig_${eN}_after" : null
     Integer dcafr = (Integer)settings."trig_${eN}_after_repeat" ?: null
     Integer dcafrc = (Integer)settings."trig_${eN}_after_repeat_cnt" ?: null
-    String eid = "${evt?.deviceId}_${eN}"
+    String eid = "${evt?.device?.id}_${eN}"
     Boolean okpt1 = (dc && dcaf!=null)
     Boolean okpt2 = okpt1
     if(!(eN in [sCOOLSP, sHEATSP, sTHERMTEMP, sHUMID, sTEMP, sPOWER, "illuminance", sLEVEL, sBATT])) {
@@ -2779,7 +2779,7 @@ void devAfterEvtHandler(evt) {
     }
     if(okpt2) { aEvtMap[eid] = [
             dt: evt?.date?.toString(),
-            deviceId: evt?.deviceId as String,
+            device: [id: evt?.device.id as String],
             displayName: evt?.displayName,
             name: eN,
             value: eV,
@@ -2835,26 +2835,26 @@ void afterEvtCheckHandler() {
     getTheLock(sHMLF, "afterEvtCheckHandler")
 
     Map<String, Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
-    if (!aEvtMap) aEvtMap = (Map) state.afterEvtMap ?: [:]
+    if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
     Boolean hasLock = true
 
-    Long now = (Long) now() + 750L // anything in next 750ms runs now
-    Map newMap = aEvtMap.findAll { it -> it?.value?.nextT < now }
-    List<Long> sortList = newMap.collect { (Long) it?.value?.nextT }?.sort()
+    Long mnow = (Long)now() + 750L // anything in next 750ms runs now
+    Map newMap = aEvtMap.findAll { it -> (Long)it?.value?.nextT < mnow }
+    List<Long> sortList = newMap.collect { (Long)it?.value?.nextT }?.sort()
 
     sortList?.each {
         if (!hasLock) {
             getTheLock(sHMLF, "afterEvtCheckHandler")
 
             aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
-            if (!aEvtMap) aEvtMap = (Map) state.afterEvtMap ?: [:]
+            if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
             hasLock = true
         }
         def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == it }
         Map nextVal = (Map)nextItem?.value ?: null
         String eN = (String)nextVal.name
         String edisplayN = (String)nextVal.displayName
-        String edId = (String)nextVal.deviceId
+        String edId = (String)nextVal.device.id
         String nextId = (edId && eN) ? "${edId}_${eN}" : sNULL
         Boolean remEvt
         Boolean runEvt = false
@@ -2865,13 +2865,14 @@ void afterEvtCheckHandler() {
 
             def newVal = null // could be number or string
             if (devs && eN) {
-                def dev = devs.find { it?.deviceId?.toString() == edId }
-                if (dev) newVal = dev?.currentValue(att)
+                def dev = devs.find { it?.id?.toString() == edId }
+                String en = eN == sTHERMTEMP ? sTEMP : eN
+                if (dev) newVal = dev?.currentValue(en)
                 if (newVal != nextVal.value) msg1 = msg1 + "value changed old: ${nextVal.value} new: ${newVal} | "
             }
             Map<String, Object> evt = [
                 date       : new Date(),
-                deviceId   : edId,
+                device     : [id: edId],
                 displayName: edisplayN,
                 name       : eN,
                 value      : newVal,// ?: nextVal.value,
@@ -2917,7 +2918,7 @@ void afterEvtCheckHandler() {
                     aEvtMap[nextId].repeatCnt = repeatCnt
                     updMemStoreItem("afterEvtMap", aEvtMap)
                     state.afterEvtMap = aEvtMap
-                    msg2 = "Issuing Repeat Event | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}"
+                    msg2 = "Issuing Repeat Event | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax} "
                     if (remEvt) msg2 = "has repeated ${repeatCntMax} times | " + msg2
 
                 } else { // this is after
@@ -2951,23 +2952,23 @@ void afterEvtCheckHandler() {
     if (!hasLock) {
         getTheLock(sHMLF, "afterEvtCheckHandler")
 
-        aEvtMap = (Map) getMemStoreItem("afterEvtMap", [:])
-        if (!aEvtMap) aEvtMap = (Map) state.afterEvtMap ?: [:]
+        aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
+        if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
         hasLock = true
     }
     Integer sz = aEvtMap.size()
     if (sz > 0) {
         //newMap = aEvtMap.findAll { it -> it?.value?.nextT < now }
-        sortList = aEvtmap.collect { (Long) it?.value?.nextT }?.sort()
+        sortList = aEvtMap.collect { (Long)it?.value?.nextT }?.sort()
         releaseTheLock(sHMLF)
         hasLock = false
 
         Long myL = sortList.size() > 0 ? sortList[0] : null
         if (myL != null) {
-            Integer ssecs = myL - now()
-            ssecs = ssecs > 1 ? Math.min(ssecs, 300).toInteger : 2
+            Integer ssecs = (myL - now() + 600L)/1000L
+            ssecs = ssecs > 1 ? Math.min(ssecs, 300).toInteger() : 2
             runIn(ssecs, "afterEvtCheckHandler")
-            logTrace(msg+"Scheduled afterEvent in ${ssec} seconds; afterEvtMap: ${sz}")
+            logTrace(msg+"Scheduled afterEvent in ${ssecs} seconds; afterEvtMap: ${sz}")
         } else logWarn(msg+"INCONSISTENT")
     } else {
         releaseTheLock(sHMLF)
@@ -3264,7 +3265,7 @@ private void processTierTrigEvt(evt, Boolean evtOk) {
         }
     } else if(!evtOk && settings.act_tier_stop_on_clear == true) {
         def tierConf = aTierSt.evt
-        if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
+        if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.device?.id == evt?.device?.id) {
             updMemStoreItem("actTierState", [:])
             state.actTierState = [:]
 
@@ -3332,7 +3333,7 @@ private void tierEvtHandler(evt=null) {
     if(!evt) {
         Date adate = new Date()
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-        evt = [name: "Tiered Schedule", displayName: "Scheduled Tiered Trigger", value: fmtTime(dt), date: adate, deviceId: null]
+        evt = [name: "Tiered Schedule", displayName: "Scheduled Tiered Trigger", value: fmtTime(dt), date: adate, device: [id: null]]
     }
     logTrace("tierEvtHandler: received event ${evt?.name} ${evt?.value}")
 
@@ -3349,7 +3350,7 @@ private void tierEvtHandler(evt=null) {
     //log.debug "tierState: ${tierState}"
     //log.debug "tierMap: ${tierMap}"
     if(tierMap.size()) {
-        Map newEvt = (Map)tierState.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
+        Map newEvt = (Map)tierState.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, device: [id: evt?.device?.id], date: evt?.date]
         Integer curPass = (tierState.cycle && tierState.cycle.toString()?.isNumber()) ? tierState.cycle.toInteger()+1 : 1
         if(curPass <= tierMap.size()) {
             tierState.cycle = curPass
@@ -4143,7 +4144,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
-                        def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
+                        def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() } // TODO
                         if(aDev) {
                             aDev?."${d?.cmd}"(d?.wakeword)
                             logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
@@ -4732,7 +4733,7 @@ Boolean allDevAttNumValsEqual(List devs, String att, Double val) {
 
 Boolean devAttValEqual(List devs, String devId, String att, val) {
     if(devs && att) {
-        def dev = devs.find { it?.deviceId?.toString() == devId }
+        def dev = devs.find { it?.id?.toString() == devId }
         if(dev) return (dev?.currentValue(att) == val)
     }
     return false
