@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 @Field static final String appVersionFLD  = '4.1.8.0'
-@Field static final String appModifiedFLD = '2021-06-07'
+@Field static final String appModifiedFLD = '2021-06-21'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final String branchFLD      = 'master'
 //@Field static final Boolean betaFLD       = false
@@ -107,6 +107,7 @@ import groovy.transform.Field
 @Field static final String sDBLTAP        = 'doubleTapped'
 @Field static final String sALRMSYSST     = 'alarmSystemStatus'
 @Field static final String sPISTNEXEC     = 'pistonExecuted'
+@Field static final String sLRM           = "light_restore_map"
 @Field static final List<String> lONOFF        = ['on', 'off']
 @Field static final List<String> lANY          = ['any']
 @Field static final List<String> lOPNCLS       = ['open', 'closed']
@@ -464,7 +465,7 @@ def triggersPage() {
                                 input "trig_scheduled_sunState_offset", sNUMBER, range: "*..*", title: inTS1("Offset ${schedType} this number of minutes (+/-)", schedType?.toLowerCase()), required: false
                                 break
                         }
-                        triggerMsgInput("scheduled", false)
+                        triggerMsgInput("scheduled")
                     }
                 }
             }
@@ -479,7 +480,7 @@ def triggersPage() {
                     if((List)settings.trig_alarmSystemStatus) {
                         input "trig_${inT}_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_${inT}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput(sALRMSYSST, false)
+                        triggerMsgInput(sALRMSYSST)
                     }
                 }
             }
@@ -490,7 +491,7 @@ def triggersPage() {
                     if(settings.trig_guard) {
                         // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("guard", false)
+                        triggerMsgInput("guard")
                     }
                 }
             }
@@ -501,7 +502,7 @@ def triggersPage() {
                     if((List)settings.trig_mode) {
                         input "trig_mode_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_mode_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput(sMODE, false)
+                        triggerMsgInput(sMODE)
                     }
                 }
             }
@@ -514,7 +515,7 @@ def triggersPage() {
                         paragraph pTS("webCoRE settings must be enabled to send events for Piston Execution (not enabled by default in webCoRE)", sNULL, false, sCLRGRY)
                         input "trig_${inT}_once", sBOOL, title: inTS1("Only alert once a day?\n(per type: piston)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_${inT}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput(sPISTNEXEC, false)
+                        triggerMsgInput(sPISTNEXEC)
                     }
                 }
             }
@@ -687,19 +688,36 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                 extraMeth(inType, extraStr)
 
                 if(!isTierAction() && (String)settings."trig_${inType}_cmd" in cmdAfterOpts) {
-                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                    if((Integer)settings."trig_${inType}_after") {
-                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        if((Integer)settings."trig_${inType}_after_repeat") {
-                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+//                    if(!(Boolean)settings."trig_${inType}_once" && !(Integer)settings."trig_${inType}_wait") {
+                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                    Integer aft = (Integer)settings."trig_${inType}_after"
+                    if(aft != null) {
+                        if(aft < 0 || aft > 7200) settingUpdate("trig_${inType}_after",10)
+                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                        Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
+                        if(aftR != null) {
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                            if(aftR < 10 || aftR > 7200) settingUpdate("trig_${inType}_after_repeat",10)
+                            triggerMsgInput(inType)
                         }
+                        Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
+                        if(aftRC != null)
+                            if(aftRC < 2 || aftRC > 20000) settingUpdate("trig_${inType}_after_repeat_cnt",120)
+//                        settingRemove("trig_${inType}_once")
+//                        settingRemove("trig_${inType}_wait")
+
+                    } else {
+                        settingRemove("trig_${inType}_after_repeat")
+                        settingRemove("trig_${inType}_after_repeat_cnt")
+                        settingRemove("trig_${inType}_after_repeat_txt")
                     }
                 }
-                if(!(Integer)settings."trig_${inType}_after") {
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                }
-                triggerMsgInput(inType, true)
+//                }
+                //               if((Integer)settings."trig_${inType}_after" == null) {
+                input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                triggerMsgInput(inType)
+                //              }
             }
         }
     }
@@ -713,7 +731,7 @@ def trigButtonSect(String inType, String capType, String sectStr, String devTitl
             //input "trig_${inType}_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: [sPUSHED], required: true, multiple: false, defaultValue: sPUSHED, submitOnChange: true
             input "trig_${inType}_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true
             if(settings."trig_${inType}_nums") {
-                triggerMsgInput(cmd, false)
+                triggerMsgInput(cmd)
             }
         }
     }
@@ -730,16 +748,18 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                     String snot = (String)settings."trig_${inType}_cmd" in [sNBETWEEN] ? "Not " : sBLANK
                     input "trig_${inType}_low", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN] ? "${snot}Between a Low" : "a low") + " ${cmdTitle} of...", sNULL, "low"), required: true, submitOnChange: true
                 }
-                if(settings."trig_${inType}_low" && ((String)settings."trig_${inType}_cmd" in [sBELOW]) ) done=true
+                if(settings."trig_${inType}_low"!=null && ((String)settings."trig_${inType}_cmd" in [sBELOW]) ) done=true
+
                 if ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN, sABOVE]) {
                     input "trig_${inType}_high", sNUMBER, title: spanSmBld(((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN] ? "and a High of..." : "a High") + " ${cmdTitle} of...", sNULL, "high"), required: true, submitOnChange: true
                 }
-                if(settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sABOVE])) done=true
-                if(settings."trig_${inType}_low" && settings."trig_${inType}_high" && ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN])) done=true
+                if(settings."trig_${inType}_high"!=null && ((String)settings."trig_${inType}_cmd" in [sABOVE])) done=true
+
+                if(settings."trig_${inType}_low"!=null && settings."trig_${inType}_high"!=null && ((String)settings."trig_${inType}_cmd" in [sNBETWEEN, sBETWEEN])) done=true
 
                 if ((String)settings."trig_${inType}_cmd" == sEQUALS) {
                     input "trig_${inType}_equal", sNUMBER, title: spanSmBld("a ${cmdTitle} of...", sNULL, sEQ), required: true, submitOnChange: true
-                    if(settings."trig_${inType}_equal") done=true
+                    if(settings."trig_${inType}_equal"!=null) done=true
                 }
                 if(done) {
                     if (settings."trig_${inType}"?.size() > 1) {
@@ -748,16 +768,42 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                             input "trig_${inType}_avg", sBOOL, title: spanSmBld("Use the average of all selected device values?", sNULL, sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                         }
                     }
+//                    if(!(Boolean)settings."trig_${inType}_once" && !(Integer)settings."trig_${inType}_wait") {
+                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                    Integer aft = (Integer)settings."trig_${inType}_after"
+                    if(aft != null) {
+                        if(aft < 0 || aft > 7200) settingUpdate("trig_${inType}_after",10)
+                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                        Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
+                        if(aftR != null) {
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                            if(aftR < 10 || aftR > 7200) settingUpdate("trig_${inType}_after_repeat",10)
+//                                triggerMsgInput(inType)
+                        }
+                        Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
+                        if(aftRC != null)
+                            if(aftRC < 2 || aftRC > 20000) settingUpdate("trig_${inType}_after_repeat_cnt",120)
+//                            settingRemove("trig_${inType}_once")
+//                            settingRemove("trig_${inType}_wait")
+
+                    } else {
+                        settingRemove("trig_${inType}_after_repeat")
+                        settingRemove("trig_${inType}_after_repeat_cnt")
+                        settingRemove("trig_${inType}_after_repeat_txt")
+                    }
+//                    }
+//                    if((Integer)settings."trig_${inType}_after" == null) {
                     input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: 120, submitOnChange: true
-                    triggerMsgInput(inType, false)
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                    triggerMsgInput(inType)
+//                    }
                 }
             }
         }
     }
 }
 
-def triggerMsgInput(String inType, Boolean showRepInputs=false /*, Integer itemCnt=0 */) {
+def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemCnt=0 */) {
     if((String)settings.actionType in [sSPEAK, sSPEAKP, sANN]) {
         String str = spanSmBldBr("Response Options", sCLR4D9)
         str += spanSmBr("Available Options:")
@@ -768,14 +814,14 @@ def triggerMsgInput(String inType, Boolean showRepInputs=false /*, Integer itemC
         //Custom Text Options
         href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(),
                 description: ((String)settings."trig_${inType}_txt" ? spanSm((String)settings."trig_${inType}_txt", sCLR4D9) : sBLANK) + ' ' + spanSm("Open Response Designer...", sCLRGRY)
-        if(showRepInputs) {
+    //    if(showRepInputs) {
             if((Integer)settings."trig_${inType}_after_repeat") {
                 //Custom Repeat Text Options
                 paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info"), false, sCLR4D9)
                 href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: spanSm("Custom ${inType?.capitalize()} Repeat Responses", sNULL, sTEXT) + optPrefix(),
                         description: (String)settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", submitOnChange: true
             }
-        }
+     //   }
     }
 }
 
@@ -800,7 +846,7 @@ Boolean deviceTriggers() {
 Boolean thermostatTriggers() {
     List okList = []
     [sCOOLSP, sHEATSP, sTHERMTEMP].each { String att-> // Thermostat number value validation
-        if(valTrigEvt(att)) { okList.push((Boolean)(settings."trig_${att}" && settings."trig_${att}_cmd" && (settings."trig_${att}_low" || settings."trig_${att}_high" || settings."trig_${att}_equal"))) }
+        if(valTrigEvt(att)) { okList.push((Boolean)(settings."trig_${att}" && settings."trig_${att}_cmd" && (settings."trig_${att}_low"!=null || settings."trig_${att}_high"!=null || settings."trig_${att}_equal"!=null))) }
     }
     ["thermostatMode", "thermostatOperatingState", "thermostatFanMode"].each { String att-> // Thermostat non number validation
         if(valTrigEvt(att)) { okList.push((Boolean)(settings."trig_${att}" && settings."trig_${att}_cmd")) }
@@ -813,7 +859,7 @@ Boolean sensorTriggers() {
     return (settings.trig_temperature && settings.trig_temperature_cmd) || (settings.trig_carbonMonoxide && settings.trig_carbonMonoxide_cmd) || (settings.trig_humidity && settings.trig_humidity_cmd) ||
         (settings.trig_battery && settings.trig_battery_cmd) ||
         (settings.trig_water && settings.trig_water_cmd) || (settings.trig_smoke && settings.trig_smoke_cmd) || (settings.trig_presence && settings.trig_presence_cmd) || (settings.trig_motion && settings.trig_motion_cmd) ||
-        (settings.trig_contact && settings.trig_contact_cmd) || (settings.trig_power && settings.trig_power_cmd) || (settings.trig_illuminance && settings.trig_illuminance_low && settings.trig_illuminance_high) ||
+        (settings.trig_contact && settings.trig_contact_cmd) || (settings.trig_power && settings.trig_power_cmd) || (settings.trig_illuminance && settings.trig_illuminance_low!=null && settings.trig_illuminance_high!=null) ||
         (settings.trig_acceleration && settings.trig_acceleration_cmd)
 }
 
@@ -1574,15 +1620,12 @@ def actTrigTasksPage(params) {
             input "${t}lights", "capability.switch", title: inTS1("Turn ON these Lights${dMap?.def}", "light") + optPrefix(), multiple: true, required: false, submitOnChange: true
             if((List)settings."${t}lights") {
                 List lights = (List)settings."${t}lights"
+                input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?", "delay") + optPrefix(), required: false, submitOnChange: true
                 if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
                     paragraph spanSmBld("Not all selected devices support color. So color options are hidden.", sCLRRED)
                     settingRemove("${t}lights_color".toString())
-                    settingRemove("${t}lights_color_delay".toString())
                 } else {
                     input "${t}lights_color", sENUM, title: inTS1("To this color?", sCOMMAND) + optPrefix(), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true
-                    if(settings."${t}lights_color") {
-                        input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?", "delay") + optPrefix(), required: false, submitOnChange: true
-                    }
                 }
                 if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
                     paragraph spanSmBld("Not all selected devices support level. So level option is hidden.", sCLRRED)
@@ -1641,7 +1684,7 @@ Boolean actTasksConfiguredByType(String pType) {
 
 private executeTaskCommands(data) {
     String p = data?.type ?: sNULL
-    logTrace("executeTaskCommands ${p} ${actTaskDesc(p)}")
+    logTrace("executeTaskCommands | type: ${p} actions: ${actTaskDesc(p)}")
 
     if((String)settings."${p}mode_run") { setLocationMode((String)settings."${p}mode_run") }
     if((String)settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: (String)settings."${p}alarm_run") }
@@ -1662,10 +1705,10 @@ private executeTaskCommands(data) {
         if(settings."${p}siren_time") runIn(settings."${p}siren_time", postTaskCommands, [data:[type: p]])
     }
     if(settings."${p}lights") {
-        if(settings."${p}lights_color_delay") { captureLightState((List)settings."${p}lights") }
+        if(settings."${p}lights_color_delay") { captureLightState((List)settings."${p}lights",p) }
         settings."${p}lights"*.on()
-        if(settings."${p}lights_level") { settings."${p}lights"*.setLevel(getColorName(settings."${p}lights_level")) }
-        if(settings."${p}lights_color") { settings."${p}lights"*.setColor(getColorName(settings."${p}lights_color", settings."${p}lights_level")) }
+        if(settings."${p}lights_level") { settings."${p}lights"*.setLevel(settings."${p}lights_level") }
+        if(settings."${p}lights_color") { settings."${p}lights"*.setColor(getColorName(settings."${p}lights_color")) }
         if(settings."${p}lights_color_delay") runIn(settings."${p}lights_color_delay", restoreLights, [data:[type: p]])
     }
 }
@@ -1690,7 +1733,7 @@ String actTaskDesc(String t, Boolean isInpt=false) {
         str += settings."${t}lights" ? aStr + "Lights: (${settings."${t}lights"?.size()})" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_level" ? "\n    - Level: (${settings."${t}lights_level"}%)" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_color" ? "\n    - Color: (${settings."${t}lights_color"})" : sBLANK
-        str += settings."${t}lights" && settings."${t}lights_color" && settings."${t}lights_color_delay" ? "\n    - Restore After: (${settings."${t}lights_color_delay"} sec.)" : sBLANK
+        str += settings."${t}lights" && settings."${t}lights_color_delay" ? "\n    - Restore After: (${settings."${t}lights_color_delay"} sec.)" : sBLANK
         str += settings."${t}locks_unlock" ? aStr + "Locks Unlock: (${settings."${t}locks_unlock"?.size()})" : sBLANK
         str += settings."${t}locks_lock" ? aStr + "Locks Lock: (${settings."${t}locks_lock"?.size()})" : sBLANK
         str += settings."${t}securityKeypads_disarm" ? aStr + "KeyPads Disarm: (${settings."${t}securityKeypads_disarm".size()})" : sBLANK
@@ -1706,48 +1749,6 @@ String actTaskDesc(String t, Boolean isInpt=false) {
         str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr + "Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
     return str != sBLANK ? (isInpt ? divSm(spanSmBr(str) + inputFooter(sTTM), sCLR4D9) : str) : (isInpt ? spanSm("On trigger control devices, set mode, set alarm state, execute WebCore Pistons", sCLRGRY) + inactFoot(sTTC) : sNULL)
-}
-
-@SuppressWarnings('unused')
-private flashLights(data) {
-    // log.debug "data: ${data}"
-    String p = data?.type
-    if(!p) return
-    List devs = (List)settings."${p}lights"
-    if(devs) {
-        // log.debug "devs: $devs"
-        if(data.cycle <= data.cycles ) {
-            logDebug("state: ${data.state} | color1Map: ${data.color1Map} | color2Map: ${data.color2Map}")
-            if(data.state == "off" || (data.color1Map && data.color2Map && data.state == data.color2Map)) {
-                if(data.color1Map) {
-                    data.state = data.color1Map
-                    devs*.setColor(data.color1Map)
-                } else {
-                    data.state = "on"
-                }
-                devs*.on()
-                runIn(1, "flashLights", [data: data])
-            } else {
-                if(data.color2Map) {
-                    data.state = data.color2Map
-                    devs*.setColor(data.color2Map)
-                } else {
-                    data.state = "off"; devs*.off()
-                }
-                data.cycle = data.cycle + 1
-                runIn(1, "flashLights", [data: data])
-            }
-        } else {
-            logDebug("restoring state")
-            restoreLightState((List)settings."${p}lights")
-        }
-    }
-}
-
-@SuppressWarnings('unused')
-private restoreLights(data) {
-    String p = data?.type ?: sNULL
-    if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights") }
 }
 
 Boolean isActDevContConfigured() {
@@ -2196,11 +2197,13 @@ private void actionCleanup() {
     // State Cleanup
 
     // keep actionExecMap configStatusMap schedTrigMap
-    List items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive", "zoneStatusMap"]
+    List<String> items = ["afterEvtMap", "afterEvtChkSchedMap", "actTierState", "tierSchedActive", "zoneStatusMap", sLRM]
     updMemStoreItem("afterEvtMap", [:])
-    updMemStoreItem("afterEvtChkSchedMap", [:])
+//    updMemStoreItem("afterEvtChkSchedMap", [:])
     updMemStoreItem("actTierState", [:])
+    ["act_", "act_tier_start_", "act_tier_stop_"]?.each { String it -> items.push((it+sLRM)) }
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
+
     //Cleans up unused action setting items
     List setItems = []
     List setIgn = ["act_delay", "act_volume_change", "act_volume_restore", "act_tier_cnt", "act_switches_off", "act_switches_on", "act_piston_run", "act_mode_run", "act_alarm_run"]
@@ -2217,12 +2220,25 @@ private void actionCleanup() {
         }
     }
 
-    // Cleanup Unused Trigger Types...
+    // Cleanup Unused Condition settings...
+    List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
+    if(condKeys?.size()) {
+        condKeys.each { String ck->
+            if(!settings."cond_${ck}") {
+                setItems.push("cond_${ck}")
+                ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { ei->
+                    setItems.push("cond_${ck}_${ei}")
+                }
+            }
+        }
+    }
+
+        // Cleanup Unused Trigger Types...
     if((List)settings.triggerEvents) {
         List<String> trigKeys = settings.findAll { it?.key?.startsWith("trig_") && !((String)((List)it?.key?.tokenize("_"))[1] in (List)settings.triggerEvents) }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
         // log.debug "trigKeys: $trigKeys"
         if(trigKeys?.size()) {
-            trigKeys.each { String tk-> setItems.push("trig_${tk}"); ["wait", "all", "cmd", "once", "after", "txt", "nums"]?.each { ei-> setItems.push("trig_${tk}_${ei}") } }
+            trigKeys.each { String tk-> setItems.push("trig_${tk}"); ["events", "wait", "all", "avg", "cmd", "low", "high", "equal", "once", "after", "txt", "nums", "after_repeat", "after_repeat_cnt", "after_repeat_txt", "Codes"]?.each { ei-> setItems.push("trig_${tk}_${ei}") } }
         }
     }
 
@@ -2428,12 +2444,12 @@ void subscribeToEvts() {
 
 private getDevEvtHandlerName(String type) {
     // if(isTierAction()) { return "deviceTierEvtHandler" }
-    return (type && (Integer)settings."trig_${type}_after") ? "devAfterEvtHandler" : "deviceEvtHandler"
+    return (type && (Integer)settings."trig_${type}_after"!=null) ? "devAfterEvtHandler" : "deviceEvtHandler"
 }
 
 private getThermEvtHandlerName(String type) {
     // if(isTierAction()) { return "deviceTierEvtHandler" }
-    return (type && (Integer)settings."trig_${type}_after") ? "devAfterThermEvtHandler" : "thermostatEvtHandler"
+    return (type && (Integer)settings."trig_${type}_after"!=null) ? "devAfterThermEvtHandler" : "thermostatEvtHandler"
 }
 
 private executeActTest() {
@@ -2529,7 +2545,7 @@ Map getRandomTrigEvt() {
         thermostatFanMode: getRandomItem(getThermFanOpts()),
         thermostatOperatingState: getRandomItem(getThermOperStOpts()),
     ]
-    Map evt = [ date: new Date(), deviceId: trigItem?.id?.toString() ?: null ]
+    Map evt = [ date: new Date(), device: [id: trigItem?.id?.toString() ?: null] ]
     if(settings.enableWebCoRE && trig == sPISTNEXEC) {
         attVal.webCoRE = sPISTNEXEC
         trig = 'webCoRE'
@@ -2601,7 +2617,7 @@ def scheduleTrigEvt(evt=null) {
     if(!evt) {
         Date adate = new Date()
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-        evt = [name: "scheduled", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, deviceId: null]
+        evt = [name: "scheduled", displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, device: [id: null]]
     }
     Long evtDelay = now() - ((Date)evt.date).getTime()
     logTrace("${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
@@ -2663,7 +2679,7 @@ def alarmEvtHandler(evt) {
     }
     if(ok2Run) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
-        Integer dcw = (Integer)settings."${inT}_wait" ?: null
+        Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
         eventCompletion(evt, sALRMSYSST, dco, dcw, "alarmEvtHandler(${eN})", eV, (String)evt?.displayName)
     } else {
         logDebug("alarmEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT} ${lE}")
@@ -2671,7 +2687,7 @@ def alarmEvtHandler(evt) {
 }
 
 public guardEventHandler(String guardState) {
-    def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), deviceId: null]
+    def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
     logTrace("${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
     if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
         executeAction(evt, false, "guardEventHandler", false, false)
@@ -2679,7 +2695,7 @@ public guardEventHandler(String guardState) {
 }
 
 def eventCompletion(evt, String dId, Boolean dco, Integer dcw, String meth, evtVal, String evtDis) {
-    Boolean evtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk([date: evt?.date, deviceId: dId, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw) : true)
+    Boolean evtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk([date: evt?.date, device: evt?.device, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw) : true)
     if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, true)
@@ -2696,19 +2712,20 @@ def webcoreEvtHandler(evt) {
     String inT = "trig_${sPISTNEXEC}"
     if(pId in lT) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
-        Integer dcw = (Integer)settings."${inT}_wait" ?: null
+        Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
         eventCompletion(evt, sPISTNEXEC, dco, dcw, "webcoreEvtHandler", disN, disN)
     } else {
         logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
     }
 }
 // TODO not in use
+/*
 def sceneEvtHandler(evt) {
     logTrace("${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
     Boolean dco = ((Boolean)settings.trig_scene_once == true)
     Integer dcw = (Integer)settings.trig_scene_wait ?: null
     eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, (String)evt?.displayName)
-}
+}*/
 
 def modeEvtHandler(evt) {
     logTrace("${evt?.name?.toUpperCase()} Event | Mode: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
@@ -2718,29 +2735,11 @@ def modeEvtHandler(evt) {
     List lT = (List)settings."${inT}"
     if(eV in lT) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
-        Integer dcw = (Integer)settings."${inT}_wait" ?: null
+        Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
         eventCompletion(evt, sMODE, dco, dcw, "modeEvtHandler", eV, (String)evt?.displayName)
     } else {
         logTrace("modeEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT}")
     }
-}
-
-Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
-
-void afterEvtCheckWatcher() {
-
-    getTheLock(sHMLF, "afterEvtCheckWatcher")
-
-    Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
-    if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-
-    Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
-    if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
-
-    if((aEvtMap.size() == 0 && aSchedMap?.id) || (aEvtMap.size() && getLastAfterEvtCheck() > 240)) {
-        runIn(2, "afterEvtCheckHandler")
-    }
-    releaseTheLock(sHMLF)
 }
 
 void devAfterThermEvtHandler(evt) {
@@ -2749,16 +2748,24 @@ void devAfterThermEvtHandler(evt) {
 }
 
 void devAfterEvtHandler(evt) {
-    Long evtDelay = now() - (Long)((Date)evt.date).getTime()
+    Long evtT = (Long)((Date)evt.date).getTime()
+    Long now = now()
+    Long evtDelay = now - evtT
     String eN = (String)evt?.name
     def eV = evt?.value
     String dc = settings."trig_${eN}_cmd" ?: null
-    Integer dcaf = (Integer)settings."trig_${eN}_after" ?: null
+    Integer dcaf = (Integer)settings."trig_${eN}_after"!=null ? (Integer)settings."trig_${eN}_after" : null
     Integer dcafr = (Integer)settings."trig_${eN}_after_repeat" ?: null
     Integer dcafrc = (Integer)settings."trig_${eN}_after_repeat_cnt" ?: null
-    String eid = "${evt?.deviceId}_${eN}"
-    Boolean schedChk = (dc && dcaf && eV == dc)
-    logTrace("Device Event | ${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${schedChk})")
+    String eid = "${evt?.device?.id}_${eN}"
+    Boolean okpt1 = (dc && dcaf!=null)
+    Boolean okpt2 = okpt1
+    if(!(eN in [sCOOLSP, sHEATSP, sTHERMTEMP, sHUMID, sTEMP, sPOWER, "illuminance", sLEVEL, sBATT])) {
+        okpt2 = (okpt1 && eV == dc)
+    }
+    String msg = "Device Event After | "
+
+    logTrace(msg+"${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${okpt1}, ${okpt2})")
     Boolean rem = false
 
     getTheLock(sHMLF, "scheduleTrigEvt")
@@ -2766,43 +2773,212 @@ void devAfterEvtHandler(evt) {
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
 
-    if(aEvtMap.containsKey(eid) && dcaf && !schedChk) {
+    if(aEvtMap.containsKey(eid) && !okpt2) {
         aEvtMap.remove(eid)
         rem = true
     }
-    Boolean ok = schedChk
-    if(ok) { aEvtMap[eid] = [
+    if(okpt2) { aEvtMap[eid] = [
             dt: evt?.date?.toString(),
-            deviceId: evt?.deviceId as String,
+            device: [id: evt?.device.id as String],
             displayName: evt?.displayName,
             name: eN,
             value: eV,
             type: evt?.type,
             data: evt?.data,
-            triggerState: dc,
-            wait: dcaf ?: null,
-            timeLeft: dcaf ?: null,
+            triggerState: dc, // desired comparison value for non-numbers;   or comparison type for number
+            nextT: now + (dcaf*1000L),
+            wait: dcaf,
+            //timeLeft: dcaf,
             isRepeat: false,
             repeatWait: dcafr ?: null,
             repeatCnt: 0,
             repeatCntMax: dcafrc ]
     }
-    state.afterEvtMap = aEvtMap
     updMemStoreItem("afterEvtMap", aEvtMap)
+    state.afterEvtMap = aEvtMap
+    Integer sz = aEvtMap.size()
+
     releaseTheLock(sHMLF)
 
-    if(rem) logDebug("Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${eN?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${aEvtMap?.size()})")
+    if(rem) logDebug(msg+"Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${eN?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${sz})")
 
-    if(ok) {
-        runIn(2, "afterEvtCheckHandler")
-        logTrace("Scheduled afterEvent in 2 seconds")
+    if(okpt2) {
+        Boolean doRun=true
+        if (dcaf == 0) {
+            logTrace(msg+"Running afterEvent")
+            afterEvtCheckHandler()
+            doRun = false
+        }
+        if(doRun) {
+            Integer ssec = dcaf >= 0 ? dcaf : 2
+            runIn(ssec, "afterEvtCheckHandler")
+            logTrace(msg+"Scheduled afterEvent in ${ssec} seconds")
+        }
+        // TODO remove
         if(!(Boolean)state.afterEvtCheckWatcherSched) {
             state.afterEvtCheckWatcherSched = true
+            logTrace(msg+"Scheduling afterEvtCheckWatcher...")
             runEvery5Minutes("afterEvtCheckWatcher")
         }
+    } else {
+        logDebug(msg+"Passing to deviceEvtHandler")
+        deviceEvtHandler(evt, true, false)
     }
 }
 
+void afterEvtCheckHandler() {
+    unschedule("afterEvtCheckHandler")
+    updTsVal("lastAfterEvtCheck")
+    String msg = "afterEvtCheckHandler  | "
+    logTrace(msg)
+
+    getTheLock(sHMLF, "afterEvtCheckHandler")
+
+    Map<String, Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
+    if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
+    Boolean hasLock = true
+
+    Long mnow = (Long)now() + 750L // anything in next 750ms runs now
+    Map newMap = aEvtMap.findAll { it -> (Long)it?.value?.nextT < mnow }
+    List<Long> sortList = newMap.collect { (Long)it?.value?.nextT }?.sort()
+
+    sortList?.each {
+        if (!hasLock) {
+            getTheLock(sHMLF, "afterEvtCheckHandler")
+
+            aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
+            if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
+            hasLock = true
+        }
+        def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == it }
+        Map nextVal = (Map)nextItem?.value ?: null
+        String eN = (String)nextVal.name
+        String edisplayN = (String)nextVal.displayName
+        String edId = (String)nextVal.device.id
+        String nextId = (edId && eN) ? "${edId}_${eN}" : sNULL
+        Boolean remEvt
+        Boolean runEvt = false
+        String msg1 = "Evaluating ${edisplayN} | (${eN?.capitalize()}) | Original Event Time: ${nextVal.dt} | "
+        String msg2
+        if (nextVal && nextId && aEvtMap[nextId]) {
+            def devs = settings."trig_${eN}" ?: null
+
+            def newVal = null // could be number or string
+            if (devs && eN) {
+                def dev = devs.find { it?.id?.toString() == edId }
+                String en = eN == sTHERMTEMP ? sTEMP : eN
+                if (dev) newVal = dev?.currentValue(en)
+                if (newVal != nextVal.value) msg1 = msg1 + "value changed old: ${nextVal.value} new: ${newVal} | "
+            }
+            Map<String, Object> evt = [
+                date       : new Date(),
+                device     : [id: edId],
+                displayName: edisplayN,
+                name       : eN,
+                value      : newVal,// ?: nextVal.value,
+                type       : nextVal.type,
+                data       : nextVal.data
+            ]
+
+            Boolean skipEvt = true
+            if(eN in [sCOOLSP, sHEATSP, sTHERMTEMP, sHUMID, sTEMP, sPOWER, "illuminance", sLEVEL, sBATT]) {
+                String dc = settings."trig_${eN}_cmd" // desired comparison for numbers
+                Boolean dca = ((Boolean)settings."trig_${eN}_all" == true)
+                Boolean dcavg = (!dca && (Boolean)settings."trig_${eN}_avg" == true)
+                Double dcl = settings."trig_${eN}_low"
+                Double dch = settings."trig_${eN}_high"
+                Double dce = settings."trig_${eN}_equal"
+                Map valChk = deviceEvtProcNumValue(evt, devs, dc, dcl, dch, dce, dca, dcavg)
+                skipEvt = !(Boolean)valChk.evtOk
+                //evtAd = valChk.evtAd
+            } else {
+                if (nextVal.triggerState && edId && eN && devs) {
+                    //String en = eN
+                    //en = en == sTHERMTEMP ? sTEMP : en
+                    skipEvt = !devAttValEqual(devs, edId, eN, nextVal.triggerState)
+                }
+            }
+
+            Boolean hasRepeat = ((Integer)settings."trig_${eN}_after_repeat" != null)
+            Boolean isRepeat = (Boolean)nextVal.isRepeat ?: false
+
+            if (!skipEvt) {
+                runEvt = true
+
+                if(hasRepeat) {
+                    aEvtMap[nextId].nextT = now() + ((Integer)nextVal.repeatWait * 1000L)
+                    updMemStoreItem("afterEvtMap", aEvtMap)
+                    state.afterEvtMap = aEvtMap
+                }
+
+                if (isRepeat && hasRepeat) {
+                    Integer repeatCnt = ((Integer)nextVal.repeatCnt >= 0) ? (Integer)nextVal.repeatCnt + 1 : 1
+                    Integer repeatCntMax = (Integer)nextVal.repeatCntMax ?: null
+                    remEvt = (repeatCntMax && (repeatCnt == repeatCntMax))
+                    aEvtMap[nextId].repeatCnt = repeatCnt
+                    updMemStoreItem("afterEvtMap", aEvtMap)
+                    state.afterEvtMap = aEvtMap
+                    msg2 = "Issuing Repeat Event | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax} "
+                    if (remEvt) msg2 = "has repeated ${repeatCntMax} times | " + msg2
+
+                } else { // this is after
+                    aEvtMap[nextId].isRepeat = true
+                    updMemStoreItem("afterEvtMap", aEvtMap)
+                    state.afterEvtMap = aEvtMap
+                    remEvt = !hasRepeat
+                    msg2 = "Wait Threshold (${nextVal.wait} sec) Reached for ${eDisplayN} (${eN?.capitalize()}) | Issuing held event | TriggerState: (${nextVal.triggerState}) | hasRepeat: ${hasRepeat} "
+                }
+            } else {
+                remEvt = true
+                msg2 = "state is no longer ${nextVal.triggerState} | Skipping Action... "
+            }
+            if (remEvt) {
+                aEvtMap.remove(nextId)
+                updMemStoreItem("afterEvtMap", aEvtMap)
+                state.afterEvtMap = aEvtMap
+                msg2 = msg2 + "Removed event"
+            }
+
+            releaseTheLock(sHMLF)
+            hasLock = false
+
+            logDebug(msg + msg1 + msg2)
+            if (runEvt) {
+                deviceEvtHandler(evt, true, isRepeat)
+            }
+        }
+    }
+
+    if (!hasLock) {
+        getTheLock(sHMLF, "afterEvtCheckHandler")
+
+        aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
+        if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
+        hasLock = true
+    }
+    Integer sz = aEvtMap.size()
+    if (sz > 0) {
+        //newMap = aEvtMap.findAll { it -> it?.value?.nextT < now }
+        sortList = aEvtMap.collect { (Long)it?.value?.nextT }?.sort()
+        releaseTheLock(sHMLF)
+        hasLock = false
+
+        Long myL = sortList.size() > 0 ? sortList[0] : null
+        if (myL != null) {
+            Integer ssecs = (myL - now() + 600L)/1000L
+            ssecs = ssecs > 1 ? Math.min(ssecs, 300).toInteger() : 2
+            runIn(ssecs, "afterEvtCheckHandler")
+            logTrace(msg+"Scheduled afterEvent in ${ssecs} seconds; afterEvtMap: ${sz}")
+        } else logWarn(msg+"INCONSISTENT")
+    } else {
+        releaseTheLock(sHMLF)
+        hasLock = false
+        clearAfterCheckSchedule()
+    }
+
+    if (hasLock) releaseTheLock(sHMLF)
+}
+/*
 void afterEvtCheckHandler() {
 
     getTheLock(sHMLF, "afterEvtCheckHandler")
@@ -2879,11 +3055,14 @@ void afterEvtCheckHandler() {
                     } else {
                         aEvtMap.remove(nextId)
                         updMemStoreItem("afterEvtMap", aEvtMap)
+                        releaseTheLock(sHMLF)
+                        state.afterEvtMap = aEvtMap
+                        hasLock = false
                         String msg1 = "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) "
                         if(!skipEvt && skipEvtCnt) {
                             logDebug(msg1 + "has repeated ${repeatCntMax} times | Skipping Action Repeat...")
                         } else {
-                            logDebug(msg1 + "state is already ${nextVal?.triggerState} | Skipping Action...")
+                            logDebug(msg1 + "state is no longer ${nextVal.triggerState} | Skipping Action...")
                         }
                     }
                 }
@@ -2891,14 +3070,75 @@ void afterEvtCheckHandler() {
         }
         // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
         if(hasLock) releaseTheLock(sHMLF)
-        runIn(1, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
-        logTrace("afterEvtCheckHandler scheduleAfterCheck in 1 second")
+
+//        runIn(1, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
+//        logTrace("afterEvtCheckHandler scheduleAfterCheck in 1 second")
         // logTrace("afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
     } else {
         releaseTheLock(sHMLF)
         clearAfterCheckSchedule()
     }
     updTsVal("lastAfterEvtCheck")
+}
+*/
+// TODO remove
+Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
+
+void afterEvtCheckWatcher() {
+
+    getTheLock(sHMLF, "afterEvtCheckWatcher")
+
+    Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
+    if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
+
+//    Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
+//    if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
+
+    //if((aEvtMap.size() == 0 && aSchedMap?.id) || (aEvtMap.size() && getLastAfterEvtCheck() > 240)) {
+    releaseTheLock(sHMLF)
+
+    if(aEvtMap.size() && getLastAfterEvtCheck() > 240) {
+        runIn(2, "afterEvtCheckHandler")
+        logDebug("afterEvtCheckWatcher scheduled afterEvtCheckHandler...")
+    }
+}
+/*
+def scheduleAfterCheck(data) {
+    Integer val = data?.val ? (data.val < 2 ? 2 : data.val-4) : 60
+    String id = data?.id?.toString() ?: null
+    Boolean rep = (data?.repeat == true)
+
+    getTheLock(sHMLF, "scheduleAfterCheck")
+
+    Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
+    if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
+
+    runIn(val, "afterEvtCheckHandler")
+
+    Map a = [id: id, dur: val, dt: getDtNow()]
+    state.afterEvtChkSchedMap = a
+    updMemStoreItem("afterEvtChkSchedMap", a)
+
+    releaseTheLock(sHMLF)
+
+    if(devModeFLD && aSchedMap && aSchedMap?.id?.toString() && id && aSchedMap?.id?.toString() == id) {
+        log.debug "scheduleAfterCheck: Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
+    }
+    logDebug("Schedule After Event Check${rep ? " (Repeat)" : sBLANK} in (${val} seconds) | Id: ${id}")
+}
+*/
+private clearAfterCheckSchedule() {
+    unschedule("afterEvtCheckHandler")
+    unschedule("afterEvtCheckWatcher") // TODO remove
+    state.afterEvtCheckWatcherSched = false
+    logTrace("Clearing After Event Check Schedule...")
+
+//    getTheLock(sHMLF, "clearAfterCheckSchedule")
+
+//    updMemStoreItem("afterEvtChkSchedMap", null)
+//    state.afterEvtChkSchedMap = null
+
+//    releaseTheLock(sHMLF)
 }
 
 void thermostatEvtHandler(evt) {
@@ -2913,12 +3153,15 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     String eN = (String)evt.name
     def eV = evt?.value
     List d = settings."trig_${eN}"
-    String dc = settings."trig_${eN}_cmd"
-    logTrace("Device Event | ${eN.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms${aftEvt ? " | (aftEvt)" : sBLANK}")
+    String aftMsg = "${aftEvt ? " | (aftEvt)" : sBLANK}${aftRepEvt ? " | (aftRepEvt)" : sBLANK}"
+    logTrace("Device Event | ${eN.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms${aftMsg}")
+    String dc = settings."trig_${eN}_cmd" // desired attribute value
     Boolean dca = ((Boolean)settings."trig_${eN}_all" == true)
     Boolean dcavg = (!dca && (Boolean)settings."trig_${eN}_avg" == true)
-    Boolean dco = (!(Integer)settings."trig_${eN}_after" && (Boolean)settings."trig_${eN}_once" == true)
-    Integer dcw = (!(Integer)settings."trig_${eN}_after" && (Integer)settings."trig_${eN}_wait") ? (Integer)settings."trig_${eN}_wait" : null
+    //Boolean dco = ((Integer)settings."trig_${eN}_after"==null && (Boolean)settings."trig_${eN}_once" == true)
+    //Integer dcw = ((Integer)settings."trig_${eN}_after"==null && (Integer)settings."trig_${eN}_wait") ? (Integer)settings."trig_${eN}_wait" : null
+    Boolean dco = ((Boolean)settings."trig_${eN}_once" == true)
+    Integer dcw = (Integer)settings."trig_${eN}_wait"!=null ? (Integer)settings."trig_${eN}_wait" : null
     String extra = sBLANK
     switch(eN) {
         case sSWITCH:
@@ -2934,7 +3177,6 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
         case sMOTION:
         case sWATER:
         case sVALVE:
-        case "button":
         case "thermostatFanMode":
         case "thermostatOperatingState":
         case "thermostatMode":
@@ -2990,15 +3232,15 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
         default:
             logDebug("deviceEvtHandler | unknown event ${eN}  value: ${eV}")
     }
-    Boolean devEvtWaitOk = ((dco || dcw) ? evtWaitRestrictionOk(evt, dco, dcw) : true)
+    Boolean devEvtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk(evt, dco, dcw, aftRepEvt) : true)
     Boolean execOk = (evtOk && devEvtWaitOk)
-    logDebug("deviceEvtHandler | execOk: ${execOk} | evtOk :${evtOk} | devEvtWaitOk: ${devEvtWaitOk} | evtAd: $evtAd | aftRepEvt: ${aftRepEvt}${extra}")
+    logDebug("deviceEvtHandler | execOk: ${execOk} | evtOk :${evtOk} | devEvtWaitOk: ${devEvtWaitOk} | event all devices evtAd: $evtAd${aftMsg}${extra}")
     //if(!devEvtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
-    } else if (execOk) { executeAction(evt, false, "deviceEvtHandler(${eN})", evtAd, aftRepEvt) }
-    else {
-        logTrace("deviceEvtHandler | Skipping event ${eN}  value: ${eV}")
+    } else {
+        if (execOk) { executeAction(evt, false, "deviceEvtHandler(${eN})", evtAd, aftRepEvt) }
+        else logTrace("deviceEvtHandler | Skipping event ${eN}  value: ${eV}")
     }
 }
 
@@ -3023,7 +3265,7 @@ private void processTierTrigEvt(evt, Boolean evtOk) {
         }
     } else if(!evtOk && settings.act_tier_stop_on_clear == true) {
         def tierConf = aTierSt.evt
-        if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.deviceId == evt?.deviceId) {
+        if(tierConf?.size() && tierConf?.name == evt?.name && tierConf?.device?.id == evt?.device?.id) {
             updMemStoreItem("actTierState", [:])
             state.actTierState = [:]
 
@@ -3091,7 +3333,7 @@ private void tierEvtHandler(evt=null) {
     if(!evt) {
         Date adate = new Date()
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
-        evt = [name: "Tiered Schedule", displayName: "Scheduled Tiered Trigger", value: fmtTime(dt), date: adate, deviceId: null]
+        evt = [name: "Tiered Schedule", displayName: "Scheduled Tiered Trigger", value: fmtTime(dt), date: adate, device: [id: null]]
     }
     logTrace("tierEvtHandler: received event ${evt?.name} ${evt?.value}")
 
@@ -3108,7 +3350,7 @@ private void tierEvtHandler(evt=null) {
     //log.debug "tierState: ${tierState}"
     //log.debug "tierMap: ${tierMap}"
     if(tierMap.size()) {
-        Map newEvt = (Map)tierState.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, deviceId: evt?.deviceId, date: evt?.date]
+        Map newEvt = (Map)tierState.evt ?: [name: evt?.name, displayName: evt?.displayName, value: evt?.value, unit: evt?.unit, device: [id: evt?.device?.id], date: evt?.date]
         Integer curPass = (tierState.cycle && tierState.cycle.toString()?.isNumber()) ? tierState.cycle.toInteger()+1 : 1
         if(curPass <= tierMap.size()) {
             tierState.cycle = curPass
@@ -3163,12 +3405,12 @@ private void tierSchedHandler(data) {
 Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null, Double dch=null, Double dce=null, Boolean dca=false, Boolean dcavg=false) {
     Boolean evtOk = false
     Boolean evtAd = false
-    String eV = evt?.value?.toString()
+    String en = (String)evt.name
+    String eV = evt.value?.toString()
+    Double evtValue = evt.value?.toDouble()
     if(devs?.size() && cmd && eV?.isNumber()) {
-        String en = (String)evt?.name
         en = en == sTHERMTEMP ? sTEMP : en
-        Double evtValue = (dcavg ? getDevValueAvg(devs, en) : evt?.value) as Double
-        // log.debug "evtValue: ${evtValue}"
+        evtValue = dcavg ? getDevValueAvg(devs, en) : evtValue
         Boolean not=false
         switch(cmd) {
             case sEQUALS:
@@ -3182,7 +3424,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
             case sBETWEEN:
                 if(dcl && dch) {
                     if(!dca) {
-                        evtOk = (evtValue in (dcl..dch))
+                        evtOk = (evtValue >= dcl) && (evtValue <= dch)
                         if(not) evtOk=!evtOk
                     } else if(dca && allDevAttNumValsBetween(devs, en, dcl, dch, not)) { evtOk=true; evtAd=true }
                 }
@@ -3202,7 +3444,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
         }
     }
     Map result = [evtOk: evtOk, evtAd: evtAd]
-    logDebug("deviceEvtProcNumValue | result: $result | evtName: ${evt?.name} | evtVal: $eV | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca} | avg: $dcavg")
+    logDebug("deviceEvtProcNumValue | result: $result | evtName: ${evt.name} (${en}) | evtVal: $evtValue ($eV) | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca} | avg: $dcavg")
     return result
 }
 
@@ -3224,13 +3466,13 @@ private void clearEvtHistory() {
     releaseTheLock(sHMLF)
 }
 
-private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
+private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait, Boolean aftRepEvt=false) {
     Boolean ok = true
     Long dur
-    Boolean waitOk
+    Boolean waitOk = (wait!=null && wait >= 0)
     Boolean dayOk
     String n = (String)evt?.name
-    String msg = "evtWaitRestrictionOk: Last ${n?.capitalize()} Event for Device "
+    String msg = "evtWaitRestrictionOk: Last ${n?.capitalize()} Event for Device | onceDaily ${once} | wait ${wait} | repeatEvt: ${aftRepEvt} | "
     Date evtDt = (Date)evt?.date
 
     getTheLock(sHMLF, "evtWaitRestrictionOk")
@@ -3244,12 +3486,13 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
         // log.debug "prevDt: ${prevDt.toString()}"
         if(prevDt && evtDt) {
             dur = Math.round(((Long)evtDt.getTime() - (Long)prevDt.getTime())/1000.0D)
-            waitOk = ( (wait && dur) && (wait < dur))
+            waitOk = waitOk ? (dur && (wait < dur)) : true
             dayOk = !once || (once && !isDateToday(prevDt))
             ok = (waitOk && dayOk)
-            msg += "Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - ($waitOk && $dayOk)"
+            msg += "Occurred: (${dur} sec ago) | Desired Wait: (${wait} sec) - (waitOk $waitOk && dayOk $dayOk)"
         }
     } else msg += "No history found"
+    // check if same and don't save?
     if(ok) {
         evtHistMap[n] = [dt: evt?.date?.toString(), value: evt?.value, name: n]
         updMemStoreItem("valEvtHistory", evtHistMap)
@@ -3257,7 +3500,7 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait) {
     }
 
     releaseTheLock(sHMLF)
-    msg += " Status: (${ok ? okSymFLD : notOkSymFLD}) | OnceDaily: (${once})"
+    msg += " Status: (${ok ? okSymFLD : notOkSymFLD})"
     logDebug(msg)
     return ok
 }
@@ -3280,42 +3523,6 @@ static String getAttrPostfix(String attr) {
     }
 }
 
-def scheduleAfterCheck(data) {
-    Integer val = data?.val ? (data.val < 2 ? 2 : data.val-4) : 60
-    String id = data?.id?.toString() ?: null
-    Boolean rep = (data?.repeat == true)
-
-    getTheLock(sHMLF, "scheduleAfterCheck")
-
-    Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
-    if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
-
-    runIn(val, "afterEvtCheckHandler")
-
-    Map a = [id: id, dur: val, dt: getDtNow()]
-    state.afterEvtChkSchedMap = a
-    updMemStoreItem("afterEvtChkSchedMap", a)
-
-    releaseTheLock(sHMLF)
-
-    if(devModeFLD && aSchedMap && aSchedMap?.id?.toString() && id && aSchedMap?.id?.toString() == id) {
-        log.debug "scheduleAfterCheck: Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
-    }
-    logDebug("Schedule After Event Check${rep ? " (Repeat)" : sBLANK} in (${val} seconds) | Id: ${id}")
-}
-
-private clearAfterCheckSchedule() {
-    unschedule("afterEvtCheckHandler")
-    state.afterEvtCheckWatcherSched = false
-    logDebug("Clearing After Event Check Schedule...")
-
-    getTheLock(sHMLF, "clearAfterCheckSchedule")
-
-    updMemStoreItem("afterEvtChkSchedMap", null)
-    state.afterEvtChkSchedMap = null
-
-    releaseTheLock(sHMLF)
-}
 
 /***********************************************************************************************************
    CONDITIONS HANDLER
@@ -3406,9 +3613,9 @@ Boolean checkDeviceCondOk(String att) {
 Boolean checkDeviceNumCondOk(String att) {
     List devs = (List)settings."cond_${att}" ?: null
     String cmd = settings."cond_${att}_cmd" ?: null
-    Double dcl = settings."cond_${att}_low" ?: null
-    Double dch = settings."cond_${att}_high" ?: null
-    Double dce = settings."cond_${att}_equal" ?: null
+    Double dcl = settings."cond_${att}_low"!=null ? settings."cond_${att}_low" : null
+    Double dch = settings."cond_${att}_high"!=null ? settings."cond_${att}_high" : null
+    Double dce = settings."cond_${att}_equal"!=null ? settings."cond_${att}_equal" : null
     Boolean dca = ((Boolean)settings."cond_${att}_all" == true) ?: false
     if( !(att && devs && cmd) ) { return true }
     Boolean not=false
@@ -3490,7 +3697,7 @@ Boolean devCondConfigured(String att) {
 }
 
 Boolean devNumCondConfigured(String att) {
-    return (settings."cond_${att}_cmd" && (settings."cond_${att}_low" || settings."cond_${att}_high" || settings."trig_${att}_equal"))
+    return (settings."cond_${att}_cmd" && (settings."cond_${att}_low"!=null || settings."cond_${att}_high"!=null || settings."trig_${att}_equal"!=null))
 }
 
 Boolean timeCondConfigured() {
@@ -3566,7 +3773,7 @@ String decodeVariables(evt, String str) {
         }
         str = (str.contains("%name%")) ? str.replaceAll("%name%", (String)evt.displayName) : str
         str = (str.contains("%unit%") && (String)evt.name) ? str.replaceAll("%unit%", getAttrPostfix((String)evt.name)) : str
-        str = (str.contains("%value%") && evt.value) ? str.replaceAll("%value%", evt.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
+        str = (str.contains("%value%") && evt.value != null) ? str.replaceAll("%value%", evt.value?.toString()?.isNumber() ? evtValueCleanup(evt?.value) : evt?.value) : str
         if(!(evt instanceof com.hubitat.hub.domain.Event) && evt.totalDur) {
             Integer mins = durationToMinutes(evt.totalDur)
             str = (str.contains("%duration%")) ? str.replaceAll("%duration%", "${evt.totalDur} second${evt.totalDur > 1 ? "s" : sBLANK} ago") : str
@@ -3937,7 +4144,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 if(actConf[actType] && actConf[actType]?.devices && actConf[actType]?.devices?.size()) {
                     actConf[actType]?.devices?.each { d->
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
-                        def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
+                        def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() } // TODO
                         if(aDev) {
                             aDev?."${d?.cmd}"(d?.wakeword)
                             logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
@@ -4525,7 +4732,10 @@ Boolean allDevAttNumValsEqual(List devs, String att, Double val) {
 }
 
 Boolean devAttValEqual(List devs, String devId, String att, val) {
-    if(devs && att) { return (devs.find { it?.currentValue(att) == val }) }
+    if(devs && att) {
+        def dev = devs.find { it?.id?.toString() == devId }
+        if(dev) return (dev?.currentValue(att) == val)
+    }
     return false
 }
 
@@ -4775,23 +4985,23 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                             if (t_cmd in [sBETWEEN, sNBETWEEN]) {
                                 str += spanSmBr("    ${sPLUS} Trigger Value ${t_cmd.capitalize()}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})")
                             } else {
-                                str += (t_cmd == sABOVE && settings."${sPre}${evt}_high")    ? spanSmBr("    ${sPLUS} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
-                                str += (t_cmd == sBELOW && settings."${sPre}${evt}_low")     ? spanSmBr("    ${sPLUS} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
-                                str += (t_cmd == sEQUALS && settings."${sPre}${evt}_equal")  ? spanSmBr("    ${sPLUS} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
+                                str += (t_cmd == sABOVE && settings."${sPre}${evt}_high"!=null)    ? spanSmBr("    ${sPLUS} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
+                                str += (t_cmd == sBELOW && settings."${sPre}${evt}_low"!=null)     ? spanSmBr("    ${sPLUS} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
+                                str += (t_cmd == sEQUALS && settings."${sPre}${evt}_equal"!=null)  ? spanSmBr("    ${sPLUS} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
                             }
                         } else {
                             str += t_cmd  ? spanSmBr("    ${sPLUS} Trigger State: (${t_cmd})") : sBLANK
                         }
                         str += settings."${sPre}${evt}_nums"               ? spanSmBr("    ${sPLUS} Button Numbers: ${settings."${sPre}${evt}_nums"}") : sBLANK
-                        str += (Integer)settings."${sPre}${evt}_after"              ? spanSmBr("    ${sPLUS} Only After: (${settings."${sPre}${evt}_after"} sec)") : sBLANK
+                        str += (Integer)settings."${sPre}${evt}_after"!=null        ? spanSmBr("    ${sPLUS} Only After: (${settings."${sPre}${evt}_after"} sec)") : sBLANK
                         str += (Integer)settings."${sPre}${evt}_after_repeat"       ? spanSmBr("    ${sPLUS} Repeat Every: (${settings."${sPre}${evt}_after_repeat"} sec)") : sBLANK
                         str += (Integer)settings."${sPre}${evt}_after_repeat_cnt"   ? spanSmBr("    ${sPLUS} Repeat Count: (${settings."${sPre}${evt}_after_repeat_cnt"})") : sBLANK
-                        str += (Boolean)settings."${sPre}${evt}_all" == true      ? spanSmBr("    ${sPLUS} Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
+                        str += (Boolean)settings."${sPre}${evt}_all" == true        ? spanSmBr("    ${sPLUS} Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                         str += (Boolean)settings."${sPre}${evt}_once"               ? spanSmBr("    ${sPLUS} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
-                        str += (Integer)settings."${sPre}${evt}_wait"               ? spanSmBr("    ${sPLUS} Wait (Sec): (${(Integer)settings."${sPre}${evt}_wait"})") : sBLANK
+                        str += (Integer)settings."${sPre}${evt}_wait"!=null         ? spanSmBr("    ${sPLUS} Wait (Sec): (${(Integer)settings."${sPre}${evt}_wait"})") : sBLANK
                         str += ((String)settings."${sPre}${evt}_txt" || (String)settings."${sPre}${evt}_after_repeat_txt") ? spanSmBr("    ${sPLUS} Custom Responses:") : sBLANK
-                        str += (String)settings."${sPre}${evt}_txt"                ? spanSmBr("       ${sPLUS} Events: (${((String)settings."${sPre}${evt}_txt")?.tokenize(";")?.size()} Items)") : sBLANK
-                        str += (String)settings."${sPre}${evt}_after_repeat_txt"   ? spanSmBr("       ${sPLUS} Repeats: (${((String)settings."${sPre}${evt}_after_repeat_txt")?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += (String)settings."${sPre}${evt}_txt"                 ? spanSmBr("       ${sPLUS} Events: (${((String)settings."${sPre}${evt}_txt")?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += (String)settings."${sPre}${evt}_after_repeat_txt"    ? spanSmBr("       ${sPLUS} Repeats: (${((String)settings."${sPre}${evt}_after_repeat_txt")?.tokenize(";")?.size()} Items)") : sBLANK
                         break
                 }
             }
@@ -4852,9 +5062,9 @@ String getConditionsDesc(Boolean addFoot=true) {
                     String aG = (Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK
                     String cmd = settings."${sPre}${evt}_cmd" ?: sNULL
                     if(cmd in numOpts()) {
-                        def cmdLow = settings."${sPre}${evt}_low" ?: null
-                        def cmdHigh = settings."${sPre}${evt}_high" ?: null
-                        def cmdEq = settings."${sPre}${evt}_equal" ?: null
+                        def cmdLow = settings."${sPre}${evt}_low"!=null ? settings."${sPre}${evt}_low" : null
+                        def cmdHigh = settings."${sPre}${evt}_high"!=null ? settings."${sPre}${evt}_high" : null
+                        def cmdEq = settings."${sPre}${evt}_equal"!=null ?  settings."${sPre}${evt}_equal" : null
                         String aU = attUnit(evt) ')' + aG
                         str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}"+aU) : sBLANK
                         str += (cmd in [sBETWEEN, sNBETWEEN] && cmdLow && cmdHigh) ? spanSmBr(a+cmd.capitalize()+" (${cmdLow}-${cmdHigh}"+aU) : sBLANK
@@ -5319,11 +5529,78 @@ private static getColorName(desiredColor, level=null) {
             return [hue: hue, saturation: color.s, level: level]
         }
     }
+    logWarn("getColorName ${desC} not found")
 }
 
-private captureLightState(List devs) {
-    Map sMap = [:]
-    if(devs) {
+//  if there is no colorMaps, then flash lights
+@SuppressWarnings('unused')
+private void startFlashLights(String p, Integer cycles, Integer cycleT, Map color1Map=null, Map color2Map=null) {
+    logDebug("startFlashLights ${p} | cycles: ${cycles} | cycle time: ${cycleT} | color1Map: ${color1Map} | color2Map: ${color2Map}")
+    Map data = [type: p, first: true, cycles: cycles, cycleT: cycleT, color1Map: color1Map, colorMap2: color2Map ]
+    flashLights(data)
+}
+
+private void flashLights(Map data) {
+    String msg = "flashLights | "
+    if(devModeFLD) logTrace(msg+"state: ${data}")
+
+    String p = data?.type
+    if(!data || !p) return
+    List devs = (List)settings."${p}lights"
+    Integer cT = (Integer)data.cycleT
+    Integer cS = (Integer)data.cycles
+    if(!devs || !cT || !cS || cT < 1 || cS < 1) return
+    if(cT > 60) data.cycleT=60
+    if(cS > 200) data.cycles = 200
+
+    if((Boolean)data.first) {
+        data.first = false
+        logTrace(msg+"capturing state")
+        captureLightState(devs, p)
+        if(data.color1Map && data.color2Map) {
+            data.state = "a"
+            devs*.on()
+        } else data.state = "off"
+        data.cycle = 1
+    }
+
+    switch(data.state){
+        case "off":
+            data.state = "on"; devs*.on()
+            break
+        case "on":
+            data.state = "off"; devs*.off()
+            data.cycle = data.cycle + 1
+            break
+        case "a":
+            data.state = "b"; devs*.setColor(data.color1Map)
+            break
+        case "b":
+            data.state = "a"; devs*.setColor(data.color2Map)
+            data.cycle = data.cycle + 1
+            break
+    }
+    if(data.cycle <= cS ) {
+        runIn(cT, "flashLights", [data: data])
+    } else {
+        logTrace(msg+"restoring state")
+        restoreLightState(devs, p)
+        logDebug(msg+"Ending")
+    }
+}
+
+@SuppressWarnings('unused')
+private restoreLights(data) {
+    String p = data?.type ?: sNULL
+    if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights", p) }
+}
+
+void captureLightState(List devs, String p) {
+    String e = p+sLRM
+    String msg = "captureLightState | ${e} | "
+    logTrace(msg+"${devs}")
+    Map<String, Map> sMap = [:]
+    if(devs && p) {
         devs.each { dev->
             String dId = dev?.id
             sMap[dId] = [:]
@@ -5331,27 +5608,62 @@ private captureLightState(List devs) {
                 if(dev?.hasAttribute(att)) { sMap[dId]."${att}" = dev?.currentValue(att) }
             }
         }
+        state."${e}" = sMap
     }
-    atomicState.light_restore_map = sMap
-    if(devModeFLD) log.debug "captureLightState: sMap: $sMap"
+    if(devModeFLD) logDebug(msg+"sMap: $sMap")
 }
 
-private restoreLightState(List devs) {
-    Map sMap = atomicState.light_restore_map
-    if(devModeFLD) log.debug "restoreLightState: sMap: $sMap"
-    if(devs && sMap?.size()) {
-        devs.each { dev->
-            if(sMap.containsKey(dev.id)) {
-                if(sMap?.level) {
-                    if(sMap.saturation && sMap.hue) { dev?.setColor([h: sMap.hue, s: sMap.saturation, l: sMap.level]) }
-                    else { dev?.setLevel(sMap.level) }
-                }
-                if(sMap.colorTemperature) { dev?.setColorTemperature(sMap.colorTemperature) }
-                if(sMap.switch) { dev?."${sMap.switch}"() }
+void restoreLightState(List devs, String p) {
+    String e = p+sLRM
+    String msg = "restoreLightState | ${e} | "
+    logTrace(msg+"${devs}")
+    if(devs && p) {
+        Boolean doP = true  // do pauses
+        Long paus = 100L
+        Boolean dco = false // disable command optimization
+
+        Map<String,Map> sMap = state."${e}"
+        if(devModeFLD) logDebug(msg+"sMap: $sMap")
+        if(sMap?.size()) {
+            devs.each { dev->
+                String dId = dev?.id
+                if(sMap.containsKey(dId)) {
+                    Map sD = sMap[dId]
+                    if(devModeFLD) logDebug(msg+"${sD}")
+                    Boolean wOn = (sD.switch == "on")
+                    Boolean isOn = (dev.currentValue(sSWITCH) == "on")
+                    Boolean chgLvl = sD.level ? (dev.currentValue(sLEVEL) != sD.level) : false
+                    Boolean chgHSL = (sD.level && sD.saturation && sD.hue && dev.hasCommand("setColor"))
+                    Boolean chgCtemp = sD.colorTemperature ? (dev.currentValue("colorTemperature") != sD.colorTemperature) : false
+                    // CHECK IF ANYTHING NEEDS CHANGES?
+                    if((sD.level || sD.colorTemperature) && (dco || !isOn))  {
+                        dev.on()
+                        isOn = true
+                        if(doP) pauseExecution(paus)
+                    }
+                    if(sD.level) {
+                        if(chgHSL) {
+                            dev?.setColor([h: sD.hue, s: sD.saturation, l: sD.level])
+                            if(doP) pauseExecution(paus)
+                        } else{
+                           if((dco || chgLvl) && dev.hasCommand("setLevel")) {
+                                    dev?.setLevel(sD.level)
+                                    if(!wOn && doP) pauseExecution(paus)
+                            }
+                        }
+                    }
+                    if(sD.colorTemperature) {
+                        if((dco || chgCtemp) && dev.hasCommand("setColorTemperature")) {
+                            dev?.setColorTemperature(sD.colorTemperature)
+                            if(!wOn && doP) pauseExecution(paus)
+                        }
+                    }
+                    if(dco || (wOn != isOn)) dev?."${sD.switch}"()
+                } else logWarn(msg+"no saved state for device found")
             }
-        }
+        } else logWarn(msg+"no saved state found")
+        state.remove(e)
     }
-    state.remove("light_restore_map")
 }
 
 @Field static final List colorSettingsListFLD = [
