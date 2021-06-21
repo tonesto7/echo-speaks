@@ -1,4 +1,4 @@
-### _**Release (v4.1.8.0) - [June 4th, 2021]**_
+### _**Release (v4.1.8.0) - [June 22st, 2021]**_
 
 #### _***All Apps and Devices***_
 - [FIX] Bugfixes and Optimizations.
