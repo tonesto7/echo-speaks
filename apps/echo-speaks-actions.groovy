@@ -822,7 +822,7 @@ def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemC
                 //Custom Repeat Text Options
                 paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info"), false, sCLR4D9)
                 href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses", sNULL, sTEXT) + optPrefix(),
-                        description: (String)settings."trig_${inType}_after_repeat_txt" ?: "Open Response Designer...", submitOnChange: true
+                        description: (String)settings."trig_${inType}_after_repeat_txt" ?: spanSm("Open Response Designer...", sCLRGRY), submitOnChange: true
             }
      //   }
     }
