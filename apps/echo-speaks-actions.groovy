@@ -690,36 +690,37 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                 extraMeth(inType, extraStr)
 
                 if(!isTierAction() && (String)settings."trig_${inType}_cmd" in cmdAfterOpts) {
-//                    if(!(Boolean)settings."trig_${inType}_once" && !(Integer)settings."trig_${inType}_wait") {
-                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                    Integer aft = (Integer)settings."trig_${inType}_after"
-                    if(aft != null) {
-                        if(aft < 0 || aft > 7200) settingUpdate("trig_${inType}_after",10)
-                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
-                        if(aftR != null) {
-                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                            if(aftR < 10 || aftR > 7200) settingUpdate("trig_${inType}_after_repeat",10)
-                            triggerMsgInput(inType)
-                        }
-                        Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
-                        if(aftRC != null)
-                            if(aftRC < 2 || aftRC > 20000) settingUpdate("trig_${inType}_after_repeat_cnt",120)
-//                        settingRemove("trig_${inType}_once")
-//                        settingRemove("trig_${inType}_wait")
+                    // if(!(Boolean)settings."trig_${inType}_once" && !(Integer)settings."trig_${inType}_wait") {
+                        input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                        Integer aft = (Integer)settings."trig_${inType}_after"
+                        if(aft != null) {
+                            if(aft < 0 || aft > 7200) { settingUpdate("trig_${inType}_after", 10) }
+                            input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                            Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
+                            if(aftR != null) {
+                                input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                                if(aftR < 10 || aftR > 7200) { settingUpdate("trig_${inType}_after_repeat", 10) }
+                                triggerMsgInput(inType)
+                            }
+                            Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
+                            if(aftRC != null) {
+                                if(aftRC < 2 || aftRC > 20000) { settingUpdate("trig_${inType}_after_repeat_cnt", 120) }
+                                // settingRemove("trig_${inType}_once")
+                                // settingRemove("trig_${inType}_wait")
+                            }
 
-                    } else {
-                        settingRemove("trig_${inType}_after_repeat")
-                        settingRemove("trig_${inType}_after_repeat_cnt")
-                        settingRemove("trig_${inType}_after_repeat_txt")
+                        } else {
+                            settingRemove("trig_${inType}_after_repeat")
+                            settingRemove("trig_${inType}_after_repeat_cnt")
+                            settingRemove("trig_${inType}_after_repeat_txt")
+                        }
                     }
-                }
-//                }
-                //               if((Integer)settings."trig_${inType}_after" == null) {
-                input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                triggerMsgInput(inType)
-                //              }
+                // }
+                // if((Integer)settings."trig_${inType}_after" == null) {
+                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                    triggerMsgInput(inType)
+                // }
             }
         }
     }
@@ -783,11 +784,11 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                                 // triggerMsgInput(inType)
                             }
                             Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
-                            if(aftRC != null)
+                            if(aftRC != null) {
                                 if(aftRC < 2 || aftRC > 20000) { settingUpdate("trig_${inType}_after_repeat_cnt", 120) }
                                 // settingRemove("trig_${inType}_once")
                                 // settingRemove("trig_${inType}_wait")
-
+                            }
                         } else {
                             settingRemove("trig_${inType}_after_repeat")
                             settingRemove("trig_${inType}_after_repeat_cnt")
