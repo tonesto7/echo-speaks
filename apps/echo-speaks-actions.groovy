@@ -72,8 +72,10 @@ import groovy.transform.Field
 @Field static final String sABOVE         = 'above'
 @Field static final String sEQUALS        = 'equals'
 @Field static final String sANN           = 'announcement'
+@Field static final String sANNT          = 'announcement_tiered'
 @Field static final String sSPEAK         = 'speak'
 @Field static final String sSPEAKP        = 'speak_parallel'
+@Field static final String sSPEAKPT       = 'speak_parallel_tiered'
 @Field static final String sSPEAKT        = 'speak_tiered'
 @Field static final String sWEATH         = 'weather'
 @Field static final String sCSUNRISE      = 'Sunrise'
@@ -217,7 +219,7 @@ private Map buildTriggerEnum() {
 
 private static Map buildActTypeEnum() {
     Map<String, Map> buildItems = [:]
-    buildItems["Speech"] = [(sSPEAK):"Speak", (sANN):"Announcement", (sSPEAKP):"Speak (Parallel)", (sSPEAKT):"Speak (Tiered)", "speak_parallel_tiered":"Speak Parallel (Tiered)", "announcement_tiered":"Announcement (Tiered)"]?.sort{ it?.key }
+    buildItems["Speech"] = [(sSPEAK):"Speak", (sANN):"Announcement", (sSPEAKP):"Speak (Parallel)", (sSPEAKT):"Speak (Tiered)", (sSPEAKPT):"Speak Parallel (Tiered)", (sANNT):"Announcement (Tiered)"]?.sort{ it?.key }
     buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"]?.sort{ it?.key }
     buildItems["Built-in Responses"] = [(sWEATH):"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, News, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
     buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"]?.sort{ it?.key }
@@ -1125,7 +1127,7 @@ String getTierRespDesc() {
 }
 
 Boolean isTierAction() {
-    return ((String)settings.actionType in [sSPEAKT, "speak_parallel_tiered", "announcement_tiered"])
+    return ((String)settings.actionType in [sSPEAKT, sSPEAKPT, sANNT])
 }
 
 Boolean isTierActConfigured() {
@@ -1201,7 +1203,7 @@ def actionsPage() {
                 case sSPEAK:
                 case sSPEAKP:
                 case sSPEAKT:
-                case "speak_parallel_tiered":
+                case sSPEAKPT:
                     section(sectHead("Action Description:")) { paragraph spanSm(actTypeDesc, sCLR4D9) }
                     echoDevicesInputByPerm(sTTS)
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
@@ -1209,14 +1211,14 @@ def actionsPage() {
                             actVariableDesc(myactionType)
                             actTextOrTiersInput("act_speak_txt")
                         }
-                        if(!(myactionType in [sSPEAKP, "speak_parallel_tiered"])) actionVolumeInputs(devices)
+                        if(!(myactionType in [sSPEAKP, sSPEAKPT])) actionVolumeInputs(devices)
                         actionExecMap.config[myactionType] = [text: (String)settings.act_speak_txt, evtText: ((state.showSpeakEvtVars && !(String)settings.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
                         done = state.showSpeakEvtVars || (String)settings.act_speak_txt || (isTierAct && isTierActConfigured())
                     } else { done = false }
                     break
 
                 case sANN:
-                case "announcement_tiered":
+                case sANNT:
                     section(sectHead("Action Description:")) { paragraph spanSm(actTypeDesc, sCLR4D9) }
                     echoDevicesInputByPerm("announce")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
@@ -1909,7 +1911,7 @@ Boolean executionConfigured() {
 private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     Boolean capOk = (type in [sTTS, "announce"])
-    Boolean zonesOk = ((String)settings.actionType in [sSPEAK, sSPEAKP, sSPEAKT, "speak_parallel_tiered", sANN, "announcement_tiered", "voicecmd", "sequence", sWEATH, "calendar", "music", "sounds", "builtin"])
+    Boolean zonesOk = ((String)settings.actionType in [sSPEAK, sSPEAKP, sSPEAKT, sSPEAKPT, sANN, sANNT, "voicecmd", "sequence", sWEATH, "calendar", "music", "sounds", "builtin"])
     Map echoZones = (capOk && zonesOk) ? getZones() : [:]
     section(sectHead("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
         if(echoZones?.size()) {
@@ -3999,9 +4001,9 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             case sSPEAK:
             case sSPEAKP:
             case sSPEAKT:
-            case "speak_parallel_tiered":
+            case sSPEAKPT:
             case sANN:
-            case "announcement_tiered":
+            case sANNT:
                 if(actConf[actType]) {
                     if(tierData?.volume && tierData?.volume?.change || tierData?.volume?.restore) {
                         if(tierData?.volume?.change) changeVol = tierData?.volume?.change
@@ -5145,7 +5147,7 @@ String getActionDesc(Boolean addFoot=true) {
         str += settings.act_volume_change != null ? spanSmBr(" - New Volume: (${settings.act_volume_change})") : sBLANK
         str += settings.act_volume_restore != null ? spanSmBr(" - Restore Volume: (${settings.act_volume_restore})") : sBLANK
         str += settings.act_delay ? spanSmBr("Delay: (${settings.act_delay})") : sBLANK
-        str += (String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sSPEAKT, "speak_parallel_tiered", "announcement_tiered"] && (String)settings."act_${(String)settings.actionType}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
+        str += (String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sSPEAKT, sSPEAKPT, sANNT] && (String)settings."act_${(String)settings.actionType}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
         String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
         str += trigTasks ? spanSm(trigTasks) : sBLANK
         str += addFoot ? inputFooter(sTTM) : sBLANK
