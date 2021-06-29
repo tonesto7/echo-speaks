@@ -1294,9 +1294,11 @@ Map executeTuneInSearch(String query) {
     Map results = [:]
     try {
         httpGet(params) { resp ->
-            results = resp?.data ?: [:]
-            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status == 200) {
+                results = resp?.data ?: [:]
+                updTsVal("lastSpokeToAmazon")
+            }
         }
     } catch (ex) {
         respExceptionHandler(ex, "executeTuneInSearch")
@@ -2153,15 +2155,17 @@ void runCookieRefresh() {
 
 def wakeupServerResp(response, data) {
     try {
+        if(response?.status != 200) { logWarn("wakeupServerResp: ${response?.status}") }
         def rData = response?.data ?: null
-        if(response?.status != 200) { logWarn("wakeupServerResp: ${response?.status} $data"); return }
-        updTsVal("lastServerWakeDt")
-        if (rData && rData == "OK") {
-            logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc}) ${data}")
-            if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
-            if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
-        } else {
-            logWarn("wakeupServerResp: noData ${rData} ${data}")
+        if(response?.status == 200) {
+            updTsVal("lastServerWakeDt")
+            if (rData && rData == "OK") {
+                logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc}) ${data}")
+                if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
+                if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
+            } else {
+                logWarn("wakeupServerResp: noData ${rData} ${data}")
+            }
         }
     } catch(ex) {
         logError("wakeupServerResp Server may be down / unreachable")
@@ -2189,7 +2193,7 @@ def cookieRefreshResp(response, data) {
     String cMsg
     try {
         if(response?.status != 200) {
-            cMsg = "Amazon Cookie Refresh FAILED ${response?.status} $data"
+            cMsg = "Amazon Cookie Refresh FAILED ${response?.status}"
             logWarn(cMsg)
         } else {
             Map rData = response?.data ? parseJson(response?.data?.toString()) : null
@@ -2252,10 +2256,10 @@ Boolean validateCookie(Boolean frc=false) {
     return valid
 }
 
-def validateCookieResp(resp, data){
+Boolean validateCookieResp(resp, data){
     try {
         String meth = 'validCookieResp'
-        if(resp?.status != 200) logWarn("${resp?.status} $meth")
+        if(resp?.status != 200) { logWarn("${resp?.status} $meth"); return false }
         if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
         def t0 = resp?.data
         Map aData
@@ -2296,15 +2300,17 @@ private getCustomerData(Boolean frc=false) {
         logTrace("getCustomerData")
         httpGet(params) { resp->
             if(resp?.status != 200) logWarn("${resp?.status} $params")
-            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-            Map pData = resp?.data ?: null
-            if (pData) {
-                Map d = [:]
-                if(pData?.marketPlaceLocale) { d["marketPlaceLocale"] = pData?.marketPlaceLocale }
-                if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
-                state.amazonCustomerData = d
-                updTsVal("lastCustDataUpdDt")
-                return state.amazonCustomerData
+            if(resp?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                Map pData = resp?.data ?: null
+                if (pData) {
+                    Map d = [:]
+                    if(pData?.marketPlaceLocale) { d["marketPlaceLocale"] = pData?.marketPlaceLocale }
+                    if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
+                    state.amazonCustomerData = d
+                    updTsVal("lastCustDataUpdDt")
+                    return state.amazonCustomerData
+                }
             }
         }
     } catch(ex) {
@@ -2329,12 +2335,14 @@ private List getAllDeviceVolumes(Boolean frc=false) {
         logTrace("getAllDeviceVolumes")
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            Map rData = response?.data ?: [:]
-            // log.debug "Device Volumes: ${rData.volumes}"
-            state.deviceVolumes = rData && rData.volumes ? rData.volumes : []
-            volumes = rData && (List)rData.volumes ? (List)rData.volumes : []
-            updTsVal("deviceVolumeUpdDt")
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                Map rData = response?.data ?: [:]
+                // log.debug "Device Volumes: ${rData.volumes}"
+                state.deviceVolumes = rData && rData.volumes ? rData.volumes : []
+                volumes = rData && (List)rData.volumes ? (List)rData.volumes : []
+                updTsVal("deviceVolumeUpdDt")
+            }
         }
     } catch (ex) {
         respExceptionHandler(ex, "getAllDeviceVolumes", true)
@@ -2364,7 +2372,8 @@ private List getAllDeviceVolumes(Boolean frc=false) {
 //         logTrace("getCustomerHistoryRecords")
 //         httpGet(params) { response ->
 //             if(response?.status != 200) logWarn("${response?.status} $params")
-//             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
+//             if(response?.status == 200) {
+//             updTsVal("lastSpokeToAmazon")
 //             def result = response?.data
 //             log.debug "result: $result"
 
@@ -2433,6 +2442,7 @@ private List getAllDeviceVolumes(Boolean frc=false) {
 //                     // if (o.description.summary || !options.filter) ret.push(o);
 //                 }
 //             }
+//             }
 //         }
 //     } catch (ex) {
 //         respExceptionHandler(ex, "getCustomerHistoryRecords", true)
@@ -2454,11 +2464,13 @@ private userCommIds() {
         logTrace("userCommIds")
         httpGet(params) { response->
             if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            List resp = response?.data ?: []
-            Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == sTRUE }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
-            state.accountCommIds = accItems
-            logDebug("Amazon User CommId's: (${accItems})")
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                List resp = response?.data ?: []
+                Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == sTRUE }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
+                state.accountCommIds = accItems
+                logDebug("Amazon User CommId's: (${accItems})")
+            }
         }
     } catch(ex) {
         respExceptionHandler(ex, "userCommIds")
@@ -2504,16 +2516,18 @@ Map getMusicProviders(Boolean frc=false) {
         logTrace("getMusicProviders")
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            List<Map> rData = (List<Map>)response?.data ?: []
-            if(rData.size()) {
-                rData.findAll { it?.availability == "AVAILABLE" }?.each { Map item->
-                    items[item.id] = (String)item.displayName
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                List<Map> rData = (List<Map>)response?.data ?: []
+                if(rData.size()) {
+                    rData.findAll { it?.availability == "AVAILABLE" }?.each { Map item->
+                        items[item.id] = (String)item.displayName
+                    }
                 }
+                // log.debug "Music Providers: ${items}"
+                state.musicProviders = items
+                updTsVal("musicProviderUpdDt")
             }
-            // log.debug "Music Providers: ${items}"
-            state.musicProviders = items
-            updTsVal("musicProviderUpdDt")
         }
     } catch (ex) {
         respExceptionHandler(ex, "getMusicProviders", true)
@@ -2621,16 +2635,18 @@ void getBluetoothResp(resp, data) {
     try {
         String meth = 'getBluetoothResp'
         if(resp?.status != 200) logWarn("${resp?.status} $meth")
-        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-        def t0 = resp?.data
-        Map btResp
-        if (t0 instanceof String) { btResp = parseJson(resp?.data) }
-        else { btResp = resp?.data }
-        // log.debug "Bluetooth Items: ${btResp}"
-        String myId=app.getId()
-        bluetoothDataFLD[myId] = btResp
-        bluetoothDataFLD=bluetoothDataFLD
-        updTsVal("bluetoothUpdDt")
+        if(resp?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            def t0 = resp?.data
+            Map btResp
+            if (t0 instanceof String) { btResp = parseJson(resp?.data) }
+            else { btResp = resp?.data }
+            // log.debug "Bluetooth Items: ${btResp}"
+            String myId=app.getId()
+            bluetoothDataFLD[myId] = btResp
+            bluetoothDataFLD=bluetoothDataFLD
+            updTsVal("bluetoothUpdDt")
+        }
     } catch(ex) {
         respExceptionHandler(ex, "getBluetoothResp", true)
         String myId=app.getId()
@@ -2717,26 +2733,29 @@ def getLastActResp(resp, data){
     try {
         String meth = 'getLastActResp'
         if(resp?.status != 200) logWarn("${resp?.status} $meth")
-        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-        def t0 = resp?.data
-        Map myResp
-        if (t0 instanceof String) { myResp = parseJson(t0) }
-        else { myResp = (Map)resp?.data }
-        if (myResp && myResp?.activities != null) {
-            Map lastCommand = myResp?.activities?.find {
-                (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
-                        it?.activityStatus?.equals("SUCCESS") &&
-                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
-                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
-            }
-            if (lastCommand) {
-                Map lastDescription = new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
-                def lastDevice = lastCommand.sourceDeviceIds?.get(0)
-                Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
+        if(resp?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            def t0 = resp?.data
+            Map myResp
+            if (t0 instanceof String) { myResp = parseJson(t0) }
+            else { myResp = (Map)resp?.data }
+            List<Map> act = (List<Map>)myResp?.activities
+            if (myResp && act != null) {
+                Map lastCommand = act.find {
+                    (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
+                            it?.activityStatus?.equals("SUCCESS") &&
+                            (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
+                            it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
+                }
+                if (lastCommand) {
+                    Map lastDescription = (Map) new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
+                    def lastDevice = ((List)lastCommand.sourceDeviceIds)?.get(0)
+                    Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand.creationTimestamp ]
 
-                String appId=app.getId()
-                devActivityMapFLD[appId] = lastActData
-                devActivityMapFLD = devActivityMapFLD
+                    String appId=app.getId()
+                    devActivityMapFLD[appId] = lastActData
+                    devActivityMapFLD = devActivityMapFLD
+                }
             }
         }
         logDebug("getDeviceActivity: Process Time: (${(now()-(Long)data.dt)}ms)")
@@ -2775,15 +2794,17 @@ void DnDResp(resp, data){
     try {
         String meth = 'DnDResp'
         if(resp?.status != 200) logWarn("${resp?.status} $meth")
-        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-        def t0 = resp?.data
-        def dndResp
-        if( t0 instanceof String)  dndResp = parseJson(resp?.data)
-        else dndResp = resp?.data
+        if(resp?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            def t0 = resp?.data
+            def dndResp
+            if( t0 instanceof String)  dndResp = parseJson(resp?.data)
+            else dndResp = resp?.data
 //            log.debug "DoNotDisturb Data: ${dndResp}"
-        String myId=app.getId()
-        dndDataFLD[myId] = (Map)dndResp
-        dndDataFLD=dndDataFLD
+            String myId=app.getId()
+            dndDataFLD[myId] = (Map)dndResp
+            dndDataFLD=dndDataFLD
+        }
     } catch(ex) {
         respExceptionHandler(ex, "DnDResp", true)
         String myId=app.getId()
@@ -2831,7 +2852,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
             logTrace("getAlexaRoutines($autoId)")
             httpGet(params) { response ->
                 if(response?.status != 200) logWarn("${response?.status} $params")
-                if(response?.status == 200){
+                if(response?.status == 200) {
                     rtList = response?.data ?: []
                     updTsVal("lastSpokeToAmazon")
                     updTsVal("alexaRoutinesUpdDt")
@@ -2942,38 +2963,40 @@ void checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     Boolean guardSupported = false
     try {
-        if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-        Integer respLen = response?.data?.toString()?.length() ?: null
-        Map resp = response?.data ? parseJson(response?.data?.toString()) : null
-        if(resp && resp.networkDetail) {
-            Map details = parseJson(resp.networkDetail as String)
-            Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
-            if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
-                def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-                // could there be multiple Guards?
-                def guardKeys = locDetails.applianceDetails.applianceDetails.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-                if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
-                def guardData = locDetails.applianceDetails.applianceDetails[(String)guardKey?.key]
-                if(devModeFLD) logTrace("Guard: ${guardData}")
-                if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
-                //TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
-                    state.alexaGuardData = [
-                        entityId: guardData?.entityId,
-                        applianceId: guardData?.applianceId,
-                        friendlyName: guardData?.friendlyName,
-                    ]
-                    guardSupported = true
-                } // else { logDebug("checkGuardSupportResponse | No Guard Data Received Must Not Be Enabled...") }
-            }
-        } else { logError("checkGuardSupportResponse Error | No data received...") }
+        if(response?.status != 200) logWarn("${response?.status} checkGuardSupportResponse")
+        if(response?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            Integer respLen = response?.data?.toString()?.length() ?: null
+            Map resp = response?.data ? parseJson(response?.data?.toString()) : null
+            if(resp && resp.networkDetail) {
+                Map details = parseJson(resp.networkDetail as String)
+                Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
+                if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
+                    def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+                    // TODO could there be multiple Guards?
+                    def guardKeys = locDetails.applianceDetails.applianceDetails.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+                    if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
+                    def guardData = locDetails.applianceDetails.applianceDetails[(String)guardKey?.key]
+                    if(devModeFLD) logTrace("Guard: ${guardData}")
+                    if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
+                        //TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
+                        state.alexaGuardData = [
+                                entityId: guardData?.entityId,
+                                applianceId: guardData?.applianceId,
+                                friendlyName: guardData?.friendlyName,
+                        ]
+                        guardSupported = true
+                    } // else { logDebug("checkGuardSupportResponse | No Guard Data Received Must Not Be Enabled...") }
+                }
+                state.alexaGuardSupported = guardSupported
+                updTsVal("lastGuardSupChkDt")
+                state.alexaGuardDataSrc = "app"
+                if(guardSupported) getGuardState()
+            } else { logError("checkGuardSupportResponse Error | No data received...") }
+        }
     } catch (ex) {
         respExceptionHandler(ex, 'checkGuardSupportResponse', true)
     }
-    state.alexaGuardSupported = guardSupported
-    updTsVal("lastGuardSupChkDt")
-    state.alexaGuardDataSrc = "app"
-    if(guardSupported) getGuardState()
 }
 
 void checkGuardSupportFromServer() {
@@ -2993,8 +3016,7 @@ void checkGuardSupportServerResponse(response, data) {
     Boolean guardSupported = false
     try {
         if(response?.status != 200) {
-            logWarn("checkGuardSupportServerResp: ${response?.status} $data")
-            return
+            logWarn("checkGuardSupportServerResp: ${response?.status}")
         } else {
             Map resp = response?.data ? parseJson(response?.data?.toString()) : null
             // log.debug "GuardSupport Server Response: ${resp}"
@@ -3005,20 +3027,20 @@ void checkGuardSupportServerResponse(response, data) {
                     guardSupported = true
                 }
             } else { logError("checkGuardSupportServerResponse Error | No data received..."); return }
+            state.alexaGuardSupported = guardSupported
+            state.alexaGuardDataOverMaxSize = guardSupported
+            state.alexaGuardDataSrc = "server"
+            updTsVal("lastGuardSupChkDt")
+            if(guardSupported) getGuardState()
         }
     } catch (ex) {
         respExceptionHandler(ex, "checkGuardSupportServerResponse", false, false)
-        return
     }
-    state.alexaGuardSupported = guardSupported
-    state.alexaGuardDataOverMaxSize = guardSupported
-    state.alexaGuardDataSrc = "server"
-    updTsVal("lastGuardSupChkDt")
-    if(guardSupported) getGuardState()
 }
 
 void getGuardState() {
-    if(!isAuthValid("getGuardState")) { return }
+    String meth = "getGuardState"
+    if(!isAuthValid(meth)) { return }
     if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
     Map params = [
         uri: getAmazonUrl(),
@@ -3029,32 +3051,35 @@ void getGuardState() {
         body: [ stateRequests: [ [entityId: state.alexaGuardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
-        logTrace("getGuardState")
+        logTrace(meth)
         httpPostJson(params) { resp ->
-            if(resp?.status != 200) logWarn("${resp?.status} $params")
-            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-            Map respData = resp?.data ?: null
+            if(resp?.status != 200) logWarn("${resp?.status} "+meth)
+            if(resp?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                Map respData = resp?.data ?: null
 
-            if(devModeFLD) log.debug "GuardState resp: ${respData}"
+                if(devModeFLD) log.debug "GuardState resp: ${respData}"
 
-            if(respData && respData.deviceStates && ((List)respData.deviceStates)[0] && ((List)respData.deviceStates)[0].capabilityStates) {
-                def guardStateData = parseJson(((List)respData.deviceStates)[0].capabilityStates as String)
-                if(devModeFLD) logTrace("guardState: ${guardStateData}")
-                String curState = (String)state.alexaGuardState ?: sNULL
-                state.alexaGuardState = guardStateData?.value[0] ? (String)guardStateData?.value[0] : (String)guardStateData?.value
-                settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
-                logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
-                if(curState != (String)state.alexaGuardState) updGuardActionTrig()
-                updTsVal("lastGuardStateChkDt")
+                if(respData && respData.deviceStates && ((List)respData.deviceStates)[0] && ((List)respData.deviceStates)[0].capabilityStates) {
+                    def guardStateData = parseJson(((List)respData.deviceStates)[0].capabilityStates as String)
+                    if(devModeFLD) logTrace("guardState: ${guardStateData}")
+                    String curState = (String)state.alexaGuardState ?: sNULL
+                    state.alexaGuardState = guardStateData?.value[0] ? (String)guardStateData?.value[0] : (String)guardStateData?.value
+                    settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
+                    logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
+                    if(curState != (String)state.alexaGuardState) updGuardActionTrig()
+                    updTsVal("lastGuardStateChkDt")
+                }
             }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getGuardState", true)
+        respExceptionHandler(ex, meth, true)
     }
 }
 
 void setGuardState(String guardState) {
     Long execTime = now()
+    String meth = "setGuardState"
     if(!isAuthValid("setGuardState")) { return }
     if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
     guardState = guardStateConv(guardState)
@@ -3069,20 +3094,22 @@ void setGuardState(String guardState) {
             timeout: 20,
             body: body
         ]
-        logTrace("setGuardState")
+        logTrace(meth)
         httpPutJson(params) { response ->
-            if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            def resp = response?.data ?: null
-            if(resp && !resp.errors?.size() && resp.controlResponses && ((List)resp.controlResponses)[0] && ((List)resp.controlResponses)[0].code && (String)((List)resp.controlResponses)[0].code == "SUCCESS") {
-                logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
-                state.alexaGuardState = guardState
-                updTsVal("lastGuardStateUpdDt")
-                updGuardActionTrig()
-            } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
+            if(response?.status != 200) logWarn("${response?.status} $params $meth")
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                def resp = response?.data ?: null
+                if(resp && !resp.errors?.size() && resp.controlResponses && ((List)resp.controlResponses)[0] && ((List)resp.controlResponses)[0].code && (String)((List)resp.controlResponses)[0].code == "SUCCESS") {
+                    logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
+                    state.alexaGuardState = guardState
+                    updTsVal("lastGuardStateUpdDt")
+                    updGuardActionTrig()
+                } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
+            }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "setGuardState", true)
+        respExceptionHandler(ex, meth, true)
     }
 }
 
@@ -3105,12 +3132,14 @@ private getAlexaSkills() {
         logTrace("getAlexaSkills")
         httpGet(params) { response->
             if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
+            if(response?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
             def respData = response?.data ?: null
             log.debug "respData: $respData"
             // log.debug respData[3]?.contents[3]?.contents?.products
 
             // updTsVal("skillDataUpdDt")
+        }
         }
     } catch (ex) {
         log.error "getAlexaSkills Exception: ${ex}"
@@ -3270,24 +3299,27 @@ void echoDevicesResponse(response, data) {
     ]
     try {
         if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-        // log.debug "json response is: ${response.json}"
-        state.deviceRefreshInProgress=false
-        List eDevData = response?.json?.devices ?: []
-        Map echoDevices = [:]
-        if(eDevData.size()) {
-            eDevData.each { eDevice->
-                if (!((String)eDevice.deviceType in ignoreTypes) && !((String)eDevice.accountName)?.startsWith("This Device")) {
-                    removeKeys.each { rk-> eDevice.remove(rk) }
-                    eDevice.capabilities = eDevice.capabilities?.findAll { !(it in removeCaps) }?.collect { it as String }
-                    //if (eDevice.deviceOwnerCustomerId != null) { state.deviceOwnerCustomerId = eDevice.deviceOwnerCustomerId }
-                    echoDevices[(String)eDevice.serialNumber] = eDevice
+        if(response?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            // log.debug "json response is: ${response.json}"
+            state.deviceRefreshInProgress=false
+            List eDevData = response?.json?.devices ?: []
+            Map echoDevices = [:]
+            if(eDevData.size()) {
+                eDevData.each { eDevice->
+                    if (!((String)eDevice.deviceType in ignoreTypes) && !((String)eDevice.accountName)?.startsWith("This Device")) {
+                        removeKeys.each { rk-> eDevice.remove(rk) }
+                        eDevice.capabilities = eDevice.capabilities?.findAll { !(it in removeCaps) }?.collect { it as String }
+                        //if (eDevice.deviceOwnerCustomerId != null) { state.deviceOwnerCustomerId = eDevice.deviceOwnerCustomerId }
+                        echoDevices[(String)eDevice.serialNumber] = eDevice
+                    }
                 }
             }
+            // log.debug "echoDevices: ${echoDevices}"
+            Map musicProvs = (Map)state.musicProviders ?: getMusicProviders(true)
+            receiveEventData([echoDevices: echoDevices, musicProviders: musicProvs, execDt: data?.execDt], "Groovy")
         }
-        // log.debug "echoDevices: ${echoDevices}"
-        Map musicProvs = (Map)state.musicProviders ?: getMusicProviders(true)
-        receiveEventData([echoDevices: echoDevices, musicProviders: musicProvs, execDt: data?.execDt], "Groovy")
+
     } catch (ex) {
         respExceptionHandler(ex, "echoDevicesResponse")
     }
@@ -3611,39 +3643,38 @@ void execAsyncCmd(String method, String callbackHandler, Map params, Map otherDa
 }
 
 void sendAmazonCommand(String method, Map params, Map otherData=null) {
+    String meth = "sendAmazonCommand ${method} ${params} ${otherData?.cmdDesc}"
     try {
         def rData = null
         def rStatus = null
+        logTrace(meth)
         switch(method) {
             case "POST":
                 httpPostJson(params) { response->
-                    if(response?.status != 200) logWarn("${response?.status} $params")
-                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    if(rStatus == 200) { rData = response?.data ?: null }
                 }
                 break
             case "PUT":
                 if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
-                    if(response?.status != 200) logWarn("${response?.status} $params")
-                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    if(rStatus == 200) { rData = response?.data ?: null }
                 }
                 break
             case "DELETE":
                 httpDelete(params) { response->
-                    if(response?.status != 200) logWarn("${response?.status} $params")
-                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    if(rStatus == 200) { rData = response?.data ?: null }
                 }
                 break
         }
-        logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : sBLANK} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        if(rStatus == 200) {
+            updTsVal("lastSpokeToAmazon")
+            logDebug("${meth} | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : sBLANK} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        } else logWarn("${meth} | Status: ${rStatus} FAILED")
     } catch (ex) {
-        respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
+        respExceptionHandler(ex, meth, true)
     }
 }
 
