@@ -690,37 +690,32 @@ def trigNonNumSect(String inType, String capType, String sectStr, String devTitl
                 extraMeth(inType, extraStr)
 
                 if(!isTierAction() && (String)settings."trig_${inType}_cmd" in cmdAfterOpts) {
-                    // if(!(Boolean)settings."trig_${inType}_once" && !(Integer)settings."trig_${inType}_wait") {
-                        input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        Integer aft = (Integer)settings."trig_${inType}_after"
-                        if(aft != null) {
-                            if(aft < 0 || aft > 7200) { settingUpdate("trig_${inType}_after", 10) }
-                            input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                            Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
-                            if(aftR != null) {
-                                input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                                if(aftR < 10 || aftR > 7200) { settingUpdate("trig_${inType}_after_repeat", 10) }
-                                triggerMsgInput(inType)
-                            }
-                            Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
-                            if(aftRC != null) {
-                                if(aftRC < 2 || aftRC > 20000) { settingUpdate("trig_${inType}_after_repeat_cnt", 120) }
-                                // settingRemove("trig_${inType}_once")
-                                // settingRemove("trig_${inType}_wait")
-                            }
-
-                        } else {
-                            settingRemove("trig_${inType}_after_repeat")
-                            settingRemove("trig_${inType}_after_repeat_cnt")
-                            settingRemove("trig_${inType}_after_repeat_txt")
+                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                    Integer aft = (Integer)settings."trig_${inType}_after"
+                    if(aft != null) {
+                        if(aft < 0 || aft > 7200) { settingUpdate("trig_${inType}_after", 10) }
+                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                        Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
+                        if(aftR != null) {
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                            if(aftR < 10 || aftR > 7200) { settingUpdate("trig_${inType}_after_repeat", 10) }
+                            // triggerMsgInput(inType)
                         }
+                        Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
+                        if(aftRC != null) {
+                            if(aftRC < 2 || aftRC > 20000) { settingUpdate("trig_${inType}_after_repeat_cnt", 120) }
+                            // settingRemove("trig_${inType}_once")
+                            // settingRemove("trig_${inType}_wait")
+                        }
+                    } else {
+                        settingRemove("trig_${inType}_after_repeat")
+                        settingRemove("trig_${inType}_after_repeat_cnt")
+                        settingRemove("trig_${inType}_after_repeat_txt")
                     }
-                // }
-                // if((Integer)settings."trig_${inType}_after" == null) {
-                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                    triggerMsgInput(inType)
-                // }
+                }
+                input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                triggerMsgInput(inType)
             }
         }
     }
@@ -771,35 +766,32 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                             input "trig_${inType}_avg", sBOOL, title: spanSmBld("Use the average of all selected device values?", sNULL, sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                    // if(!(Boolean)settings."trig_${inType}_once" && !(Integer)settings."trig_${inType}_wait") {
-                        input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) seconds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        Integer aft = (Integer)settings."trig_${inType}_after"
-                        if(aft != null) {
-                            if(aft < 0 || aft > 7200) { settingUpdate("trig_${inType}_after", 10) }
-                            input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                            Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
-                            if(aftR != null) {
-                                input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                                if(aftR < 10 || aftR > 7200) { settingUpdate("trig_${inType}_after_repeat", 10) }
-                                // triggerMsgInput(inType)
-                            }
-                            Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
-                            if(aftRC != null) {
-                                if(aftRC < 2 || aftRC > 20000) { settingUpdate("trig_${inType}_after_repeat_cnt", 120) }
-                                // settingRemove("trig_${inType}_once")
-                                // settingRemove("trig_${inType}_wait")
-                            }
-                        } else {
-                            settingRemove("trig_${inType}_after_repeat")
-                            settingRemove("trig_${inType}_after_repeat_cnt")
-                            settingRemove("trig_${inType}_after_repeat_txt")
+                    
+                    input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) s econds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                    Integer aft = (Integer)settings."trig_${inType}_after"
+                    if(aft != null) {
+                        if(aft < 0 || aft > 7200) { settingUpdate("trig_${inType}_after", 10) }
+                        input "trig_${inType}_after_repeat", sNUMBER, title: spanSmBld("Repeat every (xx) (10..7200) seconds until it's not ${settings."trig_${inType}_cmd"}?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
+                        Integer aftR = (Integer)settings."trig_${inType}_after_repeat"
+                        if(aftR != null) {
+                            input "trig_${inType}_after_repeat_cnt", sNUMBER, title: spanSmBld("Only repeat this many times (2..20000)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                            if(aftR < 10 || aftR > 7200) { settingUpdate("trig_${inType}_after_repeat", 10) }
+                            // triggerMsgInput(inType)
                         }
-                    // }
-                    // if((Integer)settings."trig_${inType}_after" == null) {
-                        input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
-                        input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput(inType)
-                    // }
+                        Integer aftRC = (Integer)settings."trig_${inType}_after_repeat_cnt"
+                        if(aftRC != null) {
+                            if(aftRC < 2 || aftRC > 20000) { settingUpdate("trig_${inType}_after_repeat_cnt", 120) }
+                            // settingRemove("trig_${inType}_once")
+                            // settingRemove("trig_${inType}_wait")
+                        }
+                    } else {
+                        settingRemove("trig_${inType}_after_repeat")
+                        settingRemove("trig_${inType}_after_repeat_cnt")
+                        settingRemove("trig_${inType}_after_repeat_txt")
+                    }
+                    input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day? (per type: ${inType})", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                    input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
+                    triggerMsgInput(inType)
                 }
             }
         }
@@ -815,16 +807,31 @@ def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemC
         str += spanSmBr("   ${sBULLET} ${strUnder("3")}: Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)")
         paragraph divSm(str, sCLRGRY, "info")
         //Custom Text Options
-        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(),
-                description: ((String)settings."trig_${inType}_txt" ? spanSm((String)settings."trig_${inType}_txt", sCLR4D9) : sBLANK) + ' ' + spanSm("Open Response Designer...", sCLRGRY)
-    //    if(showRepInputs) {
-            if((Integer)settings."trig_${inType}_after_repeat") {
-                //Custom Repeat Text Options
-                paragraph pTS("Description:\nAdd custom responses for the ${inType} events that are repeated.", getAppImg("info"), false, sCLR4D9)
-                href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses", sNULL, sTEXT) + optPrefix(),
-                        description: (String)settings."trig_${inType}_after_repeat_txt" ?: spanSm("Open Response Designer...", sCLRGRY), submitOnChange: true
+        Integer resp1cnt = 1
+        String desc1 = sBLANK
+        List resps1 = settings."trig_${inType}_txt"?.split(";") ?: []
+        if(resps1.size() > 1) {
+            resps1.each { i-> desc1 += spanSmBld("(${resp1cnt})") + sSPACE + spanSmBr(i, sCLR4D9); resp1cnt++; }
+        } else {
+            desc1 += spanSmBr((String)settings."trig_${inType}_txt" ?: sBLANK, sCLR4D9) 
+        }
+        desc1 += (String)settings."trig_${inType}_txt" ? lineBr() + spanSmBld("Edit in Response Designer...", sCLRGRY) : spanSm("Open Response Designer...", sCLRGRY)
+        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(), description: desc1, submitOnChange: true
+        
+        if((Integer)settings."trig_${inType}_after_repeat") {
+            //Custom Repeat Text Options
+            paragraph divSm(spanSmBldBr("Repeat Response Options", sCLR4D9) + spanSm("Add custom responses for the ${inType} events that are repeated.", sCLRGRY), sNULL, getAppImg("info"))
+            Integer resp2cnt = 1
+            String desc2 = sBLANK
+            List resps2 = settings."trig_${inType}_after_repeat_txt"?.split(";") ?: []
+            if(resps2.size() > 1) {
+                resps2.each { i-> desc2 += spanSmBld("(${resp2cnt})") + sSPACE + spanSmBr(i, sCLR4D9); resp2cnt++; }
+            } else {
+                desc2 += spanSmBr((String)settings."trig_${inType}_after_repeat_txt" ?: sBLANK, sCLR4D9) 
             }
-     //   }
+            desc2 += (String)settings."trig_${inType}_after_repeat_txt" ? lineBr() + spanSmBld("Edit in Response Designer...", sCLRGRY) : spanSm("Open Response Designer...", sCLRGRY)
+            href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses", sTEXT) + optPrefix(), description: desc2, submitOnChange: true
+        }
     }
 }
 
