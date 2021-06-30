@@ -21,7 +21,7 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = '4.1.9.0'
-@Field static final String devModifiedFLD = '2021-06-30'
+//@Field static final String devModifiedFLD = '2021-06-30'
 //@Field static final String branchFLD      = 'master'
 //@Field static final String platformFLD    = 'Hubitat'
 //@Field static final Boolean betaFLD       = false
@@ -29,16 +29,16 @@ import groovy.transform.Field
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
-@Field static final String sMEDIUM        = 'medium'
-@Field static final String sSMALL         = 'small'
-@Field static final String sCLR4D9        = '#2784D9'
+//@Field static final String sMEDIUM        = 'medium'
+//@Field static final String sSMALL         = 'small'
+//@Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
-@Field static final String sCLRRED2       = '#cc2d3b'
+//@Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-@Field static final String sCLRGRN        = 'green'
-@Field static final String sCLRGRN2       = '#43d843'
+//@Field static final String sCLRGRN        = 'green'
+//@Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
-@Field static final String sAPPJSON       = 'application/json'
+//@Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String,Map> historyMapFLD = [:]
@@ -336,7 +336,7 @@ void parseIncomingMessage(String data) {
                     message.content.timestampINI = readHex(dStr, idx, 18)
                     idx += 19 // 18 + delimiter;
                     message.content.timestampACK = readHex(dStr, idx, 18)
-                    idx += 19 // 18 + delimiter;
+                    //idx += 19 // 18 + delimiter;
                     // log.debug "message.content: ${message?.content}"
                     state.wsAckData = message.content
                     logInfo("WebSocket Connection Established...")
@@ -512,7 +512,7 @@ String encodeGWHandshake() {
         msg += ' END FABE'
         // log.debug "msg: ${msg}"
         byte[] buffer = msg?.getBytes("ASCII")
-        def checksum = rfc1071Checksum(msg, idx1, idx2)
+        Long checksum = rfc1071Checksum(msg, idx1, idx2)
         byte [] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
         return new String(buffer)
@@ -531,7 +531,7 @@ String encodeGWRegister() {
         msg += '0x00000109 ' // length content
         msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE'
         byte[] buffer = msg?.getBytes("ASCII")
-        def checksum = rfc1071Checksum(msg, idx1, idx2)
+        Long checksum = rfc1071Checksum(msg, idx1, idx2)
         byte[] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
         String out = new String(buffer)
@@ -553,7 +553,7 @@ String encodePing() {
     String header = 'PIN'
     String payload = 'Regular'
     byte[] n = new byte[header?.length() + 4 + 8 + 4 + (2 * payload?.length())] // Creates empty byte array with size of 98
-    Integer idx = 0
+    //Integer idx = 0
     byte[] u = header?.getBytes("UTF-8")
     n = copyArrRange(n, 0, u)
     Integer l = 0
@@ -569,7 +569,7 @@ String encodePing() {
     def buf2End = "FABE"?.getBytes("ASCII")
     Integer buf2EndPos = msg?.length() + n?.size()
     buffer = copyArrRange(buffer, buf2EndPos, buf2End)
-    def checksum = rfc1071Checksum(buffer, idx1, idx2)
+    Long checksum = rfc1071Checksum(buffer, idx1, idx2)
     byte[] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
     buffer = copyArrRange(buffer, 39, checksumBuf)
     String out = new String(buffer)
@@ -580,7 +580,7 @@ String encodePing() {
 
 def encode(arr, b, Integer pos, Integer len) {
     try {
-        def u = new byte[len]
+        byte[] u = new byte[len]
         for (def c = 0; c < len; c++) { u[c] = b >> ((8 * (len - 1 - c)) & 31) & 255 }
         return copyArrRange(arr, pos, u)
     } catch (ex) {
@@ -589,29 +589,29 @@ def encode(arr, b, Integer pos, Integer len) {
     }
 }
 
-def encodePayload(arr, String pay, Integer pos, Integer len) {
+byte[] encodePayload(arr, String pay, Integer pos, Integer len) {
     byte[] u = new byte[len*2]
     for (Integer q = 0; q < pay?.length(); q++) { u[q * 2] = 0; u[(q * 2) + 1] = pay?.charAt(q) }
     // log.debug "u: $u"
     return copyArrRange(arr, pos, u)
 }
 
-def rfc1071Checksum(a, Integer f, Integer k) {
+Long rfc1071Checksum(aa, Integer f, Integer k) {
     if (k < f) logError("Invalid checksum exclusion window!")
-    if(a instanceof String) { a = a?.getBytes("UTF-8") }
-    def h = 0
-    def l = 0
-    def t = 0
+    byte[] a = aa instanceof String ? aa?.getBytes("UTF-8") : aa
+    Integer h = 0
+    Long l = 0
+    Integer t
     for (Integer e = 0; e < a?.size(); e++) {
-        if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t); h += b(l, 32); l = c(l & 4294967295) }
+        if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t.toLong()); h += b(l, 32); l = c(l & 4294967295L) }
         else { e = k - 1 }
     }
-    for (; h>0;) { l += h; h = b(l, 32); l &= 4294967295 }
+    for (; h>0;) { l += h; h = b(l, 32); l &= 4294967295L }
     return c(l)
 }
 
-def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b-- }; return (a instanceof Double) ? a?.toInteger() : a }
-static def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
+static Integer b(Long a, Integer b) { Double aa = c(a).toDouble(); for (; 0 != b && 0.0D != a;) { aa = Math.floor(aa / 2.0D); b-- }; return aa?.toInteger() }
+static Long c(Long a) { return (0L > a) ? (4294967295L + a + 1L) : a }
 
 byte[] copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc }
@@ -729,7 +729,7 @@ public clearLogHistory() {
     mb()
 }
 
-String getObjType(obj) {
+static String getObjType(obj) {
     if(obj instanceof String) {return "String"}
         else if(obj instanceof GString) {return "GString"}
 	else if(obj instanceof Map) {return "Map"}
