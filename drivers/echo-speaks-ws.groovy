@@ -205,26 +205,31 @@ def webSocketStatus(String status) {
     }
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend() {
     sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
     logTrace("Gateway Handshake Message Sent (Step 1)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend1() {
     sendWsMsg( strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""") )
     logTrace("Gateway Handshake Message Sent (Step 2A)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend2() {
     sendWsMsg( strToHex(encodeGWHandshake()) )
     logTrace("Gateway Handshake Message Sent (Step 2B)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend3() {
     sendWsMsg( strToHex(encodeGWRegister()) )
     logTrace("Gateway Registration Message Sent (Step 3)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend4() {
     sendWsMsg( strToHex(encodePing()) )
     logTrace("Encoded Ping Message Sent (Step 4)")
@@ -255,7 +260,7 @@ def readHex(String str, Integer ind, Integer len, Boolean logs=false) {
     def res
     try {
         res = Integer.parseInt(str as String, 16)
-    } catch(ex) {
+    } catch(ignored) {
         res = new BigInteger(str as String, 16)
     }
     if(logs) log.debug "readHex(ind: $ind, len: $len): ${res}"
@@ -293,7 +298,7 @@ void parseIncomingMessage(String data) {
                 try {
                     message.content = parseJson(message.content?.toString())
                     // log.debug "TUNE: ${message?.content}"
-                } catch (e) {}
+                } catch (ignored) {}
             }
         } else if ((String)message.service == 'FABE') {
             message.messageType = readString(dStr, idx, 3)
@@ -405,18 +410,21 @@ void dumpMsg(Map message) {
     logDebug("Service: (${message.service}) | Type: (${message.messageType}) | Channel: (${message.channel}) | contentMsgType: (${message.content?.messageType})")
 }
 
-private commandEvtHandler(msg) {
+private commandEvtHandler(mymsg) {
+    Map msg = mymsg
     Boolean sendEvt = false
-    Map evt = [:]
-    evt.id = msg?.payload?.dopplerId?.deviceSerialNumber ?: null
-    evt.all = false
-    evt.type = msg?.command
-    evt.attributes = [:]
-    evt.triggers = []
+    String cmd = (String)msg?.command
+    Map evt = [
+        id: msg?.payload?.dopplerId?.deviceSerialNumber ?: null,
+        all: false,
+        type:  cmd,
+        attributes: [:],
+        triggers: []
+    ]
 
-    if(msg && msg.command && msg.payload) {
-        logTrace("Command: ${msg.command} | Payload: ${msg.payload}")
-        switch((String)msg.command) {
+    if(msg && cmd && msg.payload) {
+        logTrace("Command: ${cmd} | Payload: ${msg.payload}")
+        switch(cmd) {
             case "PUSH_EQUALIZER_STATE_CHANGE":
                 // Black hole of unwanted events.
                 break
@@ -428,12 +436,12 @@ private commandEvtHandler(msg) {
                 evt.attributes.mute = msg.payload.isMuted == true ? "muted" : "unmuted"
                 break
             case "PUSH_BLUETOOTH_STATE_CHANGE":
-                switch(msg.payload.bluetoothEvent) {
+                switch((String)msg.payload.bluetoothEvent) {
                     case "DEVICE_DISCONNECTED":
                     case "DEVICE_CONNECTED":
                         if(msg.payload.bluetoothEventSuccess == true) {
                             sendEvt = true
-                            if(msg.payload.bluetoothEvent == "DEVICE_DISCONNECTED") { evt.attributes?.btDeviceConnected = null }
+                            if((String)msg.payload.bluetoothEvent == "DEVICE_DISCONNECTED") { evt.attributes?.btDeviceConnected = null }
                             evt.triggers.push("bluetooth")
                         }
                         break
@@ -455,8 +463,8 @@ private commandEvtHandler(msg) {
                 break
             case "PUSH_DOPPLER_CONNECTION_CHANGE":
                 sendEvt = true
-                evt.attributes.onlineStatus = (msg.payload.dopplerConnectionState == "ONLINE") ? "online" : "offline"
-                evt.triggers.push(evt.attributes?.onlineStatus)
+                evt.attributes.onlineStatus = ((String)msg.payload.dopplerConnectionState == "ONLINE") ? "online" : "offline"
+                evt.triggers.push(evt.attributes.onlineStatus)
                 break
             case "PUSH_ACTIVITY":
                 List keys = msg.payload?.key?.entryId?.tokenize("#")
@@ -602,8 +610,8 @@ def rfc1071Checksum(a, Integer f, Integer k) {
     return c(l)
 }
 
-def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b--; }; return (a instanceof Double) ? a?.toInteger() : a }
-def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
+def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b-- }; return (a instanceof Double) ? a?.toInteger() : a }
+static def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
 
 byte[] copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc }
@@ -612,7 +620,7 @@ byte[] copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     return arrSrc
 }
 
-String encodeNumber(val, len=null) {
+static String encodeNumber(val, len=null) {
     if (!len) len = 8
     String str = new BigInteger(val?.toString())?.toString(16)
     while (str.length() < len) { str = "0"+str }
@@ -634,10 +642,11 @@ String generateUUID() {
     return res
 }
 
-Integer toUInt(byte x) { return ((int) x) & 0xff }
+static Integer toUInt(byte x) { return ((int) x) & 0xff }
 
-String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))) }
-String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
+static String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))) }
+
+static String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
 
 String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : sNULL }
 //String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
@@ -645,13 +654,13 @@ String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.co
 Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
-Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
+static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 Boolean minVersionFailed() {
     try {
-        Integer minDevVer = parent?.minVersions()["wsDevice"] ?: null
+        Integer minDevVer = (Integer)parent?.minVersions()["wsDevice"] ?: null
         return minDevVer != null && versionStr2Int(devVersion()) < minDevVer
-    } catch (e) { 
+    } catch (ignored) {
         return false
     }
 }
@@ -699,7 +708,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
-        } catch (e) {
+        } catch (ignored) {
         }
         if(a) log.error logPrefix(a, sCLRRED)
     }
