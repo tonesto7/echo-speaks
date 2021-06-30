@@ -816,7 +816,7 @@ def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemC
             desc1 += spanSmBr((String)settings."trig_${inType}_txt" ?: sBLANK, sCLR4D9) 
         }
         desc1 += (String)settings."trig_${inType}_txt" ? lineBr() + spanSmBld("Edit in Response Designer...", sCLRGRY) : spanSm("Open Response Designer...", sCLRGRY)
-        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(), description: desc1, submitOnChange: true
+        href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(), description: desc1//, submitOnChange: true
         
         if((Integer)settings."trig_${inType}_after_repeat") {
             //Custom Repeat Text Options
@@ -830,7 +830,7 @@ def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemC
                 desc2 += spanSmBr((String)settings."trig_${inType}_after_repeat_txt" ?: sBLANK, sCLR4D9) 
             }
             desc2 += (String)settings."trig_${inType}_after_repeat_txt" ? lineBr() + spanSmBld("Edit in Response Designer...", sCLRGRY) : spanSm("Open Response Designer...", sCLRGRY)
-            href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses", sTEXT) + optPrefix(), description: desc2, submitOnChange: true
+            href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses", sTEXT) + optPrefix(), description: desc2//, submitOnChange: true
         }
     }
 }
