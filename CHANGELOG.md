@@ -1,3 +1,9 @@
+### _**Release (v4.1.9.0) - [June 30th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Bugfixes and Optimizations.
+- [UPDATE] Modified the Actions UI to show multiple responses in a cleaner fashion.
+
 ### _**Release (v4.1.8.0) - [June 22st, 2021]**_
 
 #### _***All Apps and Devices***_
