@@ -21,24 +21,24 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = '4.1.9.0'
-//@Field static final String devModifiedFLD = '2021-06-30'
-//@Field static final String branchFLD      = 'master'
-//@Field static final String platformFLD    = 'Hubitat'
-//@Field static final Boolean betaFLD       = false
+// @Field static final String devModifiedFLD = '2021-07-01'
+// @Field static final String branchFLD      = 'master'
+// @Field static final String platformFLD    = 'Hubitat'
+// @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
-//@Field static final String sMEDIUM        = 'medium'
-//@Field static final String sSMALL         = 'small'
-//@Field static final String sCLR4D9        = '#2784D9'
+// @Field static final String sMEDIUM        = 'medium'
+// @Field static final String sSMALL         = 'small'
+// @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
-//@Field static final String sCLRRED2       = '#cc2d3b'
+// @Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-//@Field static final String sCLRGRN        = 'green'
-//@Field static final String sCLRGRN2       = '#43d843'
+// @Field static final String sCLRGRN        = 'green'
+// @Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
-//@Field static final String sAPPJSON       = 'application/json'
+// @Field static final String sAPPJSON       = 'application/json'
 
 // IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
 @Field volatile static Map<String,Map> historyMapFLD = [:]

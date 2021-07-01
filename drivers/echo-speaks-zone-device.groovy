@@ -18,24 +18,24 @@ import groovy.transform.Field
 
 // STATICALLY DEFINED VARIABLES
 @Field static final String devVersionFLD  = "4.1.9.0"
-@Field static final String devModifiedFLD = "2021-06-30"
-//@Field static final String branchFLD      = "master"
-//@Field static final String platformFLD    = "Hubitat"
-//@Field static final Boolean betaFLD       = false
+// @Field static final String devModifiedFLD = "2021-07-01"
+// @Field static final String branchFLD      = "master"
+// @Field static final String platformFLD    = "Hubitat"
+// @Field static final Boolean betaFLD       = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
 @Field static final String sTRUE          = 'true'
 @Field static final String sFALSE         = 'false'
-//@Field static final String sMEDIUM        = 'medium'
-//@Field static final String sSMALL         = 'small'
-//@Field static final String sCLR4D9        = '#2784D9'
+// @Field static final String sMEDIUM        = 'medium'
+// @Field static final String sSMALL         = 'small'
+// @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
-//@Field static final String sCLRRED2       = '#cc2d3b'
+// @Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-//@Field static final String sCLRGRN        = 'green'
-//@Field static final String sCLRGRN2       = '#43d843'
+// @Field static final String sCLRGRN        = 'green'
+// @Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
 @Field static final String sAPPJSON       = 'application/json'
 
@@ -56,9 +56,9 @@ metadata {
         capability "Refresh"
         capability "Sensor"
         capability "SpeechSynthesis"
-if(!isZone()) {
-        capability "SpeechRecognition"
-}
+        if(!isZone()) {
+            capability "SpeechRecognition"
+        }
         attribute "alarmVolume", "number"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaGuardStatus", "string"
@@ -97,10 +97,10 @@ if(!isZone()) {
         attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
         command "replayText"
-if(!isZone()) {
-        command "doNotDisturbOn"
-        command "doNotDisturbOff"
-}
+        if(!isZone()) {
+            command "doNotDisturbOn"
+            command "doNotDisturbOff"
+        }
         command "setAlarmVolume", [[name: "Alarm Volume*", type: "NUMBER", description: "Sets the devices Alarm notification volume"]]
         command "playWeather", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playSingASong", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -128,29 +128,29 @@ if(!isZone()) {
         command "stopAllDevices"
         command "noOp"
 
-if(!isZone()) {
-        command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-}
+        if(!isZone()) {
+            command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        }
         command "sendAlexaAppNotification", [ [name: "Notification Message*", type: "STRING", description: ""]]
-if(!isZone()) {
-        command "executeSequenceCommand", [[name: "Sequence Message Text*", type: "STRING", description: ""]]
-        command "executeRoutineId", [[name: "Routine ID*", type: "STRING", description: ""]]
-        command "createAlarm", [[name: "Alarm Label*", type: "STRING", description: "This is the title of the alarm"], [name: "Date*",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
-        command "createReminder", [[name: "Reminder Label*", type: "STRING", description: "This is the title of the reminder"], [name: "Date*", type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
-        // command "createReminderNew", ["string", "string", "string", "string", "string"]
-        command "removeNotification", [[name: "Notification ID to Remove*", type: "STRING", description: ""]]
-        // command "removeAllNotificationsByType", ["string"]
-        command "setWakeWord", [[name: "New Wake Word*", type: "STRING", description: ""]]
-        command "renameDevice", [[name: "New Device Name*", type: "STRING", description: ""]]
-}
+        if(!isZone()) {
+            command "executeSequenceCommand", [[name: "Sequence Message Text*", type: "STRING", description: ""]]
+            command "executeRoutineId", [[name: "Routine ID*", type: "STRING", description: ""]]
+            command "createAlarm", [[name: "Alarm Label*", type: "STRING", description: "This is the title of the alarm"], [name: "Date*",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
+            command "createReminder", [[name: "Reminder Label*", type: "STRING", description: "This is the title of the reminder"], [name: "Date*", type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
+            // command "createReminderNew", ["string", "string", "string", "string", "string"]
+            command "removeNotification", [[name: "Notification ID to Remove*", type: "STRING", description: ""]]
+            // command "removeAllNotificationsByType", ["string"]
+            command "setWakeWord", [[name: "New Wake Word*", type: "STRING", description: ""]]
+            command "renameDevice", [[name: "New Device Name*", type: "STRING", description: ""]]
+        }
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "togglePlayback"
@@ -162,13 +162,13 @@ if(!isZone()) {
 //        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""], volume, voice]
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
-if(!isZone()) {
-        command "getDeviceActivity"
-        command "getBluetoothDevices"
-        command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
-        command "disconnectBluetooth"
-        command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
-}
+        if(!isZone()) {
+            command "getDeviceActivity"
+            command "getBluetoothDevices"
+            command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
+            command "disconnectBluetooth"
+            command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
+        }
         command "parallelSpeak", [[name: "Message to Speak*", type: "STRING", description: ""]]
         command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
