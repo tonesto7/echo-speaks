@@ -15,37 +15,34 @@
  */
 
 import groovy.transform.Field
-
-// STATICALLY DEFINED VARIABLES
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
 @Field static final String devVersionFLD  = "4.1.9.0"
-// @Field static final String devModifiedFLD = "2021-07-01"
-// @Field static final String branchFLD      = "master"
-// @Field static final String platformFLD    = "Hubitat"
-// @Field static final Boolean betaFLD       = false
+@Field static final String devModifiedFLD = "2021-07-06"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
 @Field static final String sTRUE          = 'true'
 @Field static final String sFALSE         = 'false'
-// @Field static final String sMEDIUM        = 'medium'
-// @Field static final String sSMALL         = 'small'
-// @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
-// @Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-// @Field static final String sCLRGRN        = 'green'
-// @Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
 @Field static final String sAPPJSON       = 'application/json'
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
 @Field volatile static Map<String,Map> historyMapFLD = [:]
 @Field volatile static Map<String,Map> cookieDataFLD = [:]
+// @Field volatile static String gitBranchFLD = null
 
-static String devVersion()  { return devVersionFLD }
-static Boolean isWS()       { return false }
-static Boolean isZone()     { return false }
+static String devVersion()   { return devVersionFLD }
+static String devVersionDt() { return devModifiedFLD }
+static Boolean isWS()        { return false }
+static Boolean isZone()      { return false }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
@@ -2778,26 +2775,26 @@ def sendTestAlexaMsg() {
 }
 
 @Field static final Map seqItemsAvailFLD = [
-        other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
-            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
-            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
-            "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
-            "sound": "message",
-            "date": null, "time": null,
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null, "voicecmdtxt": "voice command as text"
-        ],
-        music: [
-            "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
-            "spotify": "SPOTIFY", "tunein": "TUNEIN", "cloudplayer": "CLOUDPLAYER"
-        ],
-        musicAlt: [
-            "amazonmusic": "amazonMusic", "applemusic": "appleMusic", "iheartradio": "iHeartRadio", "pandora": "pandoraRadio",
-            "spotify": "spotify", "tunein": "tuneInRadio", "cloudplayer": "cloudPlayer"
-        ]
+    other: [
+        "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+        "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
+        "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
+        "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+        "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
+        "sound": "message",
+        "date": null, "time": null,
+        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+        "announcementall": "message", "pushnotification": "message", "email": null, "voicecmdtxt": "voice command as text"
+    ],
+    music: [
+        "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
+        "spotify": "SPOTIFY", "tunein": "TUNEIN", "cloudplayer": "CLOUDPLAYER"
+    ],
+    musicAlt: [
+        "amazonmusic": "amazonMusic", "applemusic": "appleMusic", "iheartradio": "iHeartRadio", "pandora": "pandoraRadio",
+        "spotify": "spotify", "tunein": "tuneInRadio", "cloudplayer": "cloudPlayer"
     ]
+]
 
 def executeSequenceCommand(String seqStr) {
     if(seqStr) {
@@ -2995,12 +2992,6 @@ private String getDtNow() {
     Date now = new Date()
     return formatDt(now, false)
 }
-/*
-private String getIsoDtNow() {
-    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf.format(new Date())
-}*/
 
 private String formatDt(Date dt, Boolean mdy = true) {
     String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
@@ -3008,17 +2999,6 @@ private String formatDt(Date dt, Boolean mdy = true) {
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf.format(dt)
 }
-/*
-private Long GetTimeDiffSeconds(String strtDate, String stpDate=sNULL) {
-    if((strtDate && !stpDate) || (strtDate && stpDate)) {
-        Date now = new Date()
-        String stopVal = stpDate ? stpDate : formatDt(now, false)
-        Long start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate).getTime()
-        Long stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal).getTime()
-        Long diff =  ((stop - start) / 1000L)
-        return diff
-    } else { return null }
-} */
 
 private String parseFmtDt(String parseFmt, String newFmt, String dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
@@ -3040,6 +3020,11 @@ private void logSpeech(String msg, Integer status, String error=sNULL) {
 
 // private Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
 // private Integer stateSizePerc() { return (Integer) (((stateSize() / 100000)*100).toDouble().round(0)) }
+
+// public String gitBranch() { 
+//     if(gitBranchFLD == sNULL) { gitBranchFLD = (String) parent?.gitBranch() }
+//     return (String)gitBranchFLD
+// }
 
 private void addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
     Boolean ssOk = true //(stateSizePerc() <= 70)

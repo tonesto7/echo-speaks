@@ -18,33 +18,29 @@
 // NOTICE: This device will not work on SmartThings
 
 import groovy.transform.Field
-
-// STATICALLY DEFINED VARIABLES
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
 @Field static final String devVersionFLD  = '4.1.9.0'
-// @Field static final String devModifiedFLD = '2021-07-01'
-// @Field static final String branchFLD      = 'master'
-// @Field static final String platformFLD    = 'Hubitat'
-// @Field static final Boolean betaFLD       = false
+@Field static final String devModifiedFLD = '2021-07-06'
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
-// @Field static final String sMEDIUM        = 'medium'
-// @Field static final String sSMALL         = 'small'
-// @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
-// @Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-// @Field static final String sCLRGRN        = 'green'
-// @Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
-// @Field static final String sAPPJSON       = 'application/json'
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
 @Field volatile static Map<String,Map> historyMapFLD = [:]
+// @Field volatile static String gitBranchFLD = null
 
-static String devVersion()  { return devVersionFLD }
-static Boolean isWS()       { return true }
+static String devVersion()   { return devVersionFLD }
+static String devVersionDt() { return devModifiedFLD }
+static Boolean isWS()        { return true }
 
 metadata {
     definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-ws.groovy") {
@@ -653,6 +649,11 @@ String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.co
 
 Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
+
+// public String gitBranch() { 
+//     if(gitBranchFLD == sNULL) { gitBranchFLD = (String) parent.gitBranch() }
+//     return (String)gitBranchFLD
+// }
 
 static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 

@@ -18,12 +18,11 @@
  */
 
 import groovy.transform.Field
-
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
 @Field static final String appVersionFLD  = '4.1.9.0'
-@Field static final String appModifiedFLD = '2021-07-01'
-@Field static final String platformFLD    = 'Hubitat'
-@Field static final String branchFLD      = 'master'
-//@Field static final Boolean betaFLD       = false
+@Field static final String appModifiedFLD = '2021-07-06'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -121,19 +120,30 @@ import groovy.transform.Field
 @Field static final List<String> lPRES         = ['present', 'not present']
 @Field static final List<String> lSEC          = ['disarmed', 'armed home', 'armed away', 'unknown']
 
-static String appVersion()  { return appVersionFLD }
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+// @Field volatile static String gitBranchFLD = null
+
+static String appVersion()    { return appVersionFLD }
+static String appVersionDt()  { return appModifiedFLD }
 
 definition(
-    name: 'Echo Speaks - Actions',
-    namespace: 'tonesto7',
-    author: 'Anthony Santilli',
-    description: 'DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your home.',
-    category: 'My Apps',
-    parent: 'tonesto7:Echo Speaks',
-    iconUrl: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
-    iconX2Url: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
-    iconX3Url: 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
-    importUrl  : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-actions.groovy')
+    name                : 'Echo Speaks - Actions',
+    namespace           : 'tonesto7',
+    author              : 'Anthony Santilli',
+    description         : 'DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create echo device actions based on device/location events in your home.',
+    category            : 'My Apps',
+    parent              : 'tonesto7:Echo Speaks',
+    iconUrl             : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
+    iconX2Url           : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
+    iconX3Url           : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_actions.png',
+    importUrl           : 'https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-actions.groovy',
+    documentationLink   : documentationUrl(),
+    videoLink           : videoUrl()
+)
 
 preferences {
     page(name: 'startPage')
@@ -5226,9 +5236,14 @@ static def getRandomItem(List items) {
     return list.get(new Random().nextInt(list.size()))
 }
 
+// public String gitBranch() { 
+//     if(gitBranchFLD == sNULL) { gitBranchFLD = parent?.gitBranch() }
+//     return (String)gitBranchFLD
+// }
+
 Boolean showChgLogOk() { return ((Boolean)state.isInstalled && !(Boolean)state.shownChgLog) }
 
-static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${branchFLD}/resources/icons/${imgName}.png" }
+static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
@@ -5286,6 +5301,9 @@ def appFooter() {
         paragraph "<div style='color:orange;text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target='_blank'><img width=120' height='120' src='https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png'></a><br><br>Please consider donating if you find this integration useful.</div>"
     }
 }
+
+static String documentationUrl() { return "https://tonesto7.github.io/echo-speaks-docs" }
+static String videoUrl() { return "https://www.youtube.com/watch?v=wQPPlTFaGb4&ab_channel=SimplySmart123%E2%9C%85" }
 
 static String bulletItem(String inStr, String strVal) { return "${inStr == sBLANK ? sBLANK : "\n"} \u2022 ${strVal}" }
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - ${strVal}" }
@@ -5383,7 +5401,6 @@ private void clearLogHistory() {
     releaseTheLock(sHMLF)
 } */
 
-@Field volatile static Map<String,Map> historyMapFLD = [:]
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
     String appId = app.getId()

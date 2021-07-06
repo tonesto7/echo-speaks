@@ -16,11 +16,13 @@
  */
 
 import groovy.transform.Field
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
 @Field static final String appVersionFLD  = '4.1.9.0'
-@Field static final String appModifiedFLD = '2021-07-01'
-@Field static final String branchFLD      = 'master'
+@Field static final String appModifiedFLD = '2021-07-06'
+@Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
-@Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
 @Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4190, wsDevice: 4190, actionApp: 4190, zoneApp: 4190, zoneEchoDevice: 4190, server: 270]  //These values define the minimum versions of code this app will work with.
 
@@ -70,29 +72,36 @@ import groovy.transform.Field
 @Field static final String sASTR          = 'a'
 @Field static final String sTSTR          = 't'
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field volatile static Map<String, Map> historyMapFLD        = [:]
-@Field volatile static Map<String, Map> cookieDataFLD        = [:]
-@Field volatile static Map<String, Map> echoDeviceMapFLD     = [:]
-@Field volatile static Map<String, Map> childDupMapFLD       = [:]
-//@Field static Map<String,          Map> guardDataFLD       = [:]
-@Field volatile static Map<String, Map> zoneStatusMapFLD     = [:]
-@Field volatile static Map<String, Map> bluetoothDataFLD     = [:]
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
+@Field volatile static Map<String, Map> historyMapFLD         = [:]
+@Field volatile static Map<String, Map> cookieDataFLD         = [:]
+@Field volatile static Map<String, Map> echoDeviceMapFLD      = [:]
+@Field volatile static Map<String, Map> childDupMapFLD        = [:]
+@Field volatile static Map<String,Map> workQMapFLD            = [:]
+//@Field static Map<String,          Map> guardDataFLD        = [:]
+@Field volatile static Map<String, Map> zoneStatusMapFLD      = [:]
+@Field volatile static Map<String, Map> bluetoothDataFLD      = [:]
 @Field volatile static Map<String, List> alexaRoutinesDataFLD = [:]
-@Field volatile static Map<String, Map> dndDataFLD           = [:]
-@Field volatile static Boolean guardArmPendingFLD            = false
+@Field volatile static Map<String, Map> dndDataFLD            = [:]
+@Field volatile static Boolean guardArmPendingFLD             = false
 
 definition(
-    name        : "Echo Speaks",
-    namespace   : "tonesto7",
-    author      : "Anthony Santilli",
-    description : "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
-    category    : "My Apps",
-    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks.groovy",
-    oauth       : true
+    name                : "Echo Speaks",
+    namespace           : "tonesto7",
+    author              : "Anthony Santilli",
+    description         : "Integrate your Amazon Echo devices into your Hubitat environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
+    category            : "My Apps",
+    iconUrl             : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX2Url           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX3Url           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    importUrl           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks.groovy",
+    oauth               : true,
+    singleInstance      : false,
+    documentationLink   : documentationUrl(),
+    videoLink           : videoUrl()
 )
 
 preferences {
@@ -213,7 +222,7 @@ def mainPage() {
             href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true))
         }
         section(sectHead("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inputFooter(sTTP, sCLRGRY, true)
+            href url: documentationUrl(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inputFooter(sTTP, sCLRGRY, true)
             href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: inputFooter(sTTM, sCLRGRY, true)
             href "changeLogPage", title: inTS1("View Change Logs", "change_log"), description: inputFooter(sTTVD, sCLRGRY, true)
         }
@@ -225,7 +234,7 @@ def mainPage() {
                 href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanSm("Test music queries", sCLRGRY) + inputFooter(sTTP, sCLRGRY)
             }
             section(sectHead("Donations:")) {
-                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
+                href url: textDonateUrl(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
             }
             section(sectHead("Remove Everything:")) {
                 href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
@@ -1415,7 +1424,7 @@ def donationPage() {
             str += spanSmBr("<br>If you are just not interested in donating please ignore this message")
             str += spanSm("<br>Thanks again for using Echo Speaks")
             paragraph divSm(str, sCLRRED)
-            href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open in browser", sCLRGRY, true)
+            href url: textDonateUrl(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open in browser", sCLRGRY, true)
         }
         updInstData("shownDonation", true)
     }
@@ -1793,9 +1802,9 @@ String getEnvParamsStr() {
 Boolean checkIfCodeUpdated() {
     Boolean codeUpdated = false
     List chgs = []
-    Map codeVer = (Map)state.codeVersions ?: [:]
-    //if(devModeFLD) logTrace("Code versions: ${codeVer}")
-    if(codeVer.mainApp != appVersionFLD) {
+    Map codeVerMap = (Map)state.codeVersions ?: [:]
+    //if(devModeFLD) logTrace("Code versions: ${codeVerMap}")
+    if(codeVerMap.mainApp != appVersionFLD) {
         checkVersionData(true)
         chgs.push("mainApp")
         state.pollBlocked = true
@@ -1813,7 +1822,7 @@ Boolean checkIfCodeUpdated() {
     List cDevs = getEsDevices()
     if(cDevs?.size()) {
         String ver = (String)cDevs[0]?.devVersion()
-        if((String)codeVer.echoDevice != ver) {
+        if((String)codeVerMap.echoDevice != ver) {
             chgs.push("echoDevice")
             state.pollBlocked = true
             updCodeVerMap("echoDevice", ver)
@@ -1823,7 +1832,7 @@ Boolean checkIfCodeUpdated() {
     def wsDev = getSocketDevice()
     if(wsDev) {
         String ver = (String)wsDev?.devVersion()
-        if((String)codeVer.wsDevice != ver) {
+        if((String)codeVerMap.wsDevice != ver) {
             chgs.push("wsDevice")
             updCodeVerMap("wsDevice", ver)
             codeUpdated = true
@@ -1832,7 +1841,7 @@ Boolean checkIfCodeUpdated() {
     List cApps = getActionApps()
     if(cApps?.size()) {
         String ver = (String)cApps[0]?.appVersion()
-        if((String)codeVer.actionApp != ver) {
+        if((String)codeVerMap.actionApp != ver) {
             chgs.push("actionApp")
             state.pollBlocked = true
             updCodeVerMap("actionApp", ver)
@@ -1842,7 +1851,7 @@ Boolean checkIfCodeUpdated() {
     List zApps = getZoneApps()
     if(zApps?.size()) {
         String ver = (String)zApps[0]?.appVersion()
-        if((String)codeVer.zoneApp != ver) {
+        if((String)codeVerMap.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
             // log.debug "zoneVer: ver"
@@ -1851,7 +1860,7 @@ Boolean checkIfCodeUpdated() {
         }
         ver = sNULL
         zApps.each { if(!ver) ver = it?.relayDevVersion() }
-        if(ver && (String)codeVer.zoneEchoDevice != ver) {
+        if(ver && (String)codeVerMap.zoneEchoDevice != ver) {
             chgs.push("zoneEchoDevice")
             state.pollBlocked = true
             updCodeVerMap("zoneEchoDevice", ver)
@@ -4009,8 +4018,6 @@ void addToQ(Map item) {
     if((Boolean)settings.logDebug) lmsg.each { String msg -> log.debug(msg) }
 }
 
-@Field volatile static Map<String,Map> workQMapFLD = [:]
-
 @SuppressWarnings('unused')
 void workQF() { workQ() }
 @SuppressWarnings('unused')
@@ -4039,7 +4046,7 @@ void workQ() {
 
     Boolean fnd = (eData.size() > 0)
 
-// if we are not doing anything grab next item off queue and start it;
+    // if we are not doing anything grab next item off queue and start it;
     if(!active && now() > nextOk && fnd) {
 
         List<String> lmsg = []
@@ -4056,7 +4063,7 @@ void workQ() {
         Map seqObj
         Integer mdelay = 0
 
-// lets try to join commands in single request to Alexa
+        // lets try to join commands in single request to Alexa
         while(eData.size()>0){
 
             Map item = (Map)eData[0]
@@ -4996,7 +5003,9 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
 
 Boolean childInstallOk() { return (Boolean)state.childInstallOkFlag }
 
-static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
+public String gitBranch() { return gitBranchFLD }
+
+static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
@@ -5061,16 +5070,17 @@ static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { re
 def appFooter() {
     section() {
         paragraph htmlLine()
-        paragraph """<div style='color:${sCLR4D9};text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+        paragraph """<div style='color:${sCLR4D9};text-align:center;'>Echo Speaks<br><a href='${textDonateUrl()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
     }
 }
 
 static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
 //static String zoneChildDeviceName(){ return "Echo Speaks - Zones" }
-static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
-static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
+static String documentationUrl() { return "https://tonesto7.github.io/echo-speaks-docs" }
+static String videoUrl() { return "https://www.youtube.com/watch?v=wQPPlTFaGb4&ab_channel=SimplySmart123%E2%9C%85" }
+static String textDonateUrl() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
+def updateDocsInput() { href url: documentationUrl(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
 
 String getAppEndpointUrl(subPath)   { return "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
 
@@ -5096,7 +5106,7 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() {
-    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.html", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
+    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/CHANGELOG.html", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
     return txt?.toString()
 }
 
@@ -5293,7 +5303,7 @@ void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHu
 
 void getConfigData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/appData.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/resources/appData.json",
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -5307,7 +5317,7 @@ void getConfigData() {
 
 void getNoticeData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/notices.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/notices.json",
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -6197,9 +6207,6 @@ def appInfoSect() {
         }
     }
 }
-/*
-String htmlRowVerStr(String name, String ver) {
-} */
 
 String UrlParamBuilder(Map items) {
     return items.collect { String k,String v -> "${k}=${URLEncoder.encode(v.toString())}" }?.join("&").toString()
@@ -6260,7 +6267,7 @@ def renderConfig() {
             </div>
             <div class="my-2 text-center">
                 <h5>2. Tap Button to deploy to Heroku</h5>
-                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/${betaFLD ? "develop" : "master"}${getEnvParamsStr()}">
+                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/master${getEnvParamsStr()}">
                     <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
                 </a>
             </div>
@@ -6971,11 +6978,6 @@ static List getAlarmModes() {
 String getAlarmSystemStatus() {
     return location?.hsmStatus ?: "disarmed"
 }
-/*
-def getShmIncidents() {
-    def incidentThreshold = now() - 604800000
-    return location?.activeIncidents?.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
-} */
 
 // This is incomplete (and currently unused)
 void setAlarmSystemMode(String mode) {
@@ -7202,12 +7204,11 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
         bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", /* "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", */ "trig_alarm", "trig_guard"],
+        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "trig_alarm", "trig_guard"],
         mode: ["cond_mode", "trig_mode"],
         number: [],
         text: ["appLbl"]
     ],
-//
     ends: [
         bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone"],
         enum: ["_cmd", "_type", "_routineExecuted",
@@ -7266,8 +7267,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
     ],
     dev: [
         _scene: "sceneActivator",
-//        _EchoDevices: "EchoSpeaksDevice",
-//        _EchoDeviceList: "EchoSpeaksDevice"
+        // _EchoDevices: "EchoSpeaksDevice",
+        // _EchoDeviceList: "EchoSpeaksDevice"
     ]
 ]
 
@@ -7462,8 +7463,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A3BW5ZVFHRCQPO" : [ c: [ "a", "t" ], i: "unknown", n: "BMW Alexa Integration" ],
         "A3BRT6REMPQWA8" : [ c: [ "a", "t" ], i: "sonos_generic", n: "Bose Home Speaker 450" ],
         "A2HZENIFNYTXZD" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal" ],
-        "A52ARKF0HM2T4"  : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal+" ],
-        
+        "A52ARKF0HM2T4"  : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal+" ],        
     ],
     families: [
         block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],

@@ -16,12 +16,11 @@
  */
 
 import groovy.transform.Field
-
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
 @Field static final String appVersionFLD  = "4.1.9.0"
-@Field static final String appModifiedFLD = "2021-07-01"
-@Field static final String branchFLD      = "master"
-@Field static final String platformFLD    = "Hubitat"
-@Field static final Boolean betaFLD       = false
+@Field static final String appModifiedFLD = "2021-07-06"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -65,22 +64,32 @@ import groovy.transform.Field
 @Field static final String sCHKBOX        = 'checkbox'
 @Field static final String sCOMMAND       = 'command'
 @Field static final String zoneHistFLD    = 'zoneHistory'
-
 @Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
 
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+// @Field volatile static String gitBranchFLD = null
+
 static String appVersion()  { return appVersionFLD }
+static String appVersionDt()  { return appModifiedFLD }
 
 definition(
-    name: "Echo Speaks - Zones",
-    namespace: "tonesto7",
-    author: "Anthony Santilli",
-    description: "DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create virtual broadcast zones based on your echo devices using device/location events to active the zone.",
-    category: "My Apps",
-    parent: "tonesto7:Echo Speaks",
-    iconUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
-    iconX2Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
-    iconX3Url: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
-    importUrl  : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-zones.groovy")
+    name                : "Echo Speaks - Zones",
+    namespace           : "tonesto7",
+    author              : "Anthony Santilli",
+    description         : "DO NOT INSTALL FROM MARKETPLACE\n\nAllows you to create virtual broadcast zones based on your echo devices using device/location events to active the zone.",
+    category            : "My Apps",
+    parent              : "tonesto7:Echo Speaks",
+    iconUrl             : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
+    iconX2Url           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
+    iconX3Url           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/es_groups.png",
+    importUrl           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-zones.groovy",
+    documentationLink   : documentationUrl(),
+    videoLink           : videoUrl()
+)
 
 preferences {
     page(name: "startPage")
@@ -1265,9 +1274,11 @@ Map getZoneDevices(String cmd=sNULL) {
         if(devInfo) {
             devObj?.push(devInfo)
             devIds.push(it?.getId())
-        } else logWarn("uh oh. did not get devinfo")
-//        devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String])
-//        devIds.push(it?.getId())
+        } else { 
+            logDebug("Uh Oh. did not get devinfo") 
+        }
+        // devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String])
+        // devIds.push(it?.getId())
     }
     return [devices: devices, devObj: devObj, devIds: devIds]//, jsonStr: new groovy.json.JsonOutput().toJson(devObj)]
 }
@@ -2113,6 +2124,11 @@ Boolean minVersionFailed() {
     }
 }
 
+// public String gitBranch() { 
+//     if(gitBranchFLD == sNULL) { gitBranchFLD = (String) parent?.gitBranch() }
+//     return (String)gitBranchFLD
+// }
+
 Boolean isActive() {
     Boolean st = (Boolean)state.zoneConditionsOk
     return st != null ? st : (Boolean)conditionStatus().ok
@@ -2120,7 +2136,10 @@ Boolean isActive() {
 
 Boolean isPaused(Boolean chkAll = false) { return (Boolean)settings.zonePause && (chkAll ? !((Boolean)state.dupPendingSetup == true) : true) }
 
-static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
+static String documentationUrl() { return "https://tonesto7.github.io/echo-speaks-docs" }
+static String videoUrl() { return "https://www.youtube.com/watch?v=wQPPlTFaGb4&ab_channel=SimplySmart123%E2%9C%85" }
+
+static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
@@ -2232,10 +2251,6 @@ private Map getLogHistory() {
 
 @SuppressWarnings('unused')
 private void clearHistory()  { historyMapFLD = [:]; mb() }
-
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATE)
-
-@Field volatile static Map<String,Map> historyMapFLD = [:]
 
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, List val) {
