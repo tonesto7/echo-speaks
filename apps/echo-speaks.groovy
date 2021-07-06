@@ -2730,9 +2730,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             }
         }
     } catch (ex) {
-//        if(ex?.message != "Bad Request") {
-            respExceptionHandler(ex, "getDeviceActivity")
-//        }
+        respExceptionHandler(ex, "getDeviceActivity")
         // log.error "getDeviceActivity error: ${ex.message}"
     }
     return null
@@ -3122,40 +3120,38 @@ void setGuardState(String guardState) {
     }
 }
 
-/*
-private getAlexaSkills() {
-    Long execDt = now()
-    if(!isAuthValid("getAlexaSkills") || !getCustomerData()) { return } // state.amazonCustomerData
-    if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
-    Map params = [
-        uri: "https://skills-store.${getAmazonDomain()}",
-        path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
-        headers: [
-            Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
-            Origin: getAmazonUrl()
-        ] + getReqHeaderMap(true),
-        contentType: sAPPJSON,
-        timeout: 20,
-    ]
-    try {
-        logTrace("getAlexaSkills")
-        httpGet(params) { response->
-            if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) {
-            updTsVal("lastSpokeToAmazon")
-            def respData = response?.data ?: null
-            log.debug "respData: $respData"
-            // log.debug respData[3]?.contents[3]?.contents?.products
+// private getAlexaSkills() {
+//     Long execDt = now()
+//     if(!isAuthValid("getAlexaSkills") || !getCustomerData()) { return } // state.amazonCustomerData
+//     if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
+//     Map params = [
+//         uri: "https://skills-store.${getAmazonDomain()}",
+//         path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
+//         headers: [
+//             Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
+//             Origin: getAmazonUrl()
+//         ] + getReqHeaderMap(true),
+//         contentType: sAPPJSON,
+//         timeout: 20,
+//     ]
+//     try {
+//         logTrace("getAlexaSkills")
+//         httpGet(params) { response->
+//             if(response?.status != 200) logWarn("${response?.status} $params")
+//             if(response?.status == 200) {
+//             updTsVal("lastSpokeToAmazon")
+//             def respData = response?.data ?: null
+//             log.debug "respData: $respData"
+//             // log.debug respData[3]?.contents[3]?.contents?.products
 
-            // updTsVal("skillDataUpdDt")
-        }
-        }
-    } catch (ex) {
-        log.error "getAlexaSkills Exception: ${ex}"
-        // respExceptionHandler(ex, "getAlexaSkills", true)
-    }
-}
-*/
+//             // updTsVal("skillDataUpdDt")
+//         }
+//         }
+//     } catch (ex) {
+//         log.error "getAlexaSkills Exception: ${ex}"
+//         // respExceptionHandler(ex, "getAlexaSkills", true)
+//     }
+// }
 
 void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAmazon=true, Boolean ignNullMsg=false) {
     String toMsg = "Amazon"
@@ -3170,12 +3166,11 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
     }
     if(ex instanceof groovyx.net.http.HttpResponseException ) {
         Integer sCode = ex?.getResponse()?.getStatus()
-//        def rData = ex?.getResponse()?.getData()
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
             if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
         } else if (sCode in [400, 429]) {
-            String respMsgLow = errMsg ? errpMsg.toLowerCase() : sNULL
+            String respMsgLow = errMsg ? errMsg.toLowerCase() : sNULL
             if((sCode in [400, 429]) && respMsgLow) { // && (respMsgLow in ["rate exceeded", "too many requests"])) {
                 switch(respMsgLow) {
                     case "rate exceeded":
@@ -3192,19 +3187,6 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
                         break
                 }
             }
-/*            switch(errMsg) {
-                case "Bad Request":
-                    logError("${mName} | Improperly formatted request sent to ${toMsg} | Msg: ${errMsg}")
-                    break
-                case "Rate Exceeded":
-                    logError("${mName} | ${toMsg} is currently rate-limiting your requests | Msg: ${errMsg}")
-                    break
-                default:
-                    logError("${mName} | 400 Error | Msg: ${errMsg}")
-                    break
-            }
-        } else if(sCode == 429) {
-            logWarn("${mName} | Too Many Requests Made to ${toMsg} | Msg: ${errMsg}") */
         } else {
             logError("${mName} | Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
