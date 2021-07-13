@@ -2475,7 +2475,7 @@ private getThermEvtHandlerName(String type) {
 private executeActTest() {
     logTrace("executeActTest STARTING")
     try {
-        if((String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sWEATH, "builtin", "calendar"]) {
+        if((String)settings.actionType in [sSPEAK, sSPEAKP, sSPEAKT, sSPEAKPT, sANN, sANNT, sWEATH, "builtin", "calendar"]) {
             Map evt = getRandomTrigEvt()
             if(!evt) logWarn("no random event found")
             else {
@@ -2530,52 +2530,57 @@ Map getRandomTrigEvt() {
     def trigItem = randItem ? (randItem instanceof String ? [displayName: null, id: null] :
             (trigItems?.size() ? trigItems?.find { it?.id?.toString() == randItem?.id?.toString() } : [displayName: null, id: null])) : null
     if(devModeFLD) log.debug("trig: ${trig} | trigItem: ${trigItem} | ${trigItem?.displayName} | ${trigItem?.id} | trigItems: ${trigItems}")
-    Boolean isC = (getTemperatureScale()=="C")
-    Map attVal = [
-        (sSWITCH): getRandomItem(lONOFF),
-        door: getRandomItem(lOPNCLS+["opening", "closing"]),
-        (sCONTACT): getRandomItem(lOPNCLS),
-        acceleration: getRandomItem(lACTINACT),
-        (sLOCK): getRandomItem(lLOCKUNL +["unlocked with timeout"]),
-        securityKeypad: getRandomItem(lSEC),
-        (sWATER): getRandomItem(lWETDRY),
-        presence: getRandomItem(lPRES),
-        (sMOTION): getRandomItem(lACTINACT),
-        (sVALVE): getRandomItem(lOPNCLS),
-        windowShade: getRandomItem(lOPNCLS+["opening", "closing"]),
-        (sPUSHED): getRandomItem([sPUSHED]),
-        (sRELEASED): getRandomItem([sRELEASED]),
-        (sHELD): getRandomItem([sHELD]),
-        (sDBLTAP): getRandomItem([sDBLTAP]),
-        smoke: getRandomItem(lDETECTCLR),
-        carbonMonoxide: getRandomItem(lDETECTCLR),
-        (sTEMP): isC ? getRandomItem(-1..29) : getRandomItem(30..80),
-        illuminance: getRandomItem(1..100),
-        (sHUMID): getRandomItem(1..100),
-        (sLEVEL): getRandomItem(1..100),
-        (sBATT): getRandomItem(1..100),
-        (sPOWER): getRandomItem(100..3000),
-        (sMODE): getRandomItem((List)location?.modes),
-        alarmSystemStatus: getRandomItem(getAlarmTrigOpts()?.collect {(String)it.key}),
-        guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
-        (sTHERMTEMP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
-        (sCOOLSP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
-        (sHEATSP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
-        thermostatMode: getRandomItem(getThermModeOpts()),
-        thermostatFanMode: getRandomItem(getThermFanOpts()),
-        thermostatOperatingState: getRandomItem(getThermOperStOpts()),
-    ]
-    Map evt = [ date: new Date(), device: [id: trigItem?.id?.toString() ?: null] ]
-    if(settings.enableWebCoRE && trig == sPISTNEXEC) {
-        attVal.webCoRE = sPISTNEXEC
-        trig = 'webCoRE'
-        trigItem.displayName = 'webcore piston executed'
-        String id = getRandomItem(getLocationPistons())
-        evt = evt + [ jsonData: [id: id, name: getPistonById(id) ] ]
-    }
-    if(attVal.containsKey(trig)) {
-        evt = evt + [ name: trig, displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig]]
-    } else evt = null
+    Map evt = [ date: new Date(), name: trig ]
+    if( !(trig in ['scheduled']) ) {
+        Boolean isC = (getTemperatureScale()=="C")
+        Map attVal = [
+            (sSWITCH): getRandomItem(lONOFF),
+            door: getRandomItem(lOPNCLS+["opening", "closing"]),
+            (sCONTACT): getRandomItem(lOPNCLS),
+            acceleration: getRandomItem(lACTINACT),
+            (sLOCK): getRandomItem(lLOCKUNL +["unlocked with timeout"]),
+            securityKeypad: getRandomItem(lSEC),
+            (sWATER): getRandomItem(lWETDRY),
+            presence: getRandomItem(lPRES),
+            (sMOTION): getRandomItem(lACTINACT),
+            (sVALVE): getRandomItem(lOPNCLS),
+            windowShade: getRandomItem(lOPNCLS+["opening", "closing"]),
+            (sPUSHED): getRandomItem([sPUSHED]),
+            (sRELEASED): getRandomItem([sRELEASED]),
+            (sHELD): getRandomItem([sHELD]),
+            (sDBLTAP): getRandomItem([sDBLTAP]),
+            smoke: getRandomItem(lDETECTCLR),
+            carbonMonoxide: getRandomItem(lDETECTCLR),
+            (sTEMP): isC ? getRandomItem(-1..29) : getRandomItem(30..80),
+            illuminance: getRandomItem(1..100),
+            (sHUMID): getRandomItem(1..100),
+            (sLEVEL): getRandomItem(1..100),
+            (sBATT): getRandomItem(1..100),
+            (sPOWER): getRandomItem(100..3000),
+            (sMODE): getRandomItem((List)location?.modes),
+            alarmSystemStatus: getRandomItem(getAlarmTrigOpts()?.collect {(String)it.key}),
+            guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
+            (sTHERMTEMP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
+            (sCOOLSP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
+            (sHEATSP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
+            thermostatMode: getRandomItem(getThermModeOpts()),
+            thermostatFanMode: getRandomItem(getThermFanOpts()),
+            thermostatOperatingState: getRandomItem(getThermOperStOpts()),
+        ]
+        if(settings.enableWebCoRE && trig == sPISTNEXEC) {
+            attVal.webCoRE = sPISTNEXEC
+            trig = 'webCoRE'
+            trigItem = [:]
+            trigItem.displayName = 'webcore piston executed'
+            String id = getRandomItem(getLocationPistons())
+            evt.name=trig
+            evt = evt + [ jsonData: [id: id, name: getPistonById(id) ] ]
+        }
+        if(attVal.containsKey(trig)) {
+            evt = evt + [ displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], device: [id: trigItem?.id?.toString() ?: null ] ]
+        } else evt = null
+    } else { evt.name='scheduled' }
+
     if(devModeFLD) log.debug "getRandomTrigEvt | trig: ${trig} | Evt: ${evt}"
     return evt
 }
@@ -2668,7 +2673,8 @@ def scheduleTrigEvt(evt=null) {
         state.schedTrigMap = sTrigMap
 
         releaseTheLock(sHMLF)
-        executeAction(evt, false, "scheduleTrigEvt", false, false)
+        eventCompletion(evt, "scheduled", false, null, "scheduleTrigEvt", evt?.value, (String)evt?.displayName)
+        //executeAction(evt, false, "scheduleTrigEvt", false, false)
     } else {
         releaseTheLock(sHMLF)
         logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
@@ -2710,7 +2716,8 @@ public guardEventHandler(String guardState) {
     def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
     logTrace("${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
     if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
-        executeAction(evt, false, "guardEventHandler", false, false)
+        eventCompletion(evt, "guard", false, null, "guardEventHandler", guardState, (String)evt?.displayName)
+        //executeAction(evt, false, "guardEventHandler", false, false)
     }
 }
 
