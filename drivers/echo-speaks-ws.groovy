@@ -22,7 +22,7 @@ import groovy.transform.Field
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String devVersionFLD  = '4.1.9.0'
-@Field static final String devModifiedFLD = '2021-07-06'
+@Field static final String devModifiedFLD = '2021-07-13'
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
