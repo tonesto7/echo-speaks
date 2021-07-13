@@ -16,13 +16,15 @@
  */
 
 import groovy.transform.Field
-@Field static final String appVersionFLD  = '4.1.8.0'
-@Field static final String appModifiedFLD = '2021-06-21'
-@Field static final String branchFLD      = 'master'
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
+@Field static final String appVersionFLD  = '4.1.9.0'
+@Field static final String appModifiedFLD = '2021-07-13'
+@Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
-@Field static final Boolean betaFLD       = false
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4180, wsDevice: 4180, actionApp: 4180, zoneApp: 4180, zoneEchoDevice: 4180, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4190, wsDevice: 4190, actionApp: 4190, zoneApp: 4190, zoneEchoDevice: 4190, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -70,29 +72,36 @@ import groovy.transform.Field
 @Field static final String sASTR          = 'a'
 @Field static final String sTSTR          = 't'
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
-@Field volatile static Map<String, Map> historyMapFLD        = [:]
-@Field volatile static Map<String, Map> cookieDataFLD        = [:]
-@Field volatile static Map<String, Map> echoDeviceMapFLD     = [:]
-@Field volatile static Map<String, Map> childDupMapFLD       = [:]
-//@Field static Map<String,          Map> guardDataFLD       = [:]
-@Field volatile static Map<String, Map> zoneStatusMapFLD     = [:]
-@Field volatile static Map<String, Map> bluetoothDataFLD     = [:]
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
+@Field volatile static Map<String, Map> historyMapFLD         = [:]
+@Field volatile static Map<String, Map> cookieDataFLD         = [:]
+@Field volatile static Map<String, Map> echoDeviceMapFLD      = [:]
+@Field volatile static Map<String, Map> childDupMapFLD        = [:]
+@Field volatile static Map<String,Map> workQMapFLD            = [:]
+//@Field static Map<String,          Map> guardDataFLD        = [:]
+@Field volatile static Map<String, Map> zoneStatusMapFLD      = [:]
+@Field volatile static Map<String, Map> bluetoothDataFLD      = [:]
 @Field volatile static Map<String, List> alexaRoutinesDataFLD = [:]
-@Field volatile static Map<String, Map> dndDataFLD           = [:]
-@Field volatile static Boolean guardArmPendingFLD            = false
+@Field volatile static Map<String, Map> dndDataFLD            = [:]
+@Field volatile static Boolean guardArmPendingFLD             = false
 
 definition(
-    name        : "Echo Speaks",
-    namespace   : "tonesto7",
-    author      : "Anthony Santilli",
-    description : "Integrate your Amazon Echo devices into your Smart Home environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
-    category    : "My Apps",
-    iconUrl     : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    iconX2Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    iconX3Url   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
-    importUrl   : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks.groovy",
-    oauth       : true
+    name                : "Echo Speaks",
+    namespace           : "tonesto7",
+    author              : "Anthony Santilli",
+    description         : "Integrate your Amazon Echo devices into your Hubitat environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
+    category            : "My Apps",
+    iconUrl             : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.1x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX2Url           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.2x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    iconX3Url           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/echo_speaks_3.3x${(Boolean)state.updateAvailable ? "_update" : sBLANK}.png",
+    importUrl           : "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks.groovy",
+    oauth               : true,
+    singleInstance      : false,
+    documentationLink   : documentationUrl(),
+    videoLink           : videoUrl()
 )
 
 preferences {
@@ -213,7 +222,7 @@ def mainPage() {
             href "notifPrefPage", title: inTS1("Manage Notifications", "notification2"), description: (t0 ? "${t0}${inputFooter(sTTM)}" : inputFooter(sTTC, sNULL, true))
         }
         section(sectHead("Documentation & Settings:")) {
-            href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inputFooter(sTTP, sCLRGRY, true)
+            href url: documentationUrl(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inputFooter(sTTP, sCLRGRY, true)
             href "settingsPage", title: inTS1("Manage Logging, and Metrics", sSETTINGS), description: inputFooter(sTTM, sCLRGRY, true)
             href "changeLogPage", title: inTS1("View Change Logs", "change_log"), description: inputFooter(sTTVD, sCLRGRY, true)
         }
@@ -225,7 +234,7 @@ def mainPage() {
                 href "musicSearchTestPage", title: inTS1("Music Search Tests", "music"), description: spanSm("Test music queries", sCLRGRY) + inputFooter(sTTP, sCLRGRY)
             }
             section(sectHead("Donations:")) {
-                href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
+                href url: textDonateUrl(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open browser", sCLRGRY, true)
             }
             section(sectHead("Remove Everything:")) {
                 href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
@@ -1294,9 +1303,11 @@ Map executeTuneInSearch(String query) {
     Map results = [:]
     try {
         httpGet(params) { resp ->
-            results = resp?.data ?: [:]
-            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
             if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status == 200) {
+                results = resp?.data ?: [:]
+                updTsVal("lastSpokeToAmazon")
+            }
         }
     } catch (ex) {
         respExceptionHandler(ex, "executeTuneInSearch")
@@ -1413,7 +1424,7 @@ def donationPage() {
             str += spanSmBr("<br>If you are just not interested in donating please ignore this message")
             str += spanSm("<br>Thanks again for using Echo Speaks")
             paragraph divSm(str, sCLRRED)
-            href url: textDonateLink(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open in browser", sCLRGRY, true)
+            href url: textDonateUrl(), style: sEXTNRL, required: false, title: inTS1("Donations", "donate"), description: inputFooter("Tap to open in browser", sCLRGRY, true)
         }
         updInstData("shownDonation", true)
     }
@@ -1791,9 +1802,9 @@ String getEnvParamsStr() {
 Boolean checkIfCodeUpdated() {
     Boolean codeUpdated = false
     List chgs = []
-    Map codeVer = (Map)state.codeVersions ?: [:]
-    //if(devModeFLD) logTrace("Code versions: ${codeVer}")
-    if(codeVer.mainApp != appVersionFLD) {
+    Map codeVerMap = (Map)state.codeVersions ?: [:]
+    //if(devModeFLD) logTrace("Code versions: ${codeVerMap}")
+    if(codeVerMap.mainApp != appVersionFLD) {
         checkVersionData(true)
         chgs.push("mainApp")
         state.pollBlocked = true
@@ -1811,7 +1822,7 @@ Boolean checkIfCodeUpdated() {
     List cDevs = getEsDevices()
     if(cDevs?.size()) {
         String ver = (String)cDevs[0]?.devVersion()
-        if((String)codeVer.echoDevice != ver) {
+        if((String)codeVerMap.echoDevice != ver) {
             chgs.push("echoDevice")
             state.pollBlocked = true
             updCodeVerMap("echoDevice", ver)
@@ -1821,7 +1832,7 @@ Boolean checkIfCodeUpdated() {
     def wsDev = getSocketDevice()
     if(wsDev) {
         String ver = (String)wsDev?.devVersion()
-        if((String)codeVer.wsDevice != ver) {
+        if((String)codeVerMap.wsDevice != ver) {
             chgs.push("wsDevice")
             updCodeVerMap("wsDevice", ver)
             codeUpdated = true
@@ -1830,7 +1841,7 @@ Boolean checkIfCodeUpdated() {
     List cApps = getActionApps()
     if(cApps?.size()) {
         String ver = (String)cApps[0]?.appVersion()
-        if((String)codeVer.actionApp != ver) {
+        if((String)codeVerMap.actionApp != ver) {
             chgs.push("actionApp")
             state.pollBlocked = true
             updCodeVerMap("actionApp", ver)
@@ -1840,7 +1851,7 @@ Boolean checkIfCodeUpdated() {
     List zApps = getZoneApps()
     if(zApps?.size()) {
         String ver = (String)zApps[0]?.appVersion()
-        if((String)codeVer.zoneApp != ver) {
+        if((String)codeVerMap.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
             // log.debug "zoneVer: ver"
@@ -1849,7 +1860,7 @@ Boolean checkIfCodeUpdated() {
         }
         ver = sNULL
         zApps.each { if(!ver) ver = it?.relayDevVersion() }
-        if(ver && (String)codeVer.zoneEchoDevice != ver) {
+        if(ver && (String)codeVerMap.zoneEchoDevice != ver) {
             chgs.push("zoneEchoDevice")
             state.pollBlocked = true
             updCodeVerMap("zoneEchoDevice", ver)
@@ -2153,15 +2164,17 @@ void runCookieRefresh() {
 
 def wakeupServerResp(response, data) {
     try {
+        if(response?.status != 200) { logWarn("wakeupServerResp: ${response?.status}") }
         def rData = response?.data ?: null
-        if(response?.status != 200) { logWarn("wakeupServerResp: ${response?.status} $data"); return }
-        updTsVal("lastServerWakeDt")
-        if (rData && rData == "OK") {
-            logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc}) ${data}")
-            if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
-            if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
-        } else {
-            logWarn("wakeupServerResp: noData ${rData} ${data}")
+        if(response?.status == 200) {
+            updTsVal("lastServerWakeDt")
+            if (rData && rData == "OK") {
+                logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc}) ${data}")
+                if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
+                if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
+            } else {
+                logWarn("wakeupServerResp: noData ${rData} ${data}")
+            }
         }
     } catch(ex) {
         logError("wakeupServerResp Server may be down / unreachable")
@@ -2189,7 +2202,7 @@ def cookieRefreshResp(response, data) {
     String cMsg
     try {
         if(response?.status != 200) {
-            cMsg = "Amazon Cookie Refresh FAILED ${response?.status} $data"
+            cMsg = "Amazon Cookie Refresh FAILED ${response?.status}"
             logWarn(cMsg)
         } else {
             Map rData = response?.data ? parseJson(response?.data?.toString()) : null
@@ -2252,10 +2265,10 @@ Boolean validateCookie(Boolean frc=false) {
     return valid
 }
 
-def validateCookieResp(resp, data){
+Boolean validateCookieResp(resp, data){
     try {
         String meth = 'validCookieResp'
-        if(resp?.status != 200) logWarn("${resp?.status} $meth")
+        if(resp?.status != 200) { logWarn("${resp?.status} $meth"); return false }
         if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
         def t0 = resp?.data
         Map aData
@@ -2296,15 +2309,17 @@ private getCustomerData(Boolean frc=false) {
         logTrace("getCustomerData")
         httpGet(params) { resp->
             if(resp?.status != 200) logWarn("${resp?.status} $params")
-            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-            Map pData = resp?.data ?: null
-            if (pData) {
-                Map d = [:]
-                if(pData?.marketPlaceLocale) { d["marketPlaceLocale"] = pData?.marketPlaceLocale }
-                if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
-                state.amazonCustomerData = d
-                updTsVal("lastCustDataUpdDt")
-                return state.amazonCustomerData
+            if(resp?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                Map pData = resp?.data ?: null
+                if (pData) {
+                    Map d = [:]
+                    if(pData?.marketPlaceLocale) { d["marketPlaceLocale"] = pData?.marketPlaceLocale }
+                    if(pData?.marketPlaceId) { d["marketPlaceId"] = pData?.marketPlaceId }
+                    state.amazonCustomerData = d
+                    updTsVal("lastCustDataUpdDt")
+                    return state.amazonCustomerData
+                }
             }
         }
     } catch(ex) {
@@ -2329,12 +2344,14 @@ private List getAllDeviceVolumes(Boolean frc=false) {
         logTrace("getAllDeviceVolumes")
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            Map rData = response?.data ?: [:]
-            // log.debug "Device Volumes: ${rData.volumes}"
-            state.deviceVolumes = rData && rData.volumes ? rData.volumes : []
-            volumes = rData && (List)rData.volumes ? (List)rData.volumes : []
-            updTsVal("deviceVolumeUpdDt")
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                Map rData = response?.data ?: [:]
+                // log.debug "Device Volumes: ${rData.volumes}"
+                state.deviceVolumes = rData && rData.volumes ? rData.volumes : []
+                volumes = rData && (List)rData.volumes ? (List)rData.volumes : []
+                updTsVal("deviceVolumeUpdDt")
+            }
         }
     } catch (ex) {
         respExceptionHandler(ex, "getAllDeviceVolumes", true)
@@ -2364,7 +2381,8 @@ private List getAllDeviceVolumes(Boolean frc=false) {
 //         logTrace("getCustomerHistoryRecords")
 //         httpGet(params) { response ->
 //             if(response?.status != 200) logWarn("${response?.status} $params")
-//             if(response?.status == 200) updTsVal("lastSpokeToAmazon")
+//             if(response?.status == 200) {
+//             updTsVal("lastSpokeToAmazon")
 //             def result = response?.data
 //             log.debug "result: $result"
 
@@ -2433,6 +2451,7 @@ private List getAllDeviceVolumes(Boolean frc=false) {
 //                     // if (o.description.summary || !options.filter) ret.push(o);
 //                 }
 //             }
+//             }
 //         }
 //     } catch (ex) {
 //         respExceptionHandler(ex, "getCustomerHistoryRecords", true)
@@ -2454,11 +2473,13 @@ private userCommIds() {
         logTrace("userCommIds")
         httpGet(params) { response->
             if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            List resp = response?.data ?: []
-            Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == sTRUE }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
-            state.accountCommIds = accItems
-            logDebug("Amazon User CommId's: (${accItems})")
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                List resp = response?.data ?: []
+                Map accItems = (resp?.size()) ? resp?.findAll { it?.signedInUser?.toString() == sTRUE }?.collectEntries { [(it?.commsId as String): [firstName: it?.firstName as String, signedInUser: it?.signedInUser, isChild: it?.isChild]]} : [:]
+                state.accountCommIds = accItems
+                logDebug("Amazon User CommId's: (${accItems})")
+            }
         }
     } catch(ex) {
         respExceptionHandler(ex, "userCommIds")
@@ -2504,16 +2525,18 @@ Map getMusicProviders(Boolean frc=false) {
         logTrace("getMusicProviders")
         httpGet(params) { response ->
             if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            List<Map> rData = (List<Map>)response?.data ?: []
-            if(rData.size()) {
-                rData.findAll { it?.availability == "AVAILABLE" }?.each { Map item->
-                    items[item.id] = (String)item.displayName
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                List<Map> rData = (List<Map>)response?.data ?: []
+                if(rData.size()) {
+                    rData.findAll { it?.availability == "AVAILABLE" }?.each { Map item->
+                        items[item.id] = (String)item.displayName
+                    }
                 }
+                // log.debug "Music Providers: ${items}"
+                state.musicProviders = items
+                updTsVal("musicProviderUpdDt")
             }
-            // log.debug "Music Providers: ${items}"
-            state.musicProviders = items
-            updTsVal("musicProviderUpdDt")
         }
     } catch (ex) {
         respExceptionHandler(ex, "getMusicProviders", true)
@@ -2621,16 +2644,18 @@ void getBluetoothResp(resp, data) {
     try {
         String meth = 'getBluetoothResp'
         if(resp?.status != 200) logWarn("${resp?.status} $meth")
-        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-        def t0 = resp?.data
-        Map btResp
-        if (t0 instanceof String) { btResp = parseJson(resp?.data) }
-        else { btResp = resp?.data }
-        // log.debug "Bluetooth Items: ${btResp}"
-        String myId=app.getId()
-        bluetoothDataFLD[myId] = btResp
-        bluetoothDataFLD=bluetoothDataFLD
-        updTsVal("bluetoothUpdDt")
+        if(resp?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            def t0 = resp?.data
+            Map btResp
+            if (t0 instanceof String) { btResp = parseJson(resp?.data) }
+            else { btResp = resp?.data }
+            // log.debug "Bluetooth Items: ${btResp}"
+            String myId=app.getId()
+            bluetoothDataFLD[myId] = btResp
+            bluetoothDataFLD=bluetoothDataFLD
+            updTsVal("bluetoothUpdDt")
+        }
     } catch(ex) {
         respExceptionHandler(ex, "getBluetoothResp", true)
         String myId=app.getId()
@@ -2705,9 +2730,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
             }
         }
     } catch (ex) {
-//        if(ex?.message != "Bad Request") {
-            respExceptionHandler(ex, "getDeviceActivity")
-//        }
+        respExceptionHandler(ex, "getDeviceActivity")
         // log.error "getDeviceActivity error: ${ex.message}"
     }
     return null
@@ -2717,26 +2740,29 @@ def getLastActResp(resp, data){
     try {
         String meth = 'getLastActResp'
         if(resp?.status != 200) logWarn("${resp?.status} $meth")
-        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-        def t0 = resp?.data
-        Map myResp
-        if (t0 instanceof String) { myResp = parseJson(t0) }
-        else { myResp = (Map)resp?.data }
-        if (myResp && myResp?.activities != null) {
-            Map lastCommand = myResp?.activities?.find {
-                (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
-                        it?.activityStatus?.equals("SUCCESS") &&
-                        (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
-                        it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
-            }
-            if (lastCommand) {
-                Map lastDescription = new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
-                def lastDevice = lastCommand.sourceDeviceIds?.get(0)
-                Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand?.creationTimestamp ]
+        if(resp?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            def t0 = resp?.data
+            Map myResp
+            if (t0 instanceof String) { myResp = parseJson(t0) }
+            else { myResp = (Map)resp?.data }
+            List<Map> act = (List<Map>)myResp?.activities
+            if (myResp && act != null) {
+                Map lastCommand = act.find {
+                    (it?.domainAttributes == null || it?.domainAttributes?.startsWith("{")) &&
+                            it?.activityStatus?.equals("SUCCESS") &&
+                            (it?.utteranceId?.startsWith(it?.sourceDeviceIds?.deviceType) || it?.utteranceId?.startsWith("Vox:")) &&
+                            it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
+                }
+                if (lastCommand) {
+                    Map lastDescription = (Map) new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
+                    def lastDevice = ((List)lastCommand.sourceDeviceIds)?.get(0)
+                    Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand.creationTimestamp ]
 
-                String appId=app.getId()
-                devActivityMapFLD[appId] = lastActData
-                devActivityMapFLD = devActivityMapFLD
+                    String appId=app.getId()
+                    devActivityMapFLD[appId] = lastActData
+                    devActivityMapFLD = devActivityMapFLD
+                }
             }
         }
         logDebug("getDeviceActivity: Process Time: (${(now()-(Long)data.dt)}ms)")
@@ -2775,15 +2801,17 @@ void DnDResp(resp, data){
     try {
         String meth = 'DnDResp'
         if(resp?.status != 200) logWarn("${resp?.status} $meth")
-        if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-        def t0 = resp?.data
-        def dndResp
-        if( t0 instanceof String)  dndResp = parseJson(resp?.data)
-        else dndResp = resp?.data
+        if(resp?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            def t0 = resp?.data
+            def dndResp
+            if( t0 instanceof String)  dndResp = parseJson(resp?.data)
+            else dndResp = resp?.data
 //            log.debug "DoNotDisturb Data: ${dndResp}"
-        String myId=app.getId()
-        dndDataFLD[myId] = (Map)dndResp
-        dndDataFLD=dndDataFLD
+            String myId=app.getId()
+            dndDataFLD[myId] = (Map)dndResp
+            dndDataFLD=dndDataFLD
+        }
     } catch(ex) {
         respExceptionHandler(ex, "DnDResp", true)
         String myId=app.getId()
@@ -2831,7 +2859,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
             logTrace("getAlexaRoutines($autoId)")
             httpGet(params) { response ->
                 if(response?.status != 200) logWarn("${response?.status} $params")
-                if(response?.status == 200){
+                if(response?.status == 200) {
                     rtList = response?.data ?: []
                     updTsVal("lastSpokeToAmazon")
                     updTsVal("alexaRoutinesUpdDt")
@@ -2942,38 +2970,40 @@ void checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
     Boolean guardSupported = false
     try {
-        if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-        Integer respLen = response?.data?.toString()?.length() ?: null
-        Map resp = response?.data ? parseJson(response?.data?.toString()) : null
-        if(resp && resp.networkDetail) {
-            Map details = parseJson(resp.networkDetail as String)
-            Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
-            if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
-                def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-                // could there be multiple Guards?
-                def guardKeys = locDetails.applianceDetails.applianceDetails.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-                if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
-                def guardData = locDetails.applianceDetails.applianceDetails[(String)guardKey?.key]
-                if(devModeFLD) logTrace("Guard: ${guardData}")
-                if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
-                //TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
-                    state.alexaGuardData = [
-                        entityId: guardData?.entityId,
-                        applianceId: guardData?.applianceId,
-                        friendlyName: guardData?.friendlyName,
-                    ]
-                    guardSupported = true
-                } // else { logDebug("checkGuardSupportResponse | No Guard Data Received Must Not Be Enabled...") }
-            }
-        } else { logError("checkGuardSupportResponse Error | No data received...") }
+        if(response?.status != 200) logWarn("${response?.status} checkGuardSupportResponse")
+        if(response?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            Integer respLen = response?.data?.toString()?.length() ?: null
+            Map resp = response?.data ? parseJson(response?.data?.toString()) : null
+            if(resp && resp.networkDetail) {
+                Map details = parseJson(resp.networkDetail as String)
+                Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
+                if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
+                    def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+                    // TODO could there be multiple Guards?
+                    def guardKeys = locDetails.applianceDetails.applianceDetails.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
+                    if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
+                    def guardData = locDetails.applianceDetails.applianceDetails[(String)guardKey?.key]
+                    if(devModeFLD) logTrace("Guard: ${guardData}")
+                    if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
+                        //TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
+                        state.alexaGuardData = [
+                                entityId: guardData?.entityId,
+                                applianceId: guardData?.applianceId,
+                                friendlyName: guardData?.friendlyName,
+                        ]
+                        guardSupported = true
+                    } // else { logDebug("checkGuardSupportResponse | No Guard Data Received Must Not Be Enabled...") }
+                }
+                state.alexaGuardSupported = guardSupported
+                updTsVal("lastGuardSupChkDt")
+                state.alexaGuardDataSrc = "app"
+                if(guardSupported) getGuardState()
+            } else { logError("checkGuardSupportResponse Error | No data received...") }
+        }
     } catch (ex) {
         respExceptionHandler(ex, 'checkGuardSupportResponse', true)
     }
-    state.alexaGuardSupported = guardSupported
-    updTsVal("lastGuardSupChkDt")
-    state.alexaGuardDataSrc = "app"
-    if(guardSupported) getGuardState()
 }
 
 void checkGuardSupportFromServer() {
@@ -2993,8 +3023,7 @@ void checkGuardSupportServerResponse(response, data) {
     Boolean guardSupported = false
     try {
         if(response?.status != 200) {
-            logWarn("checkGuardSupportServerResp: ${response?.status} $data")
-            return
+            logWarn("checkGuardSupportServerResp: ${response?.status}")
         } else {
             Map resp = response?.data ? parseJson(response?.data?.toString()) : null
             // log.debug "GuardSupport Server Response: ${resp}"
@@ -3005,20 +3034,20 @@ void checkGuardSupportServerResponse(response, data) {
                     guardSupported = true
                 }
             } else { logError("checkGuardSupportServerResponse Error | No data received..."); return }
+            state.alexaGuardSupported = guardSupported
+            state.alexaGuardDataOverMaxSize = guardSupported
+            state.alexaGuardDataSrc = "server"
+            updTsVal("lastGuardSupChkDt")
+            if(guardSupported) getGuardState()
         }
     } catch (ex) {
         respExceptionHandler(ex, "checkGuardSupportServerResponse", false, false)
-        return
     }
-    state.alexaGuardSupported = guardSupported
-    state.alexaGuardDataOverMaxSize = guardSupported
-    state.alexaGuardDataSrc = "server"
-    updTsVal("lastGuardSupChkDt")
-    if(guardSupported) getGuardState()
 }
 
 void getGuardState() {
-    if(!isAuthValid("getGuardState")) { return }
+    String meth = "getGuardState"
+    if(!isAuthValid(meth)) { return }
     if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
     Map params = [
         uri: getAmazonUrl(),
@@ -3029,32 +3058,35 @@ void getGuardState() {
         body: [ stateRequests: [ [entityId: state.alexaGuardData?.applianceId, entityType: "APPLIANCE" ] ] ]
     ]
     try {
-        logTrace("getGuardState")
+        logTrace(meth)
         httpPostJson(params) { resp ->
-            if(resp?.status != 200) logWarn("${resp?.status} $params")
-            if(resp?.status == 200) updTsVal("lastSpokeToAmazon")
-            Map respData = resp?.data ?: null
+            if(resp?.status != 200) logWarn("${resp?.status} "+meth)
+            if(resp?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                Map respData = resp?.data ?: null
 
-            if(devModeFLD) log.debug "GuardState resp: ${respData}"
+                if(devModeFLD) log.debug "GuardState resp: ${respData}"
 
-            if(respData && respData.deviceStates && ((List)respData.deviceStates)[0] && ((List)respData.deviceStates)[0].capabilityStates) {
-                def guardStateData = parseJson(((List)respData.deviceStates)[0].capabilityStates as String)
-                if(devModeFLD) logTrace("guardState: ${guardStateData}")
-                String curState = (String)state.alexaGuardState ?: sNULL
-                state.alexaGuardState = guardStateData?.value[0] ? (String)guardStateData?.value[0] : (String)guardStateData?.value
-                settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
-                logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
-                if(curState != (String)state.alexaGuardState) updGuardActionTrig()
-                updTsVal("lastGuardStateChkDt")
+                if(respData && respData.deviceStates && ((List)respData.deviceStates)[0] && ((List)respData.deviceStates)[0].capabilityStates) {
+                    def guardStateData = parseJson(((List)respData.deviceStates)[0].capabilityStates as String)
+                    if(devModeFLD) logTrace("guardState: ${guardStateData}")
+                    String curState = (String)state.alexaGuardState ?: sNULL
+                    state.alexaGuardState = guardStateData?.value[0] ? (String)guardStateData?.value[0] : (String)guardStateData?.value
+                    settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
+                    logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
+                    if(curState != (String)state.alexaGuardState) updGuardActionTrig()
+                    updTsVal("lastGuardStateChkDt")
+                }
             }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getGuardState", true)
+        respExceptionHandler(ex, meth, true)
     }
 }
 
 void setGuardState(String guardState) {
     Long execTime = now()
+    String meth = "setGuardState"
     if(!isAuthValid("setGuardState")) { return }
     if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
     guardState = guardStateConv(guardState)
@@ -3069,55 +3101,57 @@ void setGuardState(String guardState) {
             timeout: 20,
             body: body
         ]
-        logTrace("setGuardState")
+        logTrace(meth)
         httpPutJson(params) { response ->
-            if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            def resp = response?.data ?: null
-            if(resp && !resp.errors?.size() && resp.controlResponses && ((List)resp.controlResponses)[0] && ((List)resp.controlResponses)[0].code && (String)((List)resp.controlResponses)[0].code == "SUCCESS") {
-                logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
-                state.alexaGuardState = guardState
-                updTsVal("lastGuardStateUpdDt")
-                updGuardActionTrig()
-            } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
+            if(response?.status != 200) logWarn("${response?.status} $params $meth")
+            if(response?.status == 200) {
+                updTsVal("lastSpokeToAmazon")
+                def resp = response?.data ?: null
+                if(resp && !resp.errors?.size() && resp.controlResponses && ((List)resp.controlResponses)[0] && ((List)resp.controlResponses)[0].code && (String)((List)resp.controlResponses)[0].code == "SUCCESS") {
+                    logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
+                    state.alexaGuardState = guardState
+                    updTsVal("lastGuardStateUpdDt")
+                    updGuardActionTrig()
+                } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
+            }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "setGuardState", true)
+        respExceptionHandler(ex, meth, true)
     }
 }
 
-/*
-private getAlexaSkills() {
-    Long execDt = now()
-    if(!isAuthValid("getAlexaSkills") || !getCustomerData()) { return } // state.amazonCustomerData
-    if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
-    Map params = [
-        uri: "https://skills-store.${getAmazonDomain()}",
-        path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
-        headers: [
-            Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
-            Origin: getAmazonUrl()
-        ] + getReqHeaderMap(true),
-        contentType: sAPPJSON,
-        timeout: 20,
-    ]
-    try {
-        logTrace("getAlexaSkills")
-        httpGet(params) { response->
-            if(response?.status != 200) logWarn("${response?.status} $params")
-            if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-            def respData = response?.data ?: null
-            log.debug "respData: $respData"
-            // log.debug respData[3]?.contents[3]?.contents?.products
+// private getAlexaSkills() {
+//     Long execDt = now()
+//     if(!isAuthValid("getAlexaSkills") || !getCustomerData()) { return } // state.amazonCustomerData
+//     if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
+//     Map params = [
+//         uri: "https://skills-store.${getAmazonDomain()}",
+//         path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
+//         headers: [
+//             Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
+//             Origin: getAmazonUrl()
+//         ] + getReqHeaderMap(true),
+//         contentType: sAPPJSON,
+//         timeout: 20,
+//     ]
+//     try {
+//         logTrace("getAlexaSkills")
+//         httpGet(params) { response->
+//             if(response?.status != 200) logWarn("${response?.status} $params")
+//             if(response?.status == 200) {
+//             updTsVal("lastSpokeToAmazon")
+//             def respData = response?.data ?: null
+//             log.debug "respData: $respData"
+//             // log.debug respData[3]?.contents[3]?.contents?.products
 
-            // updTsVal("skillDataUpdDt")
-        }
-    } catch (ex) {
-        log.error "getAlexaSkills Exception: ${ex}"
-        // respExceptionHandler(ex, "getAlexaSkills", true)
-    }
-}
-*/
+//             // updTsVal("skillDataUpdDt")
+//         }
+//         }
+//     } catch (ex) {
+//         log.error "getAlexaSkills Exception: ${ex}"
+//         // respExceptionHandler(ex, "getAlexaSkills", true)
+//     }
+// }
 
 void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAmazon=true, Boolean ignNullMsg=false) {
     String toMsg = "Amazon"
@@ -3132,12 +3166,11 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
     }
     if(ex instanceof groovyx.net.http.HttpResponseException ) {
         Integer sCode = ex?.getResponse()?.getStatus()
-//        def rData = ex?.getResponse()?.getData()
         def errMsg = ex?.getMessage()
         if(sCode == 401) {
             if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
         } else if (sCode in [400, 429]) {
-            String respMsgLow = errMsg ? errpMsg.toLowerCase() : sNULL
+            String respMsgLow = errMsg ? errMsg.toLowerCase() : sNULL
             if((sCode in [400, 429]) && respMsgLow) { // && (respMsgLow in ["rate exceeded", "too many requests"])) {
                 switch(respMsgLow) {
                     case "rate exceeded":
@@ -3154,19 +3187,6 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
                         break
                 }
             }
-/*            switch(errMsg) {
-                case "Bad Request":
-                    logError("${mName} | Improperly formatted request sent to ${toMsg} | Msg: ${errMsg}")
-                    break
-                case "Rate Exceeded":
-                    logError("${mName} | ${toMsg} is currently rate-limiting your requests | Msg: ${errMsg}")
-                    break
-                default:
-                    logError("${mName} | 400 Error | Msg: ${errMsg}")
-                    break
-            }
-        } else if(sCode == 429) {
-            logWarn("${mName} | Too Many Requests Made to ${toMsg} | Msg: ${errMsg}") */
         } else {
             logError("${mName} | Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
@@ -3270,24 +3290,27 @@ void echoDevicesResponse(response, data) {
     ]
     try {
         if(response?.status != 200) logWarn("${response?.status} $data")
-        if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-        // log.debug "json response is: ${response.json}"
-        state.deviceRefreshInProgress=false
-        List eDevData = response?.json?.devices ?: []
-        Map echoDevices = [:]
-        if(eDevData.size()) {
-            eDevData.each { eDevice->
-                if (!((String)eDevice.deviceType in ignoreTypes) && !((String)eDevice.accountName)?.startsWith("This Device")) {
-                    removeKeys.each { rk-> eDevice.remove(rk) }
-                    eDevice.capabilities = eDevice.capabilities?.findAll { !(it in removeCaps) }?.collect { it as String }
-                    //if (eDevice.deviceOwnerCustomerId != null) { state.deviceOwnerCustomerId = eDevice.deviceOwnerCustomerId }
-                    echoDevices[(String)eDevice.serialNumber] = eDevice
+        if(response?.status == 200) {
+            updTsVal("lastSpokeToAmazon")
+            // log.debug "json response is: ${response.json}"
+            state.deviceRefreshInProgress=false
+            List eDevData = response?.json?.devices ?: []
+            Map echoDevices = [:]
+            if(eDevData.size()) {
+                eDevData.each { eDevice->
+                    if (!((String)eDevice.deviceType in ignoreTypes) && !((String)eDevice.accountName)?.startsWith("This Device")) {
+                        removeKeys.each { rk-> eDevice.remove(rk) }
+                        eDevice.capabilities = eDevice.capabilities?.findAll { !(it in removeCaps) }?.collect { it as String }
+                        //if (eDevice.deviceOwnerCustomerId != null) { state.deviceOwnerCustomerId = eDevice.deviceOwnerCustomerId }
+                        echoDevices[(String)eDevice.serialNumber] = eDevice
+                    }
                 }
             }
+            // log.debug "echoDevices: ${echoDevices}"
+            Map musicProvs = (Map)state.musicProviders ?: getMusicProviders(true)
+            receiveEventData([echoDevices: echoDevices, musicProviders: musicProvs, execDt: data?.execDt], "Groovy")
         }
-        // log.debug "echoDevices: ${echoDevices}"
-        Map musicProvs = (Map)state.musicProviders ?: getMusicProviders(true)
-        receiveEventData([echoDevices: echoDevices, musicProviders: musicProvs, execDt: data?.execDt], "Groovy")
+
     } catch (ex) {
         respExceptionHandler(ex, "echoDevicesResponse")
     }
@@ -3611,39 +3634,38 @@ void execAsyncCmd(String method, String callbackHandler, Map params, Map otherDa
 }
 
 void sendAmazonCommand(String method, Map params, Map otherData=null) {
+    String meth = "sendAmazonCommand ${method} ${params} ${otherData?.cmdDesc}"
     try {
         def rData = null
         def rStatus = null
+        logTrace(meth)
         switch(method) {
             case "POST":
                 httpPostJson(params) { response->
-                    if(response?.status != 200) logWarn("${response?.status} $params")
-                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    if(rStatus == 200) { rData = response?.data ?: null }
                 }
                 break
             case "PUT":
                 if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
-                    if(response?.status != 200) logWarn("${response?.status} $params")
-                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    if(rStatus == 200) { rData = response?.data ?: null }
                 }
                 break
             case "DELETE":
                 httpDelete(params) { response->
-                    if(response?.status != 200) logWarn("${response?.status} $params")
-                    if(response?.status == 200) updTsVal("lastSpokeToAmazon")
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    if(rStatus == 200) { rData = response?.data ?: null }
                 }
                 break
         }
-        logDebug("sendAmazonCommand | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : sBLANK} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        if(rStatus == 200) {
+            updTsVal("lastSpokeToAmazon")
+            logDebug("${meth} | Status: (${rStatus})${rData != null ? " | Response: ${rData}" : sBLANK} | ${otherData?.cmdDesc} was Successfully Sent!!!")
+        } else logWarn("${meth} | Status: ${rStatus} FAILED")
     } catch (ex) {
-        respExceptionHandler(ex, "${otherData?.cmdDesc}", true)
+        respExceptionHandler(ex, meth, true)
     }
 }
 
@@ -3978,8 +4000,6 @@ void addToQ(Map item) {
     if((Boolean)settings.logDebug) lmsg.each { String msg -> log.debug(msg) }
 }
 
-@Field volatile static Map<String,Map> workQMapFLD = [:]
-
 @SuppressWarnings('unused')
 void workQF() { workQ() }
 @SuppressWarnings('unused')
@@ -4008,7 +4028,7 @@ void workQ() {
 
     Boolean fnd = (eData.size() > 0)
 
-// if we are not doing anything grab next item off queue and start it;
+    // if we are not doing anything grab next item off queue and start it;
     if(!active && now() > nextOk && fnd) {
 
         List<String> lmsg = []
@@ -4025,7 +4045,7 @@ void workQ() {
         Map seqObj
         Integer mdelay = 0
 
-// lets try to join commands in single request to Alexa
+        // lets try to join commands in single request to Alexa
         while(eData.size()>0){
 
             Map item = (Map)eData[0]
@@ -4965,7 +4985,9 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
 
 Boolean childInstallOk() { return (Boolean)state.childInstallOkFlag }
 
-static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/icons/${imgName}.png" }
+public String gitBranch() { return gitBranchFLD }
+
+static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
@@ -5030,16 +5052,17 @@ static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { re
 def appFooter() {
     section() {
         paragraph htmlLine()
-        paragraph """<div style='color:${sCLR4D9};text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
+        paragraph """<div style='color:${sCLR4D9};text-align:center;'>Echo Speaks<br><a href='${textDonateUrl()}' target="_blank"><img width="120" height="120" src="https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png"></a><br><br>Please consider donating if you find this integration useful.</div>"""
     }
 }
 
 static String actChildName(){ return "Echo Speaks - Actions" }
 static String zoneChildName(){ return "Echo Speaks - Zones" }
 //static String zoneChildDeviceName(){ return "Echo Speaks - Zones" }
-static String documentationLink() { return "https://tonesto7.github.io/echo-speaks-docs" }
-static String textDonateLink() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
-def updateDocsInput() { href url: documentationLink(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
+static String documentationUrl() { return "https://tonesto7.github.io/echo-speaks-docs" }
+static String videoUrl() { return "https://www.youtube.com/watch?v=wQPPlTFaGb4&ab_channel=SimplySmart123%E2%9C%85" }
+static String textDonateUrl() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
+def updateDocsInput() { href url: documentationUrl(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
 
 String getAppEndpointUrl(subPath)   { return "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
 
@@ -5065,7 +5088,7 @@ Integer getDaysSinceUpdated() {
 }
 
 String changeLogData() {
-    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/CHANGELOG.html", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
+    String txt = (String) getWebData([uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/CHANGELOG.html", contentType: "text/plain; charset=UTF-8", timeout: 20], "changelog", true)
     return txt?.toString()
 }
 
@@ -5262,7 +5285,7 @@ void checkVersionData(Boolean now = false) { //This reads a JSON file from GitHu
 
 void getConfigData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/resources/appData.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/resources/appData.json",
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -5276,7 +5299,7 @@ void getConfigData() {
 
 void getNoticeData() {
     Map params = [
-        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${betaFLD ? "beta" : "master"}/notices.json",
+        uri: "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/notices.json",
         contentType: sAPPJSON,
         timeout: 20
     ]
@@ -6166,9 +6189,6 @@ def appInfoSect() {
         }
     }
 }
-/*
-String htmlRowVerStr(String name, String ver) {
-} */
 
 String UrlParamBuilder(Map items) {
     return items.collect { String k,String v -> "${k}=${URLEncoder.encode(v.toString())}" }?.join("&").toString()
@@ -6229,7 +6249,7 @@ def renderConfig() {
             </div>
             <div class="my-2 text-center">
                 <h5>2. Tap Button to deploy to Heroku</h5>
-                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/${betaFLD ? "develop" : "master"}${getEnvParamsStr()}">
+                <a href="https://heroku.com/deploy?template=https://github.com/tonesto7/echo-speaks-server/tree/master${getEnvParamsStr()}">
                     <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
                 </a>
             </div>
@@ -6940,11 +6960,6 @@ static List getAlarmModes() {
 String getAlarmSystemStatus() {
     return location?.hsmStatus ?: "disarmed"
 }
-/*
-def getShmIncidents() {
-    def incidentThreshold = now() - 604800000
-    return location?.activeIncidents?.collect{[date: it?.date?.time, title: it?.getTitle(), message: it?.getMessage(), args: it?.getMessageArgs(), sourceType: it?.getSourceType()]}.findAll{ it?.date >= incidentThreshold } ?: null
-} */
 
 // This is incomplete (and currently unused)
 void setAlarmSystemMode(String mode) {
@@ -7171,12 +7186,11 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
         bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", /* "notif_pushover_devices", "notif_pushover_priority", "notif_pushover_sound", */ "trig_alarm", "trig_guard"],
+        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "trig_alarm", "trig_guard"],
         mode: ["cond_mode", "trig_mode"],
         number: [],
         text: ["appLbl"]
     ],
-//
     ends: [
         bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone"],
         enum: ["_cmd", "_type", "_routineExecuted",
@@ -7235,8 +7249,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
     ],
     dev: [
         _scene: "sceneActivator",
-//        _EchoDevices: "EchoSpeaksDevice",
-//        _EchoDeviceList: "EchoSpeaksDevice"
+        // _EchoDevices: "EchoSpeaksDevice",
+        // _EchoDeviceList: "EchoSpeaksDevice"
     ]
 ]
 
@@ -7431,8 +7445,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A3BW5ZVFHRCQPO" : [ c: [ "a", "t" ], i: "unknown", n: "BMW Alexa Integration" ],
         "A3BRT6REMPQWA8" : [ c: [ "a", "t" ], i: "sonos_generic", n: "Bose Home Speaker 450" ],
         "A2HZENIFNYTXZD" : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal" ],
-        "A52ARKF0HM2T4"  : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal+" ],
-        
+        "A52ARKF0HM2T4"  : [ c: [ "a", "t" ], i: "facebook_portal", n: "Facebook Portal+" ],        
     ],
     families: [
         block: [ "AMAZONMOBILEMUSIC_ANDROID", "AMAZONMOBILEMUSIC_IOS", "TBIRD_IOS", "TBIRD_ANDROID", "VOX", "MSHOP" ],

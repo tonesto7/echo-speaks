@@ -1,3 +1,10 @@
+### _**Release (v4.1.9.0) - [July 13th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Bugfixes and Optimizations.
+- [UPDATE] Modified the Actions UI to show multiple responses in a cleaner fashion.
+- [NEW] Added Bundle zip file for importing App and Driver code via HE interface in Platform v2.2.8+.
+
 ### _**Release (v4.1.8.0) - [June 22st, 2021]**_
 
 #### _***All Apps and Devices***_
