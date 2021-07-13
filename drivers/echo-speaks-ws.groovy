@@ -18,33 +18,29 @@
 // NOTICE: This device will not work on SmartThings
 
 import groovy.transform.Field
-
-// STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = '4.1.8.0'
-@Field static final String appModifiedFLD = '2021-06-21'
-@Field static final String branchFLD      = 'master'
-@Field static final String platformFLD    = 'Hubitat'
-@Field static final Boolean betaFLD       = false
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
+@Field static final String devVersionFLD  = '4.1.9.0'
+@Field static final String devModifiedFLD = '2021-07-13'
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
-@Field static final String sMEDIUM        = 'medium'
-@Field static final String sSMALL         = 'small'
-@Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
-@Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-@Field static final String sCLRGRN        = 'green'
-@Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
-@Field static final String sAPPJSON       = 'application/json'
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
 @Field volatile static Map<String,Map> historyMapFLD = [:]
+// @Field volatile static String gitBranchFLD = null
 
-static String devVersion()  { return devVersionFLD }
-static Boolean isWS()       { return true }
+static String devVersion()   { return devVersionFLD }
+static String devVersionDt() { return devModifiedFLD }
+static Boolean isWS()        { return true }
 
 metadata {
     definition (name: "Echo Speaks WS", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-ws.groovy") {
@@ -205,26 +201,31 @@ def webSocketStatus(String status) {
     }
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend() {
     sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
     logTrace("Gateway Handshake Message Sent (Step 1)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend1() {
     sendWsMsg( strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""") )
     logTrace("Gateway Handshake Message Sent (Step 2A)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend2() {
     sendWsMsg( strToHex(encodeGWHandshake()) )
     logTrace("Gateway Handshake Message Sent (Step 2B)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend3() {
     sendWsMsg( strToHex(encodeGWRegister()) )
     logTrace("Gateway Registration Message Sent (Step 3)")
 }
 
+@SuppressWarnings('unused')
 void nextMsgSend4() {
     sendWsMsg( strToHex(encodePing()) )
     logTrace("Encoded Ping Message Sent (Step 4)")
@@ -255,7 +256,7 @@ def readHex(String str, Integer ind, Integer len, Boolean logs=false) {
     def res
     try {
         res = Integer.parseInt(str as String, 16)
-    } catch(ex) {
+    } catch(ignored) {
         res = new BigInteger(str as String, 16)
     }
     if(logs) log.debug "readHex(ind: $ind, len: $len): ${res}"
@@ -293,7 +294,7 @@ void parseIncomingMessage(String data) {
                 try {
                     message.content = parseJson(message.content?.toString())
                     // log.debug "TUNE: ${message?.content}"
-                } catch (e) {}
+                } catch (ignored) {}
             }
         } else if ((String)message.service == 'FABE') {
             message.messageType = readString(dStr, idx, 3)
@@ -331,7 +332,7 @@ void parseIncomingMessage(String data) {
                     message.content.timestampINI = readHex(dStr, idx, 18)
                     idx += 19 // 18 + delimiter;
                     message.content.timestampACK = readHex(dStr, idx, 18)
-                    idx += 19 // 18 + delimiter;
+                    //idx += 19 // 18 + delimiter;
                     // log.debug "message.content: ${message?.content}"
                     state.wsAckData = message.content
                     logInfo("WebSocket Connection Established...")
@@ -405,18 +406,21 @@ void dumpMsg(Map message) {
     logDebug("Service: (${message.service}) | Type: (${message.messageType}) | Channel: (${message.channel}) | contentMsgType: (${message.content?.messageType})")
 }
 
-private commandEvtHandler(msg) {
+private commandEvtHandler(mymsg) {
+    Map msg = mymsg
     Boolean sendEvt = false
-    Map evt = [:]
-    evt.id = msg?.payload?.dopplerId?.deviceSerialNumber ?: null
-    evt.all = false
-    evt.type = msg?.command
-    evt.attributes = [:]
-    evt.triggers = []
+    String cmd = (String)msg?.command
+    Map evt = [
+        id: msg?.payload?.dopplerId?.deviceSerialNumber ?: null,
+        all: false,
+        type:  cmd,
+        attributes: [:],
+        triggers: []
+    ]
 
-    if(msg && msg.command && msg.payload) {
-        logTrace("Command: ${msg.command} | Payload: ${msg.payload}")
-        switch((String)msg.command) {
+    if(msg && cmd && msg.payload) {
+        logTrace("Command: ${cmd} | Payload: ${msg.payload}")
+        switch(cmd) {
             case "PUSH_EQUALIZER_STATE_CHANGE":
                 // Black hole of unwanted events.
                 break
@@ -428,12 +432,12 @@ private commandEvtHandler(msg) {
                 evt.attributes.mute = msg.payload.isMuted == true ? "muted" : "unmuted"
                 break
             case "PUSH_BLUETOOTH_STATE_CHANGE":
-                switch(msg.payload.bluetoothEvent) {
+                switch((String)msg.payload.bluetoothEvent) {
                     case "DEVICE_DISCONNECTED":
                     case "DEVICE_CONNECTED":
                         if(msg.payload.bluetoothEventSuccess == true) {
                             sendEvt = true
-                            if(msg.payload.bluetoothEvent == "DEVICE_DISCONNECTED") { evt.attributes?.btDeviceConnected = null }
+                            if((String)msg.payload.bluetoothEvent == "DEVICE_DISCONNECTED") { evt.attributes?.btDeviceConnected = null }
                             evt.triggers.push("bluetooth")
                         }
                         break
@@ -455,8 +459,8 @@ private commandEvtHandler(msg) {
                 break
             case "PUSH_DOPPLER_CONNECTION_CHANGE":
                 sendEvt = true
-                evt.attributes.onlineStatus = (msg.payload.dopplerConnectionState == "ONLINE") ? "online" : "offline"
-                evt.triggers.push(evt.attributes?.onlineStatus)
+                evt.attributes.onlineStatus = ((String)msg.payload.dopplerConnectionState == "ONLINE") ? "online" : "offline"
+                evt.triggers.push(evt.attributes.onlineStatus)
                 break
             case "PUSH_ACTIVITY":
                 List keys = msg.payload?.key?.entryId?.tokenize("#")
@@ -504,7 +508,7 @@ String encodeGWHandshake() {
         msg += ' END FABE'
         // log.debug "msg: ${msg}"
         byte[] buffer = msg?.getBytes("ASCII")
-        def checksum = rfc1071Checksum(msg, idx1, idx2)
+        Long checksum = rfc1071Checksum(msg, idx1, idx2)
         byte [] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
         return new String(buffer)
@@ -523,7 +527,7 @@ String encodeGWRegister() {
         msg += '0x00000109 ' // length content
         msg += 'GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE'
         byte[] buffer = msg?.getBytes("ASCII")
-        def checksum = rfc1071Checksum(msg, idx1, idx2)
+        Long checksum = rfc1071Checksum(msg, idx1, idx2)
         byte[] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
         String out = new String(buffer)
@@ -545,7 +549,7 @@ String encodePing() {
     String header = 'PIN'
     String payload = 'Regular'
     byte[] n = new byte[header?.length() + 4 + 8 + 4 + (2 * payload?.length())] // Creates empty byte array with size of 98
-    Integer idx = 0
+    //Integer idx = 0
     byte[] u = header?.getBytes("UTF-8")
     n = copyArrRange(n, 0, u)
     Integer l = 0
@@ -561,7 +565,7 @@ String encodePing() {
     def buf2End = "FABE"?.getBytes("ASCII")
     Integer buf2EndPos = msg?.length() + n?.size()
     buffer = copyArrRange(buffer, buf2EndPos, buf2End)
-    def checksum = rfc1071Checksum(buffer, idx1, idx2)
+    Long checksum = rfc1071Checksum(buffer, idx1, idx2)
     byte[] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
     buffer = copyArrRange(buffer, 39, checksumBuf)
     String out = new String(buffer)
@@ -572,7 +576,7 @@ String encodePing() {
 
 def encode(arr, b, Integer pos, Integer len) {
     try {
-        def u = new byte[len]
+        byte[] u = new byte[len]
         for (def c = 0; c < len; c++) { u[c] = b >> ((8 * (len - 1 - c)) & 31) & 255 }
         return copyArrRange(arr, pos, u)
     } catch (ex) {
@@ -581,29 +585,29 @@ def encode(arr, b, Integer pos, Integer len) {
     }
 }
 
-def encodePayload(arr, String pay, Integer pos, Integer len) {
+byte[] encodePayload(arr, String pay, Integer pos, Integer len) {
     byte[] u = new byte[len*2]
     for (Integer q = 0; q < pay?.length(); q++) { u[q * 2] = 0; u[(q * 2) + 1] = pay?.charAt(q) }
     // log.debug "u: $u"
     return copyArrRange(arr, pos, u)
 }
 
-def rfc1071Checksum(a, Integer f, Integer k) {
+Long rfc1071Checksum(aa, Integer f, Integer k) {
     if (k < f) logError("Invalid checksum exclusion window!")
-    if(a instanceof String) { a = a?.getBytes("UTF-8") }
-    def h = 0
-    def l = 0
-    def t = 0
+    byte[] a = aa instanceof String ? aa?.getBytes("UTF-8") : aa
+    Integer h = 0
+    Long l = 0
+    Integer t
     for (Integer e = 0; e < a?.size(); e++) {
-        if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t); h += b(l, 32); l = c(l & 4294967295) }
+        if(e != f) { t = a[e] << ((e & 3 ^ 3) << 3); l += c(t.toLong()); h += b(l, 32); l = c(l & 4294967295L) }
         else { e = k - 1 }
     }
-    for (; h>0;) { l += h; h = b(l, 32); l &= 4294967295 }
+    for (; h>0;) { l += h; h = b(l, 32); l &= 4294967295L }
     return c(l)
 }
 
-def b(a, b) { for (a = c(a); 0 != b && 0 != a;) { a = Math.floor(a / 2); b--; }; return (a instanceof Double) ? a?.toInteger() : a }
-def c(a) { return (0 > a) ? (4294967295 + a + 1) : a }
+static Integer b(Long a, Integer b) { Double aa = c(a).toDouble(); for (; 0 != b && 0.0D != a;) { aa = Math.floor(aa / 2.0D); b-- }; return aa?.toInteger() }
+static Long c(Long a) { return (0L > a) ? (4294967295L + a + 1L) : a }
 
 byte[] copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     if(arrSrc?.size() < arrSrcStrt) { log.error "Array Start Index is larger than Array Size..."; return arrSrc }
@@ -612,7 +616,7 @@ byte[] copyArrRange(arrSrc, Integer arrSrcStrt=0, arrIn) {
     return arrSrc
 }
 
-String encodeNumber(val, len=null) {
+static String encodeNumber(val, len=null) {
     if (!len) len = 8
     String str = new BigInteger(val?.toString())?.toString(16)
     while (str.length() < len) { str = "0"+str }
@@ -634,10 +638,11 @@ String generateUUID() {
     return res
 }
 
-Integer toUInt(byte x) { return ((int) x) & 0xff }
+static Integer toUInt(byte x) { return ((int) x) & 0xff }
 
-String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))) }
-String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
+static String strToHex(String arg, charset="UTF-8") { return String.format("%x", new BigInteger(1, arg.getBytes(charset))) }
+
+static String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
 
 String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : sNULL }
 //String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
@@ -645,13 +650,18 @@ String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.co
 Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
-Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
+// public String gitBranch() { 
+//     if(gitBranchFLD == sNULL) { gitBranchFLD = (String) parent.gitBranch() }
+//     return (String)gitBranchFLD
+// }
+
+static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
 
 Boolean minVersionFailed() {
     try {
-        Integer minDevVer = parent?.minVersions()["wsDevice"] ?: null
+        Integer minDevVer = (Integer)parent?.minVersions()["wsDevice"] ?: null
         return minDevVer != null && versionStr2Int(devVersion()) < minDevVer
-    } catch (e) { 
+    } catch (ignored) {
         return false
     }
 }
@@ -699,7 +709,7 @@ void logError(String msg, Boolean noHist=false, ex=null) {
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
-        } catch (e) {
+        } catch (ignored) {
         }
         if(a) log.error logPrefix(a, sCLRRED)
     }
@@ -720,7 +730,7 @@ public clearLogHistory() {
     mb()
 }
 
-String getObjType(obj) {
+static String getObjType(obj) {
     if(obj instanceof String) {return "String"}
         else if(obj instanceof GString) {return "GString"}
 	else if(obj instanceof Map) {return "Map"}

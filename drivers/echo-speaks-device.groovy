@@ -14,42 +14,35 @@
  *  for the specific language governing permissions and limitations under the License.
  */
 
- /* TODO: 
-    Use a call to the parent to get the token and compare it with the current field variable and update the variable if they are different
-*/
-
 import groovy.transform.Field
-
-// STATICALLY DEFINED VARIABLES
-@Field static final String devVersionFLD  = "4.1.8.0"
-@Field static final String appModifiedFLD = "2021-06-21"
-@Field static final String branchFLD      = "master"
-@Field static final String platformFLD    = "Hubitat"
-@Field static final Boolean betaFLD       = false
+//************************************************
+//*               STATIC VARIABLES               *
+//************************************************
+@Field static final String devVersionFLD  = "4.1.9.0"
+@Field static final String devModifiedFLD = "2021-07-13"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sLINEBR        = '<br>'
 @Field static final String sTRUE          = 'true'
 @Field static final String sFALSE         = 'false'
-@Field static final String sMEDIUM        = 'medium'
-@Field static final String sSMALL         = 'small'
-@Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
-@Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-@Field static final String sCLRGRN        = 'green'
-@Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
 @Field static final String sAPPJSON       = 'application/json'
 
-// IN-MEMORY VARIABLES (Cleared only on HUB REBOOT or CODE UPDATES)
+//************************************************
+//*          IN-MEMORY ONLY VARIABLES            *
+//* (Cleared only on HUB REBOOT or CODE UPDATES) *
+//************************************************
 @Field volatile static Map<String,Map> historyMapFLD = [:]
 @Field volatile static Map<String,Map> cookieDataFLD = [:]
+// @Field volatile static String gitBranchFLD = null
 
-static String devVersion()  { return devVersionFLD }
-static Boolean isWS()       { return false }
-static Boolean isZone()     { return false }
+static String devVersion()   { return devVersionFLD }
+static String devVersionDt() { return devModifiedFLD }
+static Boolean isWS()        { return false }
+static Boolean isZone()      { return false }
 
 metadata {
     definition (name: "Echo Speaks Device", namespace: "tonesto7", author: "Anthony Santilli", importUrl: "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy") {
@@ -60,9 +53,9 @@ metadata {
         capability "Refresh"
         capability "Sensor"
         capability "SpeechSynthesis"
-if(!isZone()) {
-        capability "SpeechRecognition"
-}
+        if(!isZone()) {
+            capability "SpeechRecognition"
+        }
         attribute "alarmVolume", "number"
         attribute "alexaPlaylists", "JSON_OBJECT"
         attribute "alexaGuardStatus", "string"
@@ -73,7 +66,7 @@ if(!isZone()) {
         attribute "currentStation", "string"
         attribute "deviceFamily", "string"
         attribute "deviceSerial", "string"
-        
+
         attribute "deviceIcon", "string"
         attribute "deviceStatus", "string"
         attribute "deviceStyle", "string"
@@ -101,10 +94,10 @@ if(!isZone()) {
         attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
         command "replayText"
-if(!isZone()) {
-        command "doNotDisturbOn"
-        command "doNotDisturbOff"
-}
+        if(!isZone()) {
+            command "doNotDisturbOn"
+            command "doNotDisturbOff"
+        }
         command "setAlarmVolume", [[name: "Alarm Volume*", type: "NUMBER", description: "Sets the devices Alarm notification volume"]]
         command "playWeather", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playSingASong", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -132,29 +125,29 @@ if(!isZone()) {
         command "stopAllDevices"
         command "noOp"
 
-if(!isZone()) {
-        command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-        command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
-}
+        if(!isZone()) {
+            command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchAmazonMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchAppleMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchPandora", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchIheart", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchSiriusXm", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchSpotify", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            // command "searchTidal", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+            command "searchTuneIn", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."],[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
+        }
         command "sendAlexaAppNotification", [ [name: "Notification Message*", type: "STRING", description: ""]]
-if(!isZone()) {
-        command "executeSequenceCommand", [[name: "Sequence Message Text*", type: "STRING", description: ""]]
-        command "executeRoutineId", [[name: "Routine ID*", type: "STRING", description: ""]]
-        command "createAlarm", [[name: "Alarm Label*", type: "STRING", description: "This is the title of the alarm"], [name: "Date*",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
-        command "createReminder", [[name: "Reminder Label*", type: "STRING", description: "This is the title of the reminder"], [name: "Date*", type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
-        // command "createReminderNew", ["string", "string", "string", "string", "string"]
-        command "removeNotification", [[name: "Notification ID to Remove*", type: "STRING", description: ""]]
-        // command "removeAllNotificationsByType", ["string"]
-        command "setWakeWord", [[name: "New Wake Word*", type: "STRING", description: ""]]
-        command "renameDevice", [[name: "New Device Name*", type: "STRING", description: ""]]
-}
+        if(!isZone()) {
+            command "executeSequenceCommand", [[name: "Sequence Message Text*", type: "STRING", description: ""]]
+            command "executeRoutineId", [[name: "Routine ID*", type: "STRING", description: ""]]
+            command "createAlarm", [[name: "Alarm Label*", type: "STRING", description: "This is the title of the alarm"], [name: "Date*",type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
+            command "createReminder", [[name: "Reminder Label*", type: "STRING", description: "This is the title of the reminder"], [name: "Date*", type: "STRING", description: "Date (2021-01-05 | YYYY-MM-DD)"], [name: "Time*", type: "STRING", description: "Time (18:10 | HH:MM)"]]
+            // command "createReminderNew", ["string", "string", "string", "string", "string"]
+            command "removeNotification", [[name: "Notification ID to Remove*", type: "STRING", description: ""]]
+            // command "removeAllNotificationsByType", ["string"]
+            command "setWakeWord", [[name: "New Wake Word*", type: "STRING", description: ""]]
+            command "renameDevice", [[name: "New Device Name*", type: "STRING", description: ""]]
+        }
         command "storeCurrentVolume"
         command "restoreLastVolume"
         command "togglePlayback"
@@ -166,13 +159,13 @@ if(!isZone()) {
 //        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""], volume, voice]
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
-if(!isZone()) {
-        command "getDeviceActivity"
-        command "getBluetoothDevices"
-        command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
-        command "disconnectBluetooth"
-        command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
-}
+        if(!isZone()) {
+            command "getDeviceActivity"
+            command "getBluetoothDevices"
+            command "connectBluetooth", [[name: "Bluetooth Device Label", type: "STRING", description: ""]]
+            command "disconnectBluetooth"
+            command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
+        }
         command "parallelSpeak", [[name: "Message to Speak*", type: "STRING", description: ""]]
         command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
@@ -222,7 +215,6 @@ def initialize() {
     logInfo("${device?.displayName} Executing initialize()")
     unschedule()
     state.refreshScheduled = false
-    resetQueue()
     stateCleanup()
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
     schedDataRefresh(true)
@@ -471,7 +463,7 @@ void updateDeviceStatus(Map devData) {
         String devFamily = devData.deviceFamily ?: sBLANK
         String devName = (String)deviceStyle?.n
         String devIcon = "<img style='width:64px;height:64px;' src='https://raw.githubusercontent.com/tonesto7/echo-speaks/master/resources/icons/${isZone() ? "es_groups.png" : "${(String)deviceStyle?.i ?: "echo_gen1"}.png"}'/>"
-        
+
         // logInfo("deviceStyle (${devFamily}): ${devType} | Desc: ${devName}")
 
         state.remove('deviceImage') //        state.deviceImage = (String)deviceStyle?.i
@@ -594,17 +586,18 @@ public schedDataRefresh(Boolean frc=false) {
 }
 
 void refreshData(Boolean full=false) {
-    logTrace("refreshData($full)...")
+    String msg = "refreshData($full)..."
     Boolean wsActive = (Boolean)state.websocketActive
     Boolean isWHA = (Boolean)state.isWhaDevice
     Boolean mfull = (Boolean)state.fullRefreshOk
 
 //    Boolean isEchoDev = (state.isEchoDevice == true)
     if(device?.currentValue("onlineStatus") != "online") {
-        logTrace("Skipping Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes)")
+        exitMsg("Device Data Refresh... Device is OFFLINE... (Offline Status Updated Every 10 Minutes) "+ msg)
         return
     }
-    if(!isAuthOk()) {return}
+    if(!isAuthOk()) { exitMsg(msg + " No valid auth"); return}
+    logTrace(msg)
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No Device Events will updated."); return }
     // logTrace("permissions: ${state.permissions}")
     if((Boolean)state.permissions?.mediaPlayer && (full || mfull || !wsActive)) {
@@ -657,7 +650,8 @@ public void setOnlineStatus(Boolean isOnline) {
 
 //private void getPlaybackState(Boolean isGroupResponse=false) {
 private void getPlaybackState() {
-    if(isZone()) return
+    String msg = "getPlaybackState"
+    if(isZone()) { exitMsg(msg); return }
 
     Boolean isGroupResponse = (Boolean)state.isWhaDevice || (Boolean)state.hasClusterMembers
 
@@ -671,13 +665,13 @@ private void getPlaybackState() {
     ]
     Map playerInfo = [:]
     try {
-        logTrace('getPlaybackState')
+        logTrace(msg)
         httpGet(params) { response->
             Map sData = response?.data ?: [:]
             playerInfo = (Map)sData?.playerInfo ?: [:]
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getPlaybackState", false, true)
+        respExceptionHandler(ex, msg, false, true)
         return
     }
     playbackStateHandler(playerInfo, isGroupResponse)
@@ -687,7 +681,7 @@ private void getPlaybackState() {
  * called from above, or by parent when passing down WHA device changes to individual devices
  */
 void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
-    if(isZone()) return
+    //if(isZone()) return
     // log.debug "playerInfo: ${playerInfo}"
     Boolean isPlayStateChange = false
     Boolean isMediaInfoChange = false
@@ -788,7 +782,8 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
 }
 
 private getAlarmVolume() {
-    if(isZone()) return
+    String msg = "getAlarmVolume"
+    if(isZone()) { exitMsg(msg); return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/device-notification-state/${(String)state.deviceType}/${device.currentValue("firmwareVer") as String}/${(String)state.serialNumber}",
@@ -798,7 +793,7 @@ private getAlarmVolume() {
         timeout: 20
     ]
     try {
-        logTrace('getAlarmVolume')
+        logTrace(msg)
         httpGet(params) { response->
             def sData = response?.data ?: null
             // logTrace("getAlarmVolume: $sData")
@@ -808,12 +803,13 @@ private getAlarmVolume() {
             }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getAlarmVolume")
+        respExceptionHandler(ex, msg)
     }
 }
 
 private getWakeWord() {
-    if(isZone()) return
+    String msg = "getWakeWord"
+    if(isZone()) { exitMsg(msg); return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/wake-word",
@@ -823,7 +819,7 @@ private getWakeWord() {
         timeout: 20
     ]
     try {
-        logTrace('getWakeWord')
+        logTrace(msg)
         httpGet(params) { response->
             def sData = response?.data ?: null
             // log.debug "sData: $sData"
@@ -838,12 +834,13 @@ private getWakeWord() {
             }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getWakeWord")
+        respExceptionHandler(ex, msg)
     }
 }
 
 private getDeviceSettings() {
-    if(isZone()) return
+    String msg = "getDeviceSettings"
+    if(isZone()) { exitMsg(msg); return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/device-preferences",
@@ -853,7 +850,7 @@ private getDeviceSettings() {
         timeout: 20
     ]
     try {
-        logTrace('getDeviceSettings')
+        logTrace(msg)
         httpGet(params) { response->
             Map sData = response?.data ?: null
             // log.debug "sData: $sData"
@@ -869,12 +866,13 @@ private getDeviceSettings() {
             // logTrace("getDeviceSettingsHandler: ${sData}")
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getDeviceSettings")
+        respExceptionHandler(ex, msg)
     }
 }
 
 private getAvailableWakeWords() {
-    if(isZone()) return
+    String msg = "getAvailableWakeWords"
+    if(isZone()) { exitMsg(msg); return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/wake-words-locale",
@@ -884,7 +882,7 @@ private getAvailableWakeWords() {
         timeout: 20
     ]
     try {
-        logTrace('getAvailableWakeWords')
+        logTrace(msg)
         httpGet(params) { response->
             Map sData = response?.data ?: null
             // log.debug "sData: $sData"
@@ -895,7 +893,7 @@ private getAvailableWakeWords() {
             }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getAvailableWakeWords")
+        respExceptionHandler(ex, msg)
     }
 }
 
@@ -962,7 +960,8 @@ private getDoNotDisturb() {
 }
 
 private getPlaylists() {
-    if(isZone()) return
+    String msg = "getPlaylists"
+    if(isZone()) { exitMsg(msg); return }
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/cloudplayer/playlists",
@@ -972,7 +971,7 @@ private getPlaylists() {
         timeout: 20
     ]
     try {
-        logTrace('getPlaylists')
+        logTrace(msg)
         httpGet(params) { response->
             def sData = response?.data ?: null
             // logTrace("getPlaylistsHandler: ${sData}")
@@ -984,12 +983,13 @@ private getPlaylists() {
             }
         }
     } catch (ex) {
-        respExceptionHandler(ex, "getPlaylists")
+        respExceptionHandler(ex, msg)
     }
 }
 
 private List getNotifications(String type="Reminder", all=false) {
-    if(isZone()) return null
+    String msg = "getNotifications"
+    if(isZone()) { exitMsg(msg); return null }
     List<Map> items = []
     try {
         List<Map> notList = (List<Map>)parent?.getNotificationList(true)
@@ -1000,7 +1000,7 @@ private List getNotifications(String type="Reminder", all=false) {
         }
         return items
     } catch (ex) {
-        respExceptionHandler(ex, "getNotifications")
+        respExceptionHandler(ex, msg)
     }
 /*
     Map params = [
@@ -1088,7 +1088,7 @@ String getCookieVal() {
             cookieData = state.cookie
             if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
             else return sNULL
-        } catch (ex) {
+        } catch (ignored) {
             cookieData = state.cookie
         }
         return (String)cookieData.cookie
@@ -1105,7 +1105,7 @@ String getCsrfVal() {
             cookieData = state.cookie
             if (cookieData && cookieData.cookie) { cookieDataFLD[myId].cookie = cookieData;  cookieDataFLD = cookieDataFLD }
             else return sNULL
-        } catch (ex) {
+        } catch (ignored) {
             cookieData = state.cookie
         }
         return (String)cookieData.csrf
@@ -1117,7 +1117,8 @@ String getCsrfVal() {
 *******************************************************************/
 
 private void sendAmazonBasicCommand(String cmdType) {
-    if(isZone()) return
+    String msg = "sendAmazonBasicCommand($cmdType)"
+    if(isZone()) { exitMsg(msg); return }
     String t0 = sendAmazonCommand("POST", [
         uri: getAmazonUrl(),
         path: "/api/np/command",
@@ -1509,11 +1510,13 @@ def setTrack(String uri, String metaData=sBLANK) {
 }
 
 // capability musicPlayer
+@SuppressWarnings('unused')
 def resumeTrack(uri) {
     logWarn("Uh-Oh... The resumeTrack() Command is NOT Supported by this Device!!!", true)
 }
 
 // capability musicPlayer
+@SuppressWarnings('unused')
 def restoreTrack(uri) {
     logWarn("Uh-Oh... The restoreTrack() Command is NOT Supported by this Device!!!", true)
 }
@@ -1535,38 +1538,39 @@ def followUpModeOn() {
 }
 
 def setDoNotDisturb(Boolean val) {
-    logTrace("setDoNotDisturb($val) command received...")
+    String msg = "setDoNotDisturb($val) command received..."
+    if(isZone()) { exitMsg(msg); return }
+    logTrace(msg)
     if(isCommandTypeAllowed("doNotDisturb")) {
-        if(!isZone()) {
-            String t0 = sendAmazonCommand("PUT", [
-                uri: getAmazonUrl(),
-                path: "/api/dnd/status",
-                headers: getCookieMap(true),
-                contentType: sAPPJSON,
-                body: [
-                    deviceSerialNumber: getEchoSerial(),
-                    deviceType: getEchoDeviceType(),
-                    enabled: val
-                ]
-            ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
-            sendEvent(name: "doNotDisturb", value: val.toString(), descriptionText: "Do Not Disturb Enabled", display: true, displayed: true)
-            parent?.getDoNotDisturb(true)
-        }
+        String t0 = sendAmazonCommand("PUT", [
+            uri: getAmazonUrl(),
+            path: "/api/dnd/status",
+            headers: getCookieMap(true),
+            contentType: sAPPJSON,
+            body: [
+                deviceSerialNumber: getEchoSerial(),
+                deviceType: getEchoDeviceType(),
+                enabled: val
+           ]
+        ], [cmdDesc: "SetDoNotDisturb${val ? "On" : "Off"}"])
+        sendEvent(name: "doNotDisturb", value: val.toString(), descriptionText: "Do Not Disturb Enabled", display: true, displayed: true)
+        parent?.getDoNotDisturb(true)
     }
 }
 
 def setFollowUpMode(Boolean val) {
-    logTrace("setFollowUpMode($val) command received...")
-    if(isZone()) return
+    String msg = "setFollowUpMode($val) command received..."
+    if(isZone()) { exitMsg(msg); return }
+    logTrace(msg)
     if(state.devicePreferences == null || !state.devicePreferences?.size()) { return }
     if(!(String)state.deviceAccountId) { logError("setFollowUpMode Failed because deviceAccountId is not found..."); return }
     if(isCommandTypeAllowed("followUpMode")) {
         String t0 = sendAmazonCommand("PUT", [
-            uri: getAmazonUrl(),
-            path: "/api/device-preferences/${(String)state.serialNumber}",
-            headers: getCookieMap(),
-            contentType: sAPPJSON,
-            body: [
+                uri: getAmazonUrl(),
+                path: "/api/device-preferences/${(String)state.serialNumber}",
+                headers: getCookieMap(),
+                contentType: sAPPJSON,
+                body: [
                 deviceSerialNumber: getEchoSerial(),
                 deviceType: getEchoDeviceType(),
                 deviceAccountId: (String)state.deviceAccountId,
@@ -1579,7 +1583,7 @@ def setFollowUpMode(Boolean val) {
 // capability notification
 @SuppressWarnings('unused')
 def deviceNotification(String msg) {
-    logTrace("deviceNotification(msg: $msg) command received...")
+    logTrace("deviceNotification(msg: ${fixLg(msg)}) command received...")
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with deviceNotification($msg) command", true); return }
         // logTrace("deviceNotification(${msg?.toString()?.length() > 200 ? msg?.take(200)?.trim() +"..." : msg})"
@@ -1587,13 +1591,17 @@ def deviceNotification(String msg) {
     }
 }
 
+static String fixLg(String msg) {
+    String nm = msg.replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+}
+
 def setVolumeAndSpeak(volume, String msg) {
-    logTrace("setVolumeAndSpeak(volume: $volume, msg: $msg) command received...")
+    logTrace("setVolumeAndSpeak(volume: $volume, msg: ${fixLg(msg)}) command received...")
     speak(msg, volume.toInteger())
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
-    logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: $msg, $restVolume) command received...")
+    logTrace("setVolumeSpeakAndRestore(volume: $volume, msg: ${fixLg(msg)}, $restVolume) command received...")
     if(msg) {
         if(restVolume != null) {
             state.oldVolume = restVolume as Integer
@@ -1845,8 +1853,9 @@ public playAnnouncementAll(String msg, String title=sNULL) {
 }
 
 def searchMusic(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
-    logDebug("searchMusic(${searchPhrase}, ${providerId})")
-    if(isZone()) { return }
+    String msg = "searchMusic(${searchPhrase}, ${providerId})"
+    if(isZone()) { exitMsg(msg); return }
+    logDebug(msg)
     if(isCommandTypeAllowed("mediaPlayer")) {
         String a = getCommandTypeForProvider(providerId)
         if(isCommandTypeAllowed(a) || a == "CLOUDPLAYER") {
@@ -1999,10 +2008,15 @@ private Map getMusicSearchObj(String searchPhrase, String providerId, sleepSecon
     return validObj
 }
 
+void exitMsg(String msg) {
+    logTrace("Skipping "+msg)
+}
+
 private void playMusicProvider(String searchPhrase, String providerId, volume=null, sleepSeconds=null) {
-    logTrace("playMusicProvider() command received... | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds")
+    String msg = "Received playMusicProvider() command | searchPhrase: $searchPhrase | providerId: $providerId | sleepSeconds: $sleepSeconds"
     Map validObj = getMusicSearchObj(searchPhrase, providerId, sleepSeconds)
-    if(!validObj) { return }
+    if(!validObj) { exitMsg(msg); return }
+    logTrace(msg)
     List seqList = []
     if(volume != null) {
         seqList.push([command: "volume", value: volume, deviceData: getDeviceData()])
@@ -2013,8 +2027,9 @@ private void playMusicProvider(String searchPhrase, String providerId, volume=nu
 }
 
 def setWakeWord(String newWord) {
-    logTrace("setWakeWord($newWord) command received...")
-    if(isZone()) return
+    String msg = "Received setWakeWord($newWord) command"
+    if(isZone()) { exitMsg(msg); return }
+    logTrace(msg)
     String oldWord = device?.currentValue('alexaWakeWord')
     def t0 = device?.currentValue('wakeWords')
     def wwList = t0 ?: []
@@ -2548,7 +2563,7 @@ def sendAlexaAppNotification(String text) {
     sendSequenceCommand("AlexaAppNotification", "pushnotification", text)
 }
 
-String getRandomItem(List<String>items) {
+static String getRandomItem(List<String>items) {
     def list = new ArrayList<String>()
     items?.each { list.add(it) }
     return list.get(new Random().nextInt(list.size()))
@@ -2564,7 +2579,7 @@ def replayText() {
 def playText(String msg, volume=null) {
     if(isCommandTypeAllowed("TTS")) {
         if (msg) {
-            logDebug("playText($msg, $volume)")
+            logDebug("playText(${fixLg(msg)}, $volume)")
             if(volume) {
                 setVolumeAndSpeak(volume, msg)
             } else { speak(msg) }
@@ -2593,7 +2608,7 @@ def playTrackAndResume(String uri, volume=null) {
 
 // capability audioNotification
 def playTextAndResume(String text, volume=null) {
-    logTrace("The playTextAndResume(text: $text, volume: $volume) command received...")
+    logTrace("The playTextAndResume(text: ${fixLg(text)}, volume: $volume) command received...")
     if (volume != null) {
         setVolumeSpeakAndRestore(volume as Integer, text, null)
     } else { speak(text) }
@@ -2668,7 +2683,7 @@ void speechTest(String ttsMsg=sNULL) {
 
 void parallelSpeak(String msg) {
     logTrace("parallelSpeak() command received...")
-    if(!msg) { logWarn("No Message sent with parallelSpeak($msg) command", true) }
+    if(!msg) { logWarn("No Message sent with parallelSpeak(${fixLg(msg)}) command", true) }
     else {
         if(isZone()) {
             parent.relaySpeakZone(parent.id.toString(), msg, true)
@@ -2684,10 +2699,11 @@ void parallelSpeak(String msg) {
 }
 
 // capability speechSynthesis
+@SuppressWarnings('unused')
 void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
-        if(!msg) { logWarn("No Message sent with speak($msg) command", true) }
+        if(!msg) { logWarn("No Message sent with speak(${fixLg(msg)}) command", true) }
         else {
             def newvol = volume != null ? volume : null
             def restvol = state.oldVolume != null ? state.oldVolume : null
@@ -2726,10 +2742,10 @@ void updateLevel(oldvolume, newvolume) {
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
     String healthStatus = getHealthStatus()
-    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is current in OFFLINE State", true); return }
+    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is OFFLINE", true); return }
 
     if(settings.logTrace){
-        String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${cmdMap.message}"
+        String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${fixLg(cmdMap.message.toString())}"
         tr += cmdMap.newVolume ? " | SetVolume: (${cmdMap.newVolume})" :sBLANK
         tr += cmdMap.oldVolume ? " | Restore Volume: (${cmdMap.oldVolume})" :sBLANK
         tr += cmdMap.msgDelay  ? " | Expected runtime: (${(Integer)cmdMap.msgDelay})" :sBLANK
@@ -2759,25 +2775,26 @@ def sendTestAlexaMsg() {
 }
 
 @Field static final Map seqItemsAvailFLD = [
-        other: [
-            "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
-            "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
-            "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
-            "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
-            "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
-            "sound": "message",
-            "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
-            "announcementall": "message", "pushnotification": "message", "email": null, "voicecmdtxt": "voice command as text"
-        ],
-        music: [
-            "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
-            "spotify": "SPOTIFY", "tunein": "TUNEIN", "cloudplayer": "CLOUDPLAYER"
-        ],
-        musicAlt: [
-            "amazonmusic": "amazonMusic", "applemusic": "appleMusic", "iheartradio": "iHeartRadio", "pandora": "pandoraRadio",
-            "spotify": "spotify", "tunein": "tuneInRadio", "cloudplayer": "cloudPlayer"
-        ]
+    other: [
+        "weather":null, "traffic":null, "flashbriefing":null, "goodnews":null, "goodmorning":null, "goodnight":null, "cleanup":null,
+        "singasong":null, "tellstory":null, "funfact":null, "joke":null, "playsearch":null, "calendartoday":null,
+        "calendartomorrow":null, "calendarnext":null, "stop":null, "stopalldevices":null,
+        "dnd_duration": "2H30M", "dnd_time": "00:30", "dnd_all_duration": "2H30M", "dnd_all_time": "00:30",
+        "cannedtts_random": ["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"],
+        "sound": "message",
+        "date": null, "time": null,
+        "wait": "value (seconds)", "volume": "value (0-100)", "speak": "message", "announcement": "message",
+        "announcementall": "message", "pushnotification": "message", "email": null, "voicecmdtxt": "voice command as text"
+    ],
+    music: [
+        "amazonmusic": "AMAZON_MUSIC", "applemusic": "APPLE_MUSIC", "iheartradio": "I_HEART_RADIO", "pandora": "PANDORA",
+        "spotify": "SPOTIFY", "tunein": "TUNEIN", "cloudplayer": "CLOUDPLAYER"
+    ],
+    musicAlt: [
+        "amazonmusic": "amazonMusic", "applemusic": "appleMusic", "iheartradio": "iHeartRadio", "pandora": "pandoraRadio",
+        "spotify": "spotify", "tunein": "tuneInRadio", "cloudplayer": "cloudPlayer"
     ]
+]
 
 def executeSequenceCommand(String seqStr) {
     if(seqStr) {
@@ -2857,33 +2874,18 @@ private void stateCleanup() {
     // state.newVolume = null
     state.oldVolume = null
     clnItemsFLD.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
-}
-
-void resetQueue(String src=sBLANK) {
-    logTrace("resetQueue($src)")
-    //TODO remove this method
+    //TODO remove next two lines
     Map cmdQueue = ((Map<String,Object>)state).findAll { it?.key?.toString()?.startsWith("qItem_") }
     cmdQueue.each { cmdKey, cmdData -> state.remove(cmdKey) }
-    unschedule("queueCheck")
-    unschedule("checkQueue")
-/*    state.q_blocked = false
-    state.q_cmdCycleCnt = null */
-    // state.newVolume = null
-/*    state.q_lastCheckDt = sNULL
-    state.q_loopChkCnt = null
-    state.q_speakingNow = false
-    state.q_cmdWorking = false
-    state.q_firstCmdFlag = false
-    state.q_recheckScheduled = false
-    state.q_cmdIndexNum = null
-    state.q_curMsgLen = null
-    state.q_lastTtsCmdDelay = null
-    state.q_lastTtsMsg = null
-    state.q_lastMsg = null */
 }
 
-String getAmazonDomain() { return (String)state.amazonDomain ?: (String)parent?.settings?.amazonDomain } // does this work for parent call on HE?
-String getAmazonUrl() {return "https://alexa.${getAmazonDomain()}".toString() }
+@SuppressWarnings('unused')
+void resetQueue(String src=sBLANK) {
+//TODO remove this method - here for upgrades schedule/runIn
+    logTrace("resetQueue($src)")
+    unschedule("queueCheck")
+    unschedule("checkQueue")
+}
 
 @SuppressWarnings('unused')
 private void queueCheck(data) {
@@ -2894,6 +2896,9 @@ private void queueCheck(data) {
 private void processCmdQueue() {
     //TODO remove this method
 }
+
+String getAmazonDomain() { return (String)state.amazonDomain ?: (String)parent?.settings?.amazonDomain } // does this work for parent call on HE?
+String getAmazonUrl() {return "https://alexa.${getAmazonDomain()}".toString() }
 
 def testMultiCmd() {
     sendMultiSequenceCommand(
@@ -2932,7 +2937,7 @@ private void postCmdProcess(Map resp, Integer statusCode, Map data, Boolean zone
                 String pi = data.cmdDesc ?: "Command"
                 pi += data.isSSML ? " (SSML)" :sBLANK
                 pi += " Sent"
-                pi += " | (${data.message})"
+                pi += " | (${fixLg(data.message.toString())})"
                 pi += data.msgLen ? " | Length: (${data.msgLen}) " :sBLANK
                 pi += data.msgDelay ? " | Expected Runtime: (${(Integer)data.msgDelay} sec)" :sBLANK
                 pi += execTime ? " | Execution Time: (${execTime}ms)" : sBLANK
@@ -2978,7 +2983,7 @@ private Boolean minVersionFailed() {
         Integer t0 = isZone() ? ((Map<String,Integer>)parent?.relayMinVersions())["zoneEchoDevice"] : ((Map<String,Integer>)parent?.minVersions())["echoDevice"]
         Integer minDevVer = t0 ?: null
         return minDevVer != null && versionStr2Int(devVersionFLD) < minDevVer
-    } catch (e) { 
+    } catch (ignored) {
         return false
     }
 }
@@ -2987,12 +2992,6 @@ private String getDtNow() {
     Date now = new Date()
     return formatDt(now, false)
 }
-/*
-private String getIsoDtNow() {
-    def tf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
-    return tf.format(new Date())
-}*/
 
 private String formatDt(Date dt, Boolean mdy = true) {
     String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
@@ -3000,17 +2999,6 @@ private String formatDt(Date dt, Boolean mdy = true) {
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf.format(dt)
 }
-/*
-private Long GetTimeDiffSeconds(String strtDate, String stpDate=sNULL) {
-    if((strtDate && !stpDate) || (strtDate && stpDate)) {
-        Date now = new Date()
-        String stopVal = stpDate ? stpDate : formatDt(now, false)
-        Long start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate).getTime()
-        Long stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal).getTime()
-        Long diff =  ((stop - start) / 1000L)
-        return diff
-    } else { return null }
-} */
 
 private String parseFmtDt(String parseFmt, String newFmt, String dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
@@ -3032,6 +3020,11 @@ private void logSpeech(String msg, Integer status, String error=sNULL) {
 
 // private Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
 // private Integer stateSizePerc() { return (Integer) (((stateSize() / 100000)*100).toDouble().round(0)) }
+
+// public String gitBranch() { 
+//     if(gitBranchFLD == sNULL) { gitBranchFLD = (String) parent?.gitBranch() }
+//     return (String)gitBranchFLD
+// }
 
 private void addToLogHistory(String logKey, String msg, statusData, Integer max=10) {
     Boolean ssOk = true //(stateSizePerc() <= 70)
@@ -3073,7 +3066,7 @@ private void logError(String msg, Boolean noHist=false, ex=null) {
         String a
         try {
             if (ex) a = getExceptionMessageWithLine(ex)
-        } catch (e) {
+        } catch (ignored) {
         }
         if(a) log.error logPrefix(a, sCLRRED)
     }
