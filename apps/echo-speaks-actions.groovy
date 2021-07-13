@@ -2667,18 +2667,23 @@ def scheduleTrigEvt(evt=null) {
     Boolean mdOk = daynums ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
     Boolean wOk = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
     Boolean mOk = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
-    if(wdOk && mdOk && wOk && mOk) {
+    Boolean ok = (wdOk && mdOk && wOk && mOk)
+    //if(wdOk && mdOk && wOk && mOk) {
+    if(ok) {
         sTrigMap.lastRun = dateMap
         updMemStoreItem("schedTrigMap", sTrigMap)
         state.schedTrigMap = sTrigMap
 
-        releaseTheLock(sHMLF)
-        eventCompletion(evt, "scheduled", false, null, "scheduleTrigEvt", evt?.value, (String)evt?.displayName)
+        //releaseTheLock(sHMLF)
+        //eventCompletion(evt, "scheduled", false, null, "scheduleTrigEvt", evt?.value, (String)evt?.displayName)
         //executeAction(evt, false, "scheduleTrigEvt", false, false)
-    } else {
-        releaseTheLock(sHMLF)
-        logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
-    }
+    } //else {
+       // releaseTheLock(sHMLF)
+        //logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
+    //}
+    releaseTheLock(sHMLF)
+    eventCompletion(evt, ok, false, null, "scheduleTrigEvt", evt?.value, (String)evt?.displayName)
+    if(!ok) logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
 }
 
 def alarmEvtHandler(evt) {
@@ -2703,30 +2708,33 @@ def alarmEvtHandler(evt) {
                 ok2Run = false
         }
     }
-    if(ok2Run) {
+    //if(ok2Run) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
         Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
-        eventCompletion(evt, sALRMSYSST, dco, dcw, "alarmEvtHandler(${eN})", eV, (String)evt?.displayName)
-    } else {
-        logDebug("alarmEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT} ${lE}")
-    }
+        //eventCompletion(evt, sALRMSYSST, dco, dcw, "alarmEvtHandler(${eN})", eV, (String)evt?.displayName)
+    //} //else {
+    eventCompletion(evt, ok2Run, dco, dcw, "alarmEvtHandler(${eN})", eV, (String)evt?.displayName)
+    if(!ok2Run) logDebug("alarmEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT} ${lE}")
 }
 
 public guardEventHandler(String guardState) {
     def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
     logTrace("${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
-    if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
-        eventCompletion(evt, "guard", false, null, "guardEventHandler", guardState, (String)evt?.displayName)
+    Boolean ok= ((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard))
+    //if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
+        eventCompletion(evt, ok, false, null, "guardEventHandler", guardState, (String)evt?.displayName)
         //executeAction(evt, false, "guardEventHandler", false, false)
-    }
+    //}
+    if(!ok) logDebug("guardEventHandler | Skipping event guard  value: ${guardState}, did not match ${state.handleGuardEvents} ${settings.trig_guard}")
 }
 
-def eventCompletion(evt, String dId, Boolean dco, Integer dcw, String meth, evtVal, String evtDis) {
+void eventCompletion(evt, Boolean ok2Run, Boolean dco, Integer dcw, String meth, evtVal, String evtDis) {
     Boolean evtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk([date: evt?.date, device: evt?.device, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw) : true)
-    if(!evtWaitOk) { return }
+    Boolean ok = evtWaitOk && ok2Run
+    //if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
-        processTierTrigEvt(evt, true)
-    } else { executeAction(evt, false, meth, false, false) }
+        processTierTrigEvt(evt, ok)
+    } else { if(ok) executeAction(evt, false, meth, false, false) }
 }
 
 def webcoreEvtHandler(evt) {
@@ -2737,13 +2745,14 @@ def webcoreEvtHandler(evt) {
     List lT = (List)settings."${inT}"
     logTrace("${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
     String inT = "trig_${sPISTNEXEC}"
-    if(pId in lT) {
+    Boolean ok = (pId in lT)
+    //if(pId in lT) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
         Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
-        eventCompletion(evt, sPISTNEXEC, dco, dcw, "webcoreEvtHandler", disN, disN)
-    } else {
-        logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
-    }
+        eventCompletion(evt, ok, dco, dcw, "webcoreEvtHandler", disN, disN)
+    //} else {
+        if(!ok) logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
+    //}
 }
 // TODO not in use
 /*
@@ -2760,13 +2769,14 @@ def modeEvtHandler(evt) {
     def eV = evt?.value
     String inT = "trig_mode"
     List lT = (List)settings."${inT}"
-    if(eV in lT) {
+    Boolean ok = (eV in lT)
+//    if(eV in lT) {
         Boolean dco = ((Boolean)settings."${inT}_once" == true)
         Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
-        eventCompletion(evt, sMODE, dco, dcw, "modeEvtHandler", eV, (String)evt?.displayName)
-    } else {
-        logTrace("modeEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT}")
-    }
+        eventCompletion(evt, ok, dco, dcw, "modeEvtHandler", eV, (String)evt?.displayName)
+ //   } else {
+        if(!ok) logTrace("modeEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT}")
+    //}
 }
 
 void devAfterThermEvtHandler(evt) {
