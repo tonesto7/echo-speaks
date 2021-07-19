@@ -2463,12 +2463,10 @@ void subscribeToEvts() {
 }
 
 private getDevEvtHandlerName(String type) {
-    // if(isTierAction()) { return "deviceTierEvtHandler" }
     return (type && (Integer)settings."trig_${type}_after"!=null) ? "devAfterEvtHandler" : "deviceEvtHandler"
 }
 
 private getThermEvtHandlerName(String type) {
-    // if(isTierAction()) { return "deviceTierEvtHandler" }
     return (type && (Integer)settings."trig_${type}_after"!=null) ? "devAfterThermEvtHandler" : "thermostatEvtHandler"
 }
 
@@ -2515,7 +2513,6 @@ private executeActTest() {
                         break
                 }
             }
-//        }
 //        if(!fnd) executeAction(evt, true, "executeActTest", false, false)
         } else logWarn("TEST of Action type ${settings.actionType} SKIPPED")
     } catch (ignored) {}
@@ -2657,7 +2654,6 @@ def scheduleTrigEvt(evt=null) {
     List weeks = recur ? (List)settings.trig_scheduled_weeks : null
     List months = recur ? (List)settings.trig_scheduled_months : null
 
-
     getTheLock(sHMLF, "scheduleTrigEvt")
 
     Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
@@ -2668,19 +2664,12 @@ def scheduleTrigEvt(evt=null) {
     Boolean wOk = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
     Boolean mOk = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
     Boolean ok = (wdOk && mdOk && wOk && mOk)
-    //if(wdOk && mdOk && wOk && mOk) {
     if(ok) {
         sTrigMap.lastRun = dateMap
         updMemStoreItem("schedTrigMap", sTrigMap)
         state.schedTrigMap = sTrigMap
+    }
 
-        //releaseTheLock(sHMLF)
-        //eventCompletion(evt, "scheduled", false, null, "scheduleTrigEvt", evt?.value, (String)evt?.displayName)
-        //executeAction(evt, false, "scheduleTrigEvt", false, false)
-    } //else {
-       // releaseTheLock(sHMLF)
-        //logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
-    //}
     releaseTheLock(sHMLF)
     eventCompletion(evt, ok, false, null, "scheduleTrigEvt", evt?.value, (String)evt?.displayName)
     if(!ok) logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
@@ -2708,11 +2697,8 @@ def alarmEvtHandler(evt) {
                 ok2Run = false
         }
     }
-    //if(ok2Run) {
-        Boolean dco = ((Boolean)settings."${inT}_once" == true)
-        Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
-        //eventCompletion(evt, sALRMSYSST, dco, dcw, "alarmEvtHandler(${eN})", eV, (String)evt?.displayName)
-    //} //else {
+    Boolean dco = ((Boolean)settings."${inT}_once" == true)
+    Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
     eventCompletion(evt, ok2Run, dco, dcw, "alarmEvtHandler(${eN})", eV, (String)evt?.displayName)
     if(!ok2Run) logDebug("alarmEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT} ${lE}")
 }
@@ -2721,17 +2707,13 @@ public guardEventHandler(String guardState) {
     def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
     logTrace("${evt?.name} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(evt?.value)})")
     Boolean ok= ((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard))
-    //if((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard)) {
-        eventCompletion(evt, ok, false, null, "guardEventHandler", guardState, (String)evt?.displayName)
-        //executeAction(evt, false, "guardEventHandler", false, false)
-    //}
+    eventCompletion(evt, ok, false, null, "guardEventHandler", guardState, (String)evt?.displayName)
     if(!ok) logDebug("guardEventHandler | Skipping event guard  value: ${guardState}, did not match ${state.handleGuardEvents} ${settings.trig_guard}")
 }
 
 void eventCompletion(evt, Boolean ok2Run, Boolean dco, Integer dcw, String meth, evtVal, String evtDis) {
     Boolean evtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk([date: evt?.date, device: evt?.device, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw) : true)
     Boolean ok = evtWaitOk && ok2Run
-    //if(!evtWaitOk) { return }
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, ok)
     } else { if(ok) executeAction(evt, false, meth, false, false) }
@@ -2746,13 +2728,10 @@ def webcoreEvtHandler(evt) {
     logTrace("${evt?.name?.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - evt?.date?.getTime()}ms")
     String inT = "trig_${sPISTNEXEC}"
     Boolean ok = (pId in lT)
-    //if(pId in lT) {
-        Boolean dco = ((Boolean)settings."${inT}_once" == true)
-        Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
-        eventCompletion(evt, ok, dco, dcw, "webcoreEvtHandler", disN, disN)
-    //} else {
-        if(!ok) logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
-    //}
+    Boolean dco = ((Boolean)settings."${inT}_once" == true)
+    Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
+    eventCompletion(evt, ok, dco, dcw, "webcoreEvtHandler", disN, disN)
+    if(!ok) logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
 }
 // TODO not in use
 /*
@@ -2770,13 +2749,10 @@ def modeEvtHandler(evt) {
     String inT = "trig_mode"
     List lT = (List)settings."${inT}"
     Boolean ok = (eV in lT)
-//    if(eV in lT) {
-        Boolean dco = ((Boolean)settings."${inT}_once" == true)
-        Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
-        eventCompletion(evt, ok, dco, dcw, "modeEvtHandler", eV, (String)evt?.displayName)
- //   } else {
-        if(!ok) logTrace("modeEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT}")
-    //}
+    Boolean dco = ((Boolean)settings."${inT}_once" == true)
+    Integer dcw = (Integer)settings."${inT}_wait"!=null ? (Integer)settings."${inT}_wait" : null
+    eventCompletion(evt, ok, dco, dcw, "modeEvtHandler", eV, (String)evt?.displayName)
+    if(!ok) logTrace("modeEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT}")
 }
 
 void devAfterThermEvtHandler(evt) {
@@ -2791,18 +2767,18 @@ void devAfterEvtHandler(evt) {
     String eN = (String)evt?.name
     def eV = evt?.value
     String dc = settings."trig_${eN}_cmd" ?: null
-    Integer dcaf = (Integer)settings."trig_${eN}_after"!=null ? (Integer)settings."trig_${eN}_after" : null
-    Integer dcafr = (Integer)settings."trig_${eN}_after_repeat" ?: null
-    Integer dcafrc = (Integer)settings."trig_${eN}_after_repeat_cnt" ?: null
+    Integer dcaf = (Integer)settings."trig_${eN}_after"!=null ? (Integer)settings."trig_${eN}_after" : 0
+    Integer dcafr = (Integer)settings."trig_${eN}_after_repeat" ?: 0
+    Integer dcafrc = (Integer)settings."trig_${eN}_after_repeat_cnt" ?: 0
     String eid = "${evt?.device?.id}_${eN}"
-    Boolean okpt1 = (dc && dcaf!=null)
+    Boolean okpt1 = (dc && dcaf>=0)
     Boolean okpt2 = okpt1
     if(!(eN in [sCOOLSP, sHEATSP, sTHERMTEMP, sHUMID, sTEMP, sPOWER, "illuminance", sLEVEL, sBATT])) {
         okpt2 = (okpt1 && eV == dc)
     }
     String msg = "Device Event After | "
+    logTrace(msg+"${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${okpt1}, ${okpt2}) dcaf: $dcaf, dcafr: $dcafr, dcafrc: $dcafrc")
 
-    logTrace(msg+"${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${okpt1}, ${okpt2})")
     Boolean rem = false
 
     getTheLock(sHMLF, "scheduleTrigEvt")
@@ -2815,7 +2791,7 @@ void devAfterEvtHandler(evt) {
         rem = true
     }
     if(okpt2) { aEvtMap[eid] = [
-            dt: evt?.date?.toString(),
+            dt: formatDt((Date)evt.date),
             device: [id: evt?.device.id as String],
             displayName: evt?.displayName,
             name: eN,
@@ -2831,6 +2807,7 @@ void devAfterEvtHandler(evt) {
             repeatCnt: 0,
             repeatCntMax: dcafrc ]
     }
+
     updMemStoreItem("afterEvtMap", aEvtMap)
     state.afterEvtMap = aEvtMap
     Integer sz = aEvtMap.size()
@@ -2840,16 +2817,17 @@ void devAfterEvtHandler(evt) {
     if(rem) logDebug(msg+"Removing ${evt?.displayName} from AfterEvtCheckMap | Reason: (${eN?.toUpperCase()}) no longer has the state of (${dc}) | Remaining Items: (${sz})")
 
     if(okpt2) {
+	String msg1 = msg+"queued event | "
         Boolean doRun=true
         if (dcaf == 0) {
-            logTrace(msg+"Running afterEvent")
+            logTrace(msg1+"Running afterEvent")
             afterEvtCheckHandler()
             doRun = false
         }
         if(doRun) {
             Integer ssec = dcaf >= 0 ? dcaf : 2
             runIn(ssec, "afterEvtCheckHandler")
-            logTrace(msg+"Scheduled afterEvent in ${ssec} seconds")
+            logTrace(msg1+"Scheduled afterEvent in ${ssec} seconds")
         }
         // TODO remove
         if(!(Boolean)state.afterEvtCheckWatcherSched) {
@@ -2858,7 +2836,7 @@ void devAfterEvtHandler(evt) {
             runEvery5Minutes("afterEvtCheckWatcher")
         }
     } else {
-        logDebug(msg+"Passing to deviceEvtHandler")
+        logDebug(msg+" did not queue | Passing to deviceEvtHandler")
         deviceEvtHandler(evt, true, false)
     }
 }
@@ -2870,10 +2848,10 @@ void afterEvtCheckHandler() {
     logTrace(msg)
 
     getTheLock(sHMLF, "afterEvtCheckHandler")
+    Boolean hasLock = true
 
     Map<String, Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-    Boolean hasLock = true
 
     Long mnow = (Long)now() + 750L // anything in next 750ms runs now
     Map newMap = aEvtMap.findAll { it -> (Long)it?.value?.nextT < mnow }
@@ -2882,10 +2860,10 @@ void afterEvtCheckHandler() {
     sortList?.each {
         if (!hasLock) {
             getTheLock(sHMLF, "afterEvtCheckHandler")
+            hasLock = true
 
             aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
             if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-            hasLock = true
         }
         def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == it }
         Map nextVal = (Map)nextItem?.value ?: null
@@ -2907,6 +2885,7 @@ void afterEvtCheckHandler() {
                 if (dev) newVal = dev?.currentValue(en)
                 if (newVal != nextVal.value) msg1 = msg1 + "value changed old: ${nextVal.value} new: ${newVal} | "
             }
+            Long origD = parseDate(nextVal.dt).getTime()
             Map<String, Object> evt = [
                 date       : new Date(),
                 device     : [id: edId],
@@ -2914,7 +2893,8 @@ void afterEvtCheckHandler() {
                 name       : eN,
                 value      : newVal,// ?: nextVal.value,
                 type       : nextVal.type,
-                data       : nextVal.data
+                data       : nextVal.data,
+                totalDur   : (now() - origD)/1000
             ]
 
             Boolean skipEvt = true
@@ -2988,10 +2968,10 @@ void afterEvtCheckHandler() {
 
     if (!hasLock) {
         getTheLock(sHMLF, "afterEvtCheckHandler")
+        hasLock = true
 
         aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
         if (!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-        hasLock = true
     }
     Integer sz = aEvtMap.size()
     if (sz > 0) {
@@ -3007,117 +2987,14 @@ void afterEvtCheckHandler() {
             runIn(ssecs, "afterEvtCheckHandler")
             logTrace(msg+"Scheduled afterEvent in ${ssecs} seconds; afterEvtMap: ${sz}")
         } else logWarn(msg+"INCONSISTENT")
+
     } else {
         releaseTheLock(sHMLF)
         hasLock = false
         clearAfterCheckSchedule()
     }
-
-    if (hasLock) releaseTheLock(sHMLF)
 }
-/*
-void afterEvtCheckHandler() {
 
-    getTheLock(sHMLF, "afterEvtCheckHandler")
-
-    Map<String,Map> aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
-    if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
-    Boolean hasLock = true
-
-    if(aEvtMap.size()) {
-        // Collects all of the evt items and stores their wait values as a list
-        Integer timeLeft = null
-        Integer lowWait = aEvtMap.findAll {it -> it?.value?.wait != null }?.collect { it?.value?.wait }?.min()
-        Integer lowLeft = aEvtMap.findAll {it -> it?.value?.wait == lowWait }?.collect { it?.value?.timeLeft} ?.min()
-        def nextItem = aEvtMap.find {it -> it?.value?.wait == lowWait && (!it?.value?.timeLeft || it?.value?.timeLeft == lowLeft) }
-        //ERS TODO
-        //log.debug "nextItem: $nextItem"
-        Map nextVal = (Map)nextItem?.value ?: null
-        //log.debug "nextVal: $nextVal"
-        String nextId = (nextVal?.deviceId && nextVal?.name) ? "${nextVal.deviceId}_${nextVal.name}" : sNULL
-        //log.debug "nextId: $nextId    key: ${nextItem?.key}"
-        if(nextVal && nextId && aEvtMap[nextId]) {
-            Date fullDt = parseDate((String)nextVal.dt)
-            Date prevDt = (Boolean)nextVal.isRepeat && nextVal.repeatDt ? parseDate((String)nextVal.repeatDt) : fullDt
-            Integer repeatCnt = (nextVal.repeatCnt >= 0) ? nextVal.repeatCnt + 1 : 1
-            Integer repeatCntMax = (Integer)nextVal.repeatCntMax ?: null
-            Boolean isRepeat = (Boolean)nextVal.isRepeat ?: false
-            Boolean hasRepeat = ((Integer)settings."trig_${nextVal.name}_after_repeat" != null)
-            if(prevDt) {
-                Long timeNow = new Date().getTime()
-                Integer evtElap = Math.round((timeNow - prevDt.getTime())/1000L).toInteger()
-                Integer fullElap = Math.round((timeNow - fullDt.getTime())/1000L).toInteger()
-                Integer reqDur = ((Boolean)nextVal.isRepeat && nextVal.repeatWait) ? (Integer)nextVal.repeatWait : (Integer)nextVal.wait ?: null
-                timeLeft = (reqDur - evtElap)
-                aEvtMap[nextId].timeLeft = timeLeft
-                aEvtMap[nextId].repeatCnt = repeatCnt
-
-                updMemStoreItem("afterEvtMap", aEvtMap)
-                state.afterEvtMap = aEvtMap
-
-                logDebug("afterEvtCheckHandler  | TimeLeft: ${timeLeft}(<=1 ${(timeLeft <= 1)}) | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | RequiredDur: ${reqDur} | AfterWait: ${nextVal?.wait} | RepeatWait: ${nextVal?.repeatWait} | isRepeat: ${nextVal?.isRepeat} | RepeatCnt: ${repeatCnt} | RepeatCntMax: ${repeatCntMax}")
-                if(timeLeft <= 1 && nextVal.deviceId && nextVal.name) {
-                    timeLeft = reqDur
-                    // log.debug "reqDur: $reqDur | evtElap: ${evtElap} | timeLeft: $timeLeft"
-                    def devs = settings."trig_${nextVal.name}" ?: null
-                    Boolean skipEvt = true
-                    if(nextVal.triggerState && nextVal.deviceId && nextVal.name && devs) {
-                        String en = (String)nextVal.name
-                        en = en == sTHERMTEMP ? sTEMP : en
-                        skipEvt = !devAttValEqual(devs, (String)nextVal.deviceId, en, nextVal.triggerState)
-                    }
-                    Boolean skipEvtCnt = (repeatCntMax && (repeatCnt > repeatCntMax))
-                    aEvtMap[nextId]?.timeLeft = timeLeft
-                    if(!skipEvt && !skipEvtCnt) {
-                        if(hasRepeat) {
-                            // log.warn "Last Repeat ${nextVal?.displayName?.toString()?.capitalize()} (${nextVal?.name}) Event | TimeLeft: ${timeLeft} | LastCheck: ${evtElap} | EvtDuration: ${fullElap} | Required: ${reqDur}"
-                            aEvtMap[nextId].repeatDt = formatDt(new Date())
-                            aEvtMap[nextId].isRepeat = true
-                            updMemStoreItem("afterEvtMap", aEvtMap)
-                            releaseTheLock(sHMLF)
-                            state.afterEvtMap = aEvtMap
-                            hasLock = false
-                            Map<String,Object> tt=[date: parseDate(nextVal.repeatDt?.toString()), deviceId: (String)nextVal.deviceId, displayName: nextVal?.displayName, name: nextVal?.name, value: nextVal?.value, type: nextVal?.type, data: nextVal?.data, totalDur: fullElap]
-                            deviceEvtHandler(tt, true, isRepeat)
-                        } else {
-                            aEvtMap.remove(nextId)
-                            updMemStoreItem("afterEvtMap", aEvtMap)
-                            releaseTheLock(sHMLF)
-                            state.afterEvtMap = aEvtMap
-                            hasLock = false
-                            logDebug("Wait Threshold (${reqDur} sec) Reached for ${nextVal.displayName} (${nextVal.name?.toString()?.capitalize()}) | Issuing held event | TriggerState: (${nextVal.triggerState}) | EvtDuration: ${fullElap}")
-                            Map<String,Object> tt = [date: parseDate(nextVal.dt?.toString()), deviceId: (String)nextVal.deviceId, displayName: nextVal.displayName, name: nextVal.name, value: nextVal.value, type: nextVal.type, data: nextVal.data]
-                            deviceEvtHandler(tt, true)
-                        }
-                    } else {
-                        aEvtMap.remove(nextId)
-                        updMemStoreItem("afterEvtMap", aEvtMap)
-                        releaseTheLock(sHMLF)
-                        state.afterEvtMap = aEvtMap
-                        hasLock = false
-                        String msg1 = "${nextVal?.displayName} | (${nextVal?.name?.toString()?.capitalize()}) "
-                        if(!skipEvt && skipEvtCnt) {
-                            logDebug(msg1 + "has repeated ${repeatCntMax} times | Skipping Action Repeat...")
-                        } else {
-                            logDebug(msg1 + "state is no longer ${nextVal.triggerState} | Skipping Action...")
-                        }
-                    }
-                }
-            }
-        }
-        // log.debug "nextId: $nextId | timeLeft: ${timeLeft}"
-        if(hasLock) releaseTheLock(sHMLF)
-
-//        runIn(1, "scheduleAfterCheck", [data: [val: timeLeft, id: nextId, repeat: isRepeat]])
-//        logTrace("afterEvtCheckHandler scheduleAfterCheck in 1 second")
-        // logTrace("afterEvtCheckHandler Remaining Items: (${aEvtMap?.size()})")
-    } else {
-        releaseTheLock(sHMLF)
-        clearAfterCheckSchedule()
-    }
-    updTsVal("lastAfterEvtCheck")
-}
-*/
 // TODO remove
 Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
 
@@ -3128,10 +3005,6 @@ void afterEvtCheckWatcher() {
     Map aEvtMap = (Map)getMemStoreItem("afterEvtMap", [:])
     if(!aEvtMap) aEvtMap = (Map)state.afterEvtMap ?: [:]
 
-//    Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
-//    if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
-
-    //if((aEvtMap.size() == 0 && aSchedMap?.id) || (aEvtMap.size() && getLastAfterEvtCheck() > 240)) {
     releaseTheLock(sHMLF)
 
     if(aEvtMap.size() && getLastAfterEvtCheck() > 240) {
@@ -3139,43 +3012,12 @@ void afterEvtCheckWatcher() {
         logDebug("afterEvtCheckWatcher scheduled afterEvtCheckHandler...")
     }
 }
-/*
-def scheduleAfterCheck(data) {
-    Integer val = data?.val ? (data.val < 2 ? 2 : data.val-4) : 60
-    String id = data?.id?.toString() ?: null
-    Boolean rep = (data?.repeat == true)
 
-    getTheLock(sHMLF, "scheduleAfterCheck")
-
-    Map aSchedMap = (Map)getMemStoreItem("afterEvtChkSchedMap", null)
-    if(!aSchedMap) aSchedMap = (Map)state.afterEvtChkSchedMap ?: null
-
-    runIn(val, "afterEvtCheckHandler")
-
-    Map a = [id: id, dur: val, dt: getDtNow()]
-    state.afterEvtChkSchedMap = a
-    updMemStoreItem("afterEvtChkSchedMap", a)
-
-    releaseTheLock(sHMLF)
-
-    if(devModeFLD && aSchedMap && aSchedMap?.id?.toString() && id && aSchedMap?.id?.toString() == id) {
-        log.debug "scheduleAfterCheck: Active Schedule Id (${aSchedMap?.id}) is the same as the requested schedule ${id}."
-    }
-    logDebug("Schedule After Event Check${rep ? " (Repeat)" : sBLANK} in (${val} seconds) | Id: ${id}")
-}
-*/
 private clearAfterCheckSchedule() {
     unschedule("afterEvtCheckHandler")
     unschedule("afterEvtCheckWatcher") // TODO remove
     state.afterEvtCheckWatcherSched = false
     logTrace("Clearing After Event Check Schedule...")
-
-//    getTheLock(sHMLF, "clearAfterCheckSchedule")
-
-//    updMemStoreItem("afterEvtChkSchedMap", null)
-//    state.afterEvtChkSchedMap = null
-
-//    releaseTheLock(sHMLF)
 }
 
 void thermostatEvtHandler(evt) {
