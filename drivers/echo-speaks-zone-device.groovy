@@ -35,6 +35,8 @@ import groovy.transform.Field
 //*          IN-MEMORY ONLY VARIABLES            *
 //* (Cleared only on HUB REBOOT or CODE UPDATES) *
 //************************************************
+@Field volatile static Map<String,Map> historyMapFLD = [:]
+@Field volatile static Map<String,Map> cookieDataFLD = [:]
 // @Field volatile static String gitBranchFLD = null
 
 static String devVersion()   { return devVersionFLD }
@@ -199,7 +201,7 @@ def installed() {
         sendEvent(name: "doNotDisturb", value: sFALSE)
     }
     sendEvent(name: "onlineStatus", value: "online")
-    // state.doNotDisturb = false
+//    state.doNotDisturb = false
     initialize()
     runIn(20, "postInstall")
 }
@@ -3019,7 +3021,7 @@ private void logSpeech(String msg, Integer status, String error=sNULL) {
 // private Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
 // private Integer stateSizePerc() { return (Integer) (((stateSize() / 100000)*100).toDouble().round(0)) }
 
-// public String getGitBranch() { 
+// public String gitBranch() { 
 //     if(gitBranchFLD == sNULL) { gitBranchFLD = (String) parent?.gitBranch() }
 //     return (String)gitBranchFLD
 // }
