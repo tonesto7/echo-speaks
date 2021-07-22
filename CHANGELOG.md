@@ -1,3 +1,14 @@
+### _**Release (v4.1.9.2) - [July 22nd, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] NP error resolved for zone devices.
+
+### _**Release (v4.1.9.1) - [July 19th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Bugfixes and Optimizations.
+- [FIX] Fixed issue with Actions not converting duration variables. 
+
 ### _**Release (v4.1.9.0) - [July 13th, 2021]**_
 
 #### _***All Apps and Devices***_
