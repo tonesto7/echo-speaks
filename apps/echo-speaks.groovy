@@ -19,12 +19,12 @@ import groovy.transform.Field
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.1'
-@Field static final String appModifiedFLD = '2021-07-19'
+@Field static final String appVersionFLD  = '4.1.9.2'
+@Field static final String appModifiedFLD = '2021-07-22'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4191, wsDevice: 4191, actionApp: 4191, zoneApp: 4191, zoneEchoDevice: 4191, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4192, wsDevice: 4192, actionApp: 4192, zoneApp: 4192, zoneEchoDevice: 4192, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
