@@ -15,7 +15,13 @@
  *
  */
 
+
+import groovy.json.JsonOutput
 import groovy.transform.Field
+
+import java.text.SimpleDateFormat
+import java.util.concurrent.Semaphore
+
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
@@ -594,14 +600,13 @@ void handleZoneDevice() {
     }
 }
 
-
-List getEsDevices() {
+List getEzDevice() {
     return getChildDevices()?.findAll { (Boolean)it?.isZone() }
 }
 
 void updateChildZoneState(Boolean zoneActive, Boolean active) {
-    if(zoneActive != null) getEsDevices()?.each { it?.updStatus(zoneActive) }
-    if(active != null) getEsDevices()?.each { it?.updSocketStatus(active) }
+    if(zoneActive != null) getEzDevice()?.each { it?.updStatus(zoneActive) }
+    if(active != null) getEzDevice()?.each { it?.updSocketStatus(active) }
 }
 
 /*******************************************************************
@@ -610,7 +615,7 @@ void updateChildZoneState(Boolean zoneActive, Boolean active) {
 @SuppressWarnings('unused')
 String relayDevVersion() {
     String a
-    getEsDevices().each { a = it.devVersion() }
+    getEzDevice().each { a = it.devVersion() }
     return a
 }
 
@@ -621,34 +626,34 @@ void relayUpdChildSocketStatus(Boolean active) {
 
 @SuppressWarnings('unused')
 void relayUpdateCookies(Map cookies, Boolean doInit){
-    getEsDevices().each { it.updateCookies(cookies, doInit) }
+    getEzDevice().each { it.updateCookies(cookies, doInit) }
 }
 
 @SuppressWarnings('unused')
 void relayRemoveCookies(Boolean isParent) {
-    getEsDevices().each { it.removeCookies(isParent) }
+    getEzDevice().each { it.removeCookies(isParent) }
 }
 
 @SuppressWarnings('unused')
-void relayEnableDebugLog() { getEsDevices().each { it.enableDebugLog() } }
+void relayEnableDebugLog() { getEzDevice().each { it.enableDebugLog() } }
 @SuppressWarnings('unused')
-void relayDisableDebugLog() { getEsDevices().each { it.disableDebugLog() } }
+void relayDisableDebugLog() { getEzDevice().each { it.disableDebugLog() } }
 @SuppressWarnings('unused')
-void relayEnableTraceLog() { getEsDevices().each { it.enableTraceLog() } }
+void relayEnableTraceLog() { getEzDevice().each { it.enableTraceLog() } }
 @SuppressWarnings('unused')
-void relayDisableTraceLog() { getEsDevices().each { it.disableTraceLog() } }
+void relayDisableTraceLog() { getEzDevice().each { it.disableTraceLog() } }
 @SuppressWarnings('unused')
-void relayLogsOff() { getEsDevices().each { it.logsOff() } }
+void relayLogsOff() { getEzDevice().each { it.logsOff() } }
 @SuppressWarnings('unused')
-Map relayGetLogHistory() { Map a; getEsDevices().each { a = it.getLogHistory() }; return a ?: [:] }
+Map relayGetLogHistory() { Map a; getEzDevice().each { a = it.getLogHistory() }; return a ?: [:] }
 @SuppressWarnings('unused')
-void relayClearLogHistory() { getEsDevices().each { it.clearLogHistory() } }
+void relayClearLogHistory() { getEzDevice().each { it.clearLogHistory() } }
 @SuppressWarnings('unused')
-void relayFinishAnnouncement(String msg, LinkedHashMap vmap) { getEsDevices().each { it.finishAnnounce(msg, vmap.vol, vmap.restvol) } }
+void relayFinishAnnouncement(String msg, LinkedHashMap vmap) { getEzDevice().each { it.finishAnnounce(msg, vmap.vol, vmap.restvol) } }
 @SuppressWarnings('unused')
-void relayFinishSpeak(Map resp, Integer statucode, Map data) { getEsDevices().each { it.finishSendSpeakZ(resp, statuscode, data) } }
+void relayFinishSpeak(Map resp, Integer statucode, Map data) { getEzDevice().each { it.finishSendSpeakZ(resp, statuscode, data) } }
 @SuppressWarnings('unused')
-void relaySetOnline(Boolean onl) { getEsDevices().each { it.setOnlineStatus(onl) } }
+void relaySetOnline(Boolean onl) { getEzDevice().each { it.setOnlineStatus(onl) } }
 
 
 /*******************************************************************
@@ -1391,7 +1396,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                         dev?."${data.cmd}"(data.changeVol)
                     }
                     /* call zone vdevice with updateLevel */
-                    if(!chldDev) getEsDevices().each { it.updateLevel(null, data.changeVol) }
+                    if(!chldDev) getEzDevice().each { it.updateLevel(null, data.changeVol) }
                 }
                 break
 
@@ -1404,7 +1409,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                     if(data.cmd) { dev?."${data.cmd}"() }
                 }
                     /* if(!chldDev) todo need to call zone vdevice with mute/unmute updates */
-                   // getEsDevices().each { it.updateCookies(cookies) }
+                   // getEzDevice().each { it.updateCookies(cookies) }
                 break
 
             case "builtin":
@@ -1432,7 +1437,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
                 break
         }
         /* call zone vdevice with updateLevel */
-        if(doFin && !chldDev) getEsDevices().each { it.updateLevel(data.restoreVol, data.changeVol) }
+        if(doFin && !chldDev) getEzDevice().each { it.updateLevel(data.restoreVol, data.changeVol) }
     }
 }
 /******************************************
@@ -1567,7 +1572,7 @@ String formatDt(Date dt, Boolean tzChg=true) {
 
 String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
-    def tf = new java.text.SimpleDateFormat(fmt)
+    def tf = new SimpleDateFormat(fmt)
     if(tzChg && location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return (String)tf.format(dt)
 }
@@ -1618,7 +1623,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
 }
 
 String getWeekDay() {
-    def df = new java.text.SimpleDateFormat("EEEE")
+    def df = new SimpleDateFormat("EEEE")
     df.setTimeZone(location?.timeZone)
     return (String)df.format(new Date())
 }
@@ -1642,7 +1647,7 @@ String getYear() {
 }
 */
 String getMonth() {
-    def df = new java.text.SimpleDateFormat("MMMMM")
+    def df = new SimpleDateFormat("MMMMM")
     df.setTimeZone(location?.timeZone)
     return (String)df.format(new Date())
 }
@@ -2195,7 +2200,7 @@ static String bulletItem(String inStr, String strVal) { return "${inStr == sBLAN
 static String dashItem(String inStr, String strVal, Boolean newLine=false) { return "${(inStr == sBLANK && !newLine) ? sBLANK : "\n"} - "+strVal }
 
 Integer stateSize() {
-    String j = new groovy.json.JsonOutput().toJson((Map)state)
+    String j = new JsonOutput().toJson((Map)state)
     return j.length()
 }
 Integer stateSizePerc() { return (Integer)(((stateSize() / 100000)*100).toDouble().round(0)) }
@@ -2268,7 +2273,7 @@ private List getMemStoreItem(String key){
     return (List)memStore[key] ?: []
 }
 // Memory Barrier
-@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+@Field static Semaphore theMBLockFLD=new Semaphore(0)
 
 static void mb(/*String meth=sNULL*/){
     if((Boolean)theMBLockFLD.tryAcquire()){
