@@ -19,7 +19,7 @@ import groovy.transform.Field
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String devVersionFLD  = "4.1.9.2"
-@Field static final String devModifiedFLD = "2021-07-22"
+@Field static final String devModifiedFLD = "2021-07-28"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -1147,21 +1147,21 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
         switch(method) {
             case "POST":
                 httpPostJson(params) { response->
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    rData = response?.data ?: null
                 }
                 break
             case "PUT":
                 if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    rData = response?.data ?: null
                 }
                 break
             case "DELETE":
                 httpDelete(params) { response->
-                    rData = response?.data ?: null
                     rStatus = response?.status
+                    rData = response?.data ?: null
                 }
                 break
         }
@@ -1238,7 +1238,7 @@ void respExceptionHandler(ex, String mName, Boolean clearOn401=false, Boolean ig
         } else if(sCode == 429) {
             logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
         } else if(sCode == 200) {
-            if(errMsg != "OK") { logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}") }
+            if(!errMsg.contains("OK")) { logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}") }
         } else {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }
