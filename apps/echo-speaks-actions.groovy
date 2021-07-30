@@ -16,6 +16,10 @@
  * ---------------------------------------------
     TODO: Custom Reports for multiple builtin in routine items. Reports for home status like temp, contact, alarm status.
  */
+//file:noinspection GroovyUnusedAssignment
+//file:noinspection unused
+//file:noinspection GroovySillyAssignment
+//file:noinspection GroovyDoubleNegation
 
 
 import groovy.json.JsonOutput
@@ -689,7 +693,6 @@ Map<String,Map> getCodes(List devs, String code=sNULL) {
     return result
 }
 
-@SuppressWarnings('unused')
 def dummy(a,b) {}
 
 def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
@@ -782,7 +785,7 @@ def trigNumValSect(String inType, String capType, String sectStr, String devTitl
                             input "trig_${inType}_avg", sBOOL, title: spanSmBld("Use the average of all selected device values?", sNULL, sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                         }
                     }
-                    
+
                     input "trig_${inType}_after", sNUMBER, title: spanSmBld("Only after (${settings."trig_${inType}_cmd"}) for (xx) (0..7200) s econds?", sNULL, sDELAYT), required: false, defaultValue: null, submitOnChange: true
                     Integer aft = (Integer)settings."trig_${inType}_after"
                     if(aft != null) {
@@ -829,11 +832,11 @@ def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemC
         if(resps1.size() > 1) {
             resps1.each { i-> desc1 += spanSmBld("(${resp1cnt})") + sSPACE + spanSmBr(i, sCLR4D9); resp1cnt++ }
         } else {
-            desc1 += spanSmBr((String)settings."trig_${inType}_txt" ?: sBLANK, sCLR4D9) 
+            desc1 += spanSmBr((String)settings."trig_${inType}_txt" ?: sBLANK, sCLR4D9)
         }
         desc1 += (String)settings."trig_${inType}_txt" ? lineBr() + spanSmBld("Edit in Response Designer...", sCLRGRY) : spanSm("Open Response Designer...", sCLRGRY)
         href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_txt"), style: sEXTNRL, required: false, title: inTS1("Custom ${inType?.capitalize()} Responses", sTEXT) + optPrefix(), description: desc1//, submitOnChange: true
-        
+
         if((Integer)settings."trig_${inType}_after_repeat") {
             //Custom Repeat Text Options
             paragraph divSm(spanSmBldBr("Repeat Response Options", sCLR4D9) + spanSm("Add custom responses for the ${inType} events that are repeated.", sCLRGRY), sNULL, getAppImg("info"))
@@ -843,7 +846,7 @@ def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemC
             if(resps2.size() > 1) {
                 resps2.each { i-> desc2 += spanSmBld("(${resp2cnt})") + sSPACE + spanSmBr(i, sCLR4D9); resp2cnt++ }
             } else {
-                desc2 += spanSmBr((String)settings."trig_${inType}_after_repeat_txt" ?: sBLANK, sCLR4D9) 
+                desc2 += spanSmBr((String)settings."trig_${inType}_after_repeat_txt" ?: sBLANK, sCLR4D9)
             }
             desc2 += (String)settings."trig_${inType}_after_repeat_txt" ? lineBr() + spanSmBld("Edit in Response Designer...", sCLRGRY) : spanSm("Open Response Designer...", sCLRGRY)
             href url: parent?.getTextEditorPath(app?.id as String, "trig_${inType}_after_repeat_txt"), style: sEXTNRL, title: inTS1("Custom ${inType?.capitalize()} Repeat Responses", sTEXT) + optPrefix(), description: desc2//, submitOnChange: true
@@ -904,16 +907,19 @@ Boolean triggersConfigured() {
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", nextPage: "mainPage", title: "Conditions/Restrictions", install: false, uninstall: false) {
-        String a = getConditionsDesc(false)
-        if(a) {
-            section() { paragraph spanSm(a, sCLR4D9) }
-        }
+        Boolean cra = !!(Boolean)settings.cond_require_all
         Boolean multiConds = multipleConditions()
+        if(!multiConds && cra) { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
+        String a = getConditionsDesc(false)
+        if(a) { section() { paragraph spanSm(a, sCLR4D9) } }
+
         section() {
             if(multiConds) {
                 input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true
-            }
-            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(reqAllCond() ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
+                cra = (Boolean)settings.cond_require_all
+            } else { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
+            Boolean allR = ( multiConds && cra ) // Boolean reqAllCond()
+            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(allR ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
         }
         section(sectHead("Time/Date")) {
             href "condTimePage", title: inTS1("Time Schedule", "clock"), description: spanSm(getTimeCondDesc(false), sCLR4D9)
@@ -2098,6 +2104,9 @@ def initialize() {
         logInfo(dupMSGFLD)
         return
     }
+    Boolean multiConds = multipleConditions()
+    if(!multiConds && (Boolean)settings.cond_require_all) { settingUpdate("cond_require_all", sFALSE, sBOOL) }
+
     updDeviceInputs()
 
 // TODO go away at some point
@@ -2150,7 +2159,6 @@ def initialize() {
     }
 }
 
-@SuppressWarnings('unused')
 private void processDuplication() {
     String al = (String)app?.getLabel()
     String newLbl = "${al}${al?.contains(" (Dup)") ? "" : " (Dup)"}"
@@ -2321,7 +2329,6 @@ public void updatePauseState(Boolean pause) {
     }
 }
 
-@SuppressWarnings('unused')
 private healthCheck() {
     logTrace("healthCheck")
     if(advLogsActive()) { logsDisable() }
@@ -2590,12 +2597,10 @@ Map getRandomTrigEvt() {
 
 @Field volatile static Map<String,Map> zoneStatusMapFLD = [:]
 
-@SuppressWarnings('unused')
 def zoneStateHandler(evt) {
     // TODO This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
 }
 
-@SuppressWarnings('unused')
 def zoneRemovedHandler(evt) {
     // TODO This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
 }
@@ -3414,7 +3419,7 @@ static String getAttrPostfix(String attr) {
 ************************************************************************************************************/
 Boolean reqAllCond() {
     Boolean mult = multipleConditions()
-    return ( !mult || (mult && (Boolean)settings.cond_require_all))
+    return ( mult && (Boolean)settings.cond_require_all )
 }
 
 Boolean timeCondOk() {
@@ -3465,10 +3470,11 @@ Boolean dateCondOk() {
     Boolean mOk
     if((List)settings.cond_days || (List)settings.cond_months) {
         Boolean reqAll = reqAllCond()
-        dOk = settings.cond_days ? (isDayOfWeek((List)settings.cond_days)) : reqAll // true
-        mOk = settings.cond_months ? (isMonthOfYear((List)settings.cond_months)) : reqAll //true
+        dOk = settings.cond_days ? (isDayOfWeek((List)settings.cond_days)) : reqAll
+        mOk = settings.cond_months ? (isMonthOfYear((List)settings.cond_months)) : reqAll
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
+    //noinspection GroovyVariableNotAssigned
     logTrace("dateCondOk | $result | monthOk: $mOk | daysOk: $dOk")
     return result
 }
@@ -3479,10 +3485,11 @@ Boolean locationCondOk() {
     Boolean aOk
     if((List)settings.cond_mode || (String)settings.cond_mode_cmd || (List)settings.cond_alarmSystemStatus) {
         Boolean reqAll = reqAllCond()
-        mOk = ((List)settings.cond_mode /*&& (String)settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, ((String)settings.cond_mode_cmd == "not"))) : reqAll //true
-        aOk = (List)settings.cond_alarmSystemStatus ? isInAlarmMode((List)settings.cond_alarmSystemStatus) : reqAll //true
+        mOk = ((List)settings.cond_mode /*&& (String)settings.cond_mode_cmd*/) ? (isInMode((List)settings.cond_mode, ((String)settings.cond_mode_cmd == "not"))) : reqAll
+        aOk = (List)settings.cond_alarmSystemStatus ? isInAlarmMode((List)settings.cond_alarmSystemStatus) : reqAll
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
+    //noinspection GroovyVariableNotAssigned
     logTrace("locationCondOk | $result | modeOk: $mOk | alarmOk: $aOk")
     return result
 }
@@ -3550,7 +3557,7 @@ Boolean deviceCondOk() {
     }
     Integer cndSize = (passed.size() + failed.size())
     Boolean result = null
-    if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
+    if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() > 0)
     logTrace("deviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return result
 }
@@ -3570,7 +3577,7 @@ Map conditionStatus() {
             s ? passed.push(i) : failed.push(i)
         }
         cndSize = (passed.size() + failed.size())
-        ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() >= 1)
+        ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() > 0)
         if(cndSize == 0) ok = true
     }
     logTrace("conditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
@@ -3681,7 +3688,7 @@ static Integer durationToMinutes(dur) {
 }
 
 static Integer durationToHours(dur) {
-    if(dur && dur>= (60*60)) return (dur / 60 / 60)?.toInteger()
+    if(dur && dur>= 3600) return (dur / 3600).toInteger()
     return 0
 }
 /*
@@ -4095,7 +4102,6 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
     logTrace("ExecuteAction Finished | ProcessTime: (${now()-startTime}ms)")
 }
 
-@SuppressWarnings('unused')
 private postTaskCommands(data) {
     String p = data?.type ?: sNULL
     if(p && settings."${p}sirens" && (String)settings."${p}siren_cmd") { settings."${p}sirens"*.off() }
@@ -4235,7 +4241,6 @@ private void updAppFlag(String key, val) {
     atomicState.appFlagsMap = data
 }
 
-@SuppressWarnings('unused')
 private void remAppFlag(key) {
     Map t0 = atomicState.appFlagsMap
     Map data = t0 ?: [:]
@@ -4344,6 +4349,7 @@ Boolean getOk2Notify() {
     Boolean result = true
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
     if(!(daysOk && modesOk && timeOk)) { result = false }
+    //noinspection GroovyVariableNotAssigned
     logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     return result
 }
@@ -4776,6 +4782,7 @@ List getQuietDays() {
     return allDays.findAll { (!curDays?.contains(it)) }
 }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 String getNotifSchedDesc(Boolean min=false) {
     String startType = settings.notif_time_start_type
     Date startTime
@@ -4910,7 +4917,7 @@ String getConditionsDesc(Boolean addFoot=true) {
     String str = sBLANK
     if(confd) {
         str = getOverallDesc()
-        str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
+        str += spanSmBr(" ${sBULLET} " + "${reqAllCond() ? "All Conditions Required" : "Any Condition Allowed"}")
         if(timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
             str += spanSmBr("    - ${getTimeCondDesc(false)}")
@@ -4920,12 +4927,19 @@ String getConditionsDesc(Boolean addFoot=true) {
             str += (List)settings.cond_days    ? spanSmBr("    - Days Allowed: ${(List)settings.cond_days} " + getOkOrNotSymHTML(isDayOfWeek((List)settings.cond_days))) : sBLANK
             str += (List)settings.cond_months  ? spanSmBr("    - Months Allowed: ${(List)settings.cond_months} " + getOkOrNotSymHTML(isMonthOfYear((List)settings.cond_months)))  : sBLANK
         }
-        if((List)settings.cond_alarmSystemStatus || ((List)settings.cond_mode)) {
+
+        Boolean mC = locationModeConfigured()
+        Boolean aC = locationAlarmConfigured()
+        if(aC  || mC) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
-            String a = location?.hsmStatus ?: "disarmed"
-            str += (List)settings.cond_alarmSystemStatus ? spanSmBr("    - Alarm Mode ${a} in: ${(List)settings.cond_alarmSystemStatus} " + getOkOrNotSymHTML(isInAlarmMode((List)settings.cond_alarmSystemStatus))) : sBLANK
-            Boolean not = ((String)settings.cond_mode_cmd == "not")
-            str += (List)settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${(List)settings.cond_mode} " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
+            if(aC) {
+                String a = location?.hsmStatus ?: "disarmed"
+                str += (List)settings.cond_alarmSystemStatus ? spanSmBr("    - Alarm Mode ${a} in: ${(List)settings.cond_alarmSystemStatus} " + getOkOrNotSymHTML(isInAlarmMode((List)settings.cond_alarmSystemStatus))) : sBLANK
+            }
+            if(mC) {
+                Boolean not = ((String)settings.cond_mode_cmd == "not")
+                str += (List)settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${(List)settings.cond_mode} " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
+            }
         }
 
         if(deviceCondConfigured()) {
@@ -5040,6 +5054,7 @@ String getActionDesc(Boolean addFoot=true) {
     return divSm(str.replaceAll("\n\n\n", "\n\n"), sCLR4D9)
 }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 String getTimeCondDesc(Boolean addPre=true) {
     Date startTime
     Date stopTime
@@ -5102,7 +5117,7 @@ static def getRandomItem(List items) {
     return list.get(new Random().nextInt(list.size()))
 }
 
-// public String gitBranch() { 
+// public String gitBranch() {
 //     if(gitBranchFLD == sNULL) { gitBranchFLD = parent?.gitBranch() }
 //     return (String)gitBranchFLD
 // }
@@ -5427,7 +5442,6 @@ private static getColorName(desiredColor, level=null) {
 }
 
 //  if there is no colorMaps, then flash lights
-@SuppressWarnings('unused')
 private void startFlashLights(String p, Integer cycles, Integer cycleT, Map color1Map=null, Map color2Map=null) {
     logDebug("startFlashLights ${p} | cycles: ${cycles} | cycle time: ${cycleT} | color1Map: ${color1Map} | color2Map: ${color2Map}")
     Map data = [type: p, first: true, cycles: cycles, cycleT: cycleT, color1Map: color1Map, colorMap2: color2Map ]
@@ -5483,7 +5497,6 @@ private void flashLights(Map data) {
     }
 }
 
-@SuppressWarnings('unused')
 private restoreLights(data) {
     String p = data?.type ?: sNULL
     if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights", p) }
