@@ -899,9 +899,9 @@ def settingsPage() {
 def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
         section(sectHead("Discovered Devices:")) {
-            getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k,Map v->
+            getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k, Map v->
                 String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
-                str += "<br><span>Style: ${v.style?.name}</span>"
+                str += "<br><span>Style: ${v.style?.n}</span>"
                 str += "<br><span>Family: ${v.family}</span>"
                 str += "<br><span>Type: ${v.type}</span>"
                 str += "<br><span>Volume Control: (${v.volumeSupport?.toString()?.capitalize()})</span>"
@@ -910,7 +910,9 @@ def deviceListPage() {
                 str += "<br><span>Music Player: (${v.mediaPlayer?.toString()?.capitalize()})</span>"
                 str += v.supported != true ? "<br><span>Unsupported Device: (True)</span>" : sBLANK
                 str += (v.mediaPlayer == true && v.musicProviders) ? "<br><span>Music Providers: [${v.musicProviders}]</span>" : sBLANK
-                paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
+                paragraph paraTS((String)v.name, str, (String)v.style?.i, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
+                input "deviceSpeechTest::${k}", "button", title: spanSmBld("Test Speech", sCLRGRY), width: 4
+                input "deviceAnnouncementTest::${k}", "button", title: spanSmBld("Test Announcement", sCLRGRY), width: 4
             }
         }
     }
@@ -1142,15 +1144,38 @@ def appButtonHandler(btn) {
         case "btnMainMenu":
             state.mainMenu = true
             break
-/*        case ~/^executeRoutine(\d+)/:
-            // executeRoutineTest(Matcher.lastMatcher[0][1].toInteger())
-            break */
+
         default:
-            if(btn.startsWith("executeRoutine::")) {
-                List rt = btn.tokenize("::")
-                // log.debug "routine: ${rt[1]}"
-                if(rt && rt.size() > 1 && rt[1]) {
-                    executeRoutineTest(rt[1].toString())
+            if(btn.contains("::")) {
+                List items = btn.tokenize("::")
+                if(items && items.size() > 1 && items[1]) {
+                    String k = (String)items[0]
+                    String v = (String)items[1]
+                    switch(k) {
+                        case "executeRoutine":
+                            // log.debug "routine: ${rt[1]}"
+                            executeRoutineTest(v)
+                            break
+                        case "deviceSpeechTest":
+                            def childDev = getChildDeviceBySerial(v)
+                            log.debug "childDev: ${childDev}"
+                            if(childDev && childDev?.hasCommand('speechTest')) {
+                                logInfo("Sending SpeechTest Command to (${childDev.name})")
+                                childDev?.speechTest()
+                            } else {
+                                logError("Speech Test device with Serial# (${v} was not located!!! or does not support speechTest()")
+                            }
+                            break
+                        case "deviceAnnouncementTest":
+                            def childDev = getChildDeviceBySerial(v)
+                            if(childDev && childDev?.hasCommand('sendTestAnnouncement')) {
+                                logInfo("Sending AnnouncementTest Command to (${childDev.name})")
+                                childDev?.sendTestAnnouncement()
+                            } else {
+                                logError("Speech Test device with Serial# (${v} was not located!!! or does not support sendTestAnnouncement()")
+                            }
+                            break
+                    }
                 }
             }
             break
@@ -2536,7 +2561,7 @@ Map getMusicProviders(Boolean frc=false) {
                 updTsVal("lastSpokeToAmazon")
                 List<Map> rData = (List<Map>)response?.data ?: []
                 if(rData.size()) {
-                    rData.findAll { it?.availability == "AVAILABLE" }?.each { Map item->
+                    rData.findAll { it?.availability == "AVAILABLE" && it?.id != "DEFAULT" }?.each { Map item->
                         items[item.id] = (String)item.displayName
                     }
                 }
@@ -3470,7 +3495,6 @@ void receiveEventData(Map evtData, String src) {
                     }
                     // echoValue["mainAccountCommsId"] = state.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
-
                     echoDeviceMap[echoKey] = [
                         name: echoValue.accountName,
                         online: echoValue.online,
