@@ -1139,7 +1139,7 @@ def returnHomeBtn() {
 }
 
 def appButtonHandler(btn) {
-    log.debug "appButton: $btn"
+    logDebug("appButton Event Received: $btn")
     switch (btn) {
         case "btnMainMenu":
             state.mainMenu = true
@@ -1158,7 +1158,6 @@ def appButtonHandler(btn) {
                             break
                         case "deviceSpeechTest":
                             def childDev = getChildDeviceBySerial(v)
-                            log.debug "childDev: ${childDev}"
                             if(childDev && childDev?.hasCommand('speechTest')) {
                                 logInfo("Sending SpeechTest Command to (${childDev.name})")
                                 childDev?.speechTest()
@@ -1172,7 +1171,7 @@ def appButtonHandler(btn) {
                                 logInfo("Sending AnnouncementTest Command to (${childDev.name})")
                                 childDev?.sendTestAnnouncement()
                             } else {
-                                logError("Speech Test device with Serial# (${v} was not located!!! or does not support sendTestAnnouncement()")
+                                logError("Announcement Test device with Serial# (${v} was not located!!! or does not support sendTestAnnouncement()")
                             }
                             break
                     }
