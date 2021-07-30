@@ -1138,7 +1138,7 @@ def returnHomeBtn() {
     }
 }
 
-def appButtonHandler(btn) {
+void appButtonHandler(String btn) {
     logDebug("appButton Event Received: $btn")
     switch (btn) {
         case "btnMainMenu":
@@ -1159,7 +1159,7 @@ def appButtonHandler(btn) {
                         case "deviceSpeechTest":
                             def childDev = getChildDeviceBySerial(v)
                             if(childDev && childDev?.hasCommand('speechTest')) {
-                                logInfo("Sending SpeechTest Command to (${childDev.name})")
+                                logInfo("Sending SpeechTest Command to (${childDev.displayName})")
                                 childDev?.speechTest()
                             } else {
                                 logError("Speech Test device with Serial# (${v} was not located!!! or does not support speechTest()")
@@ -1168,7 +1168,7 @@ def appButtonHandler(btn) {
                         case "deviceAnnouncementTest":
                             def childDev = getChildDeviceBySerial(v)
                             if(childDev && childDev?.hasCommand('sendTestAnnouncement')) {
-                                logInfo("Sending AnnouncementTest Command to (${childDev.name})")
+                                logInfo("Sending AnnouncementTest Command to (${childDev.displayName})")
                                 childDev?.sendTestAnnouncement()
                             } else {
                                 logError("Announcement Test device with Serial# (${v} was not located!!! or does not support sendTestAnnouncement()")
