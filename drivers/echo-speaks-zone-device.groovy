@@ -19,7 +19,7 @@ import groovy.transform.Field
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String devVersionFLD  = "4.1.9.3"
-@Field static final String devModifiedFLD = "2021-07-30"
+@Field static final String devModifiedFLD = "2021-07-31"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -642,9 +642,9 @@ private void refreshStage2() {
 
 public void setOnlineStatus(Boolean isOnline) {
     String onlStatus = (isOnline ? "online" : "offline")
-    if(isStateChange(device, "onlineStatus", onlStatus?.toString())) {
+    if(isStateChange(device, "onlineStatus", onlStatus)) {
         logDebug("OnlineStatus has changed to (${onlStatus})")
-        sendEvent(name: "onlineStatus", value: onlStatus?.toString(), display: true, displayed: true)
+        sendEvent(name: "onlineStatus", value: onlStatus, display: true, displayed: true)
     }
 }
 
