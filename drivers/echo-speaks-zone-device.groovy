@@ -1609,7 +1609,7 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
             state.oldVolume = null // clear out any junk
             Boolean stored = mstoreCurrentVolume() // will set current volume for restore
         }
-        speak(msg, volume.toInteger())
+        speak(msg, volume?.toInteger())
     }
 }
 
