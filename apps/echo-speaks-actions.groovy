@@ -32,7 +32,7 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String appVersionFLD  = '4.1.9.3'
-@Field static final String appModifiedFLD = '2021-07-30'
+@Field static final String appModifiedFLD = '2021-07-31'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -2855,7 +2855,7 @@ void devAfterEvtHandler(evt) {
 void afterEvtCheckHandler() {
     unschedule("afterEvtCheckHandler")
     updTsVal("lastAfterEvtCheck")
-    String msg = "afterEvtCheckHandler  | "
+    String msg = "afterEvtCheckHandler | "
     logTrace(msg)
 
     getTheLock(sHMLF, "afterEvtCheckHandler")
@@ -4930,7 +4930,7 @@ String getConditionsDesc(Boolean addFoot=true) {
 
         Boolean mC = locationModeConfigured()
         Boolean aC = locationAlarmConfigured()
-        if(aC  || mC) {
+        if(aC || mC) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
             if(aC) {
                 String a = location?.hsmStatus ?: "disarmed"
