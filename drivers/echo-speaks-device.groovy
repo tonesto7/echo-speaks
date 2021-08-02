@@ -13,8 +13,14 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  */
+//file:noinspection GroovySillyAssignment
+//file:noinspection GroovyUnusedAssignment
 
+
+import groovy.json.JsonOutput
 import groovy.transform.Field
+import java.text.SimpleDateFormat
+
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
@@ -755,9 +761,9 @@ void playbackStateHandler(Map playerInfo, Boolean isGroupResponse=false) {
         if(playerInfo.mainArt?.url) { trackData.albumArtUrl = playerInfo.mainArt?.url }
         if(playerInfo.provider?.providerName) { trackData.mediaSource = playerInfo.provider?.providerName }
         //log.debug(trackData)
-        sendEvent(name: "trackData", value: new groovy.json.JsonOutput().toJson(trackData), display: false, displayed: false)
+        sendEvent(name: "trackData", value: new JsonOutput().toJson(trackData), display: false, displayed: false)
 // non-standard:
-        sendEvent(name: "audioTrackData", value: new groovy.json.JsonOutput().toJson(trackData), display: false, displayed: false)
+        sendEvent(name: "audioTrackData", value: new JsonOutput().toJson(trackData), display: false, displayed: false)
     }
 
     if (state.isGroupPlaying && !isGroupResponse) {
@@ -906,7 +912,7 @@ void getBluetoothDevices() {
     state.bluetoothObjs = btObjs
     Map btMap = [:]
     btMap.names = (btData.pairedNames && btData.pairedNames.size()) ? btData.pairedNames.collect { it as String } : []
-    String btPairedJson = new groovy.json.JsonOutput().toJson(btMap)
+    String btPairedJson = new JsonOutput().toJson(btMap)
     if(isStateChange(device, "btDevicesPaired", btPairedJson)) {
         logDebug("Paired Bluetooth Devices: ${btPairedJson}")
         sendEvent(name: "btDevicesPaired", value: btPairedJson, descriptionText: "Paired Bluetooth Devices", display: true, displayed: true)
@@ -976,7 +982,7 @@ private getPlaylists() {
             def sData = response?.data ?: null
             // logTrace("getPlaylistsHandler: ${sData}")
             def playlist = sData ? sData?.playlists : [:]
-            String playlistJson = new groovy.json.JsonOutput().toJson(playlist)
+            String playlistJson = new JsonOutput().toJson(playlist)
             if(isStateChange(device, "alexaPlaylists", playlistJson) && playlistJson.length() < 1024) {
                 logDebug("Alexa Playlists Changed to ${playlistJson}")
                 sendEvent(name: "alexaPlaylists", value: playlistJson, display: false, displayed: false)
@@ -1152,7 +1158,7 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
                 }
                 break
             case "PUT":
-                if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
+                if(params?.body) { params?.body = new JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
                     rStatus = response?.status
                     rData = response?.data ?: null
@@ -1593,11 +1599,12 @@ def deviceNotification(String msg) {
 
 static String fixLg(String msg) {
     String nm = msg.replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    return nm
 }
 
 def setVolumeAndSpeak(volume, String msg) {
     logTrace("setVolumeAndSpeak(volume: $volume, msg: ${fixLg(msg)}) command received...")
-    speak(msg, volume.toInteger())
+    speak(msg, (Integer)volume.toInteger())
 }
 
 def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
@@ -1609,7 +1616,8 @@ def setVolumeSpeakAndRestore(volume, String msg, restVolume=null) {
             state.oldVolume = null // clear out any junk
             Boolean stored = mstoreCurrentVolume() // will set current volume for restore
         }
-        speak(msg, volume?.toInteger())
+        Integer vol=volume?.toInteger()
+        speak(msg, vol)
     }
 }
 
@@ -1805,7 +1813,7 @@ def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) 
 def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volume=null, restoreVolume=null) {
     // log.debug "sendAnnouncementToDevices(msg: $msg, title: $title, devObj: $devObj, volume: $volume, restoreVolume: $restoreVolume)"
     if(isCommandTypeAllowed("announce") && devObj) {
-        String devJson = new groovy.json.JsonOutput().toJson(devObj)
+        String devJson = new JsonOutput().toJson(devObj)
 // TODO check if message is too big
         String newmsg = "${title ?: "Echo Speaks"}::${msg}::${devJson}"
         // log.debug "sendAnnouncementToDevices | msg: ${newmsg}"
@@ -1968,14 +1976,14 @@ private Map validateMusicSearch(String searchPhrase, String providerId, sleepSec
             searchPhrase: searchPhrase
     ]
     if(sleepSeconds) { opayload.waitTimeInSeconds = sleepSeconds }
-    validObj.operationPayload = new groovy.json.JsonOutput().toJson(opayload)
+    validObj.operationPayload = new JsonOutput().toJson(opayload)
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/behaviors/operation/validate",
         headers: getCookieMap(true),
         contentType: sAPPJSON,
         timeout: 20,
-        body: new groovy.json.JsonOutput().toJson(validObj)
+        body: new JsonOutput().toJson(validObj)
     ]
     Map result = null
     try {
@@ -2166,7 +2174,7 @@ private createNotification(String type, Map opts) {
     def now = new Date()
     def createdDate = now.getTime()
 
-    def isoFormat = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm")
+    def isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm")
     isoFormat.setTimeZone(location.timeZone)
     def alarmDate = isoFormat.parse("${(String)opts.date}T${(String)opts.time}")
     Long alarmTime = (Long)alarmDate.getTime()
@@ -2995,14 +3003,14 @@ private String getDtNow() {
 
 private String formatDt(Date dt, Boolean mdy = true) {
     String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
-    def tf = new java.text.SimpleDateFormat(formatVal)
+    def tf = new SimpleDateFormat(formatVal)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf.format(dt)
 }
 
 private String parseFmtDt(String parseFmt, String newFmt, String dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
-    def tf = new java.text.SimpleDateFormat(newFmt)
+    def tf = new SimpleDateFormat(newFmt)
     if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
     return tf?.format(newDt)
 }
