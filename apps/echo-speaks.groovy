@@ -3597,7 +3597,7 @@ static Map getDeviceStyle(String family, String type) {
     Map typeData = (Map)deviceSupportMapFLD.types[type] ?: [:]
     if(typeData) {
         return typeData
-    } else { return [name: "Echo Unknown "+type, image: sUNKNOWN, allowTTS: false] }
+    } else { return [n: "Echo Unknown "+type, i: sUNKNOWN ] }
 }
 
 public Map getDeviceFamilyMap() {
@@ -7282,6 +7282,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 
 @Field static final Map deviceSupportMapFLD = [
     types: [
+        //  c: "a" == announce, "t" == TTS
         // Amazon Devices
         "A3C9PE6TNYLTCH" : [ i: "echo_wha", n: "Multiroom" ],
 
