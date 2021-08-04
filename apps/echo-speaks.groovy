@@ -14,17 +14,27 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+//file:noinspection GroovyUnusedAssignment
+//file:noinspection unused
+//file:noinspection GroovySillyAssignment
 
+
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import groovy.transform.Field
+
+import java.text.SimpleDateFormat
+import java.util.concurrent.Semaphore
+
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.2'
-@Field static final String appModifiedFLD = '2021-07-22'
+@Field static final String appVersionFLD  = '4.1.9.3'
+@Field static final String appModifiedFLD = '2021-08-04'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4192, wsDevice: 4192, actionApp: 4192, zoneApp: 4192, zoneEchoDevice: 4192, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4193, wsDevice: 4193, actionApp: 4193, zoneApp: 4193, zoneEchoDevice: 4193, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -799,7 +809,6 @@ private deviceDetectOpts() {
     }
 }
 
-@SuppressWarnings('unused')
 private devCleanupPage() {
     return dynamicPage(name: "devCleanupPage", uninstall: false, install: false) {
         devCleanupSect()
@@ -890,9 +899,9 @@ def settingsPage() {
 def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
         section(sectHead("Discovered Devices:")) {
-            getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k,Map v->
+            getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k, Map v->
                 String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
-                str += "<br><span>Style: ${v.style?.name}</span>"
+                str += "<br><span>Style: ${v.style?.n}</span>"
                 str += "<br><span>Family: ${v.family}</span>"
                 str += "<br><span>Type: ${v.type}</span>"
                 str += "<br><span>Volume Control: (${v.volumeSupport?.toString()?.capitalize()})</span>"
@@ -901,7 +910,9 @@ def deviceListPage() {
                 str += "<br><span>Music Player: (${v.mediaPlayer?.toString()?.capitalize()})</span>"
                 str += v.supported != true ? "<br><span>Unsupported Device: (True)</span>" : sBLANK
                 str += (v.mediaPlayer == true && v.musicProviders) ? "<br><span>Music Providers: [${v.musicProviders}]</span>" : sBLANK
-                paragraph paraTS((String)v.name, str, (String)v.style?.image, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
+                paragraph paraTS((String)v.name, str, (String)v.style?.i, [c: 'black', b: true, u: true], [s: 'small', c: (v.online ? sCLR4D9 : sCLRGRY)])
+                input "deviceSpeechTest::${k}", "button", title: spanSmBld("Test Speech", sCLRGRY), width: 4
+                input "deviceAnnouncementTest::${k}", "button", title: spanSmBld("Test Announcement", sCLRGRY), width: 4
             }
         }
     }
@@ -1120,7 +1131,6 @@ def alexaRoutinesTestPage() {
     }
 }
 
-@SuppressWarnings('unused')
 def returnHomeBtn() {
     section {
         paragraph htmlLine()
@@ -1128,22 +1138,43 @@ def returnHomeBtn() {
     }
 }
 
-@SuppressWarnings('unused')
-def appButtonHandler(btn) {
-    log.debug "appButton: $btn"
+void appButtonHandler(String btn) {
+    logDebug("appButton Event Received: $btn")
     switch (btn) {
         case "btnMainMenu":
             state.mainMenu = true
             break
-/*        case ~/^executeRoutine(\d+)/:
-            // executeRoutineTest(Matcher.lastMatcher[0][1].toInteger())
-            break */
+
         default:
-            if(btn.startsWith("executeRoutine::")) {
-                List rt = btn.tokenize("::")
-                // log.debug "routine: ${rt[1]}"
-                if(rt && rt.size() > 1 && rt[1]) {
-                    executeRoutineTest(rt[1].toString())
+            if(btn.contains("::")) {
+                List items = btn.tokenize("::")
+                if(items && items.size() > 1 && items[1]) {
+                    String k = (String)items[0]
+                    String v = (String)items[1]
+                    switch(k) {
+                        case "executeRoutine":
+                            // log.debug "routine: ${rt[1]}"
+                            executeRoutineTest(v)
+                            break
+                        case "deviceSpeechTest":
+                            def childDev = getChildDeviceBySerial(v)
+                            if(childDev && childDev?.hasCommand('speechTest')) {
+                                logInfo("Sending SpeechTest Command to (${childDev.displayName})")
+                                childDev?.speechTest()
+                            } else {
+                                logError("Speech Test device with Serial# (${v} was not located!!! or does not support speechTest()")
+                            }
+                            break
+                        case "deviceAnnouncementTest":
+                            def childDev = getChildDeviceBySerial(v)
+                            if(childDev && childDev?.hasCommand('sendTestAnnouncement')) {
+                                logInfo("Sending AnnouncementTest Command to (${childDev.displayName})")
+                                childDev?.sendTestAnnouncement()
+                            } else {
+                                logError("Announcement Test device with Serial# (${v} was not located!!! or does not support sendTestAnnouncement()")
+                            }
+                            break
+                    }
                 }
             }
             break
@@ -1914,7 +1945,7 @@ def processData() {
             state.serviceConfigured = true
         } else { log.debug "data: $data" }
     }
-    String json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
+    String json = new JsonOutput().toJson([message: "success", version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
 }
 
@@ -1927,7 +1958,7 @@ def getCookieData() {
     Map resp = state.cookieData ?: [:]
     String aa = getTsVal("lastCookieRrshDt")
     resp["refreshDt"] = aa ?: null
-    String json = new groovy.json.JsonOutput().toJson(resp)
+    String json = new JsonOutput().toJson(resp)
     incrementCntByKey("getCookieCnt")
     render contentType: sAPPJSON, data: json, status: 200
 }
@@ -2007,7 +2038,7 @@ def storeCookieData() {
     }
 
 // should be rendering a response?
-    String json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
+    String json = new JsonOutput().toJson([message: "success", version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
 }
 
@@ -2019,7 +2050,7 @@ def clearCookieD() {
     state.clearCnt = a
     if(a > 5) clearCookieData('webCall', false)
     else logTrace("skipping server call to clearCookieData()")
-    String json = new groovy.json.JsonOutput().toJson([message: "success", version: appVersionFLD])
+    String json = new JsonOutput().toJson([message: "success", version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
 }
 
@@ -2529,7 +2560,7 @@ Map getMusicProviders(Boolean frc=false) {
                 updTsVal("lastSpokeToAmazon")
                 List<Map> rData = (List<Map>)response?.data ?: []
                 if(rData.size()) {
-                    rData.findAll { it?.availability == "AVAILABLE" }?.each { Map item->
+                    rData.findAll { it?.availability == "AVAILABLE" && it?.id != "DEFAULT" }?.each { Map item->
                         items[item.id] = (String)item.displayName
                     }
                 }
@@ -2554,13 +2585,11 @@ private getOtherData() {
     // getAlexaSkills()
 }
 
-@SuppressWarnings('unused')
 void getNotificationsRunIn(){
     getNotifications(true)
 }
 
 // Called by child devices
-@SuppressWarnings('unused')
 private List getNotificationList(Boolean frc) {
     getNotifications(frc)
     return (List)state.notifications
@@ -2755,7 +2784,7 @@ def getLastActResp(resp, data){
                             it?.utteranceId?.contains(it?.sourceDeviceIds?.serialNumber)
                 }
                 if (lastCommand) {
-                    Map lastDescription = (Map) new groovy.json.JsonSlurper().parseText((String)lastCommand.description)
+                    Map lastDescription = (Map) new JsonSlurper().parseText((String)lastCommand.description)
                     def lastDevice = ((List)lastCommand.sourceDeviceIds)?.get(0)
                     Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand.creationTimestamp ]
 
@@ -2841,7 +2870,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
 
     String myId=app.getId()
     Integer lastU = getLastTsValSecs("alexaRoutinesUpdDt")
-    List rtList = []
+    List<Map> rtList = []
     Map rtResp = [:]
 
     if(alexaRoutinesDataFLD[myId] && ( (autoId && lastU < 90) || (!autoId && lastU < 180) )) { rtList = alexaRoutinesDataFLD[myId] }
@@ -2879,7 +2908,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
     Integer cnt = 1
     if(rtList.size()) {
         if(autoId) {
-            rtResp = rtList.find { it?.automationId.toString() == autoId } ?: [:]
+            rtResp = rtList.find { it?.automationId?.toString() == autoId } ?: [:]
             //log.debug "rtResp: ${rtResp}"
             return rtResp
         } else {
@@ -3071,7 +3100,7 @@ void getGuardState() {
                     def guardStateData = parseJson(((List)respData.deviceStates)[0].capabilityStates as String)
                     if(devModeFLD) logTrace("guardState: ${guardStateData}")
                     String curState = (String)state.alexaGuardState ?: sNULL
-                    state.alexaGuardState = guardStateData?.value[0] ? (String)guardStateData?.value[0] : (String)guardStateData?.value
+                    state.alexaGuardState = ((List)guardStateData?.value)[0] ? (String)((List)guardStateData?.value)[0] : (String)guardStateData?.value
                     settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
                     logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
                     if(curState != (String)state.alexaGuardState) updGuardActionTrig()
@@ -3092,7 +3121,7 @@ void setGuardState(String guardState) {
     guardState = guardStateConv(guardState)
     logDebug("setAlexaGuard($guardState)")
     try {
-        String body = new groovy.json.JsonOutput()?.toJson([ controlRequests: [ [ entityId: state.alexaGuardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ])
+        String body = new JsonOutput()?.toJson([ controlRequests: [ [ entityId: state.alexaGuardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ])
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/phoenix/state",
@@ -3465,7 +3494,6 @@ void receiveEventData(Map evtData, String src) {
                     }
                     // echoValue["mainAccountCommsId"] = state.accountCommIds?.find { it?.value?.signedInUser == true && it?.value?.isChild == false }?.key as String ?: null
                     // logWarn("Device Permisions | Name: ${echoValue?.accountName} | $permissions")
-
                     echoDeviceMap[echoKey] = [
                         name: echoValue.accountName,
                         online: echoValue.online,
@@ -3569,7 +3597,7 @@ static Map getDeviceStyle(String family, String type) {
     Map typeData = (Map)deviceSupportMapFLD.types[type] ?: [:]
     if(typeData) {
         return typeData
-    } else { return [name: "Echo Unknown "+type, image: sUNKNOWN, allowTTS: false] }
+    } else { return [n: "Echo Unknown "+type, i: sUNKNOWN ] }
 }
 
 public Map getDeviceFamilyMap() {
@@ -3647,7 +3675,7 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
                 }
                 break
             case "PUT":
-                if(params?.body) { params?.body = new groovy.json.JsonOutput().toJson(params?.body) }
+                if(params?.body) { params?.body = new JsonOutput().toJson(params?.body) }
                 httpPutJson(params) { response->
                     rStatus = response?.status
                     if(rStatus == 200) { rData = response?.data ?: null }
@@ -3768,9 +3796,10 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
             logWarn("sendDevObjCmd NO DEVICES | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
             return
         }
-        switch(myCmd) {
+    //noinspection GroovyFallthrough
+    switch(myCmd) {
             case "announcement":
-                String zoneDevJson = devObj.size() ? new groovy.json.JsonOutput().toJson(devObj) : sNULL
+                String zoneDevJson = devObj.size() ? new JsonOutput().toJson(devObj) : sNULL
                 newmsg = "${title ?: "Echo Speaks"}::${newmsg}::${zoneDevJson}"
             case "speak":
             case "speak_parallel":
@@ -3892,7 +3921,6 @@ void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boole
     String nm = cmdMap.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     logTrace("sendSpeak cmdMap: $nm  callback: $callback,  device: $device")
 
-    String bodyObj = sNULL
 /*    Map deviceData = [
         serialNumber : cmdMap.serialNumber,
         deviceType: cmdMap.deviceType,
@@ -4000,20 +4028,17 @@ void addToQ(Map item) {
     if((Boolean)settings.logDebug) lmsg.each { String msg -> log.debug(msg) }
 }
 
-@SuppressWarnings('unused')
 void workQF() { workQ() }
-@SuppressWarnings('unused')
 void workQB() { workQ() }
 
 void workQ() {
     logTrace "running workQ"
     String mmsg
 
-    Boolean locked=false
     String appId=app.getId()
     Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
     // log.trace "lock wait: ${aa}"
-    locked = true
+    Boolean locked = true
 
     Map myMap = workQMapFLD[appId] ?: [:]
     Boolean active = (Boolean)myMap.active
@@ -4205,7 +4230,7 @@ void workQ() {
                 headers: getReqHeaderMap(true),
                 contentType: sAPPJSON,
                 timeout: 20,
-                body: new groovy.json.JsonOutput().toJson(seqObj)
+                body: new JsonOutput().toJson(seqObj)
             ]
 
               //String nm = params.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -4264,7 +4289,7 @@ Integer getMsgDur(String command, String type, String tv){
 static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
     if(!msgLen) { return 30 }
     Integer twd = 2
-    Integer v = (msgLen <= 14 ? 1 : (msgLen / 14)) * twd
+    Integer v = (Integer)((msgLen <= 14 ? 1 : (msgLen / 14)) * twd)
     Integer res=v
     Integer randomInt
     if(addRandom){
@@ -4359,7 +4384,7 @@ Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
     }
     Map seqObj = [
         behaviorId: (seqJson?.sequenceId ? cmd?.automationId : "PREVIEW"),
-        sequenceJson: new groovy.json.JsonOutput().toJson(seqJson),
+        sequenceJson: new JsonOutput().toJson(seqJson),
         status: "ENABLED"
     ]
     return seqObj
@@ -4650,7 +4675,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                     seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
                 } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
 //                    log.debug spanSm("valObj: ${valObj}", sCLRGRN2)
-                    List devObjs = new groovy.json.JsonSlurper().parseText(valObj[2])
+                    List devObjs = new JsonSlurper().parseText(valObj[2])
                     seqNode.operationPayload.target.devices = devObjs
                 }
                 break
@@ -4807,7 +4832,6 @@ private void manAllEchosTrcLogs(Boolean enable=true) { getChildDevices()?.each {
                                                        getZoneApps()?.each { ca-> enable ? ca?.relayEnableTraceLog() : ca?.relayDisableTraceLog() } }
 
 
-@SuppressWarnings('unused')
 private void disableAdvChldLogs() {
     getActionApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.logsDisable() }
@@ -4947,7 +4971,7 @@ Boolean quietTimeOk() {
 
 Boolean quietDaysOk(List days) {
     if(days) {
-        def dayFmt = new java.text.SimpleDateFormat("EEEE")
+        def dayFmt = new SimpleDateFormat("EEEE")
         if(location?.timeZone) { dayFmt?.setTimeZone(location?.timeZone) }
         return !days.contains(dayFmt?.format(new Date()))
     }
@@ -4985,13 +5009,13 @@ public Boolean sendMsg(String msgTitle, String msg, Boolean showEvt=true, Map pu
 
 Boolean childInstallOk() { return (Boolean)state.childInstallOkFlag }
 
-public String gitBranch() { return gitBranchFLD }
+public static String gitBranch() { return gitBranchFLD }
 
 static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/resources/icons/${imgName}.png" }
 
 static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
-static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
+//static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 
 static String sectH3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
 
@@ -5008,7 +5032,7 @@ static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { re
 static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
 
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
-static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE).replaceAll("<br>", sSPACE), und), clr, img) }
+static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE)?.replaceAll("<br>", sSPACE), und), clr, img) }
 
 // Root HTML Objects
 static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLANK}${sz ? "font-size: ${sz};" : sBLANK}${bld ? "font-weight: bold;" : sBLANK}'" : sBLANK}>${str}</span>${br ? sLINEBR : sBLANK}" : sBLANK }
@@ -5108,7 +5132,7 @@ def changeLogPage() {
 String getFbMetricsUrl() { return state.appData?.settings?.database?.metricsUrl ?: "https://echo-speaks-metrics.firebaseio.com/" }
 String getFbConfigUrl() { return state.appData?.settings?.database?.configUrl ?: "https://echospeaks-config.firebaseio.com/" }
 Boolean metricsOk() { (!(Boolean)settings.optOutMetrics && state.appData?.settings?.sendMetrics) }
-private generateGuid() { if(!(String)state.appGuid) { state.appGuid = UUID?.randomUUID().toString() } }
+private generateGuid() { if(!(String)state.appGuid) { state.appGuid = UUID?.randomUUID()?.toString() } }
 void sendInstallData() { settingUpdate("sendMetricsNow", sFALSE, sBOOL); if(metricsOk()) { Boolean aa=sendFirebaseData(getFbMetricsUrl(), "/clients/${(String)state.appGuid}.json", createMetricsDataJson(), "put", "heartbeat") } }
 Boolean removeInstallData() { return removeFirebaseData("/clients/${(String)state.appGuid}.json") }
 Boolean sendFirebaseData(String url, String path, String data, String cmdType=null, String type=null) { logTrace("sendFirebaseData(${path}, ${data}, $cmdType, $type"); return queueFirebaseData(url, path, data, cmdType, type) }
@@ -5116,7 +5140,7 @@ Boolean sendFirebaseData(String url, String path, String data, String cmdType=nu
 Boolean queueFirebaseData(String url, String path, String data, String cmdType=sNULL, String type=sNULL) {
     // logTrace("queueFirebaseData(${path}, ${data}, $cmdType, $type")
     Boolean result = false
-    String json = new groovy.json.JsonOutput().prettyPrint(data)
+    String json = new JsonOutput().prettyPrint(data)
     Map params = [uri: url, path: path, requestContentType: sAPPJSON, contentType: sAPPJSON, timeout: 20, body: json]
     String typeDesc = type ?: "Data"
     try {
@@ -5172,7 +5196,7 @@ def renderMetricData() {
         String jsonIn = createMetricsDataJson()
         String json = "Not Data Found"
         if(jsonIn) {
-            json = new groovy.json.JsonOutput().prettyPrint(jsonIn)
+            json = new JsonOutput().prettyPrint(jsonIn)
         }
         render contentType: sAPPJSON, data: json, status: 200
     } catch (ex) { logError("renderMetricData Exception: ${ex}", false, ex) }
@@ -5227,7 +5251,7 @@ private String createMetricsDataJson() {
             ]
         ]
         
-        String json = new groovy.json.JsonOutput().toJson(dataObj)
+        String json = new JsonOutput().toJson(dataObj)
         // log.debug "dataObj: $dataObj"
         return json
     } catch (ex) {
@@ -5546,7 +5570,7 @@ private getDiagDataJson(Boolean asString = false) {
             bluetoothData: bluetoothDataFLD[myId],
             dndData:  dndDataFLD[myId]
         ]
-        String json = new groovy.json.JsonOutput().toJson(output)
+        String json = new JsonOutput().toJson(output)
         if(asString) {
             return json
         }
@@ -5561,7 +5585,7 @@ private getDiagDataJson(Boolean asString = false) {
 def getDiagDataText() {
     String jsonIn = (String)getDiagDataJson(true)
     if(jsonIn) {
-        String o = new groovy.json.JsonOutput().prettyPrint(jsonIn)
+        String o = new JsonOutput().prettyPrint(jsonIn)
         render contentType: "text/plain", data: o, status: 200
     }
 }
@@ -5688,7 +5712,7 @@ def execDiagCmds() {
                 break
         }
     }
-    String json = new groovy.json.JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersionFLD])
+    String json = new JsonOutput().toJson([message: (status ? "ok" : "failed"), command: dcmd, version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
 }
 
@@ -5697,7 +5721,7 @@ def execDiagCmds() {
 |    Time and Date Conversion Functions
 *******************************************/
 String formatDt(Date dt, Boolean tzChg=true) {
-    def tf = new java.text.SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
+    def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
     if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
     return (String)tf.format(dt)
 }
@@ -5713,7 +5737,7 @@ String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
 
 String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
-    def tf = new java.text.SimpleDateFormat(newFmt)
+    def tf = new SimpleDateFormat(newFmt)
     if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
     return (String)tf.format(newDt)
 }
@@ -5724,7 +5748,7 @@ String getDtNow() {
 }
 
 String epochToTime(Date tm) {
-    def tf = new java.text.SimpleDateFormat("h:mm a")
+    def tf = new SimpleDateFormat("h:mm a")
     if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
     return (String)tf.format(tm)
 }
@@ -5732,7 +5756,7 @@ String epochToTime(Date tm) {
 String time2Str(time) {
     if(time) {
         Date t = timeToday(time as String, location?.timeZone)
-        def f = new java.text.SimpleDateFormat("h:mm a")
+        def f = new SimpleDateFormat("h:mm a")
         f.setTimeZone(location?.timeZone ?: timeZone(time))
         return (String)f.format(t)
     }
@@ -5745,7 +5769,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
         Long start = lastDt.getTime()
         Long stop = now()
-        Long diff = (stop - start) / 1000L
+        Long diff = (Long)((stop - start) / 1000L)
         return diff.abs()
     } catch (ex) {
         logError("GetTimeDiffSeconds Exception: (${sender ? "$sender | " : sBLANK}lastDate: $lastDate): ${ex}", false, ex)
@@ -5753,6 +5777,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     }
 }
 
+@SuppressWarnings('GroovyAssignabilityCheck')
 static String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk=2) {
     Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000
     Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000
@@ -5977,7 +6002,7 @@ void cleanUpdVerMap() {
 }
 
 String getRandAppName() {
-    if(!(String)state.herokuName && (!(Boolean)getServerItem("isLocal") && !(String)getServerItem("serverHost"))) { state.herokuName = "${app?.name?.toString().replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase() }
+    if(!(String)state.herokuName && (!(Boolean)getServerItem("isLocal") && !(String)getServerItem("serverHost"))) { state.herokuName = "${app?.name?.toString()?.replaceAll(" ", "-")}-${randomString(8)}"?.toLowerCase() }
     return (String)state.herokuName
 }
 
@@ -6190,8 +6215,9 @@ def appInfoSect() {
     }
 }
 
-String UrlParamBuilder(Map items) {
-    return items.collect { String k,String v -> "${k}=${URLEncoder.encode(v.toString())}" }?.join("&").toString()
+@SuppressWarnings('GrDeprecatedAPIUsage')
+String UrlParamBuilder(Map<String,Object> items) {
+    return items.collect { String k,v -> "${k}=${URLEncoder.encode(v.toString())}" }?.join("&")?.toString()
 }
 
 static def getRandomItem(items) {
@@ -6879,7 +6905,7 @@ def textEditProcessing() {
     def resp = request?.JSON ?: null
     def actApp = getTextEditChild(actId)
     Boolean status = (actApp && actApp?.updateTxtEntry(resp))
-    String json = new groovy.json.JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersionFLD])
+    String json = new JsonOutput().toJson([message: (status ? "success" : "failed"), version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
 }
 
@@ -6985,7 +7011,7 @@ void setAlarmSystemMode(String mode) {
     sendLocationEvent(name: "hsmSetArm", value: mode.toString())
 }
 
-Integer stateSize() { String j = new groovy.json.JsonOutput().toJson((Map)state); return j.length() }
+Integer stateSize() { String j = new JsonOutput().toJson((Map)state); return j.length() }
 Integer stateSizePerc() { return (Integer) ((stateSize() / 100000)*100).toDouble().round(0) }
 
 List logLevels() {
@@ -7108,7 +7134,7 @@ private List<Map> getMemStoreItem(String key){
 }
 
 // Memory Barrier
-@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+@Field static Semaphore theMBLockFLD=new Semaphore(0)
 
 static void mb(String meth=sNULL){
     if((Boolean)theMBLockFLD.tryAcquire()){
@@ -7117,7 +7143,7 @@ static void mb(String meth=sNULL){
 }
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
-@Field static java.util.concurrent.Semaphore histMapLockFLD = new java.util.concurrent.Semaphore(1)
+@Field static Semaphore histMapLockFLD = new Semaphore(1)
 
 private Integer getSemaNum(String name) {
     if(name == sHMLF) return 0
@@ -7130,7 +7156,7 @@ private Integer getSemaNum(String name) {
     // log.info "sema $name # $sema"
 }
 
-java.util.concurrent.Semaphore getSema(Integer snum) {
+Semaphore getSema(Integer snum) {
     switch(snum) {
         case 0: return histMapLockFLD
         default: log.error "bad hash result $snum"
@@ -7256,6 +7282,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 
 @Field static final Map deviceSupportMapFLD = [
     types: [
+        //  c: "a" == announce, "t" == TTS
         // Amazon Devices
         "A3C9PE6TNYLTCH" : [ i: "echo_wha", n: "Multiroom" ],
 
