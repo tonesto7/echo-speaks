@@ -1,3 +1,9 @@
+### _**Release (v4.1.9.3) - [August 4th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Bugfixes and Optimizations.
+- [FIX] Fixed Device Info Page and Added Test Buttons
+
 ### _**Release (v4.1.9.2) - [July 22nd, 2021]**_
 
 #### _***All Apps and Devices***_
