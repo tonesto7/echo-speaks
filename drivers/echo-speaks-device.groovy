@@ -24,8 +24,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = "4.1.9.3"
-@Field static final String devModifiedFLD = "2021-08-04"
+@Field static final String devVersionFLD  = "4.1.9.4"
+@Field static final String devModifiedFLD = "2021-08-18"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -1626,8 +1626,8 @@ def storeCurrentVolume() {
 }
 
 Boolean mstoreCurrentVolume(Boolean user=false) {
-    Integer t0 = device?.currentValue("level")
-    Integer curVol = t0 //  ?: 1
+    def t0 = device?.currentValue("level")
+    Integer curVol = t0!=null ? t0.toInteger() : null
     String msg = "storeCurrentVolume($user, $curVol) for restore"
     if(curVol != null) {
         if(user) state.svVolume = curVol
@@ -2708,13 +2708,13 @@ void parallelSpeak(String msg) {
 
 // capability speechSynthesis
 @SuppressWarnings('unused')
-void speak(String msg, Integer volume=null, String awsPollyVoiceName = sNULL) {
+void speak(String msg, volume=null, String awsPollyVoiceName = sNULL) {
     logTrace("speak() command received...")
     if(isCommandTypeAllowed("TTS")) {
         if(!msg) { logWarn("No Message sent with speak(${fixLg(msg)}) command", true) }
         else {
-            def newvol = volume != null ? volume : null
-            def restvol = state.oldVolume != null ? state.oldVolume : null
+            Integer newvol = volume != null ? volume.toInteger() : null
+            Integer restvol = state.oldVolume != null ? (Integer)state.oldVolume : null
 
             if(isZone()) {
                 parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]], true)
