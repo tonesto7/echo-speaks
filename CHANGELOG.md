@@ -1,3 +1,9 @@
+### _**Release (v4.1.9.4) - [August 18th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Bugfixes and Optimizations.
+- [FIX] Speech Command Parameter Fixes
+
 ### _**Release (v4.1.9.3) - [August 4th, 2021]**_
 
 #### _***All Apps and Devices***_
