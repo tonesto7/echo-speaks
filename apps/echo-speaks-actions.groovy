@@ -911,7 +911,7 @@ def conditionsPage() {
     return dynamicPage(name: "conditionsPage", nextPage: "mainPage", title: "Conditions/Restrictions", install: false, uninstall: false) {
         Boolean cra = !!(Boolean)settings.cond_require_all
         Boolean multiConds = multipleConditions()
-        if(!multiConds && cra) { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL); }
+        if(!multiConds && cra) { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
         String a = getConditionsDesc(false)
         if(a) { section() { paragraph spanSm(a, sCLR4D9) } }
 
@@ -919,7 +919,7 @@ def conditionsPage() {
             if(multiConds) {
                 input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Action Runs?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true
                 cra = (Boolean)settings.cond_require_all
-            } else { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL); }
+            } else { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
             Boolean allR = ( multiConds && cra ) // Boolean reqAllCond()
             paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(allR ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
         }
@@ -2258,16 +2258,16 @@ private void actionCleanup() {
 
     // Cleanup Unused Condition settings...
     List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
-    // if(condKeys?.size()) {
-    //     condKeys.each { String ck->
-    //         if(!settings."cond_${ck}") {
-    //             setItems.push("cond_${ck}")
-    //             ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { ei->
-    //                 setItems.push("cond_${ck}_${ei}")
-    //             }
-    //         }
-    //     }
-    // }
+    if(condKeys?.size()) {
+        condKeys.each { String ck->
+            if(!settings."cond_${ck}") {
+                setItems.push("cond_${ck}")
+                ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
+                    setItems.push("cond_${ck}_${ei}")
+                }
+            }
+        }
+    }
     // log.debug "setItems: $setItems"
 
         // Cleanup Unused Trigger Types...
@@ -4645,8 +4645,8 @@ String formatDt(Date dt, Boolean tzChg=true) {
 
 String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
-    def tf = new SimpleDateFormat(fmt)
-    if(tzChg && location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    SimpleDateFormat tf = new SimpleDateFormat(fmt)
+    if(tzChg && location?.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
     return (String)tf.format(dt)
 }
 
@@ -4730,8 +4730,8 @@ Map getDateMap() {
 }
 
 Boolean isDayOfWeek(List opts) {
-    def df = new SimpleDateFormat("EEEE")
-    df?.setTimeZone(location?.timeZone)
+    SimpleDateFormat df = new SimpleDateFormat("EEEE")
+    df?.setTimeZone((TimeZone)location?.timeZone)
     String day = df?.format(new Date())
     return opts?.contains(day)
 }
@@ -5005,10 +5005,10 @@ static String attUnit(String attr) {
 }
 
 Map getZoneStatus() {
-    def echoZones = settings.act_EchoZones ?: []
-    def res = [:]
+    List echoZones = (List)settings.act_EchoZones ?: []
+    Map res = [:]
     if(echoZones.size()) {
-        def allZones = getZones()
+        Map allZones = getZones()
         echoZones.each { k -> if(allZones?.containsKey(k)) { res[k] = allZones[k] } }
     }
     return res
@@ -5034,7 +5034,7 @@ String getActionDesc(Boolean addFoot=true) {
     str += addFoot ? spanSmBr(" ${sBULLET} " + (String)buildActTypeEnum()."${(String)settings.actionType}") + lineBr() : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
-        def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
+        List eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
         Map zones = getZoneStatus()
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
@@ -5115,7 +5115,7 @@ static String randomString(Integer len) {
 }
 
 static def getRandomItem(List items) {
-    def list = [] // new ArrayList<String>()
+    List list = [] // new ArrayList<String>()
     items?.each { list.add(it) }
     return list.get(new Random().nextInt(list.size()))
 }
@@ -5340,7 +5340,7 @@ void getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
 //    Boolean wait = false
     Integer semaNum = getSemaNum(qname)
     String semaSNum = semaNum.toString()
-    def sema = getSema(semaNum)
+    Semaphore sema = getSema(semaNum)
     while(!((Boolean)sema.tryAcquire())) {
         // did not get the lock
         Long timeL = lockTimesFLD[semaSNum]
@@ -5367,7 +5367,7 @@ void getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
 void releaseTheLock(String qname){
     Integer semaNum=getSemaNum(qname)
     String semaSNum=semaNum.toString()
-    def sema=getSema(semaNum)
+    Semaphore sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
     lockHolderFLD[semaSNum]=sNULL
