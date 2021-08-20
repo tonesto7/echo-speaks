@@ -25,8 +25,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = "4.1.9.4"
-@Field static final String appModifiedFLD = "2021-08-18"
+@Field static final String appVersionFLD  = "4.1.9.5"
+@Field static final String appModifiedFLD = "2021-08-20"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -138,7 +138,8 @@ def uhOhPage () {
 
 def appInfoSect()	{
     String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
-    String str = spanBldBr((String)app.name, "black", "es_groups")
+    String str = spanBld((String)app.name, "black", "es_groups")
+    str += ((String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (Z)", sBLANK)})") : sLINEBR
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
     section() { paragraph divSm(str, sCLRGRY) }
@@ -306,16 +307,16 @@ private void updDeviceInputs() {
 
 def conditionsPage() {
     return dynamicPage(name: "conditionsPage", title: "Zone Activation Conditions", nextPage: "mainPage", install: false, uninstall: false) {
-        String a = getConditionsDesc(false)
-        if(!a) a= "No Conditions/Restrictions Set"
-        section() { paragraph divSm(a, sCLR4D9) }
+        String desc = getConditionsDesc(false)
+        if(!desc) { desc= "No Conditions/Restrictions Set" }
+        section() { paragraph divSm(desc, sCLR4D9) }
 
         Boolean multiConds = multipleConditions()
         section() {
             if(multiConds) {
                 input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: false, submitOnChange: true
             }
-            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(reqAllCond() ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
+            paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(reqAllCond() ? "All selected conditions must pass before this zone is active." : "Any condition will allow this zone to become active.", sCLR4D9)
         }
         section(sectHead("Time/Date Restrictions")) {
             href "condTimePage", title: inTS1("Time Schedule", "clock"), description: spanSm(getTimeCondDesc(false), sCLR4D9)
@@ -892,7 +893,11 @@ void subscribeToEvts() {
 /***********************************************************************************************************
    CONDITIONS HANDLER
 ************************************************************************************************************/
-Boolean reqAllCond() { Boolean a = multipleConditions(); return (!a || (a && (Boolean)settings.cond_require_all) ) }
+// Boolean reqAllCond() { Boolean a = multipleConditions(); return (!a || (a && (Boolean)settings.cond_require_all) ); }
+Boolean reqAllCond() {
+    Boolean mult = multipleConditions()
+    return ( mult && (Boolean)settings.cond_require_all )
+}
 
 Boolean timeCondOk() {
     Date startTime
@@ -1866,7 +1871,7 @@ String getConditionsDesc(Boolean addFoot=true) {
     String str = sBLANK
     if(confd) {
         str = getOverallDesc()
-        str += spanSmBr(" ${sBULLET} " + reqAllCond() ? "All Conditions Required" : "Any Condition Allowed")
+        str += spanSmBr(" ${sBULLET} " + spanSmBld("${reqAllCond() ? "All Conditions Required" : "Any Condition Allowed"}"))
         if((Boolean)timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
             str += spanSmBr("    - ${getTimeCondDesc(false)}")
@@ -1884,35 +1889,34 @@ String getConditionsDesc(Boolean addFoot=true) {
             str += settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${(List)settings.cond_mode} " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
         }
          if(deviceCondConfigured()) {
-             List<String> attL = lDATTSTR + lDATTNUM
-             attL.each { String att->
-                if(devCondConfigured(att)) {
+             List<String> devConds = lDATTSTR + lDATTNUM
+             devConds.each { String evt->
+                if(devCondConfigured(evt)) {
                     Boolean condOk = false
-                    if(att in lDATTSTR) { condOk = checkDeviceCondOk(att) }
-                    else if(att in lDATTNUM) { condOk = checkDeviceNumCondOk(att) }
+                    if(evt in lDATTSTR) { condOk = checkDeviceCondOk(evt) }
+                    else if(evt in lDATTNUM) { condOk = checkDeviceNumCondOk(evt) }
 
-                    List devs = settings."${sPre}${att}" ?: null
+                    List devs = settings."${sPre}${evt}" ?: null
                     if(devs){
                         List myV = []
-                        if(!addFoot) devs.each { dev -> myV.push(it?.currentValue(att)) }
-                        str += spanSmBr(" ${sBULLET} ${att?.capitalize()} (${settings."${sPre}${att}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
+                        if(!addFoot) devs.each { dev -> myV.push(dev?.currentValue(evt)) }
+                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
                     }
 
                     String a = "    - Desired Value: "
-                    String cmd = (String)settings."${sPre}${att}_cmd" ?: sNULL
+                    String cmd = (String)settings."${sPre}${evt}_cmd" ?: sNULL
                     if(cmd in [sBETWEEN, sBELOW, sABOVE, sEQUALS]) {
-                        def cmdLow = settings."${sPre}${att}_low" ?: null
-                        def cmdHigh = settings."${sPre}${att}_high" ?: null
-                        def cmdEq = settings."${sPre}${att}_equal" ?: null
-                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}${attUnit(att)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr(a+"(${cmdLow-cmdHigh}${attUnit(att)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr(a+"( >${cmdHigh}${attUnit(att)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-                        str += (cmd == sBELOW && cmdLow) ? spanSmBr(a+"( <${cmdLow}${attUnit(att)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        def cmdLow = settings."${sPre}${evt}_low" ?: null
+                        def cmdHigh = settings."${sPre}${evt}_high" ?: null
+                        def cmdEq = settings."${sPre}${evt}_equal" ?: null
+                        str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBETWEEN && cmdLow && cmdHigh) ? spanSmBr(a+"(${cmdLow-cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sABOVE && cmdHigh) ? spanSmBr(a+"( >${cmdHigh}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
+                        str += (cmd == sBELOW && cmdLow) ? spanSmBr(a+"( <${cmdLow}${attUnit(evt)})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
                     } else {
                         str += cmd ? spanSmBr(a+"(${cmd})" + (settings."cond_${inType}_avg" ? "(Avg)" : sBLANK)) : sBLANK
-
                     }
-                    str += ((Boolean)settings."${sPre}${att}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${att}_all"})") : sBLANK
+                    str += ((Boolean)settings."${sPre}${evt}_all" == true) ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
                 }
             }
         }
