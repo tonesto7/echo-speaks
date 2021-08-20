@@ -31,8 +31,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.4'
-@Field static final String appModifiedFLD = '2021-08-18'
+@Field static final String appVersionFLD  = '4.1.9.5'
+@Field static final String appModifiedFLD = '2021-08-20'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -203,7 +203,9 @@ def uhOhPage() {
 
 def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
-    String str = spanBldBr((String)app.name, "black", "es_actions") + spanSmBld("Version: ") + spanSmBr(appVersionFLD)
+    String str = spanBld((String)app.name, "black", "es_groups")
+    str += ((String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (A)", sBLANK)})") : sLINEBR
+    str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
     section() { paragraph divSm(str, sCLRGRY) }
 }
@@ -909,15 +911,15 @@ def conditionsPage() {
     return dynamicPage(name: "conditionsPage", nextPage: "mainPage", title: "Conditions/Restrictions", install: false, uninstall: false) {
         Boolean cra = !!(Boolean)settings.cond_require_all
         Boolean multiConds = multipleConditions()
-        if(!multiConds && cra) { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
+        if(!multiConds && cra) { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL); }
         String a = getConditionsDesc(false)
         if(a) { section() { paragraph spanSm(a, sCLR4D9) } }
 
         section() {
             if(multiConds) {
-                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Activating Zone?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true
+                input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Action Runs?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true
                 cra = (Boolean)settings.cond_require_all
-            } else { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
+            } else { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL); }
             Boolean allR = ( multiConds && cra ) // Boolean reqAllCond()
             paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(allR ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
         }
@@ -2256,16 +2258,18 @@ private void actionCleanup() {
 
     // Cleanup Unused Condition settings...
     List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
-    if(condKeys?.size()) {
-        condKeys.each { String ck->
-            if(!settings."cond_${ck}") {
-                setItems.push("cond_${ck}")
-                ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { ei->
-                    setItems.push("cond_${ck}_${ei}")
-                }
-            }
-        }
-    }
+    // if(condKeys?.size()) {
+    //     condKeys.each { String ck->
+    //         // log.debug "condKey: $ck | ${settings."cond_${ck}"}"
+    //         if(settings.containsKey("cond_${ck}")) {
+    //             setItems.push("cond_${ck}")
+    //             ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { ei->
+    //                 setItems.push("cond_${ck}_${ei}")
+    //             }
+    //         }
+    //     }
+    // }
+    // log.debug "setItems: $setItems"
 
         // Cleanup Unused Trigger Types...
     if((List)settings.triggerEvents) {
@@ -4917,7 +4921,7 @@ String getConditionsDesc(Boolean addFoot=true) {
     String str = sBLANK
     if(confd) {
         str = getOverallDesc()
-        str += spanSmBr(" ${sBULLET} " + "${reqAllCond() ? "All Conditions Required" : "Any Condition Allowed"}")
+        str += spanSmBr(" ${sBULLET} " + spanSmBld("${reqAllCond() ? "All Conditions Required" : "Any Condition Allowed"}"))
         if(timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
             str += spanSmBr("    - ${getTimeCondDesc(false)}")
