@@ -2260,8 +2260,7 @@ private void actionCleanup() {
     List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
     // if(condKeys?.size()) {
     //     condKeys.each { String ck->
-    //         // log.debug "condKey: $ck | ${settings."cond_${ck}"}"
-    //         if(settings.containsKey("cond_${ck}")) {
+    //         if(!settings."cond_${ck}") {
     //             setItems.push("cond_${ck}")
     //             ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { ei->
     //                 setItems.push("cond_${ck}_${ei}")
