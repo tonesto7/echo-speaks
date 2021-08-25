@@ -31,8 +31,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.5'
-@Field static final String appModifiedFLD = '2021-08-20'
+@Field static final String appVersionFLD  = '4.1.9.6'
+@Field static final String appModifiedFLD = '2021-08-25'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -204,7 +204,7 @@ def uhOhPage() {
 def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBld((String)app.name, "black", "es_groups")
-    str += ((String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (A)", sBLANK)})") : sLINEBR
+    str += ( app.label && (String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (A)", sBLANK)})") : sLINEBR
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
     section() { paragraph divSm(str, sCLRGRY) }
@@ -3187,20 +3187,21 @@ def getTierStatusSection() {
         if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
 
         Map tS = aTierSt
-        str += "Tier Size: ${lTierMap?.size()}\n"
-        str += "Schedule Active: ${tsa}\n"
-        str += tS?.cycle ? "Tier Cycle: ${tS?.cycle}\n" : sBLANK
-        str += tS?.schedDelay ? "Next Delay: ${tS?.schedDelay}\n" : sBLANK
-        str += tS?.lastMsg ? "Is Last Cycle: ${tS?.lastMsg == true}\n" : sBLANK
+        str +=                  spanSm(" ${sBULLET} Tier Size: ", sCLR4D9) +  spanSmBr("${lTierMap?.size()}", sCLRGRY)
+        str +=                  spanSm(" ${sBULLET} Schedule Active: ", sCLR4D9) + spanSmBr("${tsa}", sCLRGRY)
+        str += tS?.cycle ?      spanSm(" ${sBULLET} Tier Cycle: ", sCLR4D9) + spanSmBr("${tS?.cycle}", sCLRGRY) : sBLANK
+        str += tS?.schedDelay ? spanSm(" ${sBULLET} Next Delay: ", sCLR4D9) + spanSmBr("${tS?.schedDelay}", sCLRGRY) : sBLANK
+        str += tS?.lastMsg ?    spanSm(" ${sBULLET} Is Last Cycle: ", sCLR4D9) + spanSmBr("${tS?.lastMsg == true}", sCLRGRY) : sBLANK
 
         releaseTheLock(sHMLF)
 
         String a = getTsVal("lastTierRespStartDt")
-        str += a ? "Last Tier Start: ${a}\n" : sBLANK
+        str += a ? spanSm(" ${sBULLET} Last Tier Start: ", sCLR4D9) + spanSmBr("${a}", sCLRGRY) : sBLANK
         a = getTsVal("lastTierRespStopDt")
-        str += a ? "Last Tier Stop: ${a}\n" : sBLANK
-        section("Tier Response Status: ") {
-            paragraph pTS(str, sNULL, false, sCLR4D9)
+        str += a ? spanSm(" ${sBULLET} Last Tier Stop: ", sCLR4D9) + spanSmBr("${a}", sCLRGRY) : sBLANK
+        
+        section() {
+            paragraph spanSmBldBr("Tier Response Status: ") + str
         }
     }
 }

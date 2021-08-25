@@ -25,8 +25,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = "4.1.9.5"
-@Field static final String appModifiedFLD = "2021-08-20"
+@Field static final String appVersionFLD  = "4.1.9.6"
+@Field static final String appModifiedFLD = "2021-08-25"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
