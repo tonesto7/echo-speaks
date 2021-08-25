@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.5'
-@Field static final String appModifiedFLD = '2021-08-20'
+@Field static final String appVersionFLD  = '4.1.9.6'
+@Field static final String appModifiedFLD = '2021-08-25'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4195, wsDevice: 4195, actionApp: 4195, zoneApp: 4195, zoneEchoDevice: 4195, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4196, wsDevice: 4196, actionApp: 4196, zoneApp: 4196, zoneEchoDevice: 4196, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -339,7 +339,7 @@ def servPrefPage() {
             section() { paragraph spanSmBld("To proceed with the server setup.<br>Tap on 'Begin Server Setup below", sCLR4D9) }
             srvcPrefOpts(true)
             section(sectHead("Deploy the Server:")) {
-                href url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: sTTP
+                href url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: inactFoot(sTTP)
             }
         } else {
             String myUrl = "${getServerHostURL()}/config"
@@ -575,7 +575,7 @@ def actionsPage() {
             if(actApps?.size()) {
                 input "actionDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Action", "es_actions"), description: sTTS, options: actApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true
                 if(settings.actionDuplicateSelect) {
-                    href "actionDuplicationPage", title: inTS1("Create Duplicate Action?", "question"), description: sTTP
+                    href "actionDuplicationPage", title: inTS1(spanSm("Create Duplicate Action?", sCLRGRY), "question"), description: inactFoot(sTTP)
                 }
             }
         }
@@ -700,7 +700,7 @@ def zonesPage() {
             if(zApps?.size()) {
                 input "zoneDuplicateSelect", sENUM, title: inTS1("Duplicate Existing Zone", "es_groups"), description: sTTS, options: zApps?.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true
                 if(settings.zoneDuplicateSelect) {
-                    href "zoneDuplicationPage", title: inTS1("Create Duplicate Zone?", "question"), description: sTTP
+                    href "zoneDuplicationPage", title: inTS1(spanSm("Create Duplicate Zone?", sCLRGRY), "question"), description: inactFoot(sTTP)
                 }
             }
         }
@@ -1377,7 +1377,7 @@ def musicSearchTestPage() {
             paragraph spanSm("Enter a search phrase to query TuneIn to help you find the right search term to use in searchTuneIn() command.", sCLR4D9)
             input "test_tuneinSearchQuery", "text", title: inTS1("Enter search phrase for TuneIn", "tunein"), defaultValue: sNULL, required: false, submitOnChange: true
             if((String)settings.test_tuneinSearchQuery) {
-                href "searchTuneInResultsPage", title: inTS1("View search results!", "search2"), description: sTTP
+                href "searchTuneInResultsPage", title: inTS1("View search results!", "search2"), description: inactFoot(sTTP)
             }
         }
     }
