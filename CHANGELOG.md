@@ -1,3 +1,9 @@
+### _**Release (v4.1.9.6) - [August 25th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Fixed issues with creating new actions and zones.
+- [FIX] Fixed some UI issues in the main app.
+
 ### _**Release (v4.1.9.5) - [August 20th, 2021]**_
 
 #### _***All Apps and Devices***_

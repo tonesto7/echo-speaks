@@ -31,8 +31,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.5'
-@Field static final String appModifiedFLD = '2021-08-20'
+@Field static final String appVersionFLD  = '4.1.9.6'
+@Field static final String appModifiedFLD = '2021-08-25'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -204,7 +204,7 @@ def uhOhPage() {
 def appInfoSect() {
     String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBld((String)app.name, "black", "es_groups")
-    str += ((String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (A)", sBLANK)})") : sLINEBR
+    str += ( app.label && (String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (A)", sBLANK)})") : sLINEBR
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
     section() { paragraph divSm(str, sCLRGRY) }
@@ -911,7 +911,7 @@ def conditionsPage() {
     return dynamicPage(name: "conditionsPage", nextPage: "mainPage", title: "Conditions/Restrictions", install: false, uninstall: false) {
         Boolean cra = !!(Boolean)settings.cond_require_all
         Boolean multiConds = multipleConditions()
-        if(!multiConds && cra) { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL); }
+        if(!multiConds && cra) { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
         String a = getConditionsDesc(false)
         if(a) { section() { paragraph spanSm(a, sCLR4D9) } }
 
@@ -919,7 +919,7 @@ def conditionsPage() {
             if(multiConds) {
                 input "cond_require_all", sBOOL, title: inTS1("Require All Selected Conditions to Pass Before Action Runs?", sCHKBOX), required: false, defaultValue: true, submitOnChange: true
                 cra = (Boolean)settings.cond_require_all
-            } else { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL); }
+            } else { cra=false; settingUpdate("cond_require_all", sFALSE, sBOOL) }
             Boolean allR = ( multiConds && cra ) // Boolean reqAllCond()
             paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm(allR ? "All selected conditions must pass before for this action to operate." : "Any condition will allow this action to operate.", sCLR4D9)
         }
@@ -2258,17 +2258,16 @@ private void actionCleanup() {
 
     // Cleanup Unused Condition settings...
     List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
-    // if(condKeys?.size()) {
-    //     condKeys.each { String ck->
-    //         // log.debug "condKey: $ck | ${settings."cond_${ck}"}"
-    //         if(settings.containsKey("cond_${ck}")) {
-    //             setItems.push("cond_${ck}")
-    //             ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { ei->
-    //                 setItems.push("cond_${ck}_${ei}")
-    //             }
-    //         }
-    //     }
-    // }
+    if(condKeys?.size()) {
+        condKeys.each { String ck->
+            if(!settings."cond_${ck}") {
+                setItems.push("cond_${ck}")
+                ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
+                    setItems.push("cond_${ck}_${ei}")
+                }
+            }
+        }
+    }
     // log.debug "setItems: $setItems"
 
         // Cleanup Unused Trigger Types...
@@ -3188,20 +3187,21 @@ def getTierStatusSection() {
         if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
 
         Map tS = aTierSt
-        str += "Tier Size: ${lTierMap?.size()}\n"
-        str += "Schedule Active: ${tsa}\n"
-        str += tS?.cycle ? "Tier Cycle: ${tS?.cycle}\n" : sBLANK
-        str += tS?.schedDelay ? "Next Delay: ${tS?.schedDelay}\n" : sBLANK
-        str += tS?.lastMsg ? "Is Last Cycle: ${tS?.lastMsg == true}\n" : sBLANK
+        str +=                  spanSm(" ${sBULLET} Tier Size: ", sCLR4D9) +  spanSmBr("${lTierMap?.size()}", sCLRGRY)
+        str +=                  spanSm(" ${sBULLET} Schedule Active: ", sCLR4D9) + spanSmBr("${tsa}", sCLRGRY)
+        str += tS?.cycle ?      spanSm(" ${sBULLET} Tier Cycle: ", sCLR4D9) + spanSmBr("${tS?.cycle}", sCLRGRY) : sBLANK
+        str += tS?.schedDelay ? spanSm(" ${sBULLET} Next Delay: ", sCLR4D9) + spanSmBr("${tS?.schedDelay}", sCLRGRY) : sBLANK
+        str += tS?.lastMsg ?    spanSm(" ${sBULLET} Is Last Cycle: ", sCLR4D9) + spanSmBr("${tS?.lastMsg == true}", sCLRGRY) : sBLANK
 
         releaseTheLock(sHMLF)
 
         String a = getTsVal("lastTierRespStartDt")
-        str += a ? "Last Tier Start: ${a}\n" : sBLANK
+        str += a ? spanSm(" ${sBULLET} Last Tier Start: ", sCLR4D9) + spanSmBr("${a}", sCLRGRY) : sBLANK
         a = getTsVal("lastTierRespStopDt")
-        str += a ? "Last Tier Stop: ${a}\n" : sBLANK
-        section("Tier Response Status: ") {
-            paragraph pTS(str, sNULL, false, sCLR4D9)
+        str += a ? spanSm(" ${sBULLET} Last Tier Stop: ", sCLR4D9) + spanSmBr("${a}", sCLRGRY) : sBLANK
+        
+        section() {
+            paragraph spanSmBldBr("Tier Response Status: ") + str
         }
     }
 }
@@ -4646,8 +4646,8 @@ String formatDt(Date dt, Boolean tzChg=true) {
 
 String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
-    def tf = new SimpleDateFormat(fmt)
-    if(tzChg && location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    SimpleDateFormat tf = new SimpleDateFormat(fmt)
+    if(tzChg && location?.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
     return (String)tf.format(dt)
 }
 
@@ -4731,8 +4731,8 @@ Map getDateMap() {
 }
 
 Boolean isDayOfWeek(List opts) {
-    def df = new SimpleDateFormat("EEEE")
-    df?.setTimeZone(location?.timeZone)
+    SimpleDateFormat df = new SimpleDateFormat("EEEE")
+    df?.setTimeZone((TimeZone)location?.timeZone)
     String day = df?.format(new Date())
     return opts?.contains(day)
 }
@@ -5006,10 +5006,10 @@ static String attUnit(String attr) {
 }
 
 Map getZoneStatus() {
-    def echoZones = settings.act_EchoZones ?: []
-    def res = [:]
+    List echoZones = (List)settings.act_EchoZones ?: []
+    Map res = [:]
     if(echoZones.size()) {
-        def allZones = getZones()
+        Map allZones = getZones()
         echoZones.each { k -> if(allZones?.containsKey(k)) { res[k] = allZones[k] } }
     }
     return res
@@ -5035,7 +5035,7 @@ String getActionDesc(Boolean addFoot=true) {
     str += addFoot ? spanSmBr(" ${sBULLET} " + (String)buildActTypeEnum()."${(String)settings.actionType}") + lineBr() : sBLANK
     if((String)settings.actionType && confd) {
         Boolean isTierAct = isTierAction()
-        def eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
+        List eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
         Map zones = getZoneStatus()
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
         String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
@@ -5116,7 +5116,7 @@ static String randomString(Integer len) {
 }
 
 static def getRandomItem(List items) {
-    def list = [] // new ArrayList<String>()
+    List list = [] // new ArrayList<String>()
     items?.each { list.add(it) }
     return list.get(new Random().nextInt(list.size()))
 }
@@ -5341,7 +5341,7 @@ void getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
 //    Boolean wait = false
     Integer semaNum = getSemaNum(qname)
     String semaSNum = semaNum.toString()
-    def sema = getSema(semaNum)
+    Semaphore sema = getSema(semaNum)
     while(!((Boolean)sema.tryAcquire())) {
         // did not get the lock
         Long timeL = lockTimesFLD[semaSNum]
@@ -5368,7 +5368,7 @@ void getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
 void releaseTheLock(String qname){
     Integer semaNum=getSemaNum(qname)
     String semaSNum=semaNum.toString()
-    def sema=getSema(semaNum)
+    Semaphore sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
     lockHolderFLD[semaSNum]=sNULL
