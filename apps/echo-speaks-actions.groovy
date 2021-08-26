@@ -31,7 +31,7 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.6'
+@Field static final String appVersionFLD  = '4.1.9.7'
 @Field static final String appModifiedFLD = '2021-08-25'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
@@ -2258,16 +2258,16 @@ private void actionCleanup() {
 
     // Cleanup Unused Condition settings...
     List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
-    if(condKeys?.size()) {
-        condKeys.each { String ck->
-            if(!settings."cond_${ck}") {
-                setItems.push("cond_${ck}")
-                ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
-                    setItems.push("cond_${ck}_${ei}")
-                }
-            }
-        }
-    }
+    // if(condKeys?.size()) {
+    //     condKeys.each { String ck->
+    //         if(!settings."cond_${ck}") {
+    //             setItems.push("cond_${ck}")
+    //             ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
+    //                 setItems.push("cond_${ck}_${ei}")
+    //             }
+    //         }
+    //     }
+    // }
     // log.debug "setItems: $setItems"
 
         // Cleanup Unused Trigger Types...
