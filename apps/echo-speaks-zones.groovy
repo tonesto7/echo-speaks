@@ -25,8 +25,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = "4.1.9.7"
-@Field static final String appModifiedFLD = "2021-08-25"
+@Field static final String appVersionFLD  = "4.1.9.8"
+@Field static final String appModifiedFLD = "2021-08-26"
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -139,7 +139,7 @@ def uhOhPage () {
 def appInfoSect()	{
     String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
     String str = spanBld((String)app.name, "black", "es_groups")
-    str += ((String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (Z)", sBLANK)})") : sLINEBR
+    str += (app.label && (String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (Z)", sBLANK)})") : sLINEBR
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
     section() { paragraph divSm(str, sCLRGRY) }

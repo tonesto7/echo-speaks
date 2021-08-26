@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.7'
-@Field static final String appModifiedFLD = '2021-08-25'
+@Field static final String appVersionFLD  = '4.1.9.8'
+@Field static final String appModifiedFLD = '2021-08-26'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4197, wsDevice: 4197, actionApp: 4197, zoneApp: 4197, zoneEchoDevice: 4197, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4198, wsDevice: 4198, actionApp: 4198, zoneApp: 4198, zoneEchoDevice: 4198, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -7301,6 +7301,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A3HF4YRA2L7XGC" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube" ],
         "AFF50AL5E3DIU"  : [ c: [ "a", "t" ], i: "insignia_firetv",  n: "Fire TV (Insignia)" ],
         "ADVBD696BHNV5"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen1)" ],
+        "A1P7E7V3FCZKU6" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
         
         // Amazon Tablets
         "A1Q7QCGNMXAKYW" : [ c: [ "t", "a" ], i: "amazon_tablet", n: "Generic Tablet" ],
@@ -7447,7 +7448,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         // Other Devices
         "A1W2YILXTG9HA7" : [ c: [ "t", "a" ], i: "unknown", n: "Nextbase 522GW Dashcam" ],
         "A3NPD82ABCPIDP" : [ c: [ "t" ], i: "sonos_beam", n: "Sonos Beam" ],
-        "AVD3HM0HOJAAL"  : [ i: "sonos_generic", n: "Sonos" ],
+        "AVD3HM0HOJAAL"  : [ c: [ "t", "a" ], i: "sonos_generic", n: "Sonos" ],
+        "A14ZH95E6SE9Z1" : [ c: [ "t", "a" ], i: "unknown", n: "Bose Home Speaker 300" ], 
         "AVE5HX13UR5NO"  : [ c: [ "a", "t" ], i: "logitech_zero_touch", n: "Logitech Zero Touch" ],
         "A1M0A9L9HDBID3" : [ c: [ "t" ], i: "one-link", n: "One-Link Safe and Sound" ],
         "A1N9SW0I0LUX5Y" : [ c: [ "a", "t" ], i: "unknown", n: "Ford/Lincoln Alexa App" ],

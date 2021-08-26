@@ -1,3 +1,8 @@
+### _**Release (v4.1.9.8) - [August 26th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Fixed issue with creating new zones.
+- [NEW] Added device support for some new devices
 ### _**Release (v4.1.9.7) - [August 25th, 2021]**_
 
 #### _***All Apps and Devices***_
