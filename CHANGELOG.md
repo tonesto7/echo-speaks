@@ -1,3 +1,9 @@
+### _**Release (v4.1.9.7) - [August 25th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Fixed issue with version numbers.
+- [FIX] Fixed regression with all conditions flag.
+
 ### _**Release (v4.1.9.6) - [August 25th, 2021]**_
 
 #### _***All Apps and Devices***_
