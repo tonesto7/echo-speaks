@@ -4276,7 +4276,7 @@ Integer getMsgDur(String command, String type, String tv){
         String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, sBLANK) : cleanString(nstr)
         //nm = actMsg.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         //log.debug "getMsgDur1 $nm"
-        Integer msgLen = actMsg.length()
+        Integer msgLen = actMsg?.length() ?: 0
         del = calcDelay(msgLen)
         if(devModeFLD) logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
     }
