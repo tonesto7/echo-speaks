@@ -2258,17 +2258,19 @@ private void actionCleanup() {
 
     // Cleanup Unused Condition settings...
     List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
-    // if(condKeys?.size()) {
-    //     condKeys.each { String ck->
-    //         if(!settings."cond_${ck}") {
-    //             setItems.push("cond_${ck}")
-    //             ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
-    //                 setItems.push("cond_${ck}_${ei}")
-    //             }
-    //         }
-    //     }
-    // }
-    // log.debug "setItems: $setItems"
+    if(devModeFLD) log.debug("checking setting condition keys $condKeys" )
+    if(condKeys?.size()) {
+        condKeys.each { String ck->
+            if(!ck.contains("_") && !settings."cond_${ck}") {
+                if(devModeFLD) log.debug("found setting to cleanup: $ck")
+                setItems.push("cond_${ck}")
+                ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
+                    setItems.push("cond_${ck}_${ei}")
+                }
+            }
+        }
+    }
+    if(setItems) log.debug "settings to clean setItems: $setItems"
 
         // Cleanup Unused Trigger Types...
     if((List)settings.triggerEvents) {
