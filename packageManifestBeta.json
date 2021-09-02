@@ -7,7 +7,7 @@
     "documentationLink": "https://tonesto7.github.io/echo-speaks-docs",
     "communityLink": "https://community.hubitat.com/t/beta-echo-speaks-v4/66503",
     "licenseFile": "",
-    "releaseNotes": "Please see Changelog at https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/CHANGELOG.html for recent changes.",
+    "releaseNotes": "Please see Changelog at https://raw.githubusercontent.com/tonesto7/echo-speaks/beta/CHANGELOG.md for recent changes.",
     "apps": [{
             "id": "4216cb09-591c-452d-9dc7-20f330de8624",
             "name": "Echo Speaks",
