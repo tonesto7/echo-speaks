@@ -10,5 +10,5 @@
 </p>
 
 <h4>Description:</h4>
-<p>Integrate your Amazon Echo devices into your SmartThings and Hubitat environment to create virtual Echo Devices. These virtual devices will allow you to speak text, make announcements, control media playback including volume, and many other Alexa features.</p>
+<p>Integrate your Amazon Echo devices into your Hubitat environment to create virtual Echo Devices. These virtual devices will allow you to speak text, make announcements, control media playback including volume, and many other Alexa features.</p>
 
