@@ -2265,11 +2265,11 @@ private void actionCleanup() {
     }
 
     // Cleanup Unused Condition settings...
-    List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_")  }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
+    List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_") && !((String)((List)it?.key?.tokenize("_"))[1] in ['require']) }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
     if(devModeFLD) log.debug("checking setting condition keys $condKeys" )
     if(condKeys?.size()) {
         condKeys.each { String ck->
-            if(!ck.contains("_") && !settings."cond_${ck}") {
+            if(!settings."cond_${ck}") {
                 if(devModeFLD) log.debug("found setting to cleanup: $ck")
                 setItems.push("cond_${ck}")
                 ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
@@ -3212,9 +3212,9 @@ def getTierStatusSection() {
         releaseTheLock(sHMLF)
 
         String a = getTsVal("lastTierRespStartDt")
-        str += a ? spanSm(" ${sBULLET} Last Tier Start: ", sCLR4D9) + spanSmBr("${a}", sCLRGRY) : sBLANK
+        str += a ? spanSm(" ${sBULLET} Last Tier Start: ", sCLR4D9) + spanSmBr(a, sCLRGRY) : sBLANK
         a = getTsVal("lastTierRespStopDt")
-        str += a ? spanSm(" ${sBULLET} Last Tier Stop: ", sCLR4D9) + spanSmBr("${a}", sCLRGRY) : sBLANK
+        str += a ? spanSm(" ${sBULLET} Last Tier Stop: ", sCLR4D9) + spanSmBr(a, sCLRGRY) : sBLANK
         
         section() {
             paragraph spanSmBldBr("Tier Response Status: ") + str
