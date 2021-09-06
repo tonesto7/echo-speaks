@@ -235,7 +235,7 @@ private Map buildTriggerEnum() {
 
     buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
     buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
-    buildItems["Thermostat Devices"] = [(sCOOLSP):"Thermostat Cooling Setpoint", (sHEATSP):"Thermostat Heating Setpoint", (sTHERMTEMP):"Thermostat Ambient Temp", (sTHERMOOS):"Thermostat Operating State", (sTHERMMODE):"Thermostat Mode", (sTHERMFM):"Thermostat Fan Mode"]?.sort{ it?.value }
+    buildItems["Thermostat Devices"] = [(sCOOLSP):"Thermostat Cooling Setpoint", (sHEATSP):"Thermostat Heating Setpoint", (sTHERMTEMP):"Thermostat Ambient Temp", (sTHERMOS):"Thermostat Operating State", (sTHERMMODE):"Thermostat Mode", (sTHERMFM):"Thermostat Fan Mode"]?.sort{ it?.value }
     buildItems["Button Devices"] = [(sPUSHED):"Button (Pushable)", (sRELEASED):"Button (Releasable)", (sHELD):"Button (Holdable)", (sDBLTAP):"Button (Double Tapable)"]?.sort{ it?.value }
 // TODO siren (capability.alarm, attr alarm - ENUM ["strobe", "off", "both", "siren"]
     buildItems["Safety & Security"] = [(sALRMSYSST): getAlarmSystemName(), (sSMOKE):"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
