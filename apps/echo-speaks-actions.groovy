@@ -229,8 +229,8 @@ String selTriggerTypes(type) {
 
 private Map buildTriggerEnum() {
     Map<String,Map<String,String>> buildItems = [:]
-    buildItems["Date/Time"] = [(sSCHED):"Scheduled Time"]?.sort{ it?.key }
-    buildItems["Location"] = [(sMODE):"Modes", (sPISTNEXEC):"Pistons"]?.sort{ it?.key }
+    buildItems["Date/Time"] = [(sSCHED):"Scheduled Time"].sort{ it?.key }
+    buildItems["Location"] = [(sMODE):"Modes", (sPISTNEXEC):"Pistons"].sort{ it?.key }
     if(!settings.enableWebCoRE) { buildItems.Location.remove(sPISTNEXEC) }
 
     buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
@@ -2266,7 +2266,7 @@ private void actionCleanup() {
 
     // Cleanup Unused Condition settings...
     List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_") && !((String)((List)it?.key?.tokenize("_"))[1] in ['require']) }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
-    if(devModeFLD) log.debug("checking setting condition keys $condKeys" )
+    if(devModeFLD) log.debug("checking settings condition keys $condKeys" )
     if(condKeys?.size()) {
         condKeys.each { String ck->
             if(!settings."cond_${ck}") {
