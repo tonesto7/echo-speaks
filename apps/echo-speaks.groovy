@@ -30,7 +30,7 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String appVersionFLD  = '4.1.9.8'
-@Field static final String appModifiedFLD = '2021-08-26'
+@Field static final String appModifiedFLD = '2021-09-07'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
@@ -4265,7 +4265,7 @@ void workQ() {
 Integer getMsgDur(String command, String type, String tv){
     Integer del = 0
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
-        List<String> valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
+        String[] valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
         String nstr = valObj[1].trim()
         nstr = nstr.replaceAll(/\s\s+/, sSPACE)
         //String nm = nstr.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -4591,7 +4591,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 String sval = value.toString()
                 if(!(sval in okVals)) { return null }
                 seqNode.type = "Alexa.CannedTts.Speak"
-                List<String> valObj = lcmd == 'cannedtts_random' ?  [sval, 'random'] : (sval?.contains("::") ? sval.split("::") : [sval, sval])
+                String[] valObj = lcmd == 'cannedtts_random' ?  [sval, 'random'] : (sval?.contains("::") ? sval.split("::") : [sval, sval])
                 seqNode.operationPayload.cannedTtsStringId = "alexa.cannedtts.speak.curatedtts-category-${valObj[0]}/alexa.cannedtts.speak.curatedtts-${valObj[1]}"
                 break
             case "sound":
@@ -4654,7 +4654,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.type = "AlexaAnnouncement"
                 seqNode.skillId = "amzn1.ask.1p.routines.messaging"
                 seqNode.operationPayload.expireAfter = "PT5S"
-                List<String> valObj = (value?.toString()?.contains("::")) ? value.toString().split("::") : ["Echo Speaks", value.toString()]
+                String[] valObj = (value?.toString()?.contains("::")) ? value.toString().split("::") : ["Echo Speaks", value.toString()]
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
@@ -4972,7 +4972,7 @@ Boolean quietTimeOk() {
 Boolean quietDaysOk(List days) {
     if(days) {
         def dayFmt = new SimpleDateFormat("EEEE")
-        if(location?.timeZone) { dayFmt?.setTimeZone(location?.timeZone) }
+        if(location?.timeZone) { dayFmt?.setTimeZone((TimeZone)location?.timeZone) }
         return !days.contains(dayFmt?.format(new Date()))
     }
     return true
@@ -5722,7 +5722,7 @@ def execDiagCmds() {
 *******************************************/
 String formatDt(Date dt, Boolean tzChg=true) {
     def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    if(tzChg) { if(location.timeZone) { tf.setTimeZone(location?.timeZone) } }
+    if(tzChg) { if(location.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) } }
     return (String)tf.format(dt)
 }
 
@@ -5738,7 +5738,7 @@ String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
 String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     def tf = new SimpleDateFormat(newFmt)
-    if(location.timeZone) { tf.setTimeZone(location?.timeZone) }
+    if(location.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
     return (String)tf.format(newDt)
 }
 
@@ -5749,15 +5749,15 @@ String getDtNow() {
 
 String epochToTime(Date tm) {
     def tf = new SimpleDateFormat("h:mm a")
-    if(location?.timeZone) { tf?.setTimeZone(location?.timeZone) }
+    if(location?.timeZone) { tf?.setTimeZone((TimeZone)location?.timeZone) }
     return (String)tf.format(tm)
 }
 
 String time2Str(time) {
     if(time) {
-        Date t = timeToday(time as String, location?.timeZone)
+        Date t = timeToday(time as String, (TimeZone)location?.timeZone)
         def f = new SimpleDateFormat("h:mm a")
-        f.setTimeZone(location?.timeZone ?: timeZone(time))
+        f.setTimeZone((TimeZone)location?.timeZone ?: timeZone(time))
         return (String)f.format(t)
     }
     return sNULL
