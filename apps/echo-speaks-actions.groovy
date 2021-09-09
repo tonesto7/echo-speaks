@@ -2257,15 +2257,30 @@ private void actionCleanup() {
     tierItemCleanup()
     if((String)settings.actionType) {
         Boolean isTierAct = isTierAction()
-        ["act_lights", "act_locks", "act_securityKeypads", "act_doors", "act_sirens"]?.each { String it -> settings.each { sI -> if(sI.key.startsWith(it)) { isTierAct ? setItems.push(sI.key as String) : setIgn.push(sI.key as String) } } }
-        ["act_tier_start_", "act_tier_stop_"]?.each { String it -> settings.each { sI -> if(sI.key.startsWith(it)) { isTierAct ? setIgn.push(sI.key as String) : setItems.push(sI.key as String) } } }
-        settings.each { si->
-            if(!(si.key in setIgn) && si.key.startsWith("act_") && !si.key.startsWith("act_${(String)settings.actionType}") && (!isTierAct && si.key.startsWith("act_tier_item_"))) { setItems.push(si?.key as String) }
+        ["act_lights", "act_locks", "act_securityKeypads", "act_doors", "act_sirens"]?.each { String it ->
+            ((Map)settings).each { sI ->
+                String k = (String)sI.key
+                if(k.startsWith(it)) {
+                    isTierAct ? setItems.push(k) : setIgn.push(k) }
+            }
+        }
+        ["act_tier_start_", "act_tier_stop_"]?.each { String it ->
+            ((Map)settings).each { sI ->
+                String k = (String)sI.key
+                if(k.startsWith(it)) {
+                    isTierAct ? setIgn.push(k) : setItems.push(k) }
+            }
+        }
+        ((Map)settings).each { si->
+            String k = (String)si.key
+            if(!(k in setIgn) && k.startsWith("act_") && !k.startsWith("act_${(String)settings.actionType}") && (!isTierAct && k.startsWith("act_tier_item_"))) { setItems.push(k) }
         }
     }
 
     // Cleanup Unused Condition settings...
-    List<String> condKeys = settings.findAll { it?.key?.startsWith("cond_") && !((String)((List)it?.key?.tokenize("_"))[1] in ['require']) }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
+    List<String> condKeys = ((Map)settings).findAll { it ->
+        String k = (String)it.key
+        k?.startsWith("cond_") && !(k?.tokenize("_")[1] in ['require']) }?.keySet()?.collect { ((String)it)?.tokenize("_")[1] }?.unique()
     if(devModeFLD) log.debug("checking settings condition keys $condKeys" )
     if(condKeys?.size()) {
         condKeys.each { String ck->
@@ -2282,10 +2297,17 @@ private void actionCleanup() {
 
         // Cleanup Unused Trigger Types...
     if((List)settings.triggerEvents) {
-        List<String> trigKeys = settings.findAll { it?.key?.startsWith("trig_") && !((String)((List)it?.key?.tokenize("_"))[1] in (List)settings.triggerEvents) }?.keySet()?.collect { (String)((List)it?.tokenize("_"))[1] }?.unique()
+        List<String> trigKeys = ((Map)settings).findAll { it ->
+            String k = (String)it.key
+            k?.startsWith("trig_") && !(k?.tokenize("_")[1] in (List)settings.triggerEvents) }?.keySet()?.collect { ((String)it)?.tokenize("_")[1] }?.unique()
         // log.debug "trigKeys: $trigKeys"
         if(trigKeys?.size()) {
-            trigKeys.each { String tk-> setItems.push("trig_${tk}"); ["events", "wait", "all", "avg", "cmd", "low", "high", "equal", "once", "after", "txt", "nums", "after_repeat", "after_repeat_cnt", "after_repeat_txt", "Codes"]?.each { ei-> setItems.push("trig_${tk}_${ei}") } }
+            trigKeys.each { String tk->
+                setItems.push("trig_${tk}")
+                ["events", "wait", "all", "avg", "cmd", "low", "high", "equal", "once", "after", "txt", "nums", "after_repeat", "after_repeat_cnt", "after_repeat_txt", "Codes"]?.each { String ei->
+                    setItems.push("trig_${tk}_${ei}")
+                }
+            }
         }
     }
 
@@ -2319,7 +2341,11 @@ private void actionCleanup() {
         }
     }
 
-    settings.each { si-> if(si?.key?.startsWith("broadcast") || si?.key?.startsWith("musicTest") || si?.key?.startsWith("announce") || si?.key?.startsWith("sequence") || si?.key?.startsWith("speechTest")) { setItems.push(si?.key as String) } }
+    ((Map)settings).each { si->
+        String k = (String)si.key
+        ["broadcast", "musicTest", "announce", "sequence", "speechTest"].each { String it -> if (k?.startsWith(it)) setItems.push(k) }
+        // if(k?.startsWith("broadcast") || k?.startsWith("musicTest") || k?.startsWith("announce") || k?.startsWith("sequence") || k?.startsWith("speechTest")) { setItems.push(k) } }
+    }
     if(state.webCoRE) { state.remove("webCoRE") }
     if(!settings.enableWebCoRE) { setItems.push("webCorePistons"); setItems.push("act_piston_run") }
     setItems = setItems + ["tuneinSearchQuery", "usePush", "smsNumbers", "pushoverSound", "pushoverDevices", "pushoverEnabled", "pushoverPriority", "alexaMobileMsg", "appDebug"]
@@ -2434,7 +2460,7 @@ Boolean schedulesConfigured() {
 
 void scheduleSunriseSet() {
     if(isPaused(true)) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
-    def sun = getSunriseAndSunset()
+    Map sun = getSunriseAndSunset()
     Long ltim = (String)settings.trig_scheduled_type in [sCSUNRISE] ? sun.sunrise.time : sun.sunset.time
     Long offset = (settings.trig_scheduled_sunState_offset ?: 0L) * 60000L // minutes
     Long t = now()
@@ -2944,8 +2970,6 @@ void afterEvtCheckHandler() {
                 //evtAd = valChk.evtAd
             } else {
                 if (nextVal.triggerState && edId && eN && devs) {
-                    //String en = eN
-                    //en = en == sTHERMTEMP ? sTEMP : en
                     skipEvt = !devAttValEqual(devs, edId, eN, nextVal.triggerState)
                 }
             }
@@ -3033,7 +3057,6 @@ void afterEvtCheckHandler() {
 Integer getLastAfterEvtCheck() { return getLastTsValSecs("lastAfterEvtCheck") }
 
 void afterEvtCheckWatcher() {
-
     String meth = "afterEvtCheckWatcher"
     getTheLock(sHMLF, meth)
 
@@ -3479,7 +3502,7 @@ Boolean timeCondOk() {
         stopTime = stopType == sTIME && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
 
         if(startType in lSUNRISESET || stopType in lSUNRISESET) {
-            def sun = getSunriseAndSunset()
+            Map sun = getSunriseAndSunset()
             Long lsunset = sun.sunset.time
             Long lsunrise = sun.sunrise.time
             Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
@@ -4179,8 +4202,9 @@ public Map getInputData(String inName) {
         default:
             if(inName?.startsWith("trig_")) {
                 List<String> i = inName.tokenize("_")
-                title = "(${i[1]?.capitalize()}) Trigger "
-                desc = "<li>Add custom responses for ${i[1]?.capitalize()} "
+                String s = i[1]?.capitalize()
+                title = "(${s}) Trigger "
+                desc = "<li>Add custom responses for ${s} "
                 if(i.contains("repeat")) {
                     title += "Repeat "
                     desc += "events which have to be repeated"
@@ -4192,9 +4216,10 @@ public Map getInputData(String inName) {
             }
             else if(inName?.startsWith("act_tier_item_") && inName?.endsWith("_txt")) {
                 List<String> i = inName.tokenize("_")
-                title = "Tier Response (${i[3]})"
+                String s = i[3]
+                title = "Tier Response (${s})"
                 desc = "<li>Add custom responses to use when this action is executed.</li>"
-                tmplt = "Custom tier ${i[3]} message here."
+                tmplt = "Custom tier ${s} message here."
             } else {
                 desc = sNULL
                 title = sNULL
@@ -4263,16 +4288,21 @@ private void remTsVal(key) {
     String appId=app.getId()
     Map data=tsDtMapFLD[appId] ?: [:]
     if(!data) data = (Map)state.tsDtMap ?: [:]
+
     if(key) {
         if(key instanceof List) {
-                key.each { String k->
+                List<String> t = key
+                t.each { String k->
                     if(data.containsKey(k)) { data.remove(k) }
                 }
-        } else if(data.containsKey((String)key)) { data.remove((String)key) }
+        } else {
+            String k = key
+            if(data.containsKey(k)) { data.remove(k) }
+        }
     }
+
     tsDtMapFLD[appId]=data
     tsDtMapFLD=tsDtMapFLD
-
     state.tsDtMap = data
 }
 
@@ -4300,10 +4330,16 @@ private void remAppFlag(key) {
     Map data = t0 ?: [:]
     if(key) {
         if(key instanceof List) {
-            key?.each { String k-> if(data.containsKey(k)) { data.remove(k) } }
-        } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
-        atomicState.appFlagsMap = data
+            List<String> t = key
+            t.each { String k->
+                if(data.containsKey(k)) { data.remove(k) }
+            }
+        } else {
+            String k = key
+            if(data.containsKey(k)) { data.remove(k) }
+        }
     }
+    atomicState.appFlagsMap = data
 }
 
 Boolean getAppFlag(String val) {
