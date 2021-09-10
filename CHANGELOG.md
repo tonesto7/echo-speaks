@@ -1,3 +1,9 @@
+### _**Release (v4.1.9.9) - [September 10th, 2021]**_
+
+#### _***All Apps and Devices***_
+- [FIX] Bugfixes and Optimizations.
+- [NEW] Added device support for new echo show 5.
+
 ### _**Release (v4.1.9.8) - [August 26th, 2021]**_
 
 #### _***All Apps and Devices***_
