@@ -971,6 +971,10 @@ def conditionsPage() {
 
         condNonNumSect(sWATER, "waterSensor", "Water Sensors", "Water Sensors", lWETDRY, sARE, sWATER)
 
+        condNonNumSect(sSMOKE, "smokeDetector", "Smoke Detectors", "Smoke Detectors", lDETECTCLR, sARE, sSMOKE)
+
+        condNonNumSect("carbonMonoxide", "carbonMonoxideDetector", "Carbon Monoxide Detectors", "Carbon Monoxide Detectors", lDETECTCLR, sARE, "co")
+
         condNumValSect(sPOWER, "powerMeter", "Power Events", "Power Meters", "Power Level (W)", sPOWER)
 
         condNonNumSect("windowShade", "windowShade", "Window Shades", "Window Shades", lOPNCLS, sARE, "shade")
@@ -3294,7 +3298,6 @@ private void tierEvtHandler(evt=null) {
     if(!aTierSt) aTierSt = (Map)state[mK] ?: [:]
 
     Map tierState = aTierSt
-    // TODO
     //log.debug "tierState: ${tierState}"
     //log.debug "tierMap: ${tierMap}"
     if(tierMap.size()) {
@@ -3609,9 +3612,9 @@ Boolean checkDeviceNumCondOk(String att) {
     return a
 }
 
-@Field static final List<String> lDATTSTR = ["switch", "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "windowShade", "valve", "water", "thermostatMode", "thermostatOperatingState", "thermostatFanMode"]
+@Field static final List<String> lDATTSTR = ["switch", "motion", "presence", "contact", "acceleration", "lock", "securityKeypad", "door", "windowShade", "valve", "water", "thermostatMode", "thermostatOperatingState", "thermostatFanMode", "smoke", "carbonMonoxide"]
 @Field static final List<String> lDATTNUM = ["temperature", "humidity", "illuminance", "level", "power", "battery", "coolingSetpoint", "heatingSetpoint", "thermostatTemperature"]
-// these are triggers only pushed released held doubleTapped smoke, carbonMonoxide
+// these are momentary triggers only: pushed released held doubleTapped
 
 Boolean deviceCondOk() {
     List<String> skipped = []
