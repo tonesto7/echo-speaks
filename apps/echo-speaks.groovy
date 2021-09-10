@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.8'
-@Field static final String appModifiedFLD = '2021-09-07'
+@Field static final String appVersionFLD  = '4.1.9.9'
+@Field static final String appModifiedFLD = '2021-09-10'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4198, wsDevice: 4198, actionApp: 4198, zoneApp: 4198, zoneEchoDevice: 4198, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4199, wsDevice: 4199, actionApp: 4199, zoneApp: 4199, zoneEchoDevice: 4199, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -899,6 +899,7 @@ def settingsPage() {
 def deviceListPage() {
     return dynamicPage(name: "deviceListPage", install: false) {
         section(sectHead("Discovered Devices:")) {
+            paragraph spanSmBldBr("NOTICE: The test buttons on this page sometimes do not work.  Please use the testing section on the main page if you have issues!", sCLRRED2)   
             getEchoDeviceMap()?.sort { it?.value?.name }?.each { String k, Map v->
                 String str = "<span>Status: (${v.online ? "Online" : "Offline"})</span>"
                 str += "<br><span>Style: ${v.style?.n}</span>"
@@ -3357,7 +3358,7 @@ private static List<String> getDeviceIgnoreData() {
 
 List getUnknownDevices() {
     List items = []
-    ((List<Map>)state.unknownDevices)?.each {
+    ((List<Map>)state.unknownDevices)?.each { Map it->
         it.description = "What kind of device/model?(PLEASE UPDATE THIS)"
         if(items.size() < 5) items.push(it)
     }
@@ -6206,11 +6207,12 @@ def appInfoSect() {
     List unkDevs = getUnknownDevices()
     if(unkDevs?.size()) {
         section() {
-            String title = "[DEVICE SUPPORT]" + (unkDevs?.size() > 5) ? " | ${unkDevs.collect { it.key.toString() }.join(",")}" : "(${unkDevs.size()})"
-            String body = "Requesting device support from the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "${k}: ${v}" }?.join("\n") }?.join("\n\n")?.toString()
+            String title = "[DEVICE SUPPORT]"
+            title += (unkDevs?.size() < 4) ? " | ${unkDevs.collect { it.type }.join(",")}" : "(${unkDevs.size()}) Devices"
+            String body = "Requesting device support for the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "**${k}**: ${v}" }?.join("\n") }?.join("\n\n")?.toString()
             Map params = [ assignees: "tonesto7", labels: "add_device_support", title: title, body: body ]
-            def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
-            href url: featUrl, style: sEXTNRL, required: false, title: inTS1("Unknown Devices Found\n\nSend device info to the Developer on GitHub?", "info"), description: spanSm("Tap to open browser", sCLRGRY)
+            String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
+            href url: featUrl, style: sEXTNRL, required: false, title: inTS1(spanSmBr(unkDevs?.size() > 1 ? "Unknown Devices Found" : "Unknown Device Found", sCLRORG) + "Send the device info to the Developer on GitHub?", "info"), description: spanSm("Tap to open browser", sCLRGRY)
         }
     }
 }
@@ -7338,6 +7340,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1NL4BVLQ4L3N3" : [ c: [ "a", "t" ], i: "echo_show_gen1", n: "Echo Show (Gen1)" ],
         "AWZZ5CVHX2CD"   : [ c: [ "a", "t" ], i: "echo_show_gen2", n: "Echo Show (Gen2)" ],
         "A4ZP7ZC4PI6TO"  : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen1)" ],
+        "A1XWJRHALS1REP" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen2)" ],
         "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
         
