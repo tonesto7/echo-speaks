@@ -1160,10 +1160,11 @@ String getTierRespDesc() {
     String str = sBLANK
     str += tierMap?.size() ? spanSmBr("Tiered Responses: (${tierMap?.size()})") : sBLANK
     tierMap?.each { k,v->
-        if((String)settings."act_tier_item_${k}_txt") {
-            str += (settings."act_tier_item_${k}_delay") ? spanSmBr(" ${sBULLET} Tier ${k} delay: (${settings."act_tier_item_${k}_delay"} sec)") : sBLANK
-            str += (settings."act_tier_item_${k}_volume_change") ? spanSmBr(" ${sBULLET} Tier ${k} volume: (${settings."act_tier_item_${k}_volume_change"})") : sBLANK
-            str += (settings."act_tier_item_${k}_volume_restore") ? spanSmBr(" ${sBULLET} Tier ${k} restore: (${settings."act_tier_item_${k}_volume_restore"})") : sBLANK
+        String tstr = "act_tier_item_${k}"
+        if((String)settings."${tstr}_txt") {
+            str += (settings."${tstr}_delay") ? spanSmBr(" ${sBULLET} Tier ${k} delay: (${settings."${tstr}_delay"} sec)") : sBLANK
+            str += (settings."${tstr}_volume_change") ? spanSmBr(" ${sBULLET} Tier ${k} volume: (${settings."${tstr}_volume_change"})") : sBLANK
+            str += (settings."${tstr}_volume_restore") ? spanSmBr(" ${sBULLET} Tier ${k} restore: (${settings."${tstr}_volume_restore"})") : sBLANK
         }
     }
     return str != sBLANK ? str : sBLANK
@@ -4989,7 +4990,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         str += (Boolean)settings."${eH}_all"                ? spanSmBr(tstr+"Require All: (${settings."${eH}_all"})") : sBLANK
                         str += (Boolean)settings."${eH}_once"               ? spanSmBr(tstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
                         str += (Integer)settings."${eH}_wait"!=null         ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
-                        str += ((String)settings."${eH}_txt" || (String)settings."${sPre}${evt}_after_repeat_txt") ? spanSmBr(tstr+"Custom Responses:") : sBLANK
+                        str += ((String)settings."${eH}_txt" || (String)settings."${eH}_after_repeat_txt") ? spanSmBr(tstr+"Custom Responses:") : sBLANK
                         str += (String)settings."${eH}_txt"                 ? spanSmBr("   "+tstr+"Events: (${((String)settings."${eH}_txt")?.tokenize(";")?.size()} Items)") : sBLANK
                         str += (String)settings."${eH}_after_repeat_txt"    ? spanSmBr("   "+tstr+"Repeats: (${((String)settings."${eH}_after_repeat_txt")?.tokenize(";")?.size()} Items)") : sBLANK
                         break
