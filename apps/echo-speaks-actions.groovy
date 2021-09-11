@@ -31,7 +31,7 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.8'
+@Field static final String appVersionFLD  = '4.1.9.9'
 @Field static final String appModifiedFLD = '2021-09-10'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
@@ -352,6 +352,7 @@ def mainPage() {
                     href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: ttob
                     href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: ttob
                 }
+                appFooter()
             }
         }
     }
