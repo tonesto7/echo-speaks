@@ -31,8 +31,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.9'
-@Field static final String appModifiedFLD = '2021-09-10'
+@Field static final String appVersionFLD  = '4.1.9.8'
+@Field static final String appModifiedFLD = '2021-09-06'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -4925,40 +4925,42 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     if(confd && setItem?.size()) {
         if(!hideDesc) {
             String str = spanSmBldBr("Triggers${!addFoot ? " for ("+(String)buildActTypeEnum()."${(String)settings.actionType}" + ")" : sBLANK}:", sNULL)
+            String btstr = "    "+sBULLETINV+" "
             setItem.each { String evt->
                 String adder = sBLANK
-                List myL = (List)settings."${sPre}${evt}"
+                String eH = sPre+evt
+                List myL = (List)settings."${eH}"
                 //noinspection GroovyFallthrough
                 switch(evt) {
                     case sSCHED:
-                        String schedTyp = settings."${sPre}${evt}_type" ?: sNULL
+                        String schedTyp = settings."${eH}_type" ?: sNULL
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())}${schedTyp ? " (${schedTyp})" : ""}")
                         if(schedTyp == "Recurring") {
-                            str += settings."${sPre}${evt}_recurrence"  ? spanSmBr("    ${sBULLETINV} Recurrence: (${settings."${sPre}${evt}_recurrence"})")            : sBLANK
-                            str += settings."${sPre}${evt}_time"        ? spanSmBr("    ${sBULLETINV} Time: (${fmtTime(settings."${sPre}${evt}_time")})")               : sBLANK
-                            str += settings."${sPre}${evt}_weekdays"    ? spanSmBr("    ${sBULLETINV} Week Days: (${settings."${sPre}${evt}_weekdays"?.join(",")})")    : sBLANK
-                            str += settings."${sPre}${evt}_daynums"     ? spanSmBr("    ${sBULLETINV} Days of Month: (${settings."${sPre}${evt}_daynums"?.size()})")    : sBLANK
-                            str += settings."${sPre}${evt}_weeks"       ? spanSmBr("    ${sBULLETINV} Weeks of Month: (${settings."${sPre}${evt}_weeks"?.join(",")})")  : sBLANK
-                            str += settings."${sPre}${evt}_months"      ? spanSmBr("    ${sBULLETINV} Months: (${settings."${sPre}${evt}_months"?.join(",")})")         : sBLANK
+                            str += settings."${eH}_recurrence"  ? spanSmBr(btstr+"Recurrence: (${settings."${eH}_recurrence"})")            : sBLANK
+                            str += settings."${eH}_time"        ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")})")               : sBLANK
+                            str += settings."${eH}_weekdays"    ? spanSmBr(btstr+"Week Days: (${settings."${eH}_weekdays"?.join(",")})")    : sBLANK
+                            str += settings."${eH}_daynums"     ? spanSmBr(btstr+"Days of Month: (${settings."${eH}_daynums"?.size()})")    : sBLANK
+                            str += settings."${eH}_weeks"       ? spanSmBr(btstr+"Weeks of Month: (${settings."${eH}_weeks"?.join(",")})")  : sBLANK
+                            str += settings."${eH}_months"      ? spanSmBr(btstr+"Months: (${settings."${eH}_months"?.join(",")})")         : sBLANK
                         }
                         if(schedTyp == "One-Time") {
-                            str += settings."${sPre}${evt}_time"        ? spanSmBr("    ${sBULLETINV} Time: (${fmtTime(settings."${sPre}${evt}_time")}))")              : sBLANK
+                            str += settings."${eH}_time"        ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")}))")              : sBLANK
                         }
                         if(schedTyp in [sCSUNRISE, sCSUNSET]) {
-                            str += settings."${sPre}${evt}_sunState_offset"     ? spanSmBr("    ${sBULLETINV} Offset: (${settings."${sPre}${evt}_sunState_offset"})")      : sBLANK
+                            str += settings."${eH}_sunState_offset"     ? spanSmBr(btstr+"Offset: (${settings."${eH}_sunState_offset"})")   : sBLANK
                         }
                         break
                     case sALRMSYSST:
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + myL ? " (${myL?.size()} Selected)" : sBLANK)
-                        if ("alerts" in myL) str += (List)settings."${sPre}${evt}_events"  ? spanSmBr("    ${sBULLETINV} Alert Events: (${(List)settings."${sPre}${evt}_events"})") : sBLANK
-                        str += (Boolean)settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
+                        if ("alerts" in myL) str += (List)settings."${eH}_events"  ? spanSmBr(btstr+"Alert Events: (${(List)settings."${eH}_events"})") : sBLANK
+                        str += (Boolean)settings."${eH}_once" ? spanSmBr(btstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
                         break
                     case sPISTNEXEC:
                     case sMODE:
 //                  case "scene":
                         String typ = evt == sMODE ? "Mode" : "Piston"
                         str += myL    ? spanSmBr(" ${sBULLET} "+ strUnder(typ) + pluralizeStr(myL, false) + " (${myL?.size()})") : sBLANK
-                        str += (Boolean)settings."${sPre}${evt}_once" ? spanSmBr("    ${sBULLETINV} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
+                        str += (Boolean)settings."${eH}_once" ? spanSmBr(btstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
                         break
                     case sPUSHED:
                     case sRELEASED:
@@ -4967,28 +4969,29 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         adder = "Button "
                     default:
                         str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${myL ? " (${myL?.size()} Device" + pluralizeStr(myL, false) + ")" : sBLANK}")
-                        String t_cmd = (String)settings."${sPre}${evt}_cmd"
+                        String t_cmd = (String)settings."${eH}_cmd"
+                        String tstr = "    "+spanSmBld(sPLUS)+" "
                         if(t_cmd in numOpts()) {
                             if (t_cmd in [sBETWEEN, sNBETWEEN]) {
-                                str += spanSmBr("    ${spanSmBld(sPLUS)} Trigger Value ${t_cmd.capitalize()}: (${settings."${sPre}${evt}_low"} - ${settings."${sPre}${evt}_high"})")
+                                str += spanSmBr(tstr+"Trigger Value ${t_cmd.capitalize()}: (${settings."${eH}_low"} - ${settings."${eH}_high"})")
                             } else {
-                                str += (t_cmd == sABOVE && settings."${sPre}${evt}_high"!=null)    ? spanSmBr("    ${spanSmBld(sPLUS)} Trigger Value Above: (${settings."${sPre}${evt}_high"})")   : sBLANK
-                                str += (t_cmd == sBELOW && settings."${sPre}${evt}_low"!=null)     ? spanSmBr("    ${spanSmBld(sPLUS)} Trigger Value Below: (${settings."${sPre}${evt}_low"})")    : sBLANK
-                                str += (t_cmd == sEQUALS && settings."${sPre}${evt}_equal"!=null)  ? spanSmBr("    ${spanSmBld(sPLUS)} Trigger Value Equals: (${settings."${sPre}${evt}_equal"})") : sBLANK
+                                str += (t_cmd == sABOVE && settings."${eH}_high"!=null)    ? spanSmBr(tstr+"Trigger Value Above: (${settings."${eH}_high"})")   : sBLANK
+                                str += (t_cmd == sBELOW && settings."${eH}_low"!=null)     ? spanSmBr(tstr+"Trigger Value Below: (${settings."${eH}_low"})")    : sBLANK
+                                str += (t_cmd == sEQUALS && settings."${eH}_equal"!=null)  ? spanSmBr(tstr+"Trigger Value Equals: (${settings."${eH}_equal"})") : sBLANK
                             }
                         } else {
-                            str += t_cmd  ? spanSmBr("    ${spanSmBld(sPLUS)} Trigger State: (${t_cmd})") : sBLANK
+                            str += t_cmd  ? spanSmBr(tstr+"Trigger State: (${t_cmd})") : sBLANK
                         }
-                        str += settings."${sPre}${evt}_nums"               ? spanSmBr("    ${spanSmBld(sPLUS)} Button Numbers: ${settings."${sPre}${evt}_nums"}") : sBLANK
-                        str += (Integer)settings."${sPre}${evt}_after"!=null        ? spanSmBr("    ${spanSmBld(sPLUS)} Only After: (${settings."${sPre}${evt}_after"} sec)") : sBLANK
-                        str += (Integer)settings."${sPre}${evt}_after_repeat"       ? spanSmBr("    ${spanSmBld(sPLUS)} Repeat Every: (${settings."${sPre}${evt}_after_repeat"} sec)") : sBLANK
-                        str += (Integer)settings."${sPre}${evt}_after_repeat_cnt"   ? spanSmBr("    ${spanSmBld(sPLUS)} Repeat Count: (${settings."${sPre}${evt}_after_repeat_cnt"})") : sBLANK
-                        str += (Boolean)settings."${sPre}${evt}_all" ? spanSmBr("    ${spanSmBld(sPLUS)} Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
-                        str += (Boolean)settings."${sPre}${evt}_once"               ? spanSmBr("    ${spanSmBld(sPLUS)} Once a Day: (${(Boolean)settings."${sPre}${evt}_once"})") : sBLANK
-                        str += (Integer)settings."${sPre}${evt}_wait"!=null         ? spanSmBr("    ${spanSmBld(sPLUS)} Wait (Sec): (${(Integer)settings."${sPre}${evt}_wait"})") : sBLANK
-                        str += ((String)settings."${sPre}${evt}_txt" || (String)settings."${sPre}${evt}_after_repeat_txt") ? spanSmBr("    ${spanSmBld(sPLUS)} Custom Responses:") : sBLANK
-                        str += (String)settings."${sPre}${evt}_txt"                 ? spanSmBr("       ${spanSmBld(sPLUS)} Events: (${((String)settings."${sPre}${evt}_txt")?.tokenize(";")?.size()} Items)") : sBLANK
-                        str += (String)settings."${sPre}${evt}_after_repeat_txt"    ? spanSmBr("       ${spanSmBld(sPLUS)} Repeats: (${((String)settings."${sPre}${evt}_after_repeat_txt")?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += settings."${eH}_nums"                        ? spanSmBr(tstr+"Button Numbers: ${settings."${eH}_nums"}") : sBLANK
+                        str += (Integer)settings."${eH}_after"!=null        ? spanSmBr(tstr+"Only After: (${settings."${eH}_after"} sec)") : sBLANK
+                        str += (Integer)settings."${eH}_after_repeat"       ? spanSmBr(tstr+"Repeat Every: (${settings."${eH}_after_repeat"} sec)") : sBLANK
+                        str += (Integer)settings."${eH}_after_repeat_cnt"   ? spanSmBr(tstr+"Repeat Count: (${settings."${eH}_after_repeat_cnt"})") : sBLANK
+                        str += (Boolean)settings."${eH}_all"                ? spanSmBr(tstr+"Require All: (${settings."${eH}_all"})") : sBLANK
+                        str += (Boolean)settings."${eH}_once"               ? spanSmBr(tstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
+                        str += (Integer)settings."${eH}_wait"!=null         ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
+                        str += ((String)settings."${eH}_txt" || (String)settings."${sPre}${evt}_after_repeat_txt") ? spanSmBr(tstr+"Custom Responses:") : sBLANK
+                        str += (String)settings."${eH}_txt"                 ? spanSmBr("   "+tstr+"Events: (${((String)settings."${eH}_txt")?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += (String)settings."${eH}_after_repeat_txt"    ? spanSmBr("   "+tstr+"Repeats: (${((String)settings."${eH}_after_repeat_txt")?.tokenize(";")?.size()} Items)") : sBLANK
                         break
                 }
             }
@@ -5039,25 +5042,26 @@ String getConditionsDesc(Boolean addFoot=true) {
         if(deviceCondConfigured()) {
             List<String> devConds = lDATTSTR + lDATTNUM
             devConds.each { String evt->
+                String eH = sPre+evt
                 if(devCondConfigured(evt)) {
                     Boolean condOk = false
                     if(evt in lDATTSTR) { condOk = checkDeviceCondOk(evt) }
                     else if(evt in lDATTNUM) { condOk = checkDeviceNumCondOk(evt) }
 
-                    List devs = settings."${sPre}${evt}" ?: null
+                    List devs = settings."${eH}" ?: null
                     if(devs){
                         List myV = []
                         if(!addFoot) devs.each { dev -> myV.push(dev?.currentValue(evt)?.toString()) }
-                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${sPre}${evt}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
+                        str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${eH}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
                     }
 
                     String a = "    - Desired Value: "
-                    String aG = (Boolean)settings."cond_${inType}_avg" ? "(Avg)" : sBLANK
-                    String cmd = settings."${sPre}${evt}_cmd" ?: sNULL
+                    String aG = (Boolean)settings."${eH}_avg" ? "(Avg)" : sBLANK
+                    String cmd = settings."${eH}_cmd" ?: sNULL
                     if(cmd in numOpts()) {
-                        def cmdLow = settings."${sPre}${evt}_low"!=null ? settings."${sPre}${evt}_low" : null
-                        def cmdHigh = settings."${sPre}${evt}_high"!=null ? settings."${sPre}${evt}_high" : null
-                        def cmdEq = settings."${sPre}${evt}_equal"!=null ?  settings."${sPre}${evt}_equal" : null
+                        def cmdLow = settings."${eH}_low"!=null ? settings."${eH}_low" : null
+                        def cmdHigh = settings."${eH}_high"!=null ? settings."${eH}_high" : null
+                        def cmdEq = settings."${eH}_equal"!=null ?  settings."${eH}_equal" : null
                         String aU = attUnit(evt) + ')' + aG
                         str += (cmd == sEQUALS && cmdEq) ? spanSmBr(a+"( =${cmdEq}"+aU) : sBLANK
                         str += (cmd in [sBETWEEN, sNBETWEEN] && cmdLow && cmdHigh) ? spanSmBr(a+cmd.capitalize()+" (${cmdLow}-${cmdHigh}"+aU) : sBLANK
@@ -5066,7 +5070,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                     } else {
                         str += cmd ? spanSmBr(a+"(${cmd})" + aG) : sBLANK
                     }
-                    str += (Boolean)settings."${sPre}${evt}_all" ? spanSmBr("    - Require All: (${settings."${sPre}${evt}_all"})") : sBLANK
+                    str += (Boolean)settings."${eH}_all" ? spanSmBr("    - Require All: (${settings."${eH}_all"})") : sBLANK
                 }
             }
         }
@@ -5269,10 +5273,11 @@ static String divSmBr(String str, String clr=sNULL, String img=sNULL)       { re
 static String divSmBld(String str, String clr=sNULL, String img=sNULL)      { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true)        : sBLANK }
 static String divSmBldBr(String str, String clr=sNULL, String img=sNULL)    { return str ? div(spanImgStr(img) + span(str), clr, sSMALL, true, true)  : sBLANK }
 
+static String textDonateUrl() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def appFooter() {
     section() {
         paragraph htmlLine("orange")
-        paragraph "<div style='color:orange;text-align:center;'>Echo Speaks<br><a href='${textDonateLink()}' target='_blank'><img width=120' height='120' src='https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png'></a><br><br>Please consider donating if you find this integration useful.</div>"
+        paragraph "<div style='color:orange;text-align:center;'>Echo Speaks<br><a href='${textDonateUrl()}' target='_blank'><img width=120' height='120' src='https://raw.githubusercontent.com/tonesto7/homebridge-hubitat-tonesto7/master/images/donation_qr.png'></a><br><br>Please consider donating if you find this integration useful.</div>"
     }
 }
 
