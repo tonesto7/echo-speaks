@@ -1178,7 +1178,7 @@ Map getTierMap() {
             String tstr = sACT_ITEM+"${t}"
             exec[t] = [
                 message: (String)settings["${tstr}_txt"],
-                delay: settings[(sACT_ITEM+"${(t+1)}_delay")],
+                delay: settings[sACT_ITEM+"${(t+1)}_delay"],
                 volume: [
                     change: settings["${tstr}_volume_change"],
                     restore: settings["${tstr}_volume_restore"]
