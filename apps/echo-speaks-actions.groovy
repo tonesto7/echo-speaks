@@ -124,6 +124,10 @@ import java.util.concurrent.Semaphore
 @Field static final String sALRMSYSST     = 'alarmSystemStatus'
 @Field static final String sPISTNEXEC     = 'pistonExecuted'
 @Field static final String sLRM           = "light_restore_map"
+@Field static final String sACT           = 'act_'
+@Field static final String sACT_START     = 'act_tier_start_'
+@Field static final String sACT_STOP      = 'act_tier_stop_'
+@Field static final String sACT_ITEM      = 'act_tier_item_'
 @Field static final List<String> lONOFF        = ['on', 'off']
 @Field static final List<String> lANY          = ['any']
 @Field static final List<String> lOPNCLS       = ['open', 'closed']
@@ -233,25 +237,25 @@ private Map buildTriggerEnum() {
     buildItems["Location"] = [(sMODE):"Modes", (sPISTNEXEC):"Pistons"].sort{ it?.key }
     if(!settings.enableWebCoRE) { buildItems.Location.remove(sPISTNEXEC) }
 
-    buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelerometers"]?.sort{ it?.value }
-    buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"]?.sort{ it?.value }
-    buildItems["Thermostat Devices"] = [(sCOOLSP):"Thermostat Cooling Setpoint", (sHEATSP):"Thermostat Heating Setpoint", (sTHERMTEMP):"Thermostat Ambient Temp", (sTHERMOS):"Thermostat Operating State", (sTHERMMODE):"Thermostat Mode", (sTHERMFM):"Thermostat Fan Mode"]?.sort{ it?.value }
-    buildItems["Button Devices"] = [(sPUSHED):"Button (Pushable)", (sRELEASED):"Button (Releasable)", (sHELD):"Button (Holdable)", (sDBLTAP):"Button (Double Tapable)"]?.sort{ it?.value }
+    buildItems["Sensor Devices"] = [(sCONTACT):"Contacts | Doors | Windows", (sBATT):"Battery Level", (sMOTION):"Motion", "illuminance": "Illuminance/Lux", "presence":"Presence", (sTEMP):"Temperature", (sHUMID):"Humidity", (sWATER):"Water", (sPOWER):"Power", "acceleration":"Accelerometers"].sort{ it?.value }
+    buildItems["Actionable Devices"] = [(sLOCK):"Locks", "securityKeypad":"Keypads", (sSWITCH):"Switches/Outlets", (sLEVEL):"Dimmers/Level", "door":"Garage Door Openers", (sVALVE):"Valves", "windowShade":"Window Shades"].sort{ it?.value }
+    buildItems["Thermostat Devices"] = [(sCOOLSP):"Thermostat Cooling Setpoint", (sHEATSP):"Thermostat Heating Setpoint", (sTHERMTEMP):"Thermostat Ambient Temp", (sTHERMOS):"Thermostat Operating State", (sTHERMMODE):"Thermostat Mode", (sTHERMFM):"Thermostat Fan Mode"].sort{ it?.value }
+    buildItems["Button Devices"] = [(sPUSHED):"Button (Pushable)", (sRELEASED):"Button (Releasable)", (sHELD):"Button (Holdable)", (sDBLTAP):"Button (Double Tapable)"].sort{ it?.value }
 // TODO siren (capability.alarm, attr alarm - ENUM ["strobe", "off", "both", "siren"]
-    buildItems["Safety & Security"] = [(sALRMSYSST): getAlarmSystemName(), (sSMOKE):"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"]?.sort{ it?.value }
-    if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"]?.remove("guard") }
+    buildItems["Safety & Security"] = [(sALRMSYSST): getAlarmSystemName(), (sSMOKE):"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"].sort{ it?.value }
+    if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"].remove("guard") }
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
 private static Map buildActTypeEnum() {
     Map<String, Map<String,String>> buildItems = [:]
-    buildItems["Speech"] = [(sSPEAK):"Speak", (sANN):"Announcement", (sSPEAKP):"Speak (Parallel)", (sSPEAKT):"Speak (Tiered)", (sSPEAKPT):"Speak Parallel (Tiered)", (sANNT):"Announcement (Tiered)"]?.sort{ it?.key }
-    buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"]?.sort{ it?.key }
-    buildItems["Built-in Responses"] = [(sWEATH):"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, News, Stories, Traffic, and more...", "calendar":"Read Calendar Events"]?.sort{ it?.key }
-    buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"]?.sort{ it?.key }
-    buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"]?.sort{ it?.key }
-    buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"]?.sort{ it?.key }
-    buildItems["Custom"] = ["voicecmd":"Execute a voice command","sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"]?.sort{ it?.key }
+    buildItems["Speech"] = [(sSPEAK):"Speak", (sANN):"Announcement", (sSPEAKP):"Speak (Parallel)", (sSPEAKT):"Speak (Tiered)", (sSPEAKPT):"Speak Parallel (Tiered)", (sANNT):"Announcement (Tiered)"].sort{ it?.key }
+    buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"].sort{ it?.key }
+    buildItems["Built-in Responses"] = [(sWEATH):"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, News, Stories, Traffic, and more...", "calendar":"Read Calendar Events"].sort{ it?.key }
+    buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"].sort{ it?.key }
+    buildItems["Alarms/Reminders"] = ["alarm":"Create Alarm", "reminder":"Create Reminder"].sort{ it?.key }
+    buildItems["Devices Settings"] = ["wakeword":"Change Wake Word", "dnd":"Set Do Not Disturb", "bluetooth":"Bluetooth Control"].sort{ it?.key }
+    buildItems["Custom"] = ["voicecmd":"Execute a voice command","sequence":"Execute Sequence", "alexaroutine": "Execute Alexa Routine(s)"].sort{ it?.key }
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
@@ -1134,17 +1138,18 @@ def actionTiersPage() {
         Integer tierCnt = (Integer)settings.act_tier_cnt
         if(tierCnt) {
             (1..tierCnt)?.each { Integer ti->
+                String tstr = sACT_ITEM+"${ti}"
                 section(sectHead("Tier Item (${ti}) Config:")) {
                     if(ti > 1) {
-                        input "act_tier_item_${ti}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", sEQ), defaultValue: (ti == 1 ? 0 : null), required: true, submitOnChange: true
+                        input "${tstr}_delay", sNUMBER, title: inTS1("Delay after Tier ${ti-1}\n(seconds)", sEQ), defaultValue: null, required: true, submitOnChange: true
                     }
-                    if(ti==1 || settings."act_tier_item_${ti}_delay") {
-                        String inTxt = (String)settings."act_tier_item_${ti}_txt"
-                        href url: parent?.getTextEditorPath(app?.id as String, "act_tier_item_${ti}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT) + (!inTxt ? spanSm(" (Required)", sCLRRED) : sBLANK),
+                    if(ti==1 || settings."${tstr}_delay") {
+                        String inTxt = (String)settings."${tstr}_txt"
+                        href url: parent?.getTextEditorPath(app?.id as String, "${tstr}_txt"), style: sEXTNRL, required: true, title: inTS1("Tier Item ${ti} Response", sTEXT) + (!inTxt ? spanSm(" (Required)", sCLRRED) : sBLANK),
                                 description: inTxt ? spanSm(inTxt, sCLR4D9) : inactFoot("Open Response Designer...")
                     }
-                    input "act_tier_item_${ti}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", sSPDKNB) + optPrefix(), defaultValue: null, required: false, submitOnChange: true
-                    input "act_tier_item_${ti}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", sSPDKNB) + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                    input "${tstr}_volume_change", sNUMBER, title: inTS1("Tier Item Volume", sSPDKNB) + optPrefix(), defaultValue: null, required: false, submitOnChange: true
+                    input "${tstr}_volume_restore", sNUMBER, title: inTS1("Tier Item Volume Restore", sSPDKNB) + optPrefix(), defaultValue: null, required: false, submitOnChange: true
                 }
             }
             if(isTierActConfigured()) {
@@ -1161,7 +1166,7 @@ String getTierRespDesc() {
     String str = sBLANK
     str += tierMap?.size() ? spanSmBr("Tiered Responses: (${tierMap?.size()})") : sBLANK
     tierMap?.each { k,v->
-        String tstr = "act_tier_item_${k}"
+        String tstr = sACT_ITEM+"${k}"
         if((String)settings."${tstr}_txt") {
             str += (settings."${tstr}_delay") ? spanSmBr(" ${sBULLET} Tier ${k} delay: (${settings."${tstr}_delay"} sec)") : sBLANK
             str += (settings."${tstr}_volume_change") ? spanSmBr(" ${sBULLET} Tier ${k} volume: (${settings."${tstr}_volume_change"})") : sBLANK
@@ -1178,7 +1183,7 @@ Boolean isTierAction() {
 Boolean isTierActConfigured() {
     if(!isTierAction()) { return false }
     Integer cnt = (Integer)settings.act_tier_cnt
-    List tierKeys = settings.findAll { it?.key?.startsWith("act_tier_item_") && it?.key?.endsWith("_txt") }?.collect { (String)it?.key }
+    List tierKeys = settings.findAll { it?.key?.startsWith(sACT_ITEM) && it?.key?.endsWith("_txt") }?.collect { (String)it?.key }
     return (tierKeys?.size() == cnt)
 }
 
@@ -1188,12 +1193,13 @@ Map getTierMap() {
     if(isTierActConfigured() && cnt) {
         List tiers = (1..cnt)
         tiers?.each { Integer t->
+            String tstr = sACT_ITEM+"${t}"
             exec[t] = [
-                message: (String)settings["act_tier_item_${t}_txt"],
-                delay: settings["act_tier_item_${t+1}_delay"],
+                message: (String)settings["${tstr}_txt"],
+                delay: settings[(sACT_ITEM+"${(t+1)}_delay")],
                 volume: [
-                    change: settings["act_tier_item_${t}_volume_change"],
-                    restore: settings["act_tier_item_${t}_volume_restore"]
+                    change: settings["${tstr}_volume_change"],
+                    restore: settings["${tstr}_volume_restore"]
                 ]
             ]
         }
@@ -1205,7 +1211,7 @@ void tierItemCleanup() {
     List<String> rem = []
     Boolean isTierAct = isTierAction()
     Integer tierCnt = (Integer)settings.act_tier_cnt
-    List<String> tierKeys = settings.findAll { it?.key?.startsWith("act_tier_item_") }?.collect { it.key as String }
+    List<String> tierKeys = settings.findAll { it?.key?.startsWith(sACT_ITEM) }?.collect { it.key as String }
     List<Integer> tierIds = isTierAct && tierCnt ? (1..tierCnt) : []
     // if(!isTierAct() || !tierCnt) { return }
     tierKeys?.each { String k->
@@ -1593,14 +1599,14 @@ def actionsPage() {
                 }
                 if(isTierAct && (Integer)settings.act_tier_cnt > 1) {
                     section(sectHead("Tier Action Start Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Start?", "tasks"), description: spanSm(actTaskDesc("act_tier_start_", true), sCLR4D9), params:[type: "act_tier_start_"]
+                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Start?", "tasks"), description: spanSm(actTaskDesc(sACT_START, true), sCLR4D9), params:[type: sACT_START]
                     }
                     section(sectHead("Tier Action Stop Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Stop?", "tasks"), description: spanSm(actTaskDesc("act_tier_stop_", true), sCLR4D9), params:[type: "act_tier_stop_"]
+                        href "actTrigTasksPage", title: inTS1("Tiered Tasks to Perform on Tier Stop?", "tasks"), description: spanSm(actTaskDesc(sACT_STOP, true), sCLR4D9), params:[type: sACT_STOP]
                     }
                 } else {
                     section(sectHead("Action Triggered Tasks:")) {
-                        href "actTrigTasksPage", title: inTS1("Tasks to Perform when Triggered?", "tasks"), description: spanSm(actTaskDesc("act_", true), sCLR4D9), params:[type: "act_"]
+                        href "actTrigTasksPage", title: inTS1("Tasks to Perform when Triggered?", "tasks"), description: spanSm(actTaskDesc(sACT, true), sCLR4D9), params:[type: sACT]
                     }
                 }
                 actionSimulationSect()
@@ -1632,15 +1638,15 @@ def actTrigTasksPage(params) {
         Map dMap = [:]
         section() {
             switch(t) {
-                case "act_":
+                case sACT:
                     dMap = [def: sBLANK, delay: "tasks"]
                     paragraph spanSm("These tasks will be performed when the action is triggered.<br>(Delay is optional)", sCLR4D9)
                     break
-                case "act_tier_start_":
+                case sACT_START:
                     dMap = [def: " with Tier start", delay: "Tier Start tasks"]
                     paragraph spanSm("These tasks will be performed with when the first tier of action is triggered.<br>(Delay is optional)", sCLR4D9)
                     break
-                case "act_tier_stop_":
+                case sACT_STOP:
                     dMap = [def: " with Tier stop", delay: "Tier Stop tasks"]
                     paragraph spanSm("These tasks will be performed with when the last tier of action is triggered.<br>(Delay is optional)", sCLR4D9)
                     break
@@ -1764,13 +1770,13 @@ String actTaskDesc(String t, Boolean isInpt=false) {
     String str = sBLANK
     if(actTasksConfiguredByType(t)) {
         switch(t) {
-            case "act_":
+            case sACT:
                 str += "${isInpt ? sBLANK : "\n\n"}Triggered Tasks:"
                 break
-            case "act_tier_start_":
+            case sACT_START:
                 str += "${isInpt ? sBLANK : "\n\n"}Tiered Start Tasks:"
                 break
-            case "act_tier_stop_":
+            case sACT_STOP:
                 str += "${isInpt ? sBLANK : "\n\n"}Tiered Stop Tasks:"
                 break
         }
@@ -2251,7 +2257,7 @@ private void actionCleanup() {
     updMemStoreItem("afterEvtMap", [:])
 //    updMemStoreItem("afterEvtChkSchedMap", [:])
     updMemStoreItem("actTierState", [:])
-    ["act_", "act_tier_start_", "act_tier_stop_"]?.each { String it -> items.push((it+sLRM)) }
+    [sACT, sACT_START, sACT_STOP].each { String it -> items.push((it+sLRM)) }
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 
     //Cleans up unused action setting items
@@ -2263,14 +2269,14 @@ private void actionCleanup() {
     tierItemCleanup()
     if((String)settings.actionType) {
         Boolean isTierAct = isTierAction()
-        ["act_lights", "act_locks", "act_securityKeypads", "act_doors", "act_sirens"]?.each { String it ->
+        ["act_lights", "act_locks", "act_securityKeypads", "act_doors", "act_sirens"].each { String it ->
             ((Map)settings).each { sI ->
                 String k = (String)sI.key
                 if(k.startsWith(it)) {
                     isTierAct ? setItems.push(k) : setIgn.push(k) }
             }
         }
-        ["act_tier_start_", "act_tier_stop_"]?.each { String it ->
+        [sACT_START, sACT_STOP].each { String it ->
             ((Map)settings).each { sI ->
                 String k = (String)sI.key
                 if(k.startsWith(it)) {
@@ -2279,7 +2285,7 @@ private void actionCleanup() {
         }
         ((Map)settings).each { si->
             String k = (String)si.key
-            if(!(k in setIgn) && k.startsWith("act_") && !k.startsWith("act_${(String)settings.actionType}") && (!isTierAct && k.startsWith("act_tier_item_"))) { setItems.push(k) }
+            if(!(k in setIgn) && k.startsWith(sACT) && !k.startsWith("act_${(String)settings.actionType}") && (!isTierAct && k.startsWith(sACT_ITEM))) { setItems.push(k) }
         }
     }
 
@@ -2293,7 +2299,7 @@ private void actionCleanup() {
             if(!settings."cond_${ck}") {
                 if(devModeFLD) log.debug("found setting to cleanup: $ck")
                 setItems.push("cond_${ck}")
-                ["cmd", "all", "low", "high", "equal", "avg", "nums"]?.each { String ei->
+                ["cmd", "all", "low", "high", "equal", "avg", "nums"].each { String ei->
                     setItems.push("cond_${ck}_${ei}")
                 }
             }
@@ -2310,7 +2316,7 @@ private void actionCleanup() {
         if(trigKeys?.size()) {
             trigKeys.each { String tk->
                 setItems.push("trig_${tk}")
-                ["events", "wait", "all", "avg", "cmd", "low", "high", "equal", "once", "after", "txt", "nums", "after_repeat", "after_repeat_cnt", "after_repeat_txt", "Codes"]?.each { String ei->
+                ["events", "wait", "all", "avg", "cmd", "low", "high", "equal", "once", "after", "txt", "nums", "after_repeat", "after_repeat_cnt", "after_repeat_txt", "Codes"].each { String ei->
                     setItems.push("trig_${tk}_${ei}")
                 }
             }
@@ -3237,7 +3243,7 @@ private void processTierTrigEvt(evt, Boolean evtOk) {
 def getTierStatusSection() {
     String str = sBLANK
     if(isTierAction()) {
-        Map lTierMap = getTierMap()
+        Map mTierMap = getTierMap()
         Boolean tsa = (Boolean)atomicState.tierSchedActive == true
 
         getTheLock(sHMLF, "getTierStatusSection")
@@ -3246,7 +3252,7 @@ def getTierStatusSection() {
         if(!aTierSt) aTierSt = (Map)state.actTierState ?: [:]
 
         Map tS = aTierSt
-        str +=                  spanSm(" ${sBULLET} Tier Size: ", sCLR4D9) +  spanSmBr("${lTierMap?.size()}", sCLRGRY)
+        str +=                  spanSm(" ${sBULLET} Tier Size: ", sCLR4D9) +  spanSmBr("${mTierMap?.size()}", sCLRGRY)
         str +=                  spanSm(" ${sBULLET} Schedule Active: ", sCLR4D9) + spanSmBr("${tsa}", sCLRGRY)
         str += tS?.cycle ?      spanSm(" ${sBULLET} Tier Cycle: ", sCLR4D9) + spanSmBr("${tS?.cycle}", sCLRGRY) : sBLANK
         str += tS?.schedDelay ? spanSm(" ${sBULLET} Next Delay: ", sCLR4D9) + spanSmBr("${tS?.schedDelay}", sCLRGRY) : sBLANK
@@ -3646,7 +3652,7 @@ Map conditionStatus() {
     if((Boolean)state.dupPendingSetup) ok = false
     Integer cndSize = (Integer)null
     if(ok) {
-        [sTIME, "date", "location", "device"]?.each { String i->
+        [sTIME, "date", "location", "device"].each { String i->
             def s = "${i}CondOk"()
             if(s == null) { skipped.push(i); return }
             s ? passed.push(i) : failed.push(i)
@@ -4046,41 +4052,41 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
             case "builtin":
             case "calendar":
             case sWEATH:
-                if(actConf[actType] && actConf[actType]?.cmd) {
+                if(actConf[actType] && actConf[actType].cmd) {
                     if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { (String)it?.key }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { (String)it?.key }, cmd: actConf[actType].cmd, message: actConf[actType].text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
-                            dev?."${actConf[actType]?.cmd}"(changeVol, restoreVol)
+                            dev?."${actConf[actType].cmd}"(changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
 
             case "sounds":
-                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.name) {
+                if(actConf[actType] && actConf[actType].cmd && actConf[actType].name) {
                     if(actZonesSiz) {
-                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType]?.cmd, message: actConf[actType]?.name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType].cmd, message: actConf[actType].name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd} | Name: ${actConf[actType].name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
-                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.name, changeVol, restoreVol)
+                            dev?."${actConf[actType].cmd}"(actConf[actType].name, changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType]?.cmd} | Name: ${actConf[actType]?.name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd} | Name: ${actConf[actType].name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
 
             case "alarm":
             case "reminder":
-                if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.label && actConf[actType]?.date && actConf[actType]?.time) {
+                if(actConf[actType] && actConf[actType].cmd && actConf[actType].label && actConf[actType].date && actConf[actType].time) {
                     List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                     actDevices?.each { dev->
-                        dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time)
+                        dev?."${actConf[actType].cmd}"(actConf[actType].label, actConf[actType].date, actConf[actType].time)
                         // dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
                     }
                     logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
@@ -4163,22 +4169,22 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                 Integer del = (Integer)settings.act_tier_start_delay
                 if(del) {
                     logTrace(mmS+"$del seconds - start delay")
-                    runIn(del, cmd, [data:[type: "act_tier_start_"]])
-                } else { executeTaskCommands([type:"act_tier_start_"]) }
+                    runIn(del, cmd, [data:[type: sACT_START]])
+                } else { executeTaskCommands([type:sACT_START]) }
             }
             if(lastTierMsg) {
                 Integer del = (Integer)settings.act_tier_stop_delay
                 if(del) {
                     logTrace(mmS+"$del seconds - stop delay")
-                    runIn(del, cmd, [data:[type: "act_tier_stop_"]])
-                } else { executeTaskCommands([type:"act_tier_stop_"]) }
+                    runIn(del, cmd, [data:[type: sACT_STOP]])
+                } else { executeTaskCommands([type:sACT_STOP]) }
             }
         } else {
             Integer del = (Integer)settings.act_tasks_delay
             if(del) {
                 logTrace(mmS+"$del seconds - action tasks delay")
-                runIn(del, cmd, [data:[type: "act_"]])
-            } else { executeTaskCommands([type: "act_"]) }
+                runIn(del, cmd, [data:[type: sACT]])
+            } else { executeTaskCommands([type: sACT]) }
         }
     }
     logTrace(meth+" Finished | ProcessTime: (${now()-startTime}ms)")
@@ -4219,7 +4225,7 @@ public Map getInputData(String inName) {
                 title += "Events"
                 desc += ".</li>${vDesc}"
             }
-            else if(inName?.startsWith("act_tier_item_") && inName?.endsWith("_txt")) {
+            else if(inName?.startsWith(sACT_ITEM) && inName?.endsWith("_txt")) {
                 List<String> i = inName.tokenize("_")
                 String s = i[3]
                 title = "Tier Response (${s})"
@@ -5133,8 +5139,8 @@ String getActionDesc(Boolean addFoot=true) {
         List eDevs = parent?.getDevicesFromList(settings.act_EchoDevices)
         Map zones = getZoneStatus()
         String tierDesc = isTierAct ? getTierRespDesc() : sNULL
-        String tierStart = isTierAct ? actTaskDesc("act_tier_start_") : sNULL
-        String tierStop = isTierAct ? actTaskDesc("act_tier_stop_") : sNULL
+        String tierStart = isTierAct ? actTaskDesc(sACT_START) : sNULL
+        String tierStop = isTierAct ? actTaskDesc(sACT_STOP) : sNULL
         str += zones?.size() ? spanSmBr(strUnder("Echo Zones:")) : sBLANK
         str += zones?.size() ? spanSmBr(zones?.collect { getZoneVolDesc(it, znVolMap) }?.join(sLINEBR)) + (eDevs?.size() ? sLINEBR : sBLANK) : sBLANK
         str += eDevs?.size() ? spanSm(strUnder("Alexa Devices:")) + (zones?.size() ? spanSm(" (Inactive Zone Default)", sCLRGRY) : sBLANK) + lineBr() + spanSmBr(eDevs?.collect { " ${sBULLET} ${it?.displayName?.toString()?.replace("Echo - ", sBLANK)}" }?.join(sLINEBR)) : sBLANK
@@ -5145,7 +5151,7 @@ String getActionDesc(Boolean addFoot=true) {
         str += settings.act_volume_restore != null ? spanSmBr(" - Restore Volume: (${settings.act_volume_restore})") : sBLANK
         str += settings.act_delay ? spanSmBr("Delay: (${settings.act_delay})") : sBLANK
         str += (String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sSPEAKT, sSPEAKPT, sANNT] && (String)settings."act_${(String)settings.actionType}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
-        String trigTasks = !isTierAct ? actTaskDesc("act_") : sNULL
+        String trigTasks = !isTierAct ? actTaskDesc(sACT) : sNULL
         str += trigTasks ? spanSm(trigTasks) : sBLANK
         str += addFoot ? inputFooter(sTTM) : sBLANK
     }
