@@ -124,6 +124,7 @@ import java.util.concurrent.Semaphore
 @Field static final String sALRMSYSST     = 'alarmSystemStatus'
 @Field static final String sPISTNEXEC     = 'pistonExecuted'
 @Field static final String sLRM           = "light_restore_map"
+@Field static final String sTRIG          = "trig_"
 @Field static final String sACT           = 'act_'
 @Field static final String sACT_START     = 'act_tier_start_'
 @Field static final String sACT_STOP      = 'act_tier_stop_'
@@ -2293,7 +2294,7 @@ private void actionCleanup() {
     if((List)settings.triggerEvents) {
         List<String> trigKeys = ((Map)settings).findAll { it ->
             String k = (String)it.key
-            k?.startsWith("trig_") && !(k?.tokenize("_")[1] in (List)settings.triggerEvents) }?.keySet()?.collect { ((String)it)?.tokenize("_")[1] }?.unique()
+            k?.startsWith(sTRIG) && !(k?.tokenize("_")[1] in (List)settings.triggerEvents) }?.keySet()?.collect { ((String)it)?.tokenize("_")[1] }?.unique()
         // log.debug "trigKeys: $trigKeys"
         if(trigKeys?.size()) {
             trigKeys.each { String tk->
@@ -2727,7 +2728,7 @@ def alarmEvtHandler(evt) {
     String eN = (String)evt.name
     def eV = evt.value
     logTrace("${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
-    String inT = "trig_"+sALRMSYSST
+    String inT = sTRIG+sALRMSYSST
     List lT = (List)settings."${inT}"
     List lE = (List)settings."${inT}_events"
     Boolean ok2Run = !!(lT)
@@ -2775,7 +2776,7 @@ def webcoreEvtHandler(evt) {
     String disN = evt.jsonData?.name
     String pId = evt.jsonData?.id
     logTrace("${eN.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
-    String inT = "trig_"+sPISTNEXEC
+    String inT = sTRIG+sPISTNEXEC
     List<String> lT = (List<String>)settings."${inT}"
     Boolean ok = (pId in lT)
     Boolean dco = !!(Boolean)settings."${inT}_once"
@@ -2797,7 +2798,7 @@ def modeEvtHandler(evt) {
     String eN = (String)evt.name
     def eV = evt.value
     logTrace("${eN.toUpperCase()} Event | Mode: (${strCapitalize(eV)}) with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
-    String inT = "trig_"+sMODE
+    String inT = sTRIG+sMODE
     List lT = (List)settings."${inT}"
     Boolean ok = (eV in lT)
     Boolean dco = !!(Boolean)settings."${inT}_once"
@@ -4193,7 +4194,7 @@ public Map getInputData(String inName) {
             title = "Global Announcement Speech Event"
             break
         default:
-            if(inName?.startsWith("trig_")) {
+            if(inName?.startsWith(sTRIG)) {
                 List<String> i = inName.tokenize("_")
                 String s = i[1]?.capitalize()
                 title = "(${s}) Trigger "
@@ -4911,7 +4912,7 @@ String getNotifSchedDesc(Boolean min=false) {
 String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     Boolean confd = triggersConfigured()
     List<String> setItem = (List<String>)settings.triggerEvents
-    String sPre = "trig_"
+    String sPre = sTRIG
     if(confd && setItem?.size()) {
         if(!hideDesc) {
             String str = spanSmBldBr("Triggers${!addFoot ? " for ("+(String)buildActTypeEnum()."${(String)settings.actionType}" + ")" : sBLANK}:", sNULL)
@@ -4926,15 +4927,15 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         String schedTyp = settings."${eH}_type" ?: sNULL
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())}${schedTyp ? " (${schedTyp})" : ""}")
                         if(schedTyp == "Recurring") {
-                            str += settings."${eH}_recurrence"  ? spanSmBr(btstr+"Recurrence: (${settings."${eH}_recurrence"})")            : sBLANK
-                            str += settings."${eH}_time"        ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")})")               : sBLANK
-                            str += settings."${eH}_weekdays"    ? spanSmBr(btstr+"Week Days: (${settings."${eH}_weekdays"?.join(",")})")    : sBLANK
-                            str += settings."${eH}_daynums"     ? spanSmBr(btstr+"Days of Month: (${settings."${eH}_daynums"?.size()})")    : sBLANK
-                            str += settings."${eH}_weeks"       ? spanSmBr(btstr+"Weeks of Month: (${settings."${eH}_weeks"?.join(",")})")  : sBLANK
-                            str += settings."${eH}_months"      ? spanSmBr(btstr+"Months: (${settings."${eH}_months"?.join(",")})")         : sBLANK
+                            str += settings."${eH}_recurrence" ? spanSmBr(btstr+"Recurrence: (${settings."${eH}_recurrence"})")            : sBLANK
+                            str += settings."${eH}_time"       ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")})")               : sBLANK
+                            str += settings."${eH}_weekdays"   ? spanSmBr(btstr+"Week Days: (${settings."${eH}_weekdays"?.join(",")})")    : sBLANK
+                            str += settings."${eH}_daynums"    ? spanSmBr(btstr+"Days of Month: (${settings."${eH}_daynums"?.size()})")    : sBLANK
+                            str += settings."${eH}_weeks"      ? spanSmBr(btstr+"Weeks of Month: (${settings."${eH}_weeks"?.join(",")})")  : sBLANK
+                            str += settings."${eH}_months"     ? spanSmBr(btstr+"Months: (${settings."${eH}_months"?.join(",")})")         : sBLANK
                         }
                         if(schedTyp == "One-Time") {
-                            str += settings."${eH}_time"        ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")}))")              : sBLANK
+                            str += settings."${eH}_time"       ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")}))")              : sBLANK
                         }
                         if(schedTyp in [sCSUNRISE, sCSUNSET]) {
                             str += settings."${eH}_sunState_offset"     ? spanSmBr(btstr+"Offset: (${settings."${eH}_sunState_offset"})")   : sBLANK
@@ -5002,17 +5003,18 @@ String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
     String str = sBLANK
+    String btstr = "    "+sBULLETINV+" "
     if(confd) {
         str = getOverallDesc()
         str += spanSmBr(" ${sBULLET} " + spanSmBld("${reqAllCond() ? "All Conditions Required" : "Any Condition Allowed"}"))
         if(timeCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Time Between Allowed: " + getOkOrNotSymHTML(timeCondOk()))
-            str += spanSmBr("    - ${getTimeCondDesc(false)}")
+            str += spanSmBr(btstr+"${getTimeCondDesc(false)}")
         }
         if(dateCondConfigured()) {
             str += spanSmBr(" ${sBULLET} Date:")
-            str += (List)settings.cond_days    ? spanSmBr("    - Days Allowed: ${(List)settings.cond_days} " + getOkOrNotSymHTML(isDayOfWeek((List)settings.cond_days))) : sBLANK
-            str += (List)settings.cond_months  ? spanSmBr("    - Months Allowed: ${(List)settings.cond_months} " + getOkOrNotSymHTML(isMonthOfYear((List)settings.cond_months)))  : sBLANK
+            str += (List)settings.cond_days    ? spanSmBr(btstr+"Days Allowed: ${(List)settings.cond_days} " + getOkOrNotSymHTML(isDayOfWeek((List)settings.cond_days))) : sBLANK
+            str += (List)settings.cond_months  ? spanSmBr(btstr+"Months Allowed: ${(List)settings.cond_months} " + getOkOrNotSymHTML(isMonthOfYear((List)settings.cond_months)))  : sBLANK
         }
 
         Boolean mC = locationModeConfigured()
@@ -5021,11 +5023,11 @@ String getConditionsDesc(Boolean addFoot=true) {
             str += spanSmBr(" ${sBULLET} Location: " + getOkOrNotSymHTML(locationCondOk()))
             if(aC) {
                 String a = (String)location?.hsmStatus ?: "disarmed"
-                str += (List)settings.cond_alarmSystemStatus ? spanSmBr("    - Alarm Mode ${a} in: ${(List)settings.cond_alarmSystemStatus} " + getOkOrNotSymHTML(isInAlarmMode((List)settings.cond_alarmSystemStatus))) : sBLANK
+                str += (List)settings.cond_alarmSystemStatus ? spanSmBr(btstr+"Alarm Mode ${a} in: ${(List)settings.cond_alarmSystemStatus} " + getOkOrNotSymHTML(isInAlarmMode((List)settings.cond_alarmSystemStatus))) : sBLANK
             }
             if(mC) {
                 Boolean not = ((String)settings.cond_mode_cmd == "not")
-                str += (List)settings.cond_mode ? spanSmBr("    - Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${(List)settings.cond_mode} " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
+                str += (List)settings.cond_mode ? spanSmBr(btstr+"Mode ${getCurrentMode()} (${not ? "not in" : "in"}): ${(List)settings.cond_mode} " + getOkOrNotSymHTML(isInMode((List)settings.cond_mode, not))) : sBLANK
             }
         }
 
@@ -5045,7 +5047,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                         str += spanSmBr(" ${sBULLET} ${evt?.capitalize()} (${settings."${eH}"?.size()}) ${!addFoot ? myV : sBLANK} " + getOkOrNotSymHTML(condOk))
                     }
 
-                    String a = "    - Desired Value: "
+                    String a = btstr+"Desired Value: "
                     String aG = (Boolean)settings."${eH}_avg" ? "(Avg)" : sBLANK
                     String cmd = settings."${eH}_cmd" ?: sNULL
                     if(cmd in numOpts()) {
@@ -5060,7 +5062,7 @@ String getConditionsDesc(Boolean addFoot=true) {
                     } else {
                         str += cmd ? spanSmBr(a+"(${cmd})" + aG) : sBLANK
                     }
-                    str += (Boolean)settings."${eH}_all" ? spanSmBr("    - Require All: (${settings."${eH}_all"})") : sBLANK
+                    str += (Boolean)settings."${eH}_all" ? spanSmBr(btstr+"Require All: (${settings."${eH}_all"})") : sBLANK
                 }
             }
         }
@@ -5089,11 +5091,11 @@ static String attUnit(String attr) {
 }
 
 Map getZoneStatus() {
-    List echoZones = (List)settings.act_EchoZones ?: []
+    List<String> echoZones = (List<String>)settings.act_EchoZones ?: []
     Map res = [:]
     if(echoZones.size()) {
         Map allZones = getZones()
-        echoZones.each { k -> if(allZones?.containsKey(k)) { res[k] = allZones[k] } }
+        echoZones.each { String k -> if(allZones?.containsKey(k)) { res[k] = allZones[k] } }
     }
     return res
 }
@@ -5103,8 +5105,9 @@ String getZoneVolDesc(zone, Map<String,Object>volMap) {
     String k = (String)zone.key
     str += spanSm(" ${sBULLET} ${zone?.value?.name} ${zone?.value?.active == true ? spanSm(" (Active)", sCLRGRN2) : spanSm(" (Inactive)", sCLRGRY)}")
     if((Boolean)settings.act_EchoZones_vol_per_zone && volMap && volMap[k]) {
-        str += volMap[k].change ? lineBr() + spanSm("    - New Volume: ${volMap[k].change}") : sBLANK
-        str += volMap[k].restore ? lineBr() + spanSm("    - Restore Volume: ${volMap[k].restore}") : sBLANK
+        String btstr = "    "+sBULLETINV+" "
+        str += volMap[k].change ? lineBr() + spanSm(btstr+"New Volume: ${volMap[k].change}") : sBLANK
+        str += volMap[k].restore ? lineBr() + spanSm(btstr+"Restore Volume: ${volMap[k].restore}") : sBLANK
     }
     return str
 }
