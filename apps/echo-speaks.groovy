@@ -1049,8 +1049,8 @@ def setNotificationTimePage() {
         String a = getNotifSchedDesc()
          if(a) {
              section() {
-                 paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9)
-                 paragraph pTS("Notice:\nAll selected restrictions must be inactive for notifications to be sent.", sNULL, false, sCLR4D9)
+                 paragraph spanSm(a, sCLR4D9)
+                 paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm("All selected restrictions must be inactive for notifications to be sent.", sCLR4D9)
              }
          }
         Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
@@ -2655,11 +2655,12 @@ void getBluetoothDevices(Boolean frc=false) {
         contentType: sAPPJSON,
         timeout: 20
     ]
-//    Map btResp = [:]
+    
     try {
         logTrace("getBluetoothDevices")
-        if(!frc) execAsyncCmd("get", "getBluetoothResp", params, [:])
-        else {
+        if(!frc) { 
+            execAsyncCmd("get", "getBluetoothResp", params, [:]) 
+        } else {
             httpGet(params) { response ->
                 getBluetoothResp(response, [:])
             }
@@ -4930,21 +4931,21 @@ private List codeUpdateItems(Boolean shrt=false) {
 }
 
 Boolean getOk2Notify() {
-    Boolean smsOk // (settings.smsNumbers?.toString()?.length()>=10)
-    Boolean pushOk // (Boolean)settings.usePush
+    Boolean smsOk = false
+    Boolean pushOk = false
     Boolean notifDevs = (((List)settings.notif_devs)?.size() > 0)
-    Boolean pushOver // ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
+    Boolean pushOver = false
     Boolean daysOk = quietDaysOk((List)settings.quietDays)
     Boolean timeOk = quietTimeOk()
     Boolean modesOk = quietModesOk((List)settings.quietModes)
     Boolean result = true
     if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
     if(!(daysOk && modesOk && timeOk)) { result= false }
-    //if(devModeFLD) logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    // log.debug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     return result
 }
 
-Boolean quietModesOk(List modes) { return !(modes && location?.mode?.toString() in modes) }
+Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) }
 
 Boolean quietTimeOk() {
     Date startTime = null
@@ -4974,7 +4975,7 @@ Boolean quietDaysOk(List days) {
     if(days) {
         def dayFmt = new SimpleDateFormat("EEEE")
         if(location?.timeZone) { dayFmt?.setTimeZone((TimeZone)location?.timeZone) }
-        return !days.contains(dayFmt?.format(new Date()))
+        return days.contains(dayFmt?.format(new Date()))
     }
     return true
 }
@@ -6015,7 +6016,7 @@ String getAppNotifConfDesc() {
     Integer notifDevs = ((List)settings.notif_devs)?.size()
     if(notifDevs) {
         Boolean ok = getOk2Notify()
-        str += spanSmBld("Send Notifications Allowed:") + getOkOrNotSymHTML(ok)
+        str += spanSmBld("Send Notifications Allowed: ") + getOkOrNotSymHTML(ok)
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
         List t0 = (List)settings.notif_devs
@@ -6063,13 +6064,13 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean timeOk = quietTimeOk()
     Boolean daysOk = quietDaysOk(dayInput)
     Boolean modesOk = quietModesOk(modeInput)
-    Boolean rest = !(daysOk && modesOk && timeOk)
+    Boolean rest = (daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
     str += (startLbl && stopLbl) ? "${spanSm("   ${sBULLET} Restricted Times:")} ${spanSm("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(!timeOk)}" : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? "${lineBr(startLbl || stopLbl)}${spanSm("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanSm(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
-    str += modeInput ? "${lineBr(startLbl || stopLbl || qDays)}${spanSm("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanSm(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
+    str += dayInput && qDays ? "${lineBr(startLbl || stopLbl)}${spanSm("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanSm(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(daysOk)}" : sBLANK
+    str += modeInput ? "${lineBr(startLbl || stopLbl || qDays)}${spanSm("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanSm(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(modesOk)}" : sBLANK
     str = str ? spanSmBld("Restrictions: ") + getOkOrNotSymHTML(rest) + lineBr() + str : sBLANK
     return (str != sBLANK) ? divSm(str, sCLR4D9) : sNULL
 }
