@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.9'
-@Field static final String appModifiedFLD = '2021-09-10'
+@Field static final String appVersionFLD  = '4.1.10.0'
+@Field static final String appModifiedFLD = '2021-09-15'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4199, wsDevice: 4199, actionApp: 4199, zoneApp: 4199, zoneEchoDevice: 4199, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 41100, wsDevice: 41100, actionApp: 41100, zoneApp: 41100, zoneEchoDevice: 41100, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''

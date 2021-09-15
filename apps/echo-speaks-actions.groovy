@@ -31,12 +31,17 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.9'
-@Field static final String appModifiedFLD = '2021-09-10'
+@Field static final String appVersionFLD  = '4.1.10.0'
+@Field static final String appModifiedFLD = '2021-09-15'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
+@Field static final String s2SPACE        = '  '
+@Field static final String s3SPACE        = '   '
+@Field static final String s4SPACE        = '    '
+@Field static final String s5SPACE        = '     '
+@Field static final String s6SPACE        = '      '
 @Field static final String sBULLET        = '\u2022'
 @Field static final String sBULLETINV     = '\u25E6'
 //@Field static final String sSQUARE        = '\u29C8'
