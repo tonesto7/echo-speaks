@@ -1063,8 +1063,8 @@ def setNotificationTimePage() {
             if(settings?."qStopInput" == "A specific time") {
                 input "qStopTime", sTIME, title: inTS1("Stop time", "stop_time"), required: timeReq
             }
-            input "quietDays", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
-            input "quietModes", "mode", title: inTS1("When these modes are Active", "mode"), multiple: true, submitOnChange: true, required: false
+            input "quietDays", sENUM, title: inTS1("Quiet days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
+            input "quietModes", "mode", title: inTS1("Quiet modes", "mode"), multiple: true, submitOnChange: true, required: false
         }
     }
 }
@@ -4935,23 +4935,24 @@ Boolean getOk2Notify() {
     Boolean pushOk = false
     Boolean notifDevs = (((List)settings.notif_devs)?.size() > 0)
     Boolean pushOver = false
-    Boolean daysOk = quietDaysOk((List)settings.quietDays)
-    Boolean timeOk = quietTimeOk()
-    Boolean modesOk = quietModesOk((List)settings.quietModes)
-    Boolean result = true
-    if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
-    if(!(daysOk && modesOk && timeOk)) { result= false }
-    // log.debug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    Boolean qday = isQuietDay((List)settings.quietDays)
+    Boolean qtime = isQuietTime()
+    Boolean qmode = isQuietMode((List)settings.quietModes)
+    Boolean result
+    result = (smsOk || pushOk || notifDevs || pushOver)
+    if(qday || qmode || qtime) { result= false }
+    // log.debug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || qday: $qday | qtime: $qtime | qmode: $qmode")
     return result
 }
 
-Boolean quietModesOk(List modes) { return (modes && location?.mode?.toString() in modes) }
+Boolean isQuietMode(List modes) { return (modes && location?.mode?.toString() in modes) }
 
-Boolean quietTimeOk() {
+Boolean isQuietTime() {
     Date startTime = null
     Date stopTime = null
-    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
+    Boolean res = false
     if(settings.qStartTime && settings.qStopTime) {
+        Map sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
         if(settings.qStartInput == "Sunset") { startTime = sun?.sunset }
         else if(settings.qStartInput == "Sunrise") { startTime = sun?.sunrise }
         else if(settings.qStartInput == "A specific time" && settings.qStartTime) { startTime = toDateTime(settings.qStartTime) }
@@ -4959,25 +4960,25 @@ Boolean quietTimeOk() {
         if(settings.qStopInput == "Sunset") { stopTime = sun?.sunset }
         else if(settings.qStopInput == "Sunrise") { stopTime = sun?.sunrise }
         else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = toDateTime(settings.qStopTime) }
-    } else { return true }
+    } else { return res }
     if(startTime && stopTime) {
-        // log.debug "quietTimeOk | Start: ${startTime} | Stop: ${stopTime}"
+        // log.debug "isQuietTime | Start: ${startTime} | Stop: ${stopTime}"
         Date now = new Date()
         Boolean not = startTime.getTime() > stopTime.getTime()
-        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
+        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
         isBtwn = not ? !isBtwn : isBtwn
-        //if(devModeFLD) logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
+        //if(devModeFLD) logTrace("isQuietTime ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
-    } else { return true }
+    } else { return res }
 }
 
-Boolean quietDaysOk(List days) {
+Boolean isQuietDay(List days) {
     if(days) {
         def dayFmt = new SimpleDateFormat("EEEE")
         if(location?.timeZone) { dayFmt?.setTimeZone((TimeZone)location?.timeZone) }
         return days.contains(dayFmt?.format(new Date()))
     }
-    return true
+    return false
 }
 
 // Sends the notifications based on app settings
@@ -6029,8 +6030,8 @@ String getAppNotifConfDesc() {
 
 List getQuietDays() {
     List allDays = weekDaysEnum()
-    List curDays = settings.quietDays ?: []
-    return allDays?.findAll { (!curDays?.contains(it as String)) }
+    List curDays = (List)settings.quietDays ?: []
+    return allDays?.findAll { (curDays?.contains(it as String)) }
 }
 
 String getNotifSchedDesc(Boolean min=false) {
@@ -6047,7 +6048,7 @@ String getNotifSchedDesc(Boolean min=false) {
         stopTime = stopType == 'A specific time' && settings.qStopTime ? toDateTime(settings.qStopTime) : null
     }
     if(startType in ["Sunrise", "Sunset"] || stopType in ["Sunrise", "Sunset"]) {
-        def sun = getSunriseAndSunset()
+        Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
@@ -6061,17 +6062,17 @@ String getNotifSchedDesc(Boolean min=false) {
             stopTime = new Date(stopl)
         }
     }
-    Boolean timeOk = quietTimeOk()
-    Boolean daysOk = quietDaysOk(dayInput)
-    Boolean modesOk = quietModesOk(modeInput)
-    Boolean rest = (daysOk && modesOk && timeOk)
+    Boolean qtime = isQuietTime()
+    Boolean qday = isQuietDay(dayInput)
+    Boolean qmode = isQuietMode(modeInput)
+    Boolean res = (qday || qmode || qtime)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "${spanSm("   ${sBULLET} Restricted Times:")} ${spanSm("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(!timeOk)}" : sBLANK
-    List qDays = getQuietDays()
-    str += dayInput && qDays ? "${lineBr(startLbl || stopLbl)}${spanSm("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanSm(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(daysOk)}" : sBLANK
-    str += modeInput ? "${lineBr(startLbl || stopLbl || qDays)}${spanSm("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanSm(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(modesOk)}" : sBLANK
-    str = str ? spanSmBld("Restrictions: ") + getOkOrNotSymHTML(rest) + lineBr() + str : sBLANK
+    str += (startLbl && stopLbl) ? "${spanSm("   ${sBULLET} Restricted Times:")} ${spanSm("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(qtime)}" : sBLANK
+    List lqDays = getQuietDays()
+    str += dayInput && lqDays ? "${lineBr(startLbl || stopLbl)}${spanSm("   ${sBULLET} Restricted Day${pluralizeStr(lqDays, false)}:")}${spanSm(min ? " (${lqDays?.size()} selected)" : " ${lqDays?.join(", ")}")} ${getOkOrNotSymHTML(qday)}" : sBLANK
+    str += modeInput ? "${lineBr(startLbl || stopLbl || lqDays)}${spanSm("   ${sBULLET} Restricted Mode${pluralizeStr(modeInput, false)}:")}${spanSm(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(qmode)}" : sBLANK
+    str = str ? spanSmBld("Restrictions: ") + getOkOrNotSymHTML(res) + lineBr() + str : sBLANK
     return (str != sBLANK) ? divSm(str, sCLR4D9) : sNULL
 }
 
