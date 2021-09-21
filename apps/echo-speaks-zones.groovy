@@ -14,7 +14,9 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
-
+//file:noinspection GroovyUnusedAssignment
+//file:noinspection unused
+//file:noinspection GroovySillyAssignment
 
 import groovy.json.JsonOutput
 import groovy.transform.Field
@@ -31,10 +33,10 @@ import java.util.concurrent.Semaphore
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
 @Field static final String sBULLET        = '\u2022'
-@Field static final String sBULLETINV     = '\u25E6'
-@Field static final String sSQUARE        = '\u29C8'
-@Field static final String sPLUS          = '\u002B'
-@Field static final String sRIGHTARR      = '\u02C3'
+//@Field static final String sBULLETINV     = '\u25E6'
+//@Field static final String sSQUARE        = '\u29C8'
+//@Field static final String sPLUS          = '\u002B'
+//@Field static final String sRIGHTARR      = '\u02C3'
 @Field static final String okSymFLD       = "\u2713"
 @Field static final String notOkSymFLD    = "\u2715"
 @Field static final String sPAUSESymFLD   = "\u275A\u275A"
@@ -47,21 +49,21 @@ import java.util.concurrent.Semaphore
 @Field static final String sTEXT          = 'text'
 @Field static final String sTIME          = 'time'
 @Field static final String sMODE          = 'mode'
-@Field static final String sCOMPLT        = 'complete'
+//@Field static final String sCOMPLT        = 'complete'
 @Field static final String sMEDIUM        = 'medium'
 @Field static final String sSMALL         = 'small'
 @Field static final String sCLR4D9        = '#2784D9'
 @Field static final String sCLRRED        = 'red'
 @Field static final String sCLRRED2       = '#cc2d3b'
 @Field static final String sCLRGRY        = 'gray'
-@Field static final String sCLRGRN        = 'green'
+//@Field static final String sCLRGRN        = 'green'
 @Field static final String sCLRGRN2       = '#43d843'
 @Field static final String sCLRORG        = 'orange'
 @Field static final String sTTM           = 'Tap to modify...'
 @Field static final String sTTC           = 'Tap to configure...'
-@Field static final String sTTCR          = 'Tap to configure (Required)'
-@Field static final String sTTP           = 'Tap to proceed...'
-@Field static final String sTTS           = 'Tap to select...'
+//@Field static final String sTTCR          = 'Tap to configure (Required)'
+//@Field static final String sTTP           = 'Tap to proceed...'
+//@Field static final String sTTS           = 'Tap to select...'
 @Field static final String sSETTINGS      = 'settings'
 @Field static final String sRESET         = 'reset'
 @Field static final String sEXTNRL        = 'external'
@@ -616,6 +618,7 @@ void updateChildZoneState(Boolean zoneActive, Boolean active) {
 @SuppressWarnings('unused')
 String relayDevVersion() {
     String a
+    a = sNULL
     getEzDevice().each { a = it.devVersion() }
     return a
 }
@@ -646,7 +649,7 @@ void relayDisableTraceLog() { getEzDevice().each { it.disableTraceLog() } }
 @SuppressWarnings('unused')
 void relayLogsOff() { getEzDevice().each { it.logsOff() } }
 @SuppressWarnings('unused')
-Map relayGetLogHistory() { Map a; getEzDevice().each { a = it.getLogHistory() }; return a ?: [:] }
+Map relayGetLogHistory() { Map a; a=null; getEzDevice().each { a = it.getLogHistory() }; return a ?: [:] }
 @SuppressWarnings('unused')
 void relayClearLogHistory() { getEzDevice().each { it.clearLogHistory() } }
 @SuppressWarnings('unused')
@@ -683,13 +686,13 @@ void relaySeqCommand(String type, String command, value=null,  Map deviceData=[:
 }
 
 @SuppressWarnings('unused')
-void relayAnnounceZone(String zoneId, String msg, Boolean parallel) {
-    if(zoneOnline()) parent.sendZoneAnnounce(zoneId, msg, parallel)
+void relayAnnounceZone(String zoneId, String msg, Boolean parallel, Boolean igndnd) {
+    if(zoneOnline()) parent.sendZoneAnnounce(zoneId, msg, parallel, igndnd)
 }
 
 @SuppressWarnings('unused')
-void relaySpeakZone(String zoneId, String msg, Boolean parallel) {
-    if(zoneOnline()) parent.sendZoneSpeak(zoneId, msg, parallel)
+void relaySpeakZone(String zoneId, String msg, Boolean parallel, Boolean igndnd) {
+    if(zoneOnline()) parent.sendZoneSpeak(zoneId, msg, parallel, igndnd)
 }
 
 @SuppressWarnings('unused')
@@ -796,6 +799,7 @@ private healthCheck() {
 
 //private condItemSet(String key) { return (settings.containsKey("cond_${key}") && settings["cond_${key}"]) }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 void scheduleCondition() {
     if(isPaused(true)) { logWarn("Zone is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     Boolean tC = timeCondConfigured()
@@ -941,6 +945,7 @@ Boolean timeCondOk() {
     return null
 }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 Boolean dateCondOk() {
     Boolean result = null
     Boolean dOk
@@ -955,6 +960,7 @@ Boolean dateCondOk() {
     return result
 }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 Boolean locationCondOk() {
     Boolean result = null
     Boolean mOk
@@ -1065,7 +1071,7 @@ Map conditionStatus() {
     Boolean ok = true
     if((Boolean)state.dupPendingSetup) ok = false
     if(!settings.zone_EchoDevices) ok = false
-    Integer cndSize
+    Integer cndSize=(Integer)null
     if(ok) {
         [sTIME, "date", "location", "device"]?.each { i->
             Boolean s = "${i}CondOk"()
@@ -1272,7 +1278,7 @@ private static String kvListToHtmlTable(List<Map> tabList, String color=sCLRGRY)
     return str
 }
 
-Map getZoneDevices(String cmd=sNULL) {
+Map getZoneDevices(String cmd=sNULL, Boolean igndnd=false) {
     // updDeviceInputs()
     List devObj = []
     List devIds = []
@@ -1280,7 +1286,7 @@ Map getZoneDevices(String cmd=sNULL) {
     List devices = parent?.getDevicesFromList(settings.zone_EchoDevices)
     //devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]); devIds.push(it?.getId()); }
     devices?.each {
-        Map devInfo = it?.getEchoDevInfo(cmd)
+        Map devInfo = it?.getEchoDevInfo(cmd, igndnd)
         if(devInfo) {
             devObj?.push(devInfo)
             devIds.push(it?.getId())
@@ -1313,7 +1319,7 @@ public zoneRefreshHandler(evt) {
  *   or a zone device handler (calling its parent)
  */
 
-public zoneCmdHandler(evt, Boolean chldDev=false) {
+public zoneCmdHandler(evt, Boolean chldDev=false, Boolean igndnd=false) {
     // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
     Map data = evt?.jsonData
@@ -1333,7 +1339,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
             if(fA) cmd = "announcement"
         }
 
-        Map zoneDevMap = getZoneDevices(cmd == 'speak' ? 'TTS' : 'announce')
+        Map zoneDevMap = getZoneDevices(cmd == 'speak' ? 'TTS' : 'announce', igndnd)
         List zoneDevs = (List)zoneDevMap.devices
 
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
@@ -1578,7 +1584,7 @@ String formatDt(Date dt, Boolean tzChg=true) {
 String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new SimpleDateFormat(fmt)
-    if(tzChg && location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    if(tzChg && location?.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
     return (String)tf.format(dt)
 }
 
@@ -1618,7 +1624,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         Date lastDt = parseDate(lastDate) // Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
         Long start = lastDt.getTime()
         Long stop = now()
-        Long diff = (stop - start) / 1000L
+        Long diff = Math.round((stop - start) / 1000L)
         return diff.abs()
     }
     catch (ex) {
@@ -1629,7 +1635,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
 
 String getWeekDay() {
     def df = new SimpleDateFormat("EEEE")
-    df.setTimeZone(location?.timeZone)
+    df.setTimeZone((TimeZone)location?.timeZone)
     return (String)df.format(new Date())
 }
 /*
@@ -1653,7 +1659,7 @@ String getYear() {
 */
 String getMonth() {
     def df = new SimpleDateFormat("MMMMM")
-    df.setTimeZone(location?.timeZone)
+    df.setTimeZone((TimeZone)location?.timeZone)
     return (String)df.format(new Date())
 }
 /*
@@ -1812,12 +1818,12 @@ String getAppNotifDesc(Boolean hide=false) {
 }
 
 List getQuietDays() {
-    List allDays = weekDaysEnum()
+    List<String> allDays = weekDaysEnum()
     List curDays = (List)settings.notif_days ?: []
-    return allDays?.findAll { (!curDays?.contains(it as String)) }
+    return allDays?.findAll { (!curDays?.contains(it)) }
 }
 
-@SuppressWarnings('unused')
+@SuppressWarnings('GroovyVariableNotAssigned')
 String getNotifSchedDesc(Boolean min=false) {
     String startType = settings.notif_time_start_type
     Date startTime
@@ -1826,12 +1832,13 @@ String getNotifSchedDesc(Boolean min=false) {
     List dayInput = (List)settings.notif_days
     List modeInput = (List)settings.notif_modes
     String str = sBLANK
+
     if(startType && stopType) {
-        startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     }
     if(startType in lSUNRISESET || stopType in lSUNRISESET) {
-        def sun = getSunriseAndSunset()
+        Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
@@ -1856,7 +1863,7 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? spanSmBr("     ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
     str += modeInput ? spanSm("     ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
     str = str ? spanSmBr("  ${sBULLET} Restrictions Active: " + getOkOrNotSymHTML(rest)) + spanSm(str) : sBLANK
-    return (str != sBLANK) ? str : sNULL
+    return (str != sBLANK) ? divSm(str, sCLR4D9) : sNULL
 }
 
 String getOverallDesc() {
@@ -1940,6 +1947,7 @@ String getZoneDesc() {
     }
 }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 String getTimeCondDesc(Boolean addPre=true) {
     Date startTime
     Date stopTime
@@ -2031,16 +2039,16 @@ Integer getLastNotifMsgSec() { return !state.lastNotifMsgDt ? 100000 : GetTimeDi
 Integer getLastChildInitRefreshSec() { return !state.lastChildInitRefreshDt ? 3600 : GetTimeDiffSeconds((String)state.lastChildInitRefreshDt, "getLastChildInitRefreshSec").toInteger() }
 
 Boolean getOk2Notify() {
-    Boolean smsOk // = (settings.notif_sms_numbers?.toString()?.length()>=10)
-    Boolean pushOk // = settings.notif_send_push
-    Boolean pushOver // = (settings.notif_pushover && settings.notif_pushover_devices)
+    Boolean smsOk = false // = (settings.notif_sms_numbers?.toString()?.length()>=10)
+    Boolean pushOk = false // = settings.notif_send_push
+    Boolean pushOver = false // = (settings.notif_pushover && settings.notif_pushover_devices)
     Boolean alexaMsg = (Boolean)settings.notif_alexa_mobile
     Boolean notifDevsOk = (((List)settings.notif_devs)?.size())
     Boolean daysOk = (List)settings.notif_days ? (isDayOfWeek((List)settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
     Boolean modesOk = (List)settings.notif_modes ? (isInMode((List)settings.notif_modes)) : true
-    Boolean result = true
-    if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
+    Boolean result
+    result = (smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)
     if(!(daysOk && modesOk && timeOk)) { result = false }
     logDebug("getOk2Notify() RESULT: $result | notifDevsOk: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     return result
@@ -2049,16 +2057,17 @@ Boolean getOk2Notify() {
 Boolean notifTimeOk() {
     Date startTime
     Date stopTime
+    // these are quiet time start/stop
     String startType = settings.notif_time_start_type
     String stopType = settings.notif_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == 'time' && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     } else { return true }
 
     Date now = new Date()
     if(startType in lSUNRISESET || stopType in lSUNRISESET) {
-        def sun = getSunriseAndSunset()
+        Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
@@ -2075,7 +2084,7 @@ Boolean notifTimeOk() {
 
     if(startTime && stopTime) {
         Boolean not = startTime.getTime() > stopTime.getTime()
-        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
+        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
         isBtwn = not ? !isBtwn : isBtwn
         logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
