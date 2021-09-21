@@ -86,11 +86,17 @@ import java.util.concurrent.Semaphore
 @Field static final String sABOVE         = 'above'
 @Field static final String sEQUALS        = 'equals'
 @Field static final String sANN           = 'announcement'
+@Field static final String sANNI          = 'announcement_ignored'
+@Field static final String sANNIT         = 'announcement_ignored_tiered'
 @Field static final String sANNT          = 'announcement_tiered'
 @Field static final String sSPEAK         = 'speak'
 @Field static final String sSPEAKP        = 'speak_parallel'
-@Field static final String sSPEAKPT       = 'speak_parallel_tiered'
+@Field static final String sSPEAKI        = 'speak_ignore'
 @Field static final String sSPEAKT        = 'speak_tiered'
+@Field static final String sSPEAKPT       = 'speak_parallel_tiered'
+@Field static final String sSPEAKIP       = 'speak_ignore_parallel'
+@Field static final String sSPEAKIT       = 'speak_ignore_tiered'
+@Field static final String sSPEAKIPT      = 'speak_ignore_parallel_tiered'
 @Field static final String sWEATH         = 'weather'
 @Field static final String sCSUNRISE      = 'Sunrise'
 @Field static final String sCSUNSET       = 'Sunset'
@@ -255,7 +261,9 @@ private Map buildTriggerEnum() {
 
 private static Map buildActTypeEnum() {
     Map<String, Map<String,String>> buildItems = [:]
-    buildItems["Speech"] = [(sSPEAK):"Speak", (sANN):"Announcement", (sSPEAKP):"Speak (Parallel)", (sSPEAKT):"Speak (Tiered)", (sSPEAKPT):"Speak Parallel (Tiered)", (sANNT):"Announcement (Tiered)"].sort{ it?.key }
+    buildItems["Speech"] = [(sSPEAK):"Speak", (sANN):"Announcement", (sSPEAKP):"Speak (Parallel)", (sSPEAKI): "Speak Ignore Dnd", (sSPEAKIP): "Speak Ignore Dnd (Parallel)",
+                            (sSPEAKT):"Speak (Tiered)", (sSPEAKPT):"Speak Parallel (Tiered)", (sSPEAKIT): "Speak Ignore Dnd (Tiered)", (sSPEAKIPT): "Speak Parallel Ignore Dnd (Tiered)",
+                            (sANNI): "Announcement Ignore DND", (sANNT):"Announcement (Tiered)", (sANNIT): "Announcement Ignore DND (Tiered)" ].sort{ it?.key }
     buildItems["Built-in Sounds"] = ["sounds":"Play a Sound"].sort{ it?.key }
     buildItems["Built-in Responses"] = [(sWEATH):"Weather Report", "builtin":"Birthday, Compliments, Facts, Jokes, News, Stories, Traffic, and more...", "calendar":"Read Calendar Events"].sort{ it?.key }
     buildItems["Media/Playback"] = ["music":"Play Music/Playlists", "playback":"Playback/Volume Control"].sort{ it?.key }
@@ -820,7 +828,7 @@ def doAftInput(String inType) {
 }
 
 def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemCnt=0 */) {
-    if((String)settings.actionType in [sSPEAK, sSPEAKP, sANN]) {
+    if((String)settings.actionType in [sSPEAK, sSPEAKI, sSPEAKP, sSPEAKIP, sANN, sANNI]) {
         String str = spanSmBldBr("Response Options", sCLR4D9)
         str += spanSmBr("Available Options:")
         str += spanSmBr("   ${sBULLET} ${strUnder("1")}: Leave the text empty below and text will be generated for each ${inType} trigger event.")
@@ -1165,7 +1173,7 @@ String getTierRespDesc() {
 }
 
 Boolean isTierAction() {
-    return ((String)settings.actionType in [sSPEAKT, sSPEAKPT, sANNT])
+    return ((String)settings.actionType in [sSPEAKT, sSPEAKPT, sSPEAKIT, sSPEAKIPT, sANNT, sANNIT])
 }
 
 Boolean isTierActConfigured() {
@@ -1240,9 +1248,13 @@ def actionsPage() {
             Boolean isTierAct = isTierAction()
             switch(myactionType) {
                 case sSPEAK:
+                case sSPEAKI:
                 case sSPEAKP:
+                case sSPEAKIP:
                 case sSPEAKT:
+                case sSPEAKIT:
                 case sSPEAKPT:
+                case sSPEAKIPT:
                     section(sectHead("Action Description:")) { paragraph spanSm(actTypeDesc, sCLR4D9) }
                     echoDevicesInputByPerm(sTTS)
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
@@ -1250,14 +1262,16 @@ def actionsPage() {
                             actVariableDesc(myactionType)
                             actTextOrTiersInput("act_speak_txt")
                         }
-                        if(!(myactionType in [sSPEAKP, sSPEAKPT])) actionVolumeInputs(devices)
+                        if(!(myactionType in [sSPEAKP, sSPEAKPT, sSPEAKIP, sSPEAKIPT])) actionVolumeInputs(devices)
                         actionExecMap.config[myactionType] = [text: (String)settings.act_speak_txt, evtText: ((state.showSpeakEvtVars && !(String)settings.act_speak_txt) || hasUserDefinedTxt()), tiers: getTierMap()]
                         done = state.showSpeakEvtVars || (String)settings.act_speak_txt || (isTierAct && isTierActConfigured())
                     } else { done = false }
                     break
 
                 case sANN:
+                case sANNI:
                 case sANNT:
+                case sANNIT:
                     section(sectHead("Action Description:")) { paragraph spanSm(actTypeDesc, sCLR4D9) }
                     echoDevicesInputByPerm("announce")
                     if(settings.act_EchoDevices || settings.act_EchoZones) {
@@ -1807,7 +1821,7 @@ def actionSimulationSect() {
     }
 }
 
-Boolean customMsgRequired() { return (!((String)settings.actionType in [sSPEAK, sSPEAKP, sANN])) }
+Boolean customMsgRequired() { return (!((String)settings.actionType in [sSPEAK, sSPEAKI, sSPEAKP, sSPEAKIP, sANN, sANNI])) }
 Boolean customMsgConfigured() { return (settings.notif_use_custom && settings.notif_custom_message) }
 
 def actNotifPage() {
@@ -1951,7 +1965,7 @@ Boolean executionConfigured() {
 private echoDevicesInputByPerm(String type) {
     List echoDevs = parent?.getChildDevicesByCap(type)
     Boolean capOk = (type in [sTTS, "announce"])
-    Boolean zonesOk = ((String)settings.actionType in [sSPEAK, sSPEAKP, sSPEAKT, sSPEAKPT, sANN, sANNT, "voicecmd", "sequence", sWEATH, "calendar", "music", "sounds", "builtin"])
+    Boolean zonesOk = ((String)settings.actionType in [sSPEAK, sSPEAKI, sSPEAKP, sSPEAKIP, sSPEAKT, sSPEAKIT, sSPEAKPT, sSPEAKIPT, sANN, sANNI, sANNT, sANNIT, "voicecmd", "sequence", sWEATH, "calendar", "music", "sounds", "builtin"])
     Map echoZones = (capOk && zonesOk) ? getZones() : [:]
     section(sectHead("${echoZones?.size() ? "Zones & " : sBLANK}Alexa Devices:")) {
         if(echoZones?.size()) {
@@ -1976,7 +1990,7 @@ private actionVolumeInputs(List devices, Boolean showVolOnly=false, Boolean show
             input "act_alarm_volume", sNUMBER, title: inTS1("Alarm Volume (0% - 100%)", sSPDKNB) + optPrefix(), description: "(0% - 100%)", range: "0..100", required: false, submitOnChange: true
         }
     } else {
-        if((devices || settings.act_EchoZones) && (String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sWEATH, "calendar", "music", "sounds", "builtin", "playback"]) {
+        if((devices || settings.act_EchoZones) && (String)settings.actionType in [sSPEAK, sSPEAKI, sSPEAKP, sSPEAKIP, sANN, sANNI, sWEATH, "calendar", "music", "sounds", "builtin", "playback"]) {
             Map volMap = devsSupportVolume(devices)
             Integer volMapSiz = volMap?.n?.size()
             Integer devSiz = devices?.size()
@@ -2528,7 +2542,7 @@ private getThermEvtHandlerName(String type) {
 private executeActTest() {
     logTrace("executeActTest STARTING")
     try {
-        if((String)settings.actionType in [sSPEAK, sSPEAKP, sSPEAKT, sSPEAKPT, sANN, sANNT, sWEATH, "builtin", "calendar"]) {
+        if((String)settings.actionType in [sSPEAK, sSPEAKI, sSPEAKP, sSPEAKIP, sSPEAKT, sSPEAKIT, sSPEAKPT, sSPEAKIPT, sANN, sANNI, sANNT, sANNIT, sWEATH, "builtin", "calendar"]) {
             Map evt = getRandomTrigEvt()
             if(!evt) logWarn("no random event found")
             else {
@@ -3960,7 +3974,16 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
         Integer restoreVol = actConf?.volume?.restore != null ? (Integer)actConf?.volume?.restore : null
         //Integer alarmVol = actConf?.volume?.alarm ?: null
         Map zoneVolumeMap = (Map)actConf?.zoneVolume ?: null
+        Boolean chkDnd=true
+        //noinspection GroovyFallthrough
         switch(actType) {
+            case sSPEAKI:
+            case sSPEAKIT:
+            case sSPEAKIP:
+            case sSPEAKIPT:
+            case sANNI:
+            case sANNIT:
+                chkDnd=false
             case sSPEAK:
             case sSPEAKP:
             case sSPEAKT:
@@ -3987,11 +4010,11 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                             List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                             List devObjs = []
 
-                            String cmd = mCmd in [sSPEAK, sSPEAKP] ? sTTS : "announce"
+                            String cmd = mCmd in [sSPEAK, sSPEAKP, sSPEAKI, sSPEAKIP, sSPEAKT, sSPEAKIT, sSPEAKPT, sSPEAKIPT] ? sTTS : "announce"
                             actDevices?.each {
-                                Map devInfo = it?.getEchoDevInfo(cmd)
+                                Map devInfo = it?.getEchoDevInfo(cmd, true)  // ignores dnd setting in device
                                 if(devInfo) {
-                                    Boolean dnd = false //chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
+                                    Boolean dnd = chkDnd ? parent.getDndEnabled((String)devInfo.deviceSerialNumber) : false
                                     //if(!dnd) devObjs?.push([deviceTypeId: devInfo.deviceTypeId, deviceSerialNumber: devInfo.deviceSerialNumber, dni: devInfo.dni])
                                     if(!dnd) devObjs?.push(devInfo)
                                 }
@@ -4881,6 +4904,7 @@ String getNotifSchedDesc(Boolean min=false) {
     List dayInput = (List)settings.notif_days
     List modeInput = (List)settings.notif_modes
     String str = sBLANK
+
     if(startType && stopType) {
         startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
         stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
@@ -4911,7 +4935,7 @@ String getNotifSchedDesc(Boolean min=false) {
     str += dayInput && qDays ? spanSmBr("     ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
     str += modeInput ? spanSm("     ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
     str = str ? spanSmBr("  ${sBULLET} Restrictions Active: " + getOkOrNotSymHTML(rest)) + spanSm(str) : sBLANK
-    return (str != sBLANK) ? str : sNULL
+    return (str != sBLANK) ? divSm(str, sCLR4D9) : sNULL
 }
 
 String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
@@ -5140,7 +5164,12 @@ String getActionDesc(Boolean addFoot=true) {
         str += settings.act_volume_change != null ? spanSmBr(" - New Volume: (${settings.act_volume_change})") : sBLANK
         str += settings.act_volume_restore != null ? spanSmBr(" - Restore Volume: (${settings.act_volume_restore})") : sBLANK
         str += settings.act_delay ? spanSmBr("Delay: (${settings.act_delay})") : sBLANK
-        str += (String)settings.actionType in [sSPEAK, sSPEAKP, sANN, sSPEAKT, sSPEAKPT, sANNT] && (String)settings."act_${(String)settings.actionType}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
+
+        String mT = (String)settings.actionType
+        if(mT in [sSPEAK, sSPEAKI, sSPEAKP, sSPEAKIP]) mT = sSPEAK
+        if(mT in [sANN, sANNI]) mT = sANN
+        str += (mT in [sSPEAK, sANN] || isTierAct) && (String)settings."act_${mT}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
+
         String trigTasks = !isTierAct ? actTaskDesc(sACT) : sNULL
         str += trigTasks ? spanSm(trigTasks) : sBLANK
         str += addFoot ? inputFooter(sTTM) : sBLANK
