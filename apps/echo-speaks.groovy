@@ -2722,13 +2722,13 @@ Map getBluetoothData(String serialNumber) {
     String curConnName = sNULL
     Map btObjs = [:]
     getBluetoothDevices(true)
-    btData = bluetoothDataFLD[myId]
+    Map btData = bluetoothDataFLD[myId]
     if(btData == null) {
         bluetoothDataFLD[myId] = [:]
         bluetoothDataFLD=bluetoothDataFLD
         btData = [:]
     }
-    Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    Map bluData = btData && btData.bluetoothStates?.size() ? ((List<Map>)btData.bluetoothStates)?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(bluData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
         def bData = bluData.pairedDeviceList.findAll { (it?.deviceClass != "GADGET") }
         bData?.findAll { it?.address != null }?.each {
@@ -2884,7 +2884,7 @@ Boolean getDndEnabled(String serialNumber) {
             sData = [:]
         }
     }
-    Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? sData.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? ((List<Map>)sData.doNotDisturbDeviceStatusList)?.find { it?.deviceSerialNumber == serialNumber } : [:]
     return (dndData && dndData.enabled == true)
 }
 
@@ -2931,11 +2931,11 @@ public Map getAlexaRoutines(String autoId=sNULL) {
     Integer cnt = 1
     if(rtList.size()) {
         if(autoId) {
-            rtResp = rtList.find { it?.automationId?.toString() == autoId } ?: [:]
+            rtResp = ((List<Map>)rtList).find { it?.automationId?.toString() == autoId } ?: [:]
             //log.debug "rtResp: ${rtResp}"
             return rtResp
         } else {
-            rtList.findAll { it?.status == "ENABLED" }?.each { Map item ->
+            ((List<Map>)rtList).findAll { it?.status == "ENABLED" }?.each { Map item ->
                 String myK = item.automationId.toString()
                 if(item.name != null) {
                     items[myK] = item.name.toString()
