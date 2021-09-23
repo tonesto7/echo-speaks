@@ -253,8 +253,8 @@ def mainPage() {
                 href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
             }
             section(sectHead("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
-                def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
-                def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
+                String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
+                String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
                 href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
                 href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
             }
@@ -626,7 +626,7 @@ def actionDuplicationPage() {
                     actData.settings["duplicateFlag"] = [type: sBOOL, value: true]
                     // actData?.settings["actionPause"] = [type: sBOOL, value: true]
                     actData.settings["duplicateSrcId"] = [type: "text", value: actId]
-                    addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
+                    def a=addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
                     paragraph spanSmBldBr("Action Duplicated...", sCLR4D9) + spanSmBld("<br>Return to Action Page and look for the App with '(Dup)' in the name...", sCLR4D9)
                     state.actionDuplicated = true
                 } else { paragraph spanSmBld("Action not Found", sCLRRED) }
@@ -656,7 +656,7 @@ def zoneDuplicationPage() {
                     znData.settings["duplicateFlag"] = [type: sBOOL, value: true]
                     // znData?.settings["zonePause"] = [type: sBOOL, value: true]
                     znData?.settings["duplicateSrcId"] = [type: "text", value: znId]
-                    addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
+                    def a=addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
                     paragraph spanSmBldBr("Zone Duplicated...", sCLR4D9) + spanSmBld("<br>Return to Zone Page and look for the App with '(Dup)' in the name...", sCLR4D9)
                     state.zoneDuplicated = true
                 } else { paragraph spanSmBld("Zone not Found", sCLRRED) }
@@ -1217,7 +1217,7 @@ def announcePage() {
                 input "test_announceAllDevices", sBOOL, title: inTS1("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
             }
             if(!(Boolean)settings.test_announceAllDevices) {
-                def devs = getChildDevicesByCap("announce") ?: []
+                List devs = getChildDevicesByCap("announce") ?: []
                 input "test_announceDevices", sENUM, title: inTS1("Select Devices to Test the Announcement"), description: sTTS, options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
             }
             if((Boolean)settings.test_announceAllDevices || settings.test_announceDevices) {
@@ -1470,7 +1470,7 @@ public List getChildDevicesByCap(String cap) {
 def donationPage() {
     return dynamicPage(name: "donationPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
         section(sBLANK) {
-            def str = sBLANK
+            String str = sBLANK
             str += spanSmBldBr("Hello User,") + spanSmBr("Please forgive the interuption but it's been 30 days since you installed/updated this App and I wanted to present you with this one time reminder that donations are accepted (We do not require them).")
             str += spanSmBr("<br>If you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices.")
             str += spanSmBr("<br>If you have already donated, thank you very much for your support!")
@@ -1768,7 +1768,7 @@ List<String> getInActiveZoneNames() {
 
 
 List getZoneApps() {
-    return getAllChildApps()?.findAll { (String)it?.name == zoneChildName() }
+    return ((List)getAllChildApps())?.findAll { (String)it?.name == zoneChildName() }
 }
 
 def getZoneById(String id) {
@@ -1799,11 +1799,11 @@ public List getInActiveActionNames() {
 }
 
 List getActionApps() {
-    return getAllChildApps()?.findAll { it?.name == actChildName() }
+    return ((List)getAllChildApps())?.findAll { it?.name == actChildName() }
 }
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { !(Boolean)it?.isWS() && !(Boolean)it?.isZone() }
+    return ((List)getChildDevices())?.findAll { !(Boolean)it?.isWS() && !(Boolean)it?.isZone() }
 }
 
 def getSocketDevice() {
@@ -2104,7 +2104,7 @@ Boolean refreshDevCookies(Boolean doInit=true) {
 
 void updateChildAuth(Boolean isValid, Boolean doInit=true) {
     Map cook = getCookieMap()
-    getChildDevices()?.each { (isValid) ? it?.updateCookies(cook, doInit) : it?.removeCookies(true) }
+    ((List)getChildDevices())?.each { (isValid) ? it?.updateCookies(cook, doInit) : it?.removeCookies(true) }
     getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook, doInit) : it?.relayRemoveCookies(true) }
 }
 
@@ -3218,7 +3218,7 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
     }
     if(ex instanceof groovyx.net.http.HttpResponseException ) {
         Integer sCode = ex?.getResponse()?.getStatus()
-        def errMsg = ex?.getMessage()
+        String errMsg = ex?.getMessage()
         if(sCode == 401) {
             if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
         } else if (sCode in [400, 429]) {
@@ -3278,7 +3278,7 @@ Boolean getAlexaGuardSupported() {
 }
 
 public void updGuardActionTrig() {
-    def acts = getActionApps()
+    List acts = getActionApps()
     if(acts?.size()) { acts?.each { aa-> aa?.guardEventHandler((String)state.alexaGuardState) } }
 }
 
@@ -3411,7 +3411,7 @@ void receiveEventData(Map evtData, String src) {
             if(oldWsDev) { deleteChildDevice(nmS) }
             nmS = myId+'|'+nmS
             def wsDevice = getChildDevice(nmS)
-            if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+            if(!wsDevice) { def a=addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
             updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
 
             if (evtData?.echoDevices?.size()) {
@@ -3652,7 +3652,7 @@ public void sendPlaybackStateToClusterMembers(String whaKey, data) {
         List clusterMembers = (List)whaMap?.clusterMembers
 
         if (clusterMembers) {
-            def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
+            List clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
             if(clusterMemberDevices) {
                 clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
             }
@@ -3669,7 +3669,7 @@ void removeDevices(Boolean all=false) {
     try {
         settingUpdate("cleanUpDevices", sFALSE, sBOOL)
         List<String> devList = getDeviceList(true)?.collect { (String)[app?.id, "echoSpeaks", it?.key].join("|") }
-        List<String> items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : sNULL }
+        List<String> items = ((List)app.getChildDevices())?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : sNULL }
         logWarn("removeDevices(${all ? "all" : sBLANK}) | In Use: (${all ? 0 : devList.size()}) | Removing: (${items.size()})", true)
         if(items.size() > 0) {
             items.each {  String it -> deleteChildDevice(it) }
@@ -4316,7 +4316,7 @@ static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
     Integer res=v
     Integer randomInt
     if(addRandom){
-        def random = new Random()
+        Random random = new Random()
         randomInt = random?.nextInt(5) //Was using 7
         res=v + randomInt
     }
@@ -4849,9 +4849,9 @@ private void manAllZonesDbgLogs(Boolean enable=true) { getZoneApps()?.each { ca-
 private void manAllZonesTrcLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
 private void manAllActsDbgLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
 private void manAllActsTrcLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
-private void manAllEchosDbgLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? cd?.enableDebugLog() : cd?.disableDebugLog() }
+private void manAllEchosDbgLogs(Boolean enable=true) { ((List)getChildDevices())?.each { cd-> enable ? cd?.enableDebugLog() : cd?.disableDebugLog() }
                                                        getZoneApps()?.each { ca-> enable ? ca?.relayEnableDebugLog() : ca?.relayDisableDebugLog() } }
-private void manAllEchosTrcLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? cd?.enableTraceLog() : cd?.disableTraceLog() }
+private void manAllEchosTrcLogs(Boolean enable=true) { ((List)getChildDevices())?.each { cd-> enable ? cd?.enableTraceLog() : cd?.disableTraceLog() }
                                                        getZoneApps()?.each { ca-> enable ? ca?.relayEnableTraceLog() : ca?.relayDisableTraceLog() } }
 
 
@@ -4859,7 +4859,7 @@ private void disableAdvChldLogs() {
     getActionApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.relayLogsOff() }
-    getChildDevices()?.each { cd-> cd?.logsOff() }
+    ((List)getChildDevices())?.each { cd-> cd?.logsOff() }
 }
 
 void missPollNotify(Boolean on, Integer wait) {
@@ -5242,7 +5242,7 @@ private String createMetricsDataJson() {
         Map swVer = (Map)state.codeVersions
         Map deviceUsageMap = [:]
         Map deviceErrorMap = [:]
-        getChildDevices()?.each { d->
+        ((List)getChildDevices())?.each { d->
             Map obj = d?.getDeviceMetrics()
             if(obj?.usage?.size()) { obj?.usage?.each { String k, v-> deviceUsageMap[k] = (deviceUsageMap[k] ? deviceUsageMap[k] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { String k, v-> deviceErrorMap[k] = (deviceErrorMap[k] ? deviceErrorMap[k] + v : v) } }
@@ -7110,7 +7110,7 @@ void clearDiagLogs(String type="all") {
     if(type=="all") {
         clearHistory()
         getActionApps()?.each { ca-> ca?.clearLogHistory() }
-        getChildDevices()?.each { cd-> cd?.clearLogHistory() }
+        ((List)getChildDevices())?.each { cd-> cd?.clearLogHistory() }
         getZoneApps()?.each { ca -> ca?.relayClearLogHistory() }
     }
 }
@@ -7208,7 +7208,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     Boolean wait = false
     Integer semaNum = getSemaNum(qname)
     String semaSNum = semaNum.toString()
-    def sema = getSema(semaNum)
+    Semaphore sema = getSema(semaNum)
     while(!((Boolean)sema.tryAcquire())) {
         // did not get the lock
         Long timeL = lockTimesFLD[semaSNum]
@@ -7235,7 +7235,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
 void releaseTheLock(String qname){
     Integer semaNum=getSemaNum(qname)
     String semaSNum=semaNum.toString()
-    def sema=getSema(semaNum)
+    Semaphore sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
     lockHolderFLD[semaSNum]=sNULL
@@ -7248,7 +7248,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
         bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "trig_alarm", "trig_guard"],
+        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarmSystemStatus", "cond_months", "trig_alarmSystemStatus", "trig_guard"],
         mode: ["cond_mode", "trig_mode"],
         number: [],
         text: ["appLbl"]
@@ -7258,9 +7258,9 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         enum: ["_cmd", "_type", "_routineExecuted",
                "_EchoDevices",
                "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type",
-               "_routine_run", "_mode_run", "_piston_run", "_alarm_run", "_rt", "_rt_wd", "_nums", "_Codes", "_pistonExecuted", "_days", "_months", "_alarm_events"],
-        number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
-        text: ["_txt", "_sms_numbers", "_label", "_date", "_message"],
+               "_routine_run", "_mode_run", "_piston_run", "_alarm_run", "_rt", "_rt_wd", "_nums", "_Codes", "_pistonExecuted", "_days", "_months", "_alarmSystemStatus_events"],
+        number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore", "_leveln"],
+        text: ["_txt", "_sms_numbers", "_label", "_date", "_message", "_colort"],
         mode: ["_modes"],
         time: ["_time_start", "_time_stop", "_time", "_scheduled_time"]
     ],
@@ -7268,45 +7268,47 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _devs: "notification",
         _acceleration: "accelerationSensor",
         _battery: "battery",
+        _carbonMonoxide: "carbonMonoxideDetector",
+//        _color: "colorControl",
         _contact: "contactSensor",
         _door: "garageDoorControl",
-        _doors_open: "garageDoorControl",
-        _doors_close: "garageDoorControl",
         _temperature: "temperatureMeasurement",
         _illuminance: "illuminanceMeasurement",
         _humidity: "relativeHumidityMeasurement",
         _motion: "motionSensor",
         _level: "switchLevel",
-        _button: "button",
+//        _button: "button",
+        _lock: "lock",
         _pushed: "pushableButton",
         _held: "holdableButton",
         _released: "releasableButton",
         _doubleTapped: "doubleTapableButton",
-        _presence: "presenceSensor",
-        _sirens: "alarm",
-        _switch: "switch",
         _power: "powerMeter",
-        _windowShade: "windowShades",
-        _water: "waterSensor",
-        _valve: "valve",
+        _presence: "presenceSensor",
+        _securityKeypad: "securityKeypad",
+        _smoke: "smokeDetector",
+        _switch: "switch",
         _thermostatOperatingState: "thermostat",
         _thermostatMode: "thermostat",
         _thermostatFanMode: "thermostat",
         _thermostatTemperature: "thermostat",
         _thermostatHeatingSetpoint: "thermostat",
         _thermostatCoolingSetpoint: "thermostat",
-        _carbonMonoxide: "carbonMonoxideDetector",
-        _smoke: "smokeDetector",
-        _lock: "lock",
+        _windowShade: "windowShades",
+        _water: "waterSensor",
+        _valve: "valve",
+// these are for action commands inputs
+        _doors_open: "garageDoorControl",
+        _doors_close: "garageDoorControl",
+//        _lock: "lock",   ALREADY COVERED ABOVE
         _unlock: "lock",
-        _securityKeypad: "securityKeypad",
         _disarm: "securityKeypad",
         _armHome: "securityKeypad",
         _armAway: "securityKeypad",
+        _sirens: "alarm",
         _switches_off: "switch",
         _switches_on: "switch",
-        _lights: "level",
-        _color: "colorControl",
+        _lights: "switch",
         _EchoDeviceList: ""
     ],
     dev: [
