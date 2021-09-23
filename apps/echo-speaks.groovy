@@ -30,8 +30,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.10.0'
-@Field static final String appModifiedFLD = '2021-09-15'
+@Field static final String appVersionFLD  = '4.2.0.0'
+@Field static final String appModifiedFLD = '2021-09-21'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
@@ -3725,8 +3725,8 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
  * send speak command to one zone
  * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
  */
-void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false, Boolean igndnd=false) {
-    List devObj = getZoneDevices([zoneId], "TTS", igndnd)
+void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false, Boolean bypassDoNotDisturb=false) {
+    List devObj = getZoneDevices([zoneId], "TTS", bypassDoNotDisturb)
     String myMsg = "sendZoneSpeak"
     devObj.each { dev ->
         Map cmdMap = [
@@ -3754,8 +3754,8 @@ void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false, Boolean ig
  * send announce command to one zone
  * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
  */
-void sendZoneAnnounce(String zoneId, String msg, Boolean parallel=false, Boolean igndnd=false) {
-    List devObj = getZoneDevices([zoneId], "announce", igndnd)
+void sendZoneAnnounce(String zoneId, String msg, Boolean parallel=false, Boolean bypassDoNotDisturb=false) {
+    List devObj = getZoneDevices([zoneId], "announce", bypassDoNotDisturb)
     String myMsg = "sendZoneAnnounce"
     devObj.each { dev ->
         Map deviceData = [
@@ -4873,7 +4873,7 @@ void missPollNotify(Boolean on, Integer wait) {
         if(lastDataUpd != 1000000) {
             String msg
             if((Boolean)state.authValid) {
-                msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue network access."
+                msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue with network access."
             } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
             logWarn(msg.toString().replaceAll("\n", sSPACE))
 

@@ -32,8 +32,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.10.0'
-@Field static final String appModifiedFLD = '2021-09-15'
+@Field static final String appVersionFLD  = '4.2.0.0'
+@Field static final String appModifiedFLD = '2021-09-21'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''

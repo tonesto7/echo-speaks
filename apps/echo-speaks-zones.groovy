@@ -28,8 +28,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = "4.1.10.0"
-@Field static final String appModifiedFLD = "2021-09-15"
+@Field static final String appVersionFLD  = '4.2.0.0'
+@Field static final String appModifiedFLD = '2021-09-21'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -687,13 +687,13 @@ void relaySeqCommand(String type, String command, value=null,  Map deviceData=[:
 }
 
 @SuppressWarnings('unused')
-void relayAnnounceZone(String zoneId, String msg, Boolean parallel, Boolean igndnd) {
-    if(zoneOnline()) parent.sendZoneAnnounce(zoneId, msg, parallel, igndnd)
+void relayAnnounceZone(String zoneId, String msg, Boolean parallel, Boolean ignoreDoNotDisturb) {
+    if(zoneOnline()) parent.sendZoneAnnounce(zoneId, msg, parallel, ignoreDoNotDisturb)
 }
 
 @SuppressWarnings('unused')
-void relaySpeakZone(String zoneId, String msg, Boolean parallel, Boolean igndnd) {
-    if(zoneOnline()) parent.sendZoneSpeak(zoneId, msg, parallel, igndnd)
+void relaySpeakZone(String zoneId, String msg, Boolean parallel, Boolean ignoreDoNotDisturb) {
+    if(zoneOnline()) parent.sendZoneSpeak(zoneId, msg, parallel, ignoreDoNotDisturb)
 }
 
 @SuppressWarnings('unused')
@@ -1279,7 +1279,7 @@ private static String kvListToHtmlTable(List<Map> tabList, String color=sCLRGRY)
     return str
 }
 
-Map getZoneDevices(String cmd=sNULL, Boolean igndnd=false) {
+Map getZoneDevices(String cmd=sNULL, Boolean ignoreDoNotDisturb=false) {
     // updDeviceInputs()
     List devObj = []
     List devIds = []
@@ -1287,7 +1287,7 @@ Map getZoneDevices(String cmd=sNULL, Boolean igndnd=false) {
     List devices = parent?.getDevicesFromList(settings.zone_EchoDevices)
     //devices?.each { devObj?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]); devIds.push(it?.getId()); }
     devices?.each {
-        Map devInfo = it?.getEchoDevInfo(cmd, igndnd)
+        Map devInfo = it?.getEchoDevInfo(cmd, ignoreDoNotDisturb)
         if(devInfo) {
             devObj?.push(devInfo)
             devIds.push(it?.getId())
@@ -1320,7 +1320,7 @@ public zoneRefreshHandler(evt) {
  *   or a zone device handler (calling its parent)
  */
 
-public zoneCmdHandler(evt, Boolean chldDev=false, Boolean igndnd=false) {
+public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=false) {
     // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
     Map data = evt?.jsonData
@@ -1340,7 +1340,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean igndnd=false) {
             if(fA) cmd = "announcement"
         }
 
-        Map zoneDevMap = getZoneDevices(cmd == 'speak' ? 'TTS' : 'announce', igndnd)
+        Map zoneDevMap = getZoneDevices(cmd == 'speak' ? 'TTS' : 'announce', ignoreDoNotDisturb)
         List zoneDevs = (List)zoneDevMap.devices
 
         if(data.zoneVolumes && data.zoneVolumes?.size() && data.zoneVolumes[appId]) {
