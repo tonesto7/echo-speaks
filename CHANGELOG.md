@@ -1,7 +1,14 @@
+### _**Release (v4.2.0.0) - [September 21st, 2021]**_
+
+#### _***All Apps and Devices***_
+- [NEW] Updated notification quiet time restrictions to match the same code structure as those in ES Actions.
+- [NEW] Added new commands for speech and announcements to bypass alexa do not disturb restrictions to speak for emergency scenarios.
+
 ### _**Release (v4.1.10.0) - [September 15th, 2021]**_
 
 #### _***All Apps and Devices***_
 - [FIX] Bugfixes and Optimizations.
+  
 ### _**Release (v4.1.9.9) - [September 10th, 2021]**_
 
 #### _***All Apps and Devices***_
