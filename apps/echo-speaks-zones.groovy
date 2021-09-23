@@ -17,6 +17,7 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection unused
 //file:noinspection GroovySillyAssignment
+//file:noinspection GrMethodMayBeStatic
 
 import groovy.json.JsonOutput
 import groovy.transform.Field
@@ -604,7 +605,7 @@ void handleZoneDevice() {
 }
 
 List getEzDevice() {
-    return getChildDevices()?.findAll { (Boolean)it?.isZone() }
+    return ((List)getChildDevices())?.findAll { (Boolean)it?.isZone() }
 }
 
 void updateChildZoneState(Boolean zoneActive, Boolean active) {
