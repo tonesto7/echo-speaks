@@ -17,6 +17,7 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection unused
 //file:noinspection GroovySillyAssignment
+//file:noinspection GrMethodMayBeStatic
 
 
 import groovy.json.JsonOutput
@@ -2737,7 +2738,7 @@ Map getBluetoothData(String serialNumber) {
         }
     }
     List tob = btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", sBLANK) }
-    return [btObjs: btObjs, pairedNames: tob ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
+    return [btObjs: btObjs, pairedNames: tob ?: [], curConnName: curConnName?.replaceAll("\ufffd", sBLANK)]
 }
 
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
@@ -4687,7 +4688,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 String str = nstr
                 String mtype = lcmd == "ssml" || isSSML ? "ssml" : "text"
                 String mval = lcmd == "ssml" || isSSML ? str : cleanString(str)
-                String mtitle = cleanString(lcmd == "ssml" || isSSML ?  str.replaceAll(/<[^>]+>/, '') : str)
+                String mtitle = cleanString(lcmd == "ssml" || isSSML ?  str.replaceAll(/<[^>]+>/, sBLANK) : str)
                 seqNode.operationPayload.content = [[
                                                             locale: ((String)settings.regionLocale ?: "en-US"),
                                                             display: [ title: cleanString(valObj[0]), body: mtitle ], //valObj[1].replaceAll(/<[^>]+>/, '') ],
@@ -4914,13 +4915,13 @@ void appUpdateNotify() {
         secs=getLastTsValSecs("lastUpdMsgDt")
         if(secs > updW && on) {
             String str = sBLANK
-            str += !appUpd ? "" : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
-            str += !actUpd ? "" : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
-            str += !zoneUpd ? "" : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
-            str += !zoneChildDevUpd ? "" : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
-            str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
-            str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
-            str += !servUpd ? "" : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
+            str += !appUpd ? sBLANK : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
+            str += !actUpd ? sBLANK : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
+            str += !zoneUpd ? sBLANK : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
+            str += !zoneChildDevUpd ? sBLANK : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
+            str += !echoDevUpd ? sBLANK : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
+            str += !socketUpd ? sBLANK : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
+            str += !servUpd ? sBLANK : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
         }
@@ -5047,7 +5048,7 @@ static String getPublicImg(String imgName) { return "https://raw.githubuserconte
 static String sectH3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
 
 public static String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) {
-    String s = ""
+    String s = sBLANK
     s += title ? "<div style='${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}'>${img != sNULL ? """<img src=${getAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
     s += body ? "<div style='${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}'>${body}</div>" : sBLANK
     return s
@@ -5056,7 +5057,7 @@ public static String paraTS(String title = sNULL, String body = sNULL, String im
 static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
 static String sTS(String t, String i = sNULL, Boolean bold=false) { return "<h3>${i ? "<img src='${i}' width='42'> " : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>" }
 static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return "<h3 style='color:${c};font-weight: bold;'>${i ? "<img src='${i}' width='42'> " : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}" }
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
 static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE)?.replaceAll("<br>", sSPACE), und), clr, img) }
