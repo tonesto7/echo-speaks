@@ -17,6 +17,7 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection unused
 //file:noinspection GroovySillyAssignment
+//file:noinspection GrMethodMayBeStatic
 
 import groovy.json.JsonOutput
 import groovy.transform.Field
@@ -604,7 +605,7 @@ void handleZoneDevice() {
 }
 
 List getEzDevice() {
-    return getChildDevices()?.findAll { (Boolean)it?.isZone() }
+    return ((List)getChildDevices())?.findAll { (Boolean)it?.isZone() }
 }
 
 void updateChildZoneState(Boolean zoneActive, Boolean active) {
@@ -1858,7 +1859,7 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? spanSmBr("     ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} " + getOkOrNotSymHTML(timeOk)) : sBLANK
+    str += (startLbl && stopLbl) ? spanSmBr("     ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} " + getOkOrNotSymHTML(!timeOk)) : sBLANK
     List qDays = getQuietDays()
     str += dayInput && qDays ? spanSmBr("     ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
     str += modeInput ? spanSm("     ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
