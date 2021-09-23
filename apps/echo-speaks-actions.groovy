@@ -831,10 +831,11 @@ def doAftInput(String inType) {
 def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemCnt=0 */) {
     if((String)settings.actionType in [sSPEAK, sSPEAKI, sSPEAKP, sSPEAKIP, sANN, sANNI]) {
         String str = spanSmBldBr("Response Options", sCLR4D9)
+        String a=s3SPACE+sBULLET+sSPACE
         str += spanSmBr("Available Options:")
-        str += spanSmBr("   ${sBULLET} ${strUnder("1")}: Leave the text empty below and text will be generated for each ${inType} trigger event.")
-        str += spanSmBr("   ${sBULLET} ${strUnder("2")}: Wait till the Execution config step and define a single global response for all triggers selected.")
-        str += spanSmBr("   ${sBULLET} ${strUnder("3")}: Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)")
+        str += spanSmBr("${a}${strUnder("1")}: Leave the text empty below and text will be generated for each ${inType} trigger event.")
+        str += spanSmBr("${a}${strUnder("2")}: Wait till the Execution config step and define a single global response for all triggers selected.")
+        str += spanSmBr("${a}${strUnder("3")}: Use the response builder below and create custom responses for each individual trigger type. (Supports randomization when multiple responses are configured)")
         paragraph divSm(str, sCLRGRY, "info")
         //Custom Text Options
         Integer resp1cnt = 1
@@ -1325,7 +1326,7 @@ def actionsPage() {
                             String str3 = "Canned TTS Options:"
                             seqItemsAvail?.speech?.sort()?.each { k, v->
                                 def newV = v
-                                if(v instanceof List) { newV = sBLANK; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}" } }
+                                if(v instanceof List) { newV = sBLANK; v?.sort()?.each { newV += s5SPACE+dashItem(newV, "${it}", true) } }
                                 str3 += "${bulletItem(str3, "${k}${newV != null ? "::${newV}" : sBLANK}")}"
                             }
                             paragraph spanSm(str1, sCLR4D9)
@@ -1814,8 +1815,9 @@ Boolean isActDevContConfigured() {
 def actionSimulationSect() {
     section(sectHead("Simulate Action")) {
         String str = spanSmBldBr("Test this action and see the results.", "black", "testing")
-        str += spanSmBldBr("NOTE: ") + spanSmBr("  ${sBULLET} When global text is not defined, this will generate a random event based on your trigger selections.")
-        str += settings.act_EchoZones ? spanSm("  ${sBULLET} Testing with zones requires you to save the app and come back in to test.") : sBLANK
+        String a=s2SPACE+sBULLET+sSPACE
+        str += spanSmBldBr("NOTE: ") + spanSmBr("${a}When global text is not defined, this will generate a random event based on your trigger selections.")
+        str += settings.act_EchoZones ? spanSm("${a}Testing with zones requires you to save the app and come back in to test.") : sBLANK
         paragraph spanSm(str, sCLRGRY)
         input "actTestRun", sBOOL, title: inTS1("Test this action?"), description: sBLANK, required: false, defaultValue: false, submitOnChange: true
         if((Boolean)settings.actTestRun) { executeActTest() }
@@ -4948,10 +4950,11 @@ String getNotifSchedDesc(Boolean min=false) {
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? spanSmBr("     ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} " + getOkOrNotSymHTML(timeOk)) : sBLANK
+    String a=s5SPACE+sBULLET+sSPACE
+    str += (startLbl && stopLbl) ? spanSmBr("${a}Restricted Times: ${startLbl} - ${stopLbl} " + getOkOrNotSymHTML(timeOk)) : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? spanSmBr("     ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
-    str += modeInput ? spanSm("     ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
+    str += dayInput && qDays ? spanSmBr("${a}Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
+    str += modeInput ? spanSm("${a}Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
     str = str ? spanSmBr("  ${sBULLET} Restrictions Active: " + getOkOrNotSymHTML(rest)) + spanSm(str) : sBLANK
     return (str != sBLANK) ? divSm(str, sCLR4D9) : sNULL
 }
@@ -4963,7 +4966,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
     if(confd && setItem?.size()) {
         if(!hideDesc) {
             String str = spanSmBldBr("Triggers${!addFoot ? " for ("+(String)buildActTypeEnum()."${(String)settings.actionType}" + ")" : sBLANK}:", sNULL)
-            String btstr = "    "+sBULLETINV+" "
+            String btstr = s4SPACE+sBULLETINV+sSPACE
             setItem.each { String evt->
                 String adder = sBLANK
                 String eH = sPre+evt
@@ -5008,7 +5011,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                     default:
                         str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${myL ? " (${myL?.size()} Device" + pluralizeStr(myL, false) + ")" : sBLANK}")
                         String t_cmd = (String)settings."${eH}_cmd"
-                        String tstr = "    "+spanSmBld(sPLUS)+" "
+                        String tstr = s4SPACE+spanSmBld(sPLUS)+sSPACE
                         if(t_cmd in numOpts()) {
                             if (t_cmd in [sBETWEEN, sNBETWEEN]) {
                                 str += spanSmBr(tstr+"Trigger Value ${t_cmd.capitalize()}: (${settings."${eH}_low"} - ${settings."${eH}_high"})")
@@ -5028,8 +5031,8 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         str += (Boolean)settings."${eH}_once"               ? spanSmBr(tstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
                         str += (Integer)settings."${eH}_wait"!=null         ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
                         str += ((String)settings."${eH}_txt" || (String)settings."${eH}_after_repeat_txt") ? spanSmBr(tstr+"Custom Responses:") : sBLANK
-                        str += (String)settings."${eH}_txt"                 ? spanSmBr("   "+tstr+"Events: (${((String)settings."${eH}_txt")?.tokenize(";")?.size()} Items)") : sBLANK
-                        str += (String)settings."${eH}_after_repeat_txt"    ? spanSmBr("   "+tstr+"Repeats: (${((String)settings."${eH}_after_repeat_txt")?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += (String)settings."${eH}_txt"                 ? spanSmBr(s3SPACE+tstr+"Events: (${((String)settings."${eH}_txt")?.tokenize(";")?.size()} Items)") : sBLANK
+                        str += (String)settings."${eH}_after_repeat_txt"    ? spanSmBr(s3SPACE+tstr+"Repeats: (${((String)settings."${eH}_after_repeat_txt")?.tokenize(";")?.size()} Items)") : sBLANK
                         break
                 }
             }
@@ -5050,7 +5053,7 @@ String getConditionsDesc(Boolean addFoot=true) {
     Boolean confd = conditionsConfigured()
     String sPre = "cond_"
     String str = sBLANK
-    String btstr = "    "+sBULLETINV+" "
+    String btstr = s4SPACE+sBULLETINV+sSPACE
     if(confd) {
         str = getOverallDesc()
         str += spanSmBr(" ${sBULLET} " + spanSmBld("${reqAllCond() ? "All Conditions Required" : "Any Condition Allowed"}"))
@@ -5153,7 +5156,7 @@ String getZoneVolDesc(zone, Map<String,Object>volMap) {
     String k = (String)zone.key
     str += spanSm(" ${sBULLET} ${zone?.value?.name} ${zone?.value?.active == true ? spanSm(" (Active)", sCLRGRN2) : spanSm(" (Inactive)", sCLRGRY)}")
     if((Boolean)settings.act_EchoZones_vol_per_zone && volMap && volMap[k]) {
-        String btstr = "    "+sBULLETINV+" "
+        String btstr = s4SPACE+sBULLETINV+sSPACE
         str += volMap[k].change ? lineBr() + spanSm(btstr+"New Volume: ${volMap[k].change}") : sBLANK
         str += volMap[k].restore ? lineBr() + spanSm(btstr+"Restore Volume: ${volMap[k].restore}") : sBLANK
     }
@@ -5239,7 +5242,7 @@ static String getInputToStringDesc(inpt, addSpace = null) {
     if(inpt) {
         inpt.sort().each { item ->
             cnt = cnt+1
-            str += item ? (((cnt < 1) || (inpt?.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : sBLANK}${item}") : sBLANK
+            str += item ? (((cnt < 1) || (inpt?.size() > 1)) ? "\n      ${item}" : "${addSpace ? s6SPACE : sBLANK}${item}") : sBLANK
         }
     }
     //log.debug "str: $str"
