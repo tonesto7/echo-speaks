@@ -5001,7 +5001,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + myL ? " (${myL?.size()} Selected)" : sBLANK)
                         if ("alerts" in myL) str += (List)settings."${eH}_events"  ? spanSmBr(btstr+"Alert Events: (${(List)settings."${eH}_events"})") : sBLANK
                         str += (Boolean)settings."${eH}_once" ? spanSmBr(btstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
-                        str += (Integer)settings."${eH}_wait"!=null ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
+                        str += (Integer)settings."${eH}_wait"!=null ? spanSmBr(btstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
                         break
                     case sPISTNEXEC:
                     case sMODE:
@@ -5009,7 +5009,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         String typ = evt == sMODE ? "Mode" : "Piston"
                         str += myL    ? spanSmBr(" ${sBULLET} "+ strUnder(typ) + pluralizeStr(myL, false) + " (${myL?.size()})") : sBLANK
                         str += (Boolean)settings."${eH}_once" ? spanSmBr(btstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
-                        str += (Integer)settings."${eH}_wait"!=null ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
+                        str += (Integer)settings."${eH}_wait"!=null ? spanSmBr(btstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
                         break
                     case sPUSHED:
                     case sRELEASED:
