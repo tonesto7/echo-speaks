@@ -141,6 +141,8 @@ import java.util.concurrent.Semaphore
 @Field static final String sACT_START     = 'act_tier_start_'
 @Field static final String sACT_STOP      = 'act_tier_stop_'
 @Field static final String sACT_ITEM      = 'act_tier_item_'
+@Field static final String sRECURRING     = 'Recurring'
+@Field static final String sONETIME       = 'One-Time'
 @Field static final List<String> lONOFF        = ['on', 'off']
 @Field static final List<String> lANY          = ['any']
 @Field static final List<String> lOPNCLS       = ['open', 'closed']
@@ -426,8 +428,8 @@ private scheduleConvert() {
     if(settings.trig_scheduled_time || settings.trig_scheduled_sunState && !settings.trig_scheduled_type) {
         if(settings.trig_scheduled_sunState) { settingUpdate("trig_scheduled_type", "${settings.trig_scheduled_sunState}", sENUM); settingRemove("trig_scheduled_sunState") }
         else if(settings.trig_scheduled_time && settings.trig_scheduled_recurrence) {
-            if(settings.trig_scheduled_recurrence == "Once") { settingUpdate("trig_scheduled_type", "One-Time", sENUM) }
-            if(settings.trig_scheduled_recurrence in ["Daily", "Weekly", "Monthly"]) { settingUpdate("trig_scheduled_type", "Recurring", sENUM) }
+            if(settings.trig_scheduled_recurrence == "Once") { settingUpdate("trig_scheduled_type", sONETIME, sENUM) }
+            if(settings.trig_scheduled_recurrence in ["Daily", "Weekly", "Monthly"]) { settingUpdate("trig_scheduled_type", sRECURRING, sENUM) }
         }
     }
 } */
@@ -465,15 +467,15 @@ def triggersPage() {
 
             if (valTrigEvt(sSCHED)) {
                 section(sectHead("Time Based Events"), hideable: true) {
-                    List schedTypes = ["One-Time", "Recurring", sCSUNRISE, sCSUNSET]
+                    List schedTypes = [sONETIME, sRECURRING, sCSUNRISE, sCSUNSET]
                     input "trig_scheduled_type", sENUM, title: inTS1("Schedule Type?", sCHKBOX), options: schedTypes, multiple: false, required: true, submitOnChange: true
                     String schedType = (String)settings.trig_scheduled_type
                     if(schedType) {
                         switch(schedType) {
-                            case "One-Time":
-                            case "Recurring":
+                            case sONETIME:
+                            case sRECURRING:
                                 input "trig_scheduled_time", sTIME, title: inTS1("Trigger Time?", "clock"), required: false, submitOnChange: true
-                                if(settings.trig_scheduled_time && schedType == "Recurring") {
+                                if(settings.trig_scheduled_time && schedType == sRECURRING) {
                                     List recurOpts = ["Daily", "Weekly", "Monthly"] // "Yearly"
                                     input "trig_scheduled_recurrence", sENUM, title: inTS1("Recurrence?", "day_calendar"), description: sBLANK, multiple: false, required: true, submitOnChange: true, options: recurOpts, defaultValue: "Once"
                                     // TODO: Build out the scheduling some more with quick items like below
@@ -2350,14 +2352,14 @@ private void actionCleanup() {
         setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_type", "trig_scheduled_recurrence", "trig_scheduled_time", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
     } else {
         switch(settings.trig_scheduled_type) {
-            case "One-Time":
+            case sONETIME:
             case sCSUNRISE:
             case sCSUNSET:
                 setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_recurrence", "trig_scheduled_weekdays", "trig_scheduled_weeks"]
                 if((String)settings.trig_scheduled_type in [sCSUNSET, sCSUNRISE]) { setItems.push("trig_scheduled_time") }
                 else setItems = setItems + ["trig_scheduled_sunState_offset"]
                 break
-            case "Recurring":
+            case sRECURRING:
                 switch(settings.trig_scheduled_recurrence) {
                     case "Daily":
                         setItems = setItems + ["trig_scheduled_daynums", "trig_scheduled_months", "trig_scheduled_weeks"]
@@ -2445,9 +2447,9 @@ String cronBuilder() {
         At 12 am midnight on every day for five days starting on the 10th day of the month: (0 0 0 10/5 * ?)
     ****/
     String cron = sNULL
-    //List schedTypes = ["One-Time", "Recurring", sCSUNRISE, sCSUNSET]
+    //List schedTypes = [sONETIME, sRECURRING, sCSUNRISE, sCSUNSET]
     String schedType = (String)settings.trig_scheduled_type
-    Boolean recur = (schedType == "Recurring")
+    Boolean recur = (schedType == sRECURRING)
     def time = settings.trig_scheduled_time ?: null
     List dayNums = recur && settings.trig_scheduled_daynums ? settings.trig_scheduled_daynums?.collect { it as Integer }?.sort() : null
 //    List weekNums = recur && settings.trig_scheduled_weeks ? settings.trig_scheduled_weeks?.collect { it as Integer }?.sort() : null
@@ -2482,8 +2484,8 @@ String cronBuilder() {
 
 Boolean schedulesConfigured() {
     if((String)settings.trig_scheduled_type in [sCSUNRISE, sCSUNSET]) { return true }
-    else if((String)settings.trig_scheduled_type == "One-Time" && settings.trig_scheduled_time) { return true }
-    else if((String)settings.trig_scheduled_type == "Recurring" && settings.trig_scheduled_time && settings.trig_scheduled_recurrence) {
+    else if((String)settings.trig_scheduled_type == sONETIME && settings.trig_scheduled_time) { return true }
+    else if((String)settings.trig_scheduled_type == sRECURRING && settings.trig_scheduled_time && settings.trig_scheduled_recurrence) {
         if((String)settings.trig_scheduled_recurrence == "Daily") { return true }
         else if ((String)settings.trig_scheduled_recurrence == "Weekly" && (List)settings.trig_scheduled_weekdays) { return true }
         else if ((String)settings.trig_scheduled_recurrence == "Monthly" && (settings.trig_scheduled_daynums || settings.trig_scheduled_weeks)) { return true }
@@ -2519,7 +2521,7 @@ void subscribeToEvts() {
                             scheduleSunriseSet()
                             schedule('29 0 0 1/1 * ? * ', "scheduleSunriseSet")  // run at 00:00:29 every day
                         }
-                        else if((String)settings.trig_scheduled_type in ["One-Time", "Recurring"] && settings.trig_scheduled_time) { schedule(cronBuilder(), "scheduleTrigEvt") }
+                        else if((String)settings.trig_scheduled_type in [sONETIME, sRECURRING] && settings.trig_scheduled_time) { schedule(cronBuilder(), "scheduleTrigEvt") }
                     }
                     break
                 case "guard":
@@ -2731,7 +2733,7 @@ def scheduleTrigEvt(evt=null) {
     logTrace("${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
     String schedType = (String)settings.trig_scheduled_type
-    Boolean recur = schedType == "Recurring"
+    Boolean recur = schedType == sRECURRING
     Map dateMap = getDateMap()
     // log.debug "dateMap: $dateMap"
     String srecur = recur ? (String)settings.trig_scheduled_recurrence : sNULL
@@ -4979,7 +4981,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                     case sSCHED:
                         String schedTyp = settings."${eH}_type" ?: sNULL
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())}${schedTyp ? " (${schedTyp})" : ""}")
-                        if(schedTyp == "Recurring") {
+                        if(schedTyp == sRECURRING) {
                             str += settings."${eH}_recurrence" ? spanSmBr(btstr+"Recurrence: (${settings."${eH}_recurrence"})")            : sBLANK
                             str += settings."${eH}_time"       ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")})")               : sBLANK
                             str += settings."${eH}_weekdays"   ? spanSmBr(btstr+"Week Days: (${settings."${eH}_weekdays"?.join(",")})")    : sBLANK
@@ -4987,7 +4989,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                             str += settings."${eH}_weeks"      ? spanSmBr(btstr+"Weeks of Month: (${settings."${eH}_weeks"?.join(",")})")  : sBLANK
                             str += settings."${eH}_months"     ? spanSmBr(btstr+"Months: (${settings."${eH}_months"?.join(",")})")         : sBLANK
                         }
-                        if(schedTyp == "One-Time") {
+                        if(schedTyp == sONETIME) {
                             str += settings."${eH}_time"       ? spanSmBr(btstr+"Time: (${fmtTime(settings."${eH}_time")}))")              : sBLANK
                         }
                         if(schedTyp in [sCSUNRISE, sCSUNSET]) {
@@ -4998,6 +5000,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         str += spanSmBr(" ${sBULLET} ${strUnder(evt?.capitalize())} (${getAlarmSystemName(true)})" + myL ? " (${myL?.size()} Selected)" : sBLANK)
                         if ("alerts" in myL) str += (List)settings."${eH}_events"  ? spanSmBr(btstr+"Alert Events: (${(List)settings."${eH}_events"})") : sBLANK
                         str += (Boolean)settings."${eH}_once" ? spanSmBr(btstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
+                        str += (Integer)settings."${eH}_wait"!=null ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
                         break
                     case sPISTNEXEC:
                     case sMODE:
@@ -5005,6 +5008,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         String typ = evt == sMODE ? "Mode" : "Piston"
                         str += myL    ? spanSmBr(" ${sBULLET} "+ strUnder(typ) + pluralizeStr(myL, false) + " (${myL?.size()})") : sBLANK
                         str += (Boolean)settings."${eH}_once" ? spanSmBr(btstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
+                        str += (Integer)settings."${eH}_wait"!=null ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
                         break
                     case sPUSHED:
                     case sRELEASED:
