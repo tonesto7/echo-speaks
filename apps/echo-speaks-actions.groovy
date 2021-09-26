@@ -2745,11 +2745,14 @@ def scheduleTrigEvt(evt=null) {
     Map sTrigMap = (Map)getMemStoreItem("schedTrigMap", [:])
     if(!sTrigMap) sTrigMap = (Map)state.schedTrigMap ?: [:]
 
-    Boolean wdOk = (days && srecur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days && sTrigMap?.lastRun?.dayName != dateMap.dayNameShort) : true
-    Boolean mdOk = daynums ? (dateMap.day in daynums && sTrigMap?.lastRun?.day != dateMap.day) : true
-    Boolean wOk = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
-    Boolean mOk = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
-    Boolean ok = (wdOk && mdOk && wOk && mOk)
+    Boolean dChk = (sTrigMap?.lastRun?.day != dateMap.day) || (sTrigMap?.lastRun?.year != dateMap.year) || (sTrigMap?.lastRun?.month != dateMap.month)
+
+    Boolean dOk  = (srecur in ["Daily"]) ? (sTrigMap?.lastRun?.dayName != dateMap.dayName) : true
+    Boolean wdOk = (days && srecur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days) : true
+    Boolean mdOk = daynums ? (dateMap.day in daynums) : true
+    Boolean wOk  = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
+    Boolean mOk  = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
+    Boolean ok   = (dOk && wdOk && mdOk && wOk && mOk && dChk)
     if(ok) {
         sTrigMap.lastRun = dateMap
         updMemStoreItem("schedTrigMap", sTrigMap)
@@ -2758,7 +2761,7 @@ def scheduleTrigEvt(evt=null) {
 
     releaseTheLock(sHMLF)
     eventCompletion(evt, ok, false, null, "scheduleTrigEvt", evt?.value, (String)evt?.displayName)
-    if(!ok) logDebug("scheduleTrigEvt | SKIPPING | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
+    if(!ok) logDebug("scheduleTrigEvt | SKIPPING | Comparison to lastrun: dateChange: $dChk | dayOk: $dOk | dayOfWeekOk: $wdOk | dayOfMonthOk: $mdOk | weekOk: $wOk | monthOk: $mOk")
 }
 
 def alarmEvtHandler(evt) {
