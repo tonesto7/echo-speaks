@@ -4976,6 +4976,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                 String adder = sBLANK
                 String eH = sPre+evt
                 List myL = (List)settings."${eH}"
+                String tstr = s4SPACE+spanSmBld(sPLUS)+sSPACE
                 //noinspection GroovyFallthrough
                 switch(evt) {
                     case sSCHED:
@@ -5018,7 +5019,6 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                     default:
                         str += spanSmBr(" ${sBULLET} ${adder}${strUnder(evt?.capitalize())}${myL ? " (${myL?.size()} Device" + pluralizeStr(myL, false) + ")" : sBLANK}")
                         String t_cmd = (String)settings."${eH}_cmd"
-                        String tstr = s4SPACE+spanSmBld(sPLUS)+sSPACE
                         if(t_cmd in numOpts()) {
                             if (t_cmd in [sBETWEEN, sNBETWEEN]) {
                                 str += spanSmBr(tstr+"Trigger Value ${t_cmd.capitalize()}: (${settings."${eH}_low"} - ${settings."${eH}_high"})")
