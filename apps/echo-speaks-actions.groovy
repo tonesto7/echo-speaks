@@ -33,7 +33,7 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String appVersionFLD  = '4.2.0.0'
-@Field static final String appModifiedFLD = '2021-09-23'
+@Field static final String appModifiedFLD = '2021-09-27'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -233,18 +233,6 @@ def appInfoSect() {
     str += instDt ? spanSmBld("Installed: ") + spanSmBr(instDt) : sBLANK
     section() { paragraph divSm(str, sCLRGRY) }
 }
-/*
-List cleanedTriggerList() {
-    List newList = []
-    settings.triggerTypes?.each { String tr ->
-        newList.push(tr.split("::")[0] as String)
-    }
-    return newList.unique()
-}
-
-String selTriggerTypes(type) {
-    return settings.triggerTypes?.findAll { it?.startsWith(type as String) }?.collect { it?.toString()?.split("::")[1] }?.join(", ")
-} */
 
 private Map buildTriggerEnum() {
     Map<String,Map<String,String>> buildItems = [:]
@@ -725,13 +713,15 @@ Map<String,Map> getCodes(List devs, String code=sNULL) {
 def dummy(a,b) {}
 
 def trigNonNumSect(String inType, String capType, String sectStr, String devTitle, cmdOpts, String cmdTitle, cmdAfterOpts, String image, Boolean devReq=true, Closure extraMeth=this.&dummy, String extraStr=sNULL) {
-    //Boolean done = false
     section (sectHead(sectStr), hideable: true) {
         input "trig_${inType}", "capability.${capType}", title: spanSmBld(devTitle, sNULL, image), multiple: true, required: devReq, submitOnChange: true
         if (settings."trig_${inType}") {
             input "trig_${inType}_cmd", sENUM, title: spanSmBld("${cmdTitle}...", sNULL, sCOMMAND), options: cmdOpts, multiple: false, required: true, submitOnChange: true
             if((String)settings."trig_${inType}_cmd") {
-                //done=true
+                if(inType == sLOCK) {
+                    String lMsg = "This will prevent duplicate speech events on Zigbee Locks that send two events per lock and unlock."
+                    input "trig_${inType}_ign_empty_type", sBOOL, title: spanSmBld("Ignore ${devTitle} Events with No Type?", sNULL, sQUES) + optPrefix() + lineBr() + spanSm(lMsg, sCLRGRY), required: false, defaultValue: false, submitOnChange: true
+                }
                 if (settings."trig_${inType}"?.size() > 1 && (String)settings."trig_${inType}_cmd" != sANY) {
                     input "trig_${inType}_all", sBOOL, title: spanSmBld("Require ALL ${devTitle} to be (${settings."trig_${inType}_cmd"})?", sNULL, sCHKBOX), required: false, defaultValue: false, submitOnChange: true
                 }
@@ -754,7 +744,7 @@ def trigButtonSect(String inType, String capType, String sectStr, String devTitl
         if (settings."trig_${inType}") {
             settingUpdate("trig_${inType}_cmd", cmd, sENUM)
             //input "trig_${inType}_cmd", sENUM, title: inTS1("Pushed changes", sCOMMAND), options: [sPUSHED], required: true, multiple: false, defaultValue: sPUSHED, submitOnChange: true
-            input "trig_${inType}_nums", sENUM, title: inTS1("button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true
+            input "trig_${inType}_nums", sENUM, title: inTS1("Button numbers?", sCOMMAND), options: 1..8, required: true, multiple: true,  submitOnChange: true
             if(settings."trig_${inType}_nums") {
                 input "trig_${inType}_once", sBOOL, title: spanSmBld("Only alert once a day?", sNULL, sQUES) + optPrefix(), required: false, defaultValue: false, submitOnChange: true
                 input "trig_${inType}_wait", sNUMBER, title: spanSmBld("Wait between each report (in seconds)", sNULL, sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
@@ -2066,8 +2056,8 @@ def condTimePage() {
 }
 
 def uninstallPage() {
-    return dynamicPage(name: "uninstallPage", title: "Uninstall", install: false , uninstall: true) {
-        section(sBLANK) { paragraph spanSmBld("This will delete this Echo Speaks Action.", sCLRORG) }
+    return dynamicPage(name: "uninstallPage", title: sBLANK, install: false , uninstall: true) {
+        section(sectHead("Uninstall this Action?")) { paragraph spanSmBld("This will delete this Echo Speaks Action.", sCLRORG) }
     }
 }
 
@@ -2603,7 +2593,6 @@ private executeActTest() {
                         break
                 }
             }
-//        if(!fnd) executeAction(evt, true, "executeActTest", false, false)
         } else logWarn("TEST of Action type ${settings.actionType} SKIPPED")
     } catch (ignored) {}
     settingUpdate("actTestRun", sFALSE, sBOOL)
@@ -2664,7 +2653,7 @@ Map getRandomTrigEvt() {
             evt = evt + [ jsonData: [id: id, name: getPistonById(id) ] ]
         }
         if(attVal.containsKey(trig)) {
-            evt = evt + [ displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], device: [id: trigItem?.id?.toString() ?: null ] ]
+            evt = evt + [ displayName: trigItem?.displayName ?: sBLANK, value: attVal[trig], type: "digital", device: [id: trigItem?.id?.toString() ?: null ] ]
         } else evt = null
     } else { evt.name=sSCHED }
 
@@ -2809,7 +2798,7 @@ void eventCompletion(evt, Boolean ok2Run, Boolean dco, Integer dcw, String meth,
     logDebug(meth+" | execOk: ${ok} | ok2Run :${ok2Run} | evtWaitOk: ${evtWaitOk}")
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, ok)
-    } else { if(ok) executeAction(evt, false, meth, allDevsResp, aftRepEvt) }
+    } else { if(ok) executeAction(evt, meth, allDevsResp, aftRepEvt) }
     if (!ok) logTrace(meth+" | Skipping event ${evtDis} ${evt?.name}  value: ${evtVal} | ok2Run :${ok2Run} | evtWaitOk: ${evtWaitOk}")
 }
 
@@ -2827,15 +2816,6 @@ def webcoreEvtHandler(evt) {
     eventCompletion(evt, ok, dco, dcw, "webcoreEvtHandler", disN, disN)
     if(!ok) logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
 }
-// TODO not in use
-/*
-def sceneEvtHandler(evt) {
-    logTrace("${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
-    Boolean dco = ((Boolean)settings.trig_scene_once == true)
-    Integer dcw = (Integer)settings.trig_scene_wait ?: null
-    eventCompletion(evt, "scene", dco, dcw, "sceneEvtHandler", evt?.value, (String)evt?.displayName)
-    if(!ok) logTrace("webcoreEvtHandler | Skipping event ${eN}  value: ${eV}, ${pId} did not match ${lT}")
-}*/
 
 def modeEvtHandler(evt) {
     String eN = (String)evt.name
@@ -3138,6 +3118,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     //Integer dcw = ((Integer)settings."trig_${eN}_after"==null && (Integer)settings."trig_${eN}_wait") ? (Integer)settings."trig_${eN}_wait" : null
     Boolean dco = !!(Boolean)settings."trig_${eN}_once"
     Integer dcw = (Integer)settings."trig_${eN}_wait"!=null ? (Integer)settings."trig_${eN}_wait" : null
+    Boolean locknt = (Boolean)settings."trig_${eN}_ign_empty_type"
     String extra = sBLANK
     switch(eN) {
         case sSWITCH:
@@ -3163,9 +3144,12 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
                     else if(eV == dc) { evtOk=true }
                 }
             }
-            if(evtOk && eN in [sLOCK] && (String)evt.value in lLOCKUNL && evt.type == null) {
-                evtOk = false
-                extra = " FILTER REMOVED ${eN} (${evt.value}), did not have type set (${evt.type})"
+            if(evtOk && eN in [sLOCK] && (String)evt.value in lLOCKUNL) {
+                logTrace("Lock Event Type: ${evt.type} | Ignore Null Event Type: ${locknt}")
+                if(evt.type == null && locknt) {
+                    evtOk = false
+                    extra = " FILTER REMOVED ${eN} (${evt.value}), did not have type set (${evt.type})"
+                }
             }
             if(evtOk && eN in [sLOCK, "securityKeypad"] && (String)evt.value in ["disarmed", "unlocked"]) {
                 List dcn = settings."trig_${eN}_Codes"
@@ -3221,7 +3205,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, execOk)
     } else {
-        if (execOk) { executeAction(evt, false, meth+"(${eN})", evtAd, aftRepEvt) }
+        if (execOk) { executeAction(evt, meth+"(${eN})", evtAd, aftRepEvt) }
     }
     if (!execOk) logTrace(meth+" | Skipping event ${evt?.displayName} ${eN}  value: ${eV} | evtOk :${evtOk} | devEvtWaitOk: ${waitOk}")
     */
@@ -3894,10 +3878,11 @@ public getActionHistory(Boolean asObj=false) {
     List<Map> eHist = (List<Map>)getMemStoreItem("actionHistory")
     List<String> output = []
     if(eHist.size()) {
-        eHist.each { Map h->
+        eHist.sort { a,b-> b.dt <=> a.dt }.each { Map h->
             List hList = []
             hList.push([name: "Trigger:", val: h?.evtName])
             hList.push([name: "Device:", val: h?.evtDevice])
+            hList.push([name: "Value:", val: h?.evtValue])
             hList.push([name: "Condition Status:", val: (h?.active ? "Passed" : "Failed")])
             hList.push([name: "Conditions Passed:", val: h?.passed])
             hList.push([name: "Conditions Blocks:", val: h?.blocks])
@@ -3933,11 +3918,12 @@ private addToActHistory(evt, data, Integer max=10) {
     getTheLock(sHMLF, "addToActHistory")
 
     List eData = (List)getMemStoreItem("actionHistory")
-    if(eData == null)eData = []
+    if(eData == null) { eData = [] }
     eData.push([
         dt: getDtNow(),
         active: (data?.status?.ok == true),
         evtName: evt?.name,
+        evtValue: evt?.value,
         evtDevice: evt?.displayName,
         blocks: data?.status?.blocks,
         passed: data?.status?.passed,
@@ -3946,7 +3932,7 @@ private addToActHistory(evt, data, Integer max=10) {
         isRepeat: data?.isRepeat,
         src: data?.src
     ])
-    Integer lsiz=eData.size()
+    Integer lsiz = eData.size()
     if(lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     // log.debug "actionHistory Size: ${eData?.size()}"
     updMemStoreItem("actionHistory", eData)
@@ -3960,13 +3946,12 @@ void clearActHistory(){
     updMemStoreItem("actionHistory", [])
 
     releaseTheLock(sHMLF)
-
 }
 
-private void executeAction(evt = null, Boolean testMode=false, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
+private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
     String meth="executeAction"
     Long startTime = now()
-    if((Boolean)settings.actTestRun) testMode = true
+    if((Boolean)settings.actTestRun) { testMode = true }
     logTrace(meth+" ${src ? '('+src+')' : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
     if(isPaused(true)) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
     Map condStatus = conditionStatus()
@@ -4038,7 +4023,7 @@ private void executeAction(evt = null, Boolean testMode=false, String src=sNULL,
                         if(actDevSiz) {
                             List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                             List devObjs = []
-
+                            // log.debug "actDevices: ${actDevices}"
                             String cmd = mCmd in [sSPEAK, sSPEAKP, sSPEAKI, sSPEAKIP, sSPEAKT, sSPEAKIT, sSPEAKPT, sSPEAKIPT] ? sTTS : "announce"
                             actDevices?.each {
                                 Map devInfo = it?.getEchoDevInfo(cmd, true)  // ignores dnd setting in device
@@ -5039,6 +5024,7 @@ String getTriggersDesc(Boolean hideDesc=false, Boolean addFoot=true) {
                         str += (Integer)settings."${eH}_after_repeat"       ? spanSmBr(tstr+"Repeat Every: (${settings."${eH}_after_repeat"} sec)") : sBLANK
                         str += (Integer)settings."${eH}_after_repeat_cnt"   ? spanSmBr(tstr+"Repeat Count: (${settings."${eH}_after_repeat_cnt"})") : sBLANK
                         str += (Boolean)settings."${eH}_all"                ? spanSmBr(tstr+"Require All: (${settings."${eH}_all"})") : sBLANK
+                        str += (Boolean)settings."${eH}_ign_empty_type"     ? spanSmBr(tstr+"Ignore Empty Event Type: (${settings."${eH}_ign_empty_type"})") : sBLANK
                         str += (Boolean)settings."${eH}_once"               ? spanSmBr(tstr+"Once a Day: (${(Boolean)settings."${eH}_once"})") : sBLANK
                         str += (Integer)settings."${eH}_wait"!=null         ? spanSmBr(tstr+"Wait (Sec): (${(Integer)settings."${eH}_wait"})") : sBLANK
                         str += ((String)settings."${eH}_txt" || (String)settings."${eH}_after_repeat_txt") ? spanSmBr(tstr+"Custom Responses:") : sBLANK

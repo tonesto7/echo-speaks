@@ -31,7 +31,7 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String appVersionFLD  = '4.2.0.0'
-@Field static final String appModifiedFLD = '2021-09-23'
+@Field static final String appModifiedFLD = '2021-09-27'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
@@ -7255,7 +7255,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         text: ["appLbl"]
     ],
     ends: [
-        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone"],
+        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone", "_ign_empty_type"],
         enum: ["_cmd", "_type", "_routineExecuted",
                "_EchoDevices",
                "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type",
@@ -7379,6 +7379,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A4ZP7ZC4PI6TO"  : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen1)" ],
         "A1XWJRHALS1REP" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen2)" ],
         "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
+        "A15996VY63BQ2D" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen2)" ],
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
         
         // Amazon Echo Auto's
