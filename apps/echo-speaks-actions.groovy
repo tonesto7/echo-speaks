@@ -3163,6 +3163,10 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
                     else if(eV == dc) { evtOk=true }
                 }
             }
+            if(evtOk && eN in [sLOCK] && (String)evt.value in lLOCKUNL && evt.type == null) {
+                evtOk = false
+                extra = " FILTER REMOVED ${eN} (${evt.value}), did not have type set (${evt.type})"
+            }
             if(evtOk && eN in [sLOCK, "securityKeypad"] && (String)evt.value in ["disarmed", "unlocked"]) {
                 List dcn = settings."trig_${eN}_Codes"
                 if(dcn) {
