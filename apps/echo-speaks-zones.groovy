@@ -1167,7 +1167,7 @@ def zoneStartHandler(evt) {
 private void addToZoneHistory(Map evt, Map condStatus, Integer max=10) {
     Boolean ssOk = true //(stateSizePerc() <= 70)
     List eData = getMemStoreItem(zoneHistFLD) ?: []
-    eData.push([dt: getDtNow(), active: (condStatus.ok == true), evtName: evt.name, evtValue: evt.value, evtDevice: evt.displayName, blocks: condStatus.blocks, passed: condStatus.passed])
+    eData.push([dt: getDtNow(), active: (condStatus.ok == true), evtName: evt.name, evtDevice: evt.displayName, blocks: condStatus.blocks, passed: condStatus.passed])
     Integer lsiz = eData.size()
     if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max)+1 ) }
     updMemStoreItem(zoneHistFLD, eData)
@@ -1253,7 +1253,7 @@ public getZoneHistory(Boolean asObj=false) {
             List<Map> hList = []
             hList.push([name: "Trigger:", val: h?.evtName])
             hList.push([name: "Device:", val: h?.evtDevice])
-            hList.push([name: "Value:", val: h?.evtValue])
+            // hList.push([name: "Value:", val: h?.evtValue])
             hList.push([name: "Zone Status:", val: (h?.active ? "Activate" : "Deactivate")])
             hList.push([name: "Conditions Passed:", val: h?.passed])
             hList.push([name: "Conditions Blocks:", val: h?.blocks])
