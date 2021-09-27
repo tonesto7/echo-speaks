@@ -3118,7 +3118,6 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     //Integer dcw = ((Integer)settings."trig_${eN}_after"==null && (Integer)settings."trig_${eN}_wait") ? (Integer)settings."trig_${eN}_wait" : null
     Boolean dco = !!(Boolean)settings."trig_${eN}_once"
     Integer dcw = (Integer)settings."trig_${eN}_wait"!=null ? (Integer)settings."trig_${eN}_wait" : null
-    Boolean locknt = (Boolean)settings."trig_${eN}_ign_empty_type"
     String extra = sBLANK
     switch(eN) {
         case sSWITCH:
@@ -3145,8 +3144,8 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
                 }
             }
             if(evtOk && eN in [sLOCK] && (String)evt.value in lLOCKUNL) {
-                logTrace("Lock Event Type: ${evt.type} | Ignore Null Event Type: ${locknt}")
-                if(evt.type == null && locknt) {
+                Boolean locknt = (Boolean)settings."trig_${eN}_ign_empty_type"
+                if(locknt && evt.type == null) {
                     evtOk = false
                     extra = " FILTER REMOVED ${eN} (${evt.value}), did not have type set (${evt.type})"
                 }
@@ -3361,7 +3360,7 @@ private void tierSchedHandler(data) {
     if(data && data.tierState?.size() && data.tierState?.message) {
         logTrace("tierSchedHandler(${data})")
         Map evt = data.tierState.evt
-        executeAction(evt, false, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
+        executeAction(evt, "tierSchedHandler", false, false, [msg: data?.tierState?.message as String, volume: data?.tierState?.volume, isFirst: (data?.tierState?.cycle == 1), isLast: (data?.tierState?.lastMsg == true)])
         if(data?.sched) {
             if(data.tierState.schedDelay && data.tierState.lastMsg == false) {
                 logDebug("tierSchedHandler: Scheduling Next Tier Message for (${data.tierState?.schedDelay} seconds)")
@@ -3951,6 +3950,7 @@ void clearActHistory(){
 private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
     String meth="executeAction"
     Long startTime = now()
+    Boolean testMode = false
     if((Boolean)settings.actTestRun) { testMode = true }
     logTrace(meth+" ${src ? '('+src+')' : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
     if(isPaused(true)) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
