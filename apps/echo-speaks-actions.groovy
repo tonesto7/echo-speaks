@@ -19,8 +19,8 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection GroovySillyAssignment
 //file:noinspection GroovyDoubleNegation
-//file:noinspection unused
 //file:noinspection GrMethodMayBeStatic
+//file:noinspection unused
 
 
 import groovy.json.JsonOutput
@@ -1733,7 +1733,7 @@ Boolean actTasksConfiguredByType(String pType) {
 
 private executeTaskCommands(data) {
     String p = data?.type ?: sNULL
-    logTrace("executeTaskCommands | type: ${p} actions: ${actTaskDesc(p)}")
+    if((Boolean)settings.logTrace)logTrace("executeTaskCommands | type: ${p} actions: ${actTaskDesc(p)}")
 
     if((String)settings."${p}mode_run") { setLocationMode((String)settings."${p}mode_run") }
     if((String)settings."${p}alarm_run") { sendLocationEvent(name: "hsmSetArm", value: (String)settings."${p}alarm_run") }
@@ -1921,7 +1921,7 @@ def ssmlInfoSection() {
     }
 }
 
-Map<String,Map<String,List>> customTxtItems() {
+private Map<String,Map<String,List>> customTxtItems() {
     Map<String,Map<String,List>> items = [:]
     ((List<String>)settings.triggerEvents)?.each { String tr->
         String a=(String)settings."trig_${tr}_txt"
@@ -1931,24 +1931,30 @@ Map<String,Map<String,List>> customTxtItems() {
     }
     return items
 }
-
-Boolean hasRepeatTriggers() {
+/*
+private Boolean hasRepeatTriggers() {
     Map<String, Map<String,List>> items = [:]
     ((List<String>)settings.triggerEvents)?.each { String tr->
         String a=(String)settings."trig_${tr}_after_repeat_txt"
         if(a) { if(!items[tr]) { items[tr] = [:] as Map<String, List> }; items[tr].repeat = a.tokenize(";") }
     }
     return (items.size() > 0)
-}
+} */
 
 Boolean hasUserDefinedTxt() {
-    Boolean fnd = false
+/*    Boolean fnd = false
     ((List<String>)settings.triggerEvents)?.each { String tr ->
         if((String)settings."trig_${tr}_txt") { fnd = true }
         if((String)settings."trig_${tr}_after_repeat_txt") { fnd = true }
         if(fnd) return true
     }
-    return fnd
+    return fnd */
+    List<String> myL = (List<String>)settings.triggerEvents
+    String res = sNULL
+    res = myL?.find { String tr ->
+        (String)settings."trig_${tr}_txt" || (String)settings."trig_${tr}_after_repeat_txt"
+    }
+    return (res!=sNULL)
 }
 
 Boolean executionConfigured() {
@@ -2318,7 +2324,7 @@ private void actionCleanup() {
             }
         }
     }
-    if(setItems) log.debug "settings to clean setItems: $setItems"
+    if(setItems) logDebug("settings to clean setItems: $setItems")
 
         // Cleanup Unused Trigger Types...
     if((List)settings.triggerEvents) {
@@ -2394,7 +2400,7 @@ public void updatePauseState(Boolean pause) {
 }
 
 private healthCheck() {
-    logTrace("healthCheck")
+    if((Boolean)settings.logTrace)logTrace("healthCheck")
     if(advLogsActive()) { logsDisable() }
     if(settings.enableWebCoRE) webCoRE_poll()
 }
@@ -2719,7 +2725,7 @@ def scheduleTrigEvt(evt=null) {
         evt = [name: sSCHED, displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, device: [id: null]]
     }
     Long evtDelay = now() - ((Date)evt.date).getTime()
-    logTrace("${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
+    if((Boolean)settings.logTrace)logTrace("${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
     String schedType = (String)settings.trig_scheduled_type
     Boolean recur = schedType == sRECURRING
@@ -2759,7 +2765,7 @@ def alarmEvtHandler(evt) {
     Long evtDelay = now() - (Long)((Date)evt.date).getTime()
     String eN = (String)evt.name
     def eV = evt.value
-    logTrace("${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
+    if((Boolean)settings.logTrace)logTrace("${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
     String inT = sTRIG+sALRMSYSST
     List lT = (List)settings."${inT}"
     List lE = (List)settings."${inT}_events"
@@ -2784,8 +2790,8 @@ def alarmEvtHandler(evt) {
 }
 
 public guardEventHandler(String guardState) {
-    def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
-    logTrace("${evt.name} Event | Device: ${evt.displayName} | Value: (${strCapitalize(evt.value)})")
+    Map evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
+    if((Boolean)settings.logTrace)logTrace("${evt.name} Event | Device: ${evt.displayName} | Value: (${strCapitalize(evt.value)})")
     Boolean ok= ((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard))
     eventCompletion(evt, ok, false, null, "guardEventHandler", guardState, (String)evt.displayName)
     if(!ok) logDebug("guardEventHandler | Skipping event guard  value: ${guardState}, did not match ${state.handleGuardEvents} ${settings.trig_guard}")
@@ -2795,7 +2801,7 @@ void eventCompletion(evt, Boolean ok2Run, Boolean dco, Integer dcw, String meth,
                      String evtDis, Boolean aftRepEvt=false, Boolean allDevsResp=false) {
     Boolean evtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk([date: evt?.date, device: evt?.device, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw, aftRepEvt) : true)
     Boolean ok = evtWaitOk && ok2Run
-    logDebug(meth+" | execOk: ${ok} | ok2Run :${ok2Run} | evtWaitOk: ${evtWaitOk}")
+    if((Boolean)settings.logDebug) logDebug(meth+" | execOk: ${ok} | ok2Run :${ok2Run} | evtWaitOk: ${evtWaitOk}")
     if(getConfStatusItem("tiers")) {
         processTierTrigEvt(evt, ok)
     } else { if(ok) executeAction(evt, meth, allDevsResp, aftRepEvt) }
@@ -2807,7 +2813,7 @@ def webcoreEvtHandler(evt) {
     def eV = evt.value
     String disN = evt.jsonData?.name
     String pId = evt.jsonData?.id
-    logTrace("${eN.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
+    if((Boolean)settings.logTrace)logTrace("${eN.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
     String inT = sTRIG+sPISTNEXEC
     List<String> lT = (List<String>)settings."${inT}"
     Boolean ok = (pId in lT)
@@ -2820,7 +2826,7 @@ def webcoreEvtHandler(evt) {
 def modeEvtHandler(evt) {
     String eN = (String)evt.name
     def eV = evt.value
-    logTrace("${eN.toUpperCase()} Event | Mode: (${strCapitalize(eV)}) with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
+    if((Boolean)settings.logTrace)logTrace("${eN.toUpperCase()} Event | Mode: (${strCapitalize(eV)}) with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
     String inT = sTRIG+sMODE
     List lT = (List)settings."${inT}"
     Boolean ok = (eV in lT)
@@ -2852,7 +2858,7 @@ void devAfterEvtHandler(evt) {
         okpt2 = (okpt1 && eV == dc)
     }
     String msg = "Device Event After | "
-    logTrace(msg+"${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${okpt1}, ${okpt2}) dcaf: $dcaf, dcafr: $dcafr, dcafrc: $dcafrc")
+    if((Boolean)settings.logTrace)logTrace(msg+"${eN?.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms | SchedCheck: (${okpt1}, ${okpt2}) dcaf: $dcaf, dcafr: $dcafr, dcafrc: $dcafrc")
 
     Boolean rem = false
 
@@ -2935,7 +2941,7 @@ void afterEvtCheckHandler() {
     Map newMap = aEvtMap.findAll { it -> (Long)it?.value?.nextT < mnow }
     List<Long> sortList = newMap.collect { (Long)it?.value?.nextT }?.sort()
 
-    sortList?.each { Long it ->
+    sortList?.each { Long lit ->
         if (!hasLock) {
             getTheLock(sHMLF, meth)
             hasLock = true
@@ -2943,7 +2949,7 @@ void afterEvtCheckHandler() {
             aEvtMap = (Map)getMemStoreItem(mK, [:])
             if (!aEvtMap) aEvtMap = (Map)state[mK] ?: [:]
         }
-        def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == it }
+        def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == lit }
         Map nextVal = (Map)nextItem?.value ?: null
         String eN = (String)nextVal.name
         String edisplayN = (String)nextVal.displayName
@@ -3035,7 +3041,7 @@ void afterEvtCheckHandler() {
             releaseTheLock(sHMLF)
             hasLock = false
 
-            logDebug(msg + msg1 + msg2)
+            if((Boolean)settings.logDebug)logDebug(msg + msg1 + msg2)
             if (runEvt) {
                 deviceEvtHandler(evt, true, isRepeat)
             }
@@ -3110,7 +3116,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
     def eV = evt?.value
     List d = settings."trig_${eN}"
     String aftMsg = "${aftEvt ? " | (aftEvt)" : sBLANK}${aftRepEvt ? " | (aftRepEvt)" : sBLANK}"
-    logTrace("Device Event | ${eN.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms${aftMsg}")
+    if((Boolean)settings.logTrace)logTrace("Device Event | ${eN.toUpperCase()} | Name: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms${aftMsg}")
     String dc = settings."trig_${eN}_cmd" // desired attribute value
     Boolean dca = !!(Boolean)settings."trig_${eN}_all"
     Boolean dcavg = (!dca && !!(Boolean)settings."trig_${eN}_avg")
@@ -3143,12 +3149,10 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
                     else if(eV == dc) { evtOk=true }
                 }
             }
-            if(evtOk && eN in [sLOCK] && (String)evt.value in lLOCKUNL) {
-                Boolean locknt = (Boolean)settings."trig_${eN}_ign_empty_type"
-                if(locknt && evt.type == null) {
-                    evtOk = false
-                    extra = " FILTER REMOVED ${eN} (${evt.value}), did not have type set (${evt.type})"
-                }
+            Boolean locknt = (Boolean)settings."trig_${eN}_ign_empty_type"
+            if(locknt && evtOk && eN in [sLOCK] && (String)evt.value in lLOCKUNL && evt.type == null) {
+                evtOk = false
+                extra = " FILTER REMOVED ${eN} (${evt.value}), did not have type set (${evt.type})"
             }
             if(evtOk && eN in [sLOCK, "securityKeypad"] && (String)evt.value in ["disarmed", "unlocked"]) {
                 List dcn = settings."trig_${eN}_Codes"
@@ -3195,7 +3199,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
         default:
             logDebug(meth+" | unknown event ${evt?.displayName} ${eN}  value: ${eV}")
     }
-    logDebug(meth+" | evtOk :${evtOk} | event requires all devices evtAd: $evtAd${aftMsg}${extra}")
+    if((Boolean)settings.logDebug)logDebug(meth+" | evtOk :${evtOk} | event requires all devices evtAd: $evtAd${aftMsg}${extra}")
     eventCompletion(evt, evtOk, dco, dcw, meth+"(${eN})", eV, evt?.displayName, aftRepEvt, evtAd)
 /*    Boolean waitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk(evt, dco, dcw, aftRepEvt) : true)
     Boolean execOk = (evtOk && waitOk)
@@ -3214,7 +3218,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
 private void processTierTrigEvt(evt, Boolean evtOk) {
     String meth = "processTierTrigEvt"
     String msg = " | Name: ${evt?.name} | Value: ${evt?.value} | EvtOk: ${evtOk}"
-    logTrace(meth + msg)
+    if((Boolean)settings.logTrace)logTrace(meth + msg)
 
     String mK = "actTierState"
     getTheLock(sHMLF, meth)
@@ -3307,7 +3311,7 @@ private void tierEvtHandler(evt=null) {
         String dt = dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         evt = [name: "Tiered Schedule", displayName: "Scheduled Tiered Trigger", value: fmtTime(dt), date: adate, device: [id: null]]
     }
-    logTrace("tierEvtHandler: received event ${evt?.name} ${evt?.value}")
+    if((Boolean)settings.logTrace)logTrace("tierEvtHandler: received event ${evt?.name} ${evt?.value}")
 
     Map t0 = getTierMap()
     Map tierMap = t0 ?: [:]
@@ -3417,7 +3421,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
         }
     }
     Map result = [evtOk: evtOk, evtAd: evtAd]
-    logDebug("deviceEvtProcNumValue | result: $result | evtName: ${evt.name} (${en}) | evtVal: $evtValue ($eV) | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca} | avg: $dcavg")
+    if((Boolean)settings.logDebug)logDebug("deviceEvtProcNumValue | result: $result | evtName: ${evt.name} (${en}) | evtVal: $evtValue ($eV) | cmd: ${cmd} | low: ${dcl} | high: ${dch} | equal: ${dce} | all: ${dca} | avg: $dcavg")
     return result
 }
 
@@ -3484,7 +3488,7 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait, Boolean af
         msg="missing evt, name ($n) or deviceId ($dID)"
     }
     msg += " Status: (${ok ? okSymFLD : notOkSymFLD})"
-    logDebug(meth+": "+msg)
+    if((Boolean)settings.logDebug)logDebug(meth+": "+msg)
     return ok
 }
 
@@ -3547,11 +3551,11 @@ Boolean timeCondOk() {
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime = formatDt(startTime)
             state.stopTime = formatDt(stopTime)
-            logTrace("timeCondOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
+            if((Boolean)settings.logTrace)logTrace("timeCondOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
             return isBtwn
         }
     }
-    logTrace("timeCondOk | (null)")
+    if((Boolean)settings.logTrace)logTrace("timeCondOk | (null)")
     state.startTime = sNULL
     state.stopTime = sNULL
     return null
@@ -3567,8 +3571,10 @@ Boolean dateCondOk() {
         mOk = settings.cond_months ? (isMonthOfYear((List)settings.cond_months)) : reqAll
         result = reqAll ? (mOk && dOk) : (mOk || dOk)
     }
-    //noinspection GroovyVariableNotAssigned
-    logTrace("dateCondOk | $result | monthOk: $mOk | daysOk: $dOk")
+    if((Boolean)settings.logTrace){
+        //noinspection GroovyVariableNotAssigned
+        logTrace("dateCondOk | $result | monthOk: $mOk | daysOk: $dOk")
+    }
     return result
 }
 
@@ -3583,8 +3589,10 @@ Boolean locationCondOk() {
         aOk = myL ? isInAlarmMode(myL) : reqAll
         result = reqAll ? (mOk && aOk) : (mOk || aOk)
     }
-    //noinspection GroovyVariableNotAssigned
-    logTrace("locationCondOk | $result | modeOk: $mOk | alarmOk: $aOk")
+    if((Boolean)settings.logTrace){
+        //noinspection GroovyVariableNotAssigned
+        logTrace("locationCondOk | $result | modeOk: $mOk | alarmOk: $aOk")
+    }
     return result
 }
 
@@ -3653,7 +3661,7 @@ Boolean deviceCondOk() {
     Integer cndSize = (passed.size() + failed.size())
     Boolean result = null
     if(cndSize != 0) result = reqAllCond() ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() > 0)
-    logTrace("deviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    if((Boolean)settings.logTrace)logTrace("deviceCondOk | ${result} | Found: (${(passed?.size() + failed?.size())}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return result
 }
 
@@ -3675,7 +3683,7 @@ Map conditionStatus() {
         ok = reqAll ? (cndSize == passed.size()) : (cndSize > 0 && passed.size() > 0)
         if(cndSize == 0) ok = true
     }
-    logTrace("conditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
+    if((Boolean)settings.logTrace)logTrace("conditionsStatus | ok: $ok | RequireAll: ${reqAll} | Found: (${cndSize}) | Skipped: $skipped | Passed: $passed | Failed: $failed")
     return [ok: ok, passed: passed, blocks: failed]
 }
 
@@ -3796,7 +3804,7 @@ private List decamelizeStr(String str) {
 String getResponseItem(evt, String tierMsg=sNULL, Boolean evtAd=false, Boolean isRepeat=false, Boolean testMode=false) {
     String eN = (String)evt?.name
     def eV = evt?.value
-    logTrace("getResponseItem | EvtName: ${eN} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${eV} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}")
+    if((Boolean)settings.logTrace)logTrace("getResponseItem | EvtName: ${eN} | EvtDisplayName: ${evt?.displayName} | EvtValue: ${eV} | AllDevsResp: ${evtAd} | Repeat: ${isRepeat} | TestMode: ${testMode}")
     String glbText = (String)settings."act_${(String)settings.actionType}_txt" ?: sNULL
     if(glbText) {
         List<String> eTxtItems = glbText.tokenize(";")
@@ -3952,7 +3960,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
     Long startTime = now()
     Boolean testMode = false
     if((Boolean)settings.actTestRun) { testMode = true }
-    logTrace(meth+" ${src ? '('+src+')' : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
+    if((Boolean)settings.logTrace)logTrace(meth+" ${src ? '('+src+')' : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
     if(isPaused(true)) { logWarn("Action is PAUSED... Skipping Action Execution...", true); return }
     Map condStatus = conditionStatus()
     // log.debug "condStatus: ${condStatus}"
@@ -4017,7 +4025,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                     String mCmd = actType.replaceAll("_tiered", sBLANK)
                     if(actZonesSiz) {
                         parent?.sendZoneCmd([zones: activeZones.collect { (String)it?.key }, cmd: mCmd, title: getActionName(), message: txt, changeVol: changeVol, restoreVol: restoreVol, zoneVolumes: zoneVolumeMap, delay: actDelayMs])
-                        logDebug("Sending ${mCmd} Command: (${txt}) to Zones via Parent (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${mCmd} Command: (${txt}) to Zones via Parent (${activeZones.collect { it?.value?.name }.join(',')})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
 
                     } else {
                         if(actDevSiz) {
@@ -4034,7 +4042,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                                 }
                             }
                             parent?.sendDevObjCmd(devObjs, mCmd, getActionName(), txt, changeVol, restoreVol)
-                            logDebug("Sending ${mCmd} Command: (${txt}) to devices via Parent (${devObjs})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                            if((Boolean)settings.logDebug)logDebug("Sending ${mCmd} Command: (${txt}) to devices via Parent (${devObjs})${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                         }
                     }
                 }
@@ -4046,13 +4054,13 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                 if(mText != sNULL) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { (String)it?.key }, cmd: actType, message: mText, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType.capitalize()} Command: (${mText}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${mText}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${mCmd}"(mText)
                         }
-                        logDebug("Sending ${mAct} Command: (${mText}) to devices (${actDevices})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${mAct} Command: (${mText}) to devices (${actDevices})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     }
                 }
                 break
@@ -4062,14 +4070,14 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                 if(mCmd != sNULL) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[zones: activeZones.collect { (String)it?.key }, cmd: mCmd, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             if(mCmd != "volume") dev?."${mCmd}"()
                             else if(mCmd == "volume" && changeVol != null) dev?.setVolume(changeVol)
                         }
-                        logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol != null  ? " | Volume: ${changeVol}" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol != null  ? " | Volume: ${changeVol}" : sBLANK}")
                     }
                 }
                 break
@@ -4080,13 +4088,13 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                 if(actConf[actType] && actConf[actType].cmd) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { (String)it?.key }, cmd: actConf[actType].cmd, message: actConf[actType].text, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${actConf[actType].cmd}"(changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
@@ -4095,13 +4103,13 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                 if(actConf[actType] && actConf[actType].cmd && actConf[actType].name) {
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actConf[actType].cmd, message: actConf[actType].name, changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: false, displayed: false)
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd} | Name: ${actConf[actType].name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd} | Name: ${actConf[actType].name}) to Zones (${activeZones.collect { it?.value?.name }})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${actConf[actType].cmd}"(actConf[actType].name, changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd} | Name: ${actConf[actType].name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd} | Name: ${actConf[actType].name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
@@ -4114,22 +4122,22 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                         dev?."${actConf[actType].cmd}"(actConf[actType].label, actConf[actType].date, actConf[actType].time)
                         // dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
                     }
-                    logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
+                    if((Boolean)settings.logDebug)logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
                 }
                 break
 
             case "music":
                 if(actConf[actType] && actConf[actType]?.cmd && actConf[actType]?.provider && actConf[actType]?.search) {
-                    logDebug("musicProvider: ${actConf[actType]?.provider} | ${convMusicProvider((String)actConf[actType]?.provider)}")
+                    if((Boolean)settings.logDebug)logDebug("musicProvider: ${actConf[actType]?.provider} | ${convMusicProvider((String)actConf[actType]?.provider)}")
                     if(actZonesSiz) {
                         sendLocationEvent(name: "es3ZoneCmd", value: actType, data:[ zones: activeZones.collect { it?.key as String }, cmd: actType, search: actConf[actType]?.search, provider: convMusicProvider((String)actConf[actType]?.provider), changeVol: changeVol, restoreVol: restoreVol, delay: actDelayMs], isStateChange: true, display: true, displayed: true)
-                        logDebug("Sending ${actType.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${txt}) to Zones (${activeZones.collect { it?.value?.name }} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd})${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
                             dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider((String)actConf[actType]?.provider), changeVol, restoreVol)
                         }
-                        logDebug("Sending ${actType.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
+                        if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
                 }
                 break
@@ -4138,7 +4146,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                 if(actConf[actType] && actConf[actType].cmd && actConf[actType].routineId) {
                     List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                     actDevices[0]?."${actConf[actType].cmd}"((String)actConf[actType].routineId)
-                    logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) | RoutineId: ${actConf[actType].routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                    if((Boolean)settings.logDebug)logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) | RoutineId: ${actConf[actType].routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                 }
                 break
 
@@ -4149,7 +4157,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() } // TODO
                         if(aDev) {
                             aDev?."${d?.cmd}"(d?.wakeword)
-                            logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                            if((Boolean)settings.logDebug)logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                         }
                     }
                 }
@@ -4166,7 +4174,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                             } else {
                                 aDev?."${d?.cmd}"(d?.btDevice)
                             }
-                            logDebug("Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
+                            if((Boolean)settings.logDebug)logDebug("Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                         }
                     }
                 }
@@ -4189,7 +4197,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
         String cmd = "executeTaskCommands"
 
         if(tierData?.size() && (Integer)settings.act_tier_cnt > 1) {
-            logDebug("firstTierMsg: ${firstTierMsg} | lastTierMsg: ${lastTierMsg}")
+            if((Boolean)settings.logDebug)logDebug("firstTierMsg: ${firstTierMsg} | lastTierMsg: ${lastTierMsg}")
             if(firstTierMsg) {
                 Integer del = (Integer)settings.act_tier_start_delay
                 if(del) {
@@ -4212,7 +4220,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
             } else { executeTaskCommands([type: sACT]) }
         }
     }
-    logTrace(meth+" Finished | ProcessTime: (${now()-startTime}ms)")
+    if((Boolean)settings.logTrace)logTrace(meth+" Finished | ProcessTime: (${now()-startTime}ms)")
 }
 
 private postTaskCommands(data) {
@@ -4401,7 +4409,7 @@ void settingUpdate(String name, value, String type=sNULL) {
 }
 
 void settingRemove(String name) {
-    logTrace("settingRemove($name)...")
+    if((Boolean)settings.logTrace)logTrace("settingRemove($name)...")
     if(name && settings.containsKey(name)) { app?.removeSetting(name) }
 }
 
@@ -4475,8 +4483,10 @@ Boolean getOk2Notify() {
     Boolean result = true
     if(!(smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)) { result = false }
     if(!(daysOk && modesOk && timeOk)) { result = false }
-    //noinspection GroovyVariableNotAssigned
-    logDebug("getOk2Notify() RESULT: $result | notifDevsOk: $notifDevsOk |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    if((Boolean)settings.logDebug){
+        //noinspection GroovyVariableNotAssigned
+        logDebug("getOk2Notify() RESULT: $result | notifDevsOk: $notifDevsOk |smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    }
     return result
 }
 
@@ -4512,7 +4522,7 @@ Boolean notifTimeOk() {
         Boolean not = startTime.getTime() > stopTime.getTime()
         Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
         isBtwn = not ? !isBtwn : isBtwn
-        logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
+        if((Boolean)settings.logTrace)logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
     } else { return true }
 }
@@ -4542,7 +4552,7 @@ Boolean sendNotifMsg(String msgTitle, String msg, alexaDev=null, Boolean showEvt
             if(sent) {
                 state.lastNotificationMsg = flatMsg
                 updTsVal("lastNotifMsgDt")
-                logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
+                if((Boolean)settings.logDebug)logDebug("sendNotifMsg: Sent ${sentSrc} (${flatMsg})")
             }
         }
     } catch (ex) {
