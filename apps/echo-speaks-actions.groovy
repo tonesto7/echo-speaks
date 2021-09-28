@@ -19,8 +19,8 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection GroovySillyAssignment
 //file:noinspection GroovyDoubleNegation
-//file:noinspection unused
 //file:noinspection GrMethodMayBeStatic
+//file:noinspection unused
 
 
 import groovy.json.JsonOutput
@@ -1921,7 +1921,7 @@ def ssmlInfoSection() {
     }
 }
 
-Map<String,Map<String,List>> customTxtItems() {
+private Map<String,Map<String,List>> customTxtItems() {
     Map<String,Map<String,List>> items = [:]
     ((List<String>)settings.triggerEvents)?.each { String tr->
         String a=(String)settings."trig_${tr}_txt"
@@ -1931,24 +1931,30 @@ Map<String,Map<String,List>> customTxtItems() {
     }
     return items
 }
-
-Boolean hasRepeatTriggers() {
+/*
+private Boolean hasRepeatTriggers() {
     Map<String, Map<String,List>> items = [:]
     ((List<String>)settings.triggerEvents)?.each { String tr->
         String a=(String)settings."trig_${tr}_after_repeat_txt"
         if(a) { if(!items[tr]) { items[tr] = [:] as Map<String, List> }; items[tr].repeat = a.tokenize(";") }
     }
     return (items.size() > 0)
-}
+} */
 
 Boolean hasUserDefinedTxt() {
-    Boolean fnd = false
+/*    Boolean fnd = false
     ((List<String>)settings.triggerEvents)?.each { String tr ->
         if((String)settings."trig_${tr}_txt") { fnd = true }
         if((String)settings."trig_${tr}_after_repeat_txt") { fnd = true }
         if(fnd) return true
     }
-    return fnd
+    return fnd */
+    List<String> myL = (List<String>)settings.triggerEvents
+    String res = sNULL
+    res = myL?.find { String tr ->
+        (String)settings."trig_${tr}_txt" || (String)settings."trig_${tr}_after_repeat_txt"
+    }
+    return (res!=sNULL)
 }
 
 Boolean executionConfigured() {
@@ -2784,7 +2790,7 @@ def alarmEvtHandler(evt) {
 }
 
 public guardEventHandler(String guardState) {
-    def evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
+    Map evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
     if((Boolean)settings.logTrace)logTrace("${evt.name} Event | Device: ${evt.displayName} | Value: (${strCapitalize(evt.value)})")
     Boolean ok= ((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard))
     eventCompletion(evt, ok, false, null, "guardEventHandler", guardState, (String)evt.displayName)
@@ -2935,7 +2941,7 @@ void afterEvtCheckHandler() {
     Map newMap = aEvtMap.findAll { it -> (Long)it?.value?.nextT < mnow }
     List<Long> sortList = newMap.collect { (Long)it?.value?.nextT }?.sort()
 
-    sortList?.each { Long it ->
+    sortList?.each { Long lit ->
         if (!hasLock) {
             getTheLock(sHMLF, meth)
             hasLock = true
@@ -2943,7 +2949,7 @@ void afterEvtCheckHandler() {
             aEvtMap = (Map)getMemStoreItem(mK, [:])
             if (!aEvtMap) aEvtMap = (Map)state[mK] ?: [:]
         }
-        def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == it }
+        def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == lit }
         Map nextVal = (Map)nextItem?.value ?: null
         String eN = (String)nextVal.name
         String edisplayN = (String)nextVal.displayName
