@@ -2,5 +2,5 @@
     "versions": {
         "server": "2.7.0"
     },
-    "notices": ["WebSocket Issues: I'm seeing connection issues which will prevent realtime device status updates.  I hope it's just an amazon backend issue and not them changing the API."]
+    "notices": ["I'm seeing reports of websocket connection issues which will prevent realtime device status updates.  I hope it's just an amazon backend issue and not them changing the API.  I will push out updates if they are required."]
 }
