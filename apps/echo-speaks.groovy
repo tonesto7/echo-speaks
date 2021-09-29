@@ -301,16 +301,16 @@ def authStatusPage() {
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
 
                 // Refreshes the cookie
-                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: spanSm(ckDesc), required: true, defaultValue: false, submitOnChange: true
-                paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED)
-                paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9)
+                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET) + lineBr() + spanSm(ckDesc, pastDayChkOk ? sCLRGRY : sCLRRED), 
+                            required: false, defaultValue: false, submitOnChange: true
+                paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm("After manually refreshing the cookie leave this page and come back before the date will change.", sCLR4D9)
 
                 // Clears cookies for app and devices
-                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: spanSm("Clear all stored cookie data from the app and devices."), required: false, defaultValue: false, submitOnChange: true
-                paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY)
+                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET) + lineBr() + spanSm("Clear all stored cookie data from the app and devices.", sCLRGRY), 
+                            required: false, defaultValue: false, submitOnChange: true
 
-                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: spanSm("Force devices to synchronize their stored cookies."), required: false, defaultValue: false, submitOnChange: true
-                paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY)
+                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET) + lineBr() + spanSm("Force devices to synchronize their stored cookies.", sCLRGRY), 
+                            required: false, defaultValue: false, submitOnChange: true
 
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
