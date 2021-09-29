@@ -33,7 +33,7 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String appVersionFLD  = '4.2.0.0'
-@Field static final String appModifiedFLD = '2021-09-27'
+@Field static final String appModifiedFLD = '2021-09-29'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1081,11 +1081,11 @@ def actVariableDesc(String actType, Boolean hideUserTxt=false) {
         }
         if(!hideUserTxt) {
             if(txtItems?.size()) {
-                String str = "NOTICE: (Custom Text Defined)"
+                String str = spanSmBld("NOTICE: (Custom Text Defined)", sCLRORG)
                 txtItems?.each { i->
-                    i?.value?.each { i2-> str += lineBr() + "${sBULLET} ${i?.key?.capitalize()} ${i2?.key?.capitalize()}: (${i2?.value?.size()} Response${pluralizeStr(i2?.value)})" }
+                    i?.value?.each { i2-> str += lineBr() + spanSmBld("${sBULLET} ${i?.key?.capitalize()} ${i2?.key?.capitalize()}: ") + spanSm("(${i2?.value?.size()} Response${pluralizeStr(i2?.value)})") }
                 }
-                paragraph spanSmBld(str, sCLR4D9)
+                paragraph spanSm(str, sCLR4D9)
                 paragraph spanSmBld("WARNING:<br>Entering text below will override the text you defined for the trigger types under Step 2.", sCLRRED)
             }
         }
@@ -1094,11 +1094,17 @@ def actVariableDesc(String actType, Boolean hideUserTxt=false) {
 
 @Field static final Map<String, String> descsFLD = [
     speak: "Speak any message on your Echo Devices.",
-    speak_parallel: "Speak any message parallel on your Echo Devices.",
-    announcement: "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.",
     speak_tiered: "Allows you to create tiered responses.  Each tier can have a different delay before the next message is spoken.",
+    speak_parallel: "Speak any message in parallel on your Echo Devices.",
     speak_parallel_tiered: "Allows you to create parallel tiered responses.  Each tier can have a different delay before the next message is spoken.",
+    speak_ignDND: "Speak any message on your Echo Devices, ignoring Do Not Disturb.",
+    speak_ignDND_parallel: "Speak any message on your Echo Devices, ignoring Do Not Disturb, in parallel.",
+    speak_ignDND_parallel_tiered:"Allows you to create parallel tiered responses.  Each tier can have a different delay before the next message is spoken, while ignoring Do Not Disturb.",
+    speak_ignDND_tiered: "Allows you to create tiered responses.  Each tier can have a different delay before the next message is spoken, while ignoring Do Not Disturb.",
+    announcement: "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast.",
     announcement_tiered: "Allows you to create tiered responses.  Each tier can have a different delay before the next message is announced. Plays a brief tone and announces the message you define. If you select multiple devices it will be a synchronized broadcast.",
+    announcement_ignDND_tiered: "Allows you to create tiered responses.  Each tier can have a different delay before the next message is spoken, while ignoring Do Not Disturb.",
+    announcement_ignDND: "Plays a brief tone and speaks the message you define. If you select multiple devices it will be a synchronized broadcast, ignoring Do Not Disturb.",
     sequence: "Sequences are a custom command where you can string different alexa actions which are sent to Amazon as a single command.  The command is then processed by amazon sequentially or in parallel.",
     weather: "Plays a very basic weather report.",
     playback: "Allows you to control the media playback state or volume level of your Echo devices.",
@@ -1665,27 +1671,45 @@ def actTrigTasksPage(params) {
             input "${t}switches_off", "capability.switch", title: inTS1("Turn OFF these Switches${dMap?.def}", sSWITCH) + optPrefix(), multiple: true, required: false, submitOnChange: true
         }
 
-        section(sectHead("Control Lights:")) {
+        section(sectHead("Control Dimmers/Lights:")) {
             input "${t}lights", "capability.switch", title: inTS1("Turn ON these Lights${dMap?.def}", "light") + optPrefix(), multiple: true, required: false, submitOnChange: true
             if((List)settings."${t}lights") {
                 List lights = (List)settings."${t}lights"
-                input "${t}lights_color_delay", sNUMBER, title: inTS1("Restore original light state after (x) seconds?", "delay") + optPrefix(), required: false, submitOnChange: true
-                if(lights?.any { i-> (i?.hasCommand("setColor")) } && !lights?.every { i-> (i?.hasCommand("setColor")) }) {
-                    paragraph spanSmBld("Not all selected devices support color. So color options are hidden.", sCLRRED)
-                    settingRemove("${t}lights_colort".toString())
-                } else {
-                    input "${t}lights_colort", sTEXT, title: inTS1("To this color?", sCOMMAND) + optPrefix(), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true
+                List noLevelDevs = lights?.findAll { i-> (!(i?.hasCommand("setLevel") ) ) }
+                List noColorDevs = lights?.findAll { i-> ( !(i?.hasCommand("setColor") ) )}
+
+                // Detemine if any of the devices supports level
+                Boolean lvlSupportAny = lights?.any { i-> (i?.hasCommand("setLevel")) }
+                Boolean lvlSupportAll = lights?.every { i-> (i?.hasCommand("setLevel")) }
+                if (lvlSupportAny) { 
+                    input "${t}lights_leveln", sNUMBER, title: inTS1("At this level?", sSPDKNB) + optPrefix(), multiple: false, options: dimmerLevelEnum(), required: false, submitOnChange: true 
+                    if(!lvlSupportAll && noLevelDevs?.size() > 0) {
+                        paragraph spanSmBldBr("NOTICE: The following selected devices do not support level: ", sCLRRED) + spanSm(noLevelDevs.collect { " ${sBULLET} ${it}" }.join(lineBr()).toString(), sCLRRED)
+                    }
                 }
-                if(lights?.any { i-> (i?.hasCommand("setLevel")) } && !lights?.every { i-> (i?.hasCommand("setLevel")) }) {
-                    paragraph spanSmBld("Not all selected devices support level. So level option is hidden.", sCLRRED)
-                    settingRemove("${t}lights_leveln".toString())
-                } else { input "${t}lights_leveln", sNUMBER, title: inTS1("At this level?", sSPDKNB) + optPrefix(), multiple: false, options: dimmerLevelEnum(), required: false, submitOnChange: true }
+
+                // Detemine if any of the devices supports color control
+                Boolean clrSupportAny = lights?.any { i-> (i?.hasCommand("setColor")) }
+                Boolean clrSupportAll = lights?.every { i-> (i?.hasCommand("setColor")) }
+                if(clrSupportAny) {
+                    input "${t}lights_colort", sENUM, title: inTS1("To this color?", "light_color") + optPrefix(), multiple: false, options: colorSettingsListFLD?.name, required: false, submitOnChange: true
+                    if (!clrSupportAll && noColorDevs.size() > 0) { 
+                        paragraph spanSmBldBr("NOTICE: The following selected devices do not support color: ", sCLRRED) + spanSm(noColorDevs.collect { " ${sBULLET} ${it}" }.join(lineBr()).toString(), sCLRRED)
+                    }
+                }
+
+                input "${t}lights_trig_clear_restore", sBOOL, title: inTS1("Restore original Light states when trigger is cleared?", "reset") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                input "${t}lights_restore_delay", sNUMBER, title: inTS1("Restore original light states after (x) seconds?", sDELAYT) + optPrefix(), required: false, submitOnChange: true
             }
+
         }
 
         section(sectHead("Control Locks:")) {
             input "${t}locks_lock", "capability.lock", title: inTS1("Lock these Locks${dMap?.def}", sLOCK) + optPrefix(), multiple: true, required: false, submitOnChange: true
             input "${t}locks_unlock", "capability.lock", title: inTS1("Unlock these Locks${dMap?.def}", sLOCK) + optPrefix(), multiple: true, required: false, submitOnChange: true
+            if(settings."${t}locks_lock" || settings."${t}locks_unlock") {
+                input "${t}locks_trig_clear_restore", sBOOL, title: inTS1("Restore original lock state when trigger is cleared?", "reset") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+            }
         }
 
         section(sectHead("Control Keypads:")) {
@@ -1697,18 +1721,28 @@ def actTrigTasksPage(params) {
         section(sectHead("Control Doors:")) {
             input "${t}doors_close", "capability.garageDoorControl", title: inTS1("Close these Garage Doors${dMap?.def}", "garage_door") + optPrefix(), multiple: true, required: false, submitOnChange: true
             input "${t}doors_open", "capability.garageDoorControl", title: inTS1("Open these Garage Doors${dMap?.def}", "garage_door") + optPrefix(), multiple: true, required: false, submitOnChange: true
+            if(settings."${t}doors_close" || settings."${t}doors_open") {
+                input "${t}doors_trig_clear_restore", sBOOL, title: inTS1("Restore original door state when trigger is cleared?", "reset") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+            }
         }
 
         section(sectHead("Control Siren:")) {
             input "${t}sirens", "capability.alarm", title: inTS1("Activate these Sirens${dMap?.def}", "siren") + optPrefix(), multiple: true, required: false, submitOnChange: true
             if(settings."${t}sirens") {
                 input "${t}siren_cmd", sENUM, title: inTS1("Alarm action to take${dMap?.def}", sCOMMAND) + optPrefix(), options: ["both": "Siren & Stobe", "strobe":"Strobe Only", "siren":"Siren Only"], multiple: false, required: true, submitOnChange: true
-                input "${t}siren_time", sNUMBER, title: inTS1("Stop after (x) seconds...", "delay"), required: true, submitOnChange: true
+                if(settings."${t}sirens" && settings."${t}siren_cmd") {
+                    input "${t}siren_trig_clear_restore", sBOOL, title: inTS1("Restore HSM state when trigger is cleared?", "reset") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+                    input "${t}siren_time", sNUMBER, title: inTS1("Stop after (x) seconds...", sDELAYT), required: (!(Boolean)settings."${t}siren_trig_clear_restore"), submitOnChange: true
+                }
+                
             }
         }
         section(sectHead("Location Actions:")) {
             input "${t}mode_run", sENUM, title: inTS1("Set Location Mode${dMap?.def}", sMODE) + optPrefix(), options: getLocationModes(true), multiple: false, required: false, submitOnChange: true
             input "${t}alarm_run", sENUM, title: inTS1("Set ${getAlarmSystemName()} mode${dMap?.def}", "alarm_home") + optPrefix(), options: getAlarmSystemStatusActions(), multiple: false, required: false, submitOnChange: true
+            if(settings."${t}alarm_run") {
+                input "${t}alarm_run_trig_clear_restore", sBOOL, title: inTS1("Restore HSM state when trigger is cleared?", "reset") + optPrefix(), required: false, defaultValue: false, submitOnChange: true
+            }
 
             if(settings.enableWebCoRE) {
                 input "${t}piston_run", sENUM, title: inTS("Execute a piston${dMap?.def}", webCore_icon()) + optPrefix(), options: webCoRE_list(), multiple: false, required: false, submitOnChange: true
@@ -1754,11 +1788,20 @@ private executeTaskCommands(data) {
         if(settings."${p}siren_time") runIn(settings."${p}siren_time", "postTaskCommands", [data:[type: p]])
     }
     if(settings."${p}lights") {
-        if(settings."${p}lights_color_delay") { captureLightState((List)settings."${p}lights",p) }
+        if(settings."${p}lights_trig_clear_restore" || settings."${p}lights_restore_delay") { captureLightState((List)settings."${p}lights", p) }
         settings."${p}lights"*.on()
-        if(settings."${p}lights_leveln") { settings."${p}lights"*.setLevel(settings."${p}lights_leveln") }
-        if(settings."${p}lights_colort") { settings."${p}lights"*.setColor(getColorName(settings."${p}lights_colort")) }
-        if(settings."${p}lights_color_delay") runIn(settings."${p}lights_color_delay", "restoreLights", [data:[type: p]])
+        if(settings."${p}lights_leveln") {
+            List hasLvlDevs = settings."${p}lights"*.filter { it.hasCommand("setLevel") }
+            hasLvlDevs*.setLevel(settings."${p}lights_leveln") 
+        }
+        if(settings."${p}lights_colort") { 
+            List hasClrDevs = settings."${p}lights"*.filter { it.hasCommand("setColor") }
+            hasClrDevs*.setColor(getColorName(settings."${p}lights_colort")) 
+        }
+        if(settings."${p}lights_trig_clear_restore" && !settings."${p}lights_restore_delay") {
+            restoreLightState((List)settings."${p}lights", p)
+        }
+        if(settings."${p}lights_restore_delay") { runIn(settings."${p}lights_restore_delay", "restoreLights", [data:[type: p]]) }
     }
 }
 
@@ -1767,13 +1810,13 @@ String actTaskDesc(String t, Boolean isInpt=false) {
     if(actTasksConfiguredByType(t)) {
         switch(t) {
             case sACT:
-                str += "${isInpt ? sBLANK : "\n\n"}Triggered Tasks:"
+                str += (isInpt ? sBLANK : lineBr()) + strUnder('Triggered Tasks:')
                 break
             case sACT_START:
-                str += "${isInpt ? sBLANK : "\n\n"}Tiered Start Tasks:"
+                str += (isInpt ? sBLANK : lineBr()) + strUnder('Tiered Start Tasks:')
                 break
             case sACT_STOP:
-                str += "${isInpt ? sBLANK : "\n\n"}Tiered Stop Tasks:"
+                str += (isInpt ? sBLANK : lineBr()) + strUnder('Tiered Stop Tasks:')
                 break
         }
         String aStr = "\n ${sBULLET} "
@@ -1782,18 +1825,23 @@ String actTaskDesc(String t, Boolean isInpt=false) {
         str += settings."${t}lights" ? aStr + "Lights: (${settings."${t}lights"?.size()})" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_leveln" ? "\n    - Level: (${settings."${t}lights_leveln"}%)" : sBLANK
         str += settings."${t}lights" && settings."${t}lights_colort" ? "\n    - Color: (${settings."${t}lights_colort"})" : sBLANK
-        str += settings."${t}lights" && settings."${t}lights_color_delay" ? "\n    - Restore After: (${settings."${t}lights_color_delay"} sec.)" : sBLANK
+        str += settings."${t}lights" && settings."${t}lights_trig_clear_restore" ? "\n    - Restore After Trigger Clears: (True)" : sBLANK
+        str += settings."${t}lights" && settings."${t}lights_restore_delay" ? "\n    - Restore After: (${settings."${t}lights_restore_delay"} sec.)" : sBLANK
         str += settings."${t}locks_unlock" ? aStr + "Locks Unlock: (${settings."${t}locks_unlock"?.size()})" : sBLANK
         str += settings."${t}locks_lock" ? aStr + "Locks Lock: (${settings."${t}locks_lock"?.size()})" : sBLANK
+        str += (settings."${t}locks_lock" || settings."${t}locks_unlock") && settings."${t}locks_trig_clear_restore" ? "\n    - Restore After Trigger Clears: (True)" : sBLANK
         str += settings."${t}securityKeypads_disarm" ? aStr + "KeyPads Disarm: (${settings."${t}securityKeypads_disarm".size()})" : sBLANK
         str += settings."${t}securityKeypads_armHome" ? aStr + "KeyPads Arm Home: (${settings."${t}securityKeypads_armHome".size()})" : sBLANK
         str += settings."${t}securityKeypads_armAway" ? aStr + "KeyPads Arm Away: (${settings."${t}securityKeypads_armAway".size()})" : sBLANK
         str += settings."${t}doors_open" ? aStr + "Garages Open: (${settings."${t}doors_open"?.size()})" : sBLANK
         str += settings."${t}doors_close" ? aStr + "Garages Close: (${settings."${t}doors_close"?.size()})" : sBLANK
+        str += (settings."${t}doors_open" || settings."${t}doors_close") && settings."${t}doors_trig_clear_restore" ? "\n    - Restore After Trigger Clears: (True)" : sBLANK
         str += settings."${t}sirens" ? aStr + "Sirens On: (${settings."${t}sirens"?.size()})${settings."${t}sirens_delay" ? "(${settings."${t}sirens_delay"} sec)" : sBLANK}" : sBLANK
+        str += settings."${t}sirens" && settings."${t}siren_trig_clear_restore" ? "\n    - Restore After Trigger Clears: (True)" : sBLANK
 
-        str += (String)settings."${t}mode_run" ? aStr + "Set Mode:\n \u2022 ${(String)settings."${t}mode_run"}" : sBLANK
-        str += (String)settings."${t}alarm_run" ? aStr + "Set Alarm:\n \u2022 ${(String)settings."${t}alarm_run"}" : sBLANK
+        str += (String)settings."${t}mode_run" ? aStr + "Set Mode:\n   - ${(String)settings."${t}mode_run"}" : sBLANK
+        str += (String)settings."${t}alarm_run" ? aStr + "Set Alarm:\n   - ${(String)settings."${t}alarm_run"}" : sBLANK
+        str += settings."${t}alarm_run" && settings."${t}alarm_run_trig_clear_restore" ? "\n    - Restore After Trigger Clears: (True)" : sBLANK
 //        str += settings."${t}routine_run" ? aStr+"Execute Routine:\n    - ${getRoutineById(settings."${t}routine_run")?.label}" : sBLANK
         str += (settings.enableWebCoRE && (String)settings."${t}piston_run") ? aStr + "Execute webCoRE Piston:\n    - " + getPistonById((String)settings."${t}piston_run") : sBLANK
     }
@@ -5199,7 +5247,7 @@ String getActionDesc(Boolean addFoot=true) {
         if(mT in [sANN, sANNI]) mT = sANN
         str += (mT in [sSPEAK, sANN] || isTierAct) && (String)settings."act_${mT}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
 
-        String trigTasks = !isTierAct ? actTaskDesc(sACT) : sNULL
+        String trigTasks = !isTierAct ? actTaskDesc(sACT) + lineBr() : sNULL
         str += trigTasks ? spanSm(trigTasks) : sBLANK
         str += addFoot ? inputFooter(sTTM) : sBLANK
     }

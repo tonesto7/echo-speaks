@@ -356,10 +356,10 @@ def servPrefPage() {
             } else {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
                 section(sectHead("Server Management:")) {
-                    if(oH && (String)state.herokuName) { paragraph spanSmBr("Heroku Name:", sCLR4D9) + spanSmBld(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
+                    if(oH && (String)state.herokuName) { paragraph spanSmBldBr("Heroku Name:", sCLR4D9) + spanSm(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
                     href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
-                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
-                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
+                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inactFoot(sTTP)
+                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inactFoot(sTTP)
                 }
             }
             srvcPrefOpts()
@@ -367,7 +367,7 @@ def servPrefPage() {
         section(sectHead("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", sBOOL, title: inTS1("Reset Service Data?", sRESET), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true
-            paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY)
+            paragraph spanSm("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sCLRGRY)
             if(settings.resetService) { clearCloudConfig() }
         }
         state.resumeConfig = false
@@ -381,9 +381,9 @@ def srvcPrefOpts(Boolean req=false) {
             input "regionLocale", sENUM, title: inTS1("Select your Locale?", "www"), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true
         } else {
             String s = sBLANK
-            s += settings.amazonDomain ? "Amazon Domain: (${settings.amazonDomain})" : sBLANK
-            s += settings.regionLocale ? "\nLocale Region: (${settings.regionLocale})" : sBLANK
-            paragraph spanSm(s, sCLR4D9, getAppImg(sAMAZONORNG))
+            s += settings.amazonDomain ? spanSmBld("Amazon Domain: ") + spanSmBr("(${settings.amazonDomain})") : sBLANK
+            s += settings.regionLocale ? spanSmBld("Locale Region: ") + spanSm("(${settings.regionLocale})") : sBLANK
+            paragraph spanSm(lineBr() + s, sCLR4D9, getAppImg(sAMAZONORNG))
         }
     }
 }
@@ -6284,9 +6284,9 @@ def appInfoSect() {
             }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
                 isNote = true
-                String str1 = sBLANK
+                String str1 = spanSmBld("Developer Notices:")
                 state.noticeData.notices.each { String item-> str1 += lineBr() + spanSmBr("  ${sBULLET} ${item}") }
-                paragraph divSm(str1, sCLRRED)
+                paragraph divSm(str1, sCLRORG)
             }
             if(remDevs?.size()) {
                 isNote = true
@@ -7320,7 +7320,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         text: ["appLbl"]
     ],
     ends: [
-        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone", "_ign_empty_type"],
+        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone", "_ign_empty_type", "_trig_clear_restore"],
         enum: ["_cmd", "_type", "_routineExecuted",
                "_EchoDevices",
                "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type",

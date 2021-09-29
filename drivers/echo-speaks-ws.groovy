@@ -22,7 +22,7 @@ import groovy.transform.Field
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String devVersionFLD  = '4.2.0.0'
-@Field static final String devModifiedFLD = '2021-09-27'
+@Field static final String devModifiedFLD = '2021-09-29'
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -124,12 +124,12 @@ def initialize() {
 }
 
 Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
+
 public void logsOff() {
     device.updateSetting("logDebug",[value:"false",type:"bool"])
     device.updateSetting("logTrace",[value:"false",type:"bool"])
     log.debug "Disabling debug logs"
 }
-
 
 def connect() {
     if(!state.cookie || !(String)state.amazonDomain || !(String)state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
@@ -144,7 +144,9 @@ def connect() {
             "Cookie": getCookieVal()
         ]
         logTrace("connect called")
-        interfaces.webSocket.connect("https://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
+        String url = "https://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}"
+        // log.info "Connect URL: $url"
+        interfaces.webSocket.connect(url, byteInterface: "true", pingInterval: 45, headers: headers)
     } catch(ex) {
         logError("WebSocket connect failed | ${ex}", false, ex)
     }
@@ -232,9 +234,9 @@ void nextMsgSend4() {
 }
 
 def parse(message) {
-    // log.debug "parsed ${message}"
+    // log.debug("parsed ${message}")
     String newMsg = strFromHex(message)
-//    logTrace("decodedMsg: ${newMsg}")
+    logTrace("decodedMsg: ${newMsg}")
     if(newMsg) {
         if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
         // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
