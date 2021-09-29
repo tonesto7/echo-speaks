@@ -5707,7 +5707,7 @@ private restoreLights(data) {
 void captureLightState(List devs, String p) {
     String e = p+sLRM
     String msg = "captureLightState | ${e} | "
-    logTrace(msg+"${devs}")
+    log.trace(msg+"${devs}")
     Map<String, Map> sMap = [:]
     if(devs && p) {
         devs.each { dev->
@@ -5720,12 +5720,13 @@ void captureLightState(List devs, String p) {
         state."${e}" = sMap
     }
     if(devModeFLD) logDebug(msg+"sMap: $sMap")
+    log.debug(msg+ "sMap: $sMap")
 }
 
 void restoreLightState(List devs, String p) {
     String e = p+sLRM
     String msg = "restoreLightState | ${e} | "
-    logTrace(msg+"${devs}")
+    log.trace(msg+"${devs}")
     if(devs && p) {
         Boolean doP = true  // do pauses
         Long paus = 100L
