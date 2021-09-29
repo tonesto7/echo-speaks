@@ -301,16 +301,16 @@ def authStatusPage() {
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
 
                 // Refreshes the cookie
-                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET) + lineBr() + spanSm(ckDesc, pastDayChkOk ? sCLRGRY : sCLRRED), 
-                            required: false, defaultValue: false, submitOnChange: true
+                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET) + lineBr() + spanSm(ckDesc, pastDayChkOk ? sCLRGRY : sCLRRED),
+                        required: false, defaultValue: false, submitOnChange: true
                 paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm("After manually refreshing the cookie leave this page and come back before the date will change.", sCLR4D9)
 
                 // Clears cookies for app and devices
-                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET) + lineBr() + spanSm("Clear all stored cookie data from the app and devices.", sCLRGRY), 
-                            required: false, defaultValue: false, submitOnChange: true
+                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET) + lineBr() + spanSm("Clear all stored cookie data from the app and devices.", sCLRGRY),
+                        required: false, defaultValue: false, submitOnChange: true
 
-                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET) + lineBr() + spanSm("Force devices to synchronize their stored cookies.", sCLRGRY), 
-                            required: false, defaultValue: false, submitOnChange: true
+                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET) + lineBr() + spanSm("Force devices to synchronize their stored cookies.", sCLRGRY),
+                        required: false, defaultValue: false, submitOnChange: true
 
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
@@ -883,7 +883,10 @@ def settingsPage() {
             input "childDeviceLogDebug", sBOOL, title: inTS1("Enable Debug Logs for All Child Devices?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
             input "childDeviceLogTrace", sBOOL, title: inTS1("Enable Trace Logs for All Child Devices?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
             input "disableAllChildAdvLogs", sBOOL, title: inTS1("Disable All Advanced Logging on Child Apps/Devices?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
-            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace || (Boolean)settings.disableAllChildAdvLogs) { activateChildAdvLogs() }
+            /*if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace ||
+                    (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace ||
+                    (Boolean)settings.disableAllChildAdvLogs) { activateChildAdvLogs() } */
+            activateChildAdvLogs()
         }
         // }
 
@@ -4788,27 +4791,35 @@ void healthCheck() {
     chkRestartSocket()
 
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
-    if(advLogsActive()) { logsDisable() }
+    logsDisable()
     appUpdateNotify()
 
     //if(!getOk2Notify()) { return }
     missPollNotify((Boolean)settings.sendMissedPollMsg, (settings.misPollNotifyMsgWaitVal as Integer ?: 3600))
 }
 
-Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace || (Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) }
-public void logsEnabled() { if(advLogsActive() && !getTsVal("logsEnabled")) { logTrace("enabling logging timer"); updTsVal("logsEnabled") } }
+Boolean advLogsActive() {
+    return ((Boolean)settings.logDebug || (Boolean)settings.logTrace ||
+        (Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace ||
+        (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace)
+}
+
+public void logsEnabled() {
+    if(advLogsActive() && !getTsVal("logsEnabled")) {
+        logTrace("enabling logging timer")
+        updTsVal("logsEnabled")
+    }
+}
+
 public void logsDisable() {
     if(advLogsActive()) {
         Integer dtSec = getLastTsValSecs("logsEnabled", null)
         if(dtSec && (dtSec > 3600*6)) {
             settingUpdate("logDebug", sFALSE, sBOOL)
             settingUpdate("logTrace", sFALSE, sBOOL)
-            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) {
-                settingUpdate("childAppLogDebug", sFALSE, sBOOL)
-                settingUpdate("childAppLogTrace", sFALSE, sBOOL)
-                settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
-                settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
-                runIn(12, 'disableAdvChldLogs')
+            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace ||
+                    (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) {
+                runIn(4, 'disableAdvChldLogs')
             }
             remTsVal("logsEnabled")
             log.debug "Disabling debug logs"
@@ -4816,34 +4827,72 @@ public void logsDisable() {
     }
 }
 
+@Field volatile static Map<String, Map> childLogMapFLD        = [:]
+
 public void activateChildAdvLogs() {
-    if((Boolean)settings.childAppLogDebug) {
-        settingUpdate("childAppLogDebug", sFALSE, sBOOL)
-        manAllZonesDbgLogs(true)
-        manAllActsDbgLogs(true)
-    }
-    if((Boolean)settings.childAppLogTrace) {
-        settingUpdate("childAppLogTrace", sFALSE, sBOOL)
-        manAllZonesTrcLogs(true)
-        manAllActsTrcLogs(true)
-    }
-    if((Boolean)settings.childDeviceLogDebug) {
-        settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
-        manAllEchosDbgLogs(true)
-    }
-    if((Boolean)settings.childDeviceLogTrace) {
-        settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
-        manAllEchosTrcLogs(true)
-    }
+    String myId=app.getId()
+    Map myMap = childLogMapFLD[myId]
+    myMap = myMap ?: [:]
+    Boolean a
+
     if((Boolean)settings.disableAllChildAdvLogs) {
         settingUpdate("disableAllChildAdvLogs", sFALSE, sBOOL)
-        manAllZonesDbgLogs(false)
-        manAllActsDbgLogs(false)
-        manAllEchosDbgLogs(false)
-        manAllEchosTrcLogs(false)
-        manAllZonesTrcLogs(false)
-        manAllActsTrcLogs(false)
+        settingUpdate("childAppLogDebug", sFALSE, sBOOL)
+        settingUpdate("childAppLogTrace", sFALSE, sBOOL)
+        settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
+        settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
     }
+
+    a = (Boolean)settings.childAppLogDebug
+    if(a != (Boolean)myMap.childAppLogDebug) {
+        if (a) {
+            manAllZonesDbgLogs(true)
+            manAllActsDbgLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllZonesDbgLogs(false)
+            manAllActsDbgLogs(false)
+        }
+        myMap.childAppLogDebug = a
+    }
+
+    a = (Boolean)settings.childAppLogTrace
+    if(a != (Boolean)myMap.childAppLogTrace) {
+        if(a) {
+            manAllZonesTrcLogs(true)
+            manAllActsTrcLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllZonesTrcLogs(false)
+            manAllActsTrcLogs(false)
+        }
+        myMap.childAppLogTrace = a
+    }
+
+    a = (Boolean)settings.childDeviceLogDebug
+    if(a != (Boolean)myMap.childDeviceLogDebug) {
+        if(a) {
+            manAllEchosDbgLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllEchosDbgLogs(false)
+        }
+        myMap.childDeviceLogDebug = a
+    }
+
+    a = (Boolean)settings.childDeviceLogTrace
+    if(a != (Boolean)myMap.childDeviceLogTrace) {
+        if(a) {
+            manAllEchosTrcLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllEchosTrcLogs(false)
+        }
+        myMap.childDeviceLogTrace = a
+    }
+
+    childLogMapFLD[myId] = myMap
+    childLogMapFLD = childLogMapFLD
 }
 
 private void manAllZonesDbgLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
@@ -4861,6 +4910,22 @@ private void disableAdvChldLogs() {
     getZoneApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.relayLogsOff() }
     ((List)getChildDevices())?.each { cd-> cd?.logsOff() }
+    settingUpdate("disableAllChildAdvLogs", sFALSE, sBOOL)
+    settingUpdate("childAppLogDebug", sFALSE, sBOOL)
+    settingUpdate("childAppLogTrace", sFALSE, sBOOL)
+    settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
+    settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
+
+    String myId=app.getId()
+    Map myMap = childLogMapFLD[myId]
+    myMap = myMap ?: [:]
+    Boolean a = false
+    myMap.childAppLogDebug = a
+    myMap.childAppLogTrace = a
+    myMap.childDeviceLogDebug = a
+    myMap.childDeviceLogTrace = a
+    childLogMapFLD[myId] = myMap
+    childLogMapFLD = childLogMapFLD
 }
 
 void missPollNotify(Boolean on, Integer wait) {
