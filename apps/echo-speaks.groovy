@@ -2637,7 +2637,7 @@ private void getNotifications(Boolean frc = false) {
     ]
     try {
         logTrace('getNotifications')
-        def sData
+        Map sData = null
         List newList = []
         httpGet(params) { response->
             sData = response?.data ?: null
@@ -2647,11 +2647,12 @@ private void getNotifications(Boolean frc = false) {
             Boolean all = true
             List s = ["ON"]
             if(all) s.push("OFF")
-            List items = sData.notifications ? sData.notifications.findAll { it.status in s /* && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber  */ } : []
+            List<String> kI = ['id', 'reminderLabel', 'createdDate', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'remainingTime', 'status']
+            List<Map<String,Object>> items = sData.notifications ? sData.notifications.findAll { it.status in s /* && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber  */ } : []
             items?.each { item->
                 Map li = [:]
-                item.keySet()?.each { String key-> if(key in ['id', 'reminderLabel', 'createdDate', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'remainingTime', 'status']) { li[key] = item[key] } }
-                newList?.push(li)
+                item.keySet()?.each { String key-> if(key in kI) { li[key] = item[key] } }
+                newList.push(li)
             }
         }
         // log.trace "notifications: $newList"
@@ -3033,7 +3034,7 @@ void checkGuardSupportResponse(response, data) {
             Map resp = response?.data ? parseJson(response?.data?.toString()) : null
             if(resp && resp.networkDetail) {
                 Map details = parseJson(resp.networkDetail as String)
-                Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
+                Map locDetails = (Map)details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
                 if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
                     def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
                     // TODO could there be multiple Guards?
@@ -4090,11 +4091,11 @@ void workQ() {
         Map extData=[:]
         List extList = []
 
-        Boolean oldParallel
+        Boolean oldParallel = null
         Boolean parallel = false
 
         String srcDesc
-        Map seqObj
+        Map seqObj=null
         Integer mdelay = 0
 
         // lets try to join commands in single request to Alexa
@@ -4331,11 +4332,11 @@ static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
 void finishWorkQ(response, extData){
     String meth = 'finishWorkQ'
     logTrace "running "+meth
-    Integer statusCode
+    Integer statusCode=null
     def sData
-    String respMsg
+    String respMsg=sNULL
     try {
-        statusCode = response?.status
+        statusCode = response?.status?.toInteger()
         if(response.hasError()){
            respMsg = response.getErrorMessage()
         } else sData = response?.data
@@ -4702,7 +4703,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                     seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
                 } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
 //                    log.debug spanSm("valObj: ${valObj}", sCLRGRN2)
-                    List devObjs = new JsonSlurper().parseText(valObj[2])
+                    List devObjs = (List)new JsonSlurper().parseText((String)valObj[2])
                     seqNode.operationPayload.target.devices = devObjs
                 }
                 break
@@ -7136,7 +7137,7 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
     // log.trace "lock wait: ${aa}"
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
-    List<Map> eData = (List)memStore[logKey] ?: []
+    List<Map> eData = (List<Map>)memStore[logKey] ?: []
     if(eData.find { it?.message == msg }) {
         releaseTheLock(sHMLF)
         return
