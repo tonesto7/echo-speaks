@@ -145,9 +145,9 @@ def connect() {
     try {
         Map macDms = getMacDmsVal()
         log.debug "macDms: ${macDms}"
-        def rs = getRS(macDms)
+        String rs = getRS(macDms)
 
-        log.debug "RS: ${getObjType(rs)} ${rs.toString()}"
+        log.debug "RS: ${getObjType(rs)} ${rs}"
         Map<String,Object> headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
