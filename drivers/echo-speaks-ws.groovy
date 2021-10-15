@@ -16,8 +16,13 @@
  // This is based on the Amazon WebSocket used on Alexa.amazon.com and is ported from Javascript to Groovy and inspired from the work of @Apollon77 Alexa-Remote
 
 // NOTICE: This device will not work on SmartThings
+//file:noinspection GroovySillyAssignment
 
 import groovy.transform.Field
+
+import java.text.SimpleDateFormat
+import java.util.concurrent.Semaphore
+
 // import java.security.*;
 
 //************************************************
@@ -140,10 +145,10 @@ def connect() {
     try {
         Map macDms = getMacDmsVal()
         log.debug "macDms: ${macDms}"
-        def rs = getRS((Map)macDms).toString()
+        def rs = getRS(macDms)
 
         log.debug "RS: ${getObjType(rs)} ${rs.toString()}"
-        Map headers = [
+        Map<String,Object> headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
             "Host": "dp-gw-na.${(String)state.amazonDomain}",
@@ -171,7 +176,10 @@ def connect() {
     }
 }
 
-String getRS(Map macDms) {
+@Field static final String sAPPJSON       = 'application/json'
+
+def getRS(Map macDms) {
+    String meth='getRS'
     Map params = [
         uri: (String)parent.getServerHostURL(),
         path: "/createRS",
@@ -180,10 +188,14 @@ String getRS(Map macDms) {
         timeout: 30
     ]
     try {
-        httpPost(params) { response->
-            def sData = response?.data ?: sNULL
-            log.trace("getRS Data (${getObjType(sData)}): ${sData.rs}")
-            return sData
+        httpPost(params) { resp->
+            if(resp?.status != 200) logWarn("${resp?.status} "+meth)
+            if(resp?.status == 200) {
+                def sData = resp?.data
+                log.trace("getRS Data  ${sData}")
+                log.trace("getRS Data (${getObjType(sData)}): ${sData?.rs}")
+                return sData
+            }
         }
     } catch (ex) {
         logError("getRS failed | ${ex}", false, ex)
@@ -455,7 +467,7 @@ private commandEvtHandler(mymsg) {
     Map msg = mymsg
     Boolean sendEvt = false
     String cmd = (String)msg?.command
-    Map evt = [
+    Map<String,Object> evt = [
         id: msg?.payload?.dopplerId?.deviceSerialNumber ?: null,
         all: false,
         type:  cmd,
@@ -512,7 +524,7 @@ private commandEvtHandler(mymsg) {
                 if(keys?.size() && keys[2]) {
                     sendEvt = true
                     evt.id = keys[2]
-                    evt.triggers?.push("activity")
+                    evt.triggers.push("activity")
                     evt.all = true
                 }
                 break
@@ -690,10 +702,10 @@ static String strToHex(String arg, charset="UTF-8") { return String.format("%x",
 static String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
 
 String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : sNULL }
-Map getMacDmsVal() { return (state.cookie && state.cookie?.macDms) ? parseJson(state.cookie?.macDms.toString()) : sNULL }
+Map getMacDmsVal() { return (state.cookie && state.cookie?.macDms) ? parseJson(state.cookie?.macDms?.toString()) : null }
 //String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
 
-Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }
+Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j.length() }
 Integer stateSizePerc() { return (int) ((stateSize() / 100000)*100).toDouble().round(0) }
 
 // public String gitBranch() { 
@@ -719,8 +731,8 @@ String getDtNow() {
 
 String formatDt(Date dt, Boolean mdy = true) {
 	String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
-	def tf = new java.text.SimpleDateFormat(formatVal)
-	if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+	def tf = new SimpleDateFormat(formatVal)
+	if(location?.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
 	return (String)tf.format(dt)
 }
 
@@ -826,7 +838,7 @@ private List getMemStoreItem(String key){
 }
 
 // Memory Barrier	
-@Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
+@Field static Semaphore theMBLockFLD=new Semaphore(0)
 
 static void mb(String meth=sNULL){
     if((Boolean)theMBLockFLD.tryAcquire()){
