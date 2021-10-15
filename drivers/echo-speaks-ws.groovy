@@ -178,7 +178,7 @@ def connect() {
 
 @Field static final String sAPPJSON       = 'application/json'
 
-def getRS(Map macDms) {
+String getRS(Map macDms) {
     String meth='getRS'
     Map params = [
         uri: (String)parent.getServerHostURL(),
@@ -194,7 +194,7 @@ def getRS(Map macDms) {
                 def sData = resp?.data
                 log.trace("getRS Data  ${sData}")
                 log.trace("getRS Data (${getObjType(sData)}): ${sData?.rs}")
-                return sData
+                return sData.rs
             }
         }
     } catch (ex) {
