@@ -29,7 +29,7 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String devVersionFLD  = '4.2.0.0'
-@Field static final String devModifiedFLD = '2021-10-14'
+@Field static final String devModifiedFLD = '2021-10-15'
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -37,6 +37,7 @@ import java.util.concurrent.Semaphore
 @Field static final String sCLRRED        = 'red'
 @Field static final String sCLRGRY        = 'gray'
 @Field static final String sCLRORG        = 'orange'
+@Field static final String sAPPJSON       = 'application/json'
 
 //************************************************
 //*          IN-MEMORY ONLY VARIABLES            *
@@ -110,7 +111,6 @@ def initialize() {
     runIn(1,"close")
     if(minVersionFailed()) { logError("CODE UPDATE REQUIRED to RESUME operation. No WebSocket Connections will be made."); return }
     state.remove('warnHistory'); state.remove('errorHistory')
-
     if(settings.autoConnectWs != false) {
         if(!state.cookie || !(state.cookie instanceof Map)) state.cookie = (Map)parent?.getCookieMap()
         String cookS = getCookieVal() //state.cookie = parent?.getCookieVal()
@@ -144,10 +144,7 @@ def connect() {
     if(!state.cookie || !(String)state.amazonDomain || !(String)state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
     try {
         Map macDms = getMacDmsVal()
-        log.debug "macDms: ${macDms}"
-        def rs = getRS(macDms)
-
-        log.debug "RS: ${getObjType(rs)} ${rs.toString()}"
+        // log.debug "macDms: ${macDms}"
         Map<String,Object> headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
@@ -160,13 +157,13 @@ def connect() {
         logTrace("connect called")
         String url = "wss://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}"
         // log.info "Connect URL: $url"
-        if(macDms) {
+        if(macDms && macDms.adp_token && macDms.device_private_key) {
             headers["x-dp-comm-tuning"] = "A:F;A:H"
             headers["x-dp-reason"] = "ClientInitiated;1"
             headers["x-dp-tcomm-purpose"] = "Regular"
             headers["x-dp-obfuscatedBssid"] =  "-2019514039"
             headers["x-dp-tcomm-versionName"] = "2.2.443692.0"
-            headers["x-adp-signature"] = rs
+            headers["x-adp-signature"] = genRS(macDms)
             headers["x-adp-token"] = macDms.adp_token
             headers["x-adp-alg"] = "SHA256WithRSA:1.0"
         }
@@ -176,10 +173,10 @@ def connect() {
     }
 }
 
-@Field static final String sAPPJSON       = 'application/json'
 
-def getRS(Map macDms) {
-    String meth='getRS'
+
+String genRS(Map macDms) {
+    String res=sNULL
     Map params = [
         uri: (String)parent.getServerHostURL(),
         path: "/createRS",
@@ -191,16 +188,18 @@ def getRS(Map macDms) {
         httpPost(params) { resp->
             if(resp?.status != 200) logWarn("${resp?.status} "+meth)
             if(resp?.status == 200) {
-                def sData = resp?.data
-                log.trace("getRS Data  ${sData}")
-                log.trace("getRS Data (${getObjType(sData)}): ${sData?.rs}")
-                return sData
+                def t0 = resp?.data
+                Map sData
+                if( t0 instanceof String)  sData = parseJson(resp?.data)
+                else sData =  resp?.data
+                logTrace("genRS Data (${getObjType(sData)}): ${sData?.rs}")
+                res=sData.rs
             }
         }
     } catch (ex) {
-        logError("getRS failed | ${ex}", false, ex)
-        return sNULL
+        logError("genRS failed | ${ex}", false, ex)
     }
+    return res
 }
 
 def close() {
@@ -261,47 +260,51 @@ def webSocketStatus(String status) {
 void nextMsgSend() {
     state.remove('reconnectDelay') // state.reconnectDelay = 1
     sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
-    logTrace("Gateway Handshake Message Sent (Step 1)")
+    log.trace("Gateway Handshake Message Sent (Step 1)")
 }
 
 @SuppressWarnings('unused')
-void nextMsgSend1() {
-    sendWsMsg( strToHex("""0xa6f6a951 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""") )
-    logTrace("Gateway Handshake Message Sent (Step 2A)")
+void nextMsgSend1(data) {
+    sendWsMsg( strToHex("""0xa6f6a951 0x0000009c {"protocolName":"${data.protoName}","parameters":{"AlphaProtocolHandler.receiveWindowSize":"16","AlphaProtocolHandler.maxFragmentSize":"16000"}}TUNE""") )
+    log.trace("Gateway Handshake Message [${data.protoName}] Sent (Step 2A)")
 }
 
 @SuppressWarnings('unused')
-void nextMsgSend2() {
-    sendWsMsg( strToHex(encodeGWHandshake()) )
-    logTrace("Gateway Handshake Message Sent (Step 2B)")
+void nextMsgSend2(data) {
+    sendWsMsg( data.protoName = "A:F" ? strToHex(encodeGWRegisterAF()) : strToHex(encodeGWHandshake()) )
+    log.trace("Gateway Handshake Message ${data.protoName} Sent (Step 2B)")
 }
 
 @SuppressWarnings('unused')
-void nextMsgSend3() {
-    sendWsMsg( strToHex(encodeGWRegister()) )
-    logTrace("Gateway Registration Message Sent (Step 3)")
+void nextMsgSend3(data) {
+    // This message will be different for A:F protocolName
+    sendWsMsg( data.protoName = "A:F" ? strToHex(encodeGWRegisterAF()) : strToHex(encodeGWRegisterAH()) )
+    log.trace("Gateway Registration Message ${data.protoName} Sent (Step 3)")
 }
 
 @SuppressWarnings('unused')
-void nextMsgSend4() {
-    sendWsMsg( strToHex(encodePing()) )
-    logTrace("Encoded Ping Message Sent (Step 4)")
+void nextMsgSend4(data) {
+    sendWsMsg( data.protoName = "A:F" ? strToHex(encodePingAF()) : strToHex(encodePingAH()) )
+    log.trace("Encoded Ping Message Sent (Step 4)")
 }
 
 def parse(message) {
     // log.debug("parsed ${message}")
     String newMsg = strFromHex(message)
-    logTrace("decodedMsg: ${newMsg}")
+    log.trace("decodedMsg: ${newMsg}")
     if(newMsg) {
-        if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
+        Boolean newWS = newMsg.contains('"protocolName":"A:F"')
+        log.debug "newWS: $newWS"
+        String protoName = newWS ? "A:F" : "A:H"
+        if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"${protoName}","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
         // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
-            runIn(4, "nextMsgSend1")
-            runIn(6, "nextMsgSend2")
+            runIn(4, "nextMsgSend1", [data: [protoName: protoName]])
+            runIn(6, "nextMsgSend2", [data: [protoName: protoName]])
             return
         } else if (newMsg?.startsWith("MSG 0x00000361 ") && newMsg?.endsWith(" END FABE")) {
-            runIn(2, "nextMsgSend3")
+            runIn(2, "nextMsgSend3", [data: [protoName: protoName]])
 //            pauseExecution(1000)
-            runIn(4, "nextMsgSend4")
+            runIn(4, "nextMsgSend4", [data: [protoName: protoName]])
         }
         parseIncomingMessage(newMsg)
     }
@@ -569,10 +572,10 @@ String encodeGWHandshake() {
         byte [] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
         buffer = copyArrRange(buffer, 39, checksumBuf)
         return new String(buffer)
-    } catch (ex) { log.error "encodeGWHandshake Exception: ${ex}" }
+    } catch (ex) { log.error "encodeGWHandshakeAH Exception: ${ex}" }
 }
 
-String encodeGWRegister() {
+String encodeGWRegisterAH() {
     //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
     try {
         state.messageId++
@@ -589,10 +592,109 @@ String encodeGWRegister() {
         buffer = copyArrRange(buffer, 39, checksumBuf)
         String out = new String(buffer)
         return out
-    } catch (ex) { log.error "encodeGWRegister Exception: ${ex}" }
+    } catch (ex) { log.error "encodeGWRegisterAH Exception: ${ex}" }
 }
 
-String encodePing() {
+String encodeGWRegisterAF() {
+    //pubrelBuf = new Buffer('MSG 0x00000362 0x0e414e46 f 0x00000001 0xf904b9f5 0x00000109 GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE');
+    try {
+        state.messageId++
+        const completeBuffer = Buffer.alloc(0xe4);
+        completeBuffer.write("MSG", 0, "ascii");
+        completeBuffer.writeUInt32BE(0x00000362, 3); // Message-type and Channel = GW_CHANNEL;
+        completeBuffer.writeUInt32BE(this.messageId, 7);
+        completeBuffer.write("f", 11, "ascii");
+        completeBuffer.writeUInt32BE(0x00000001, 12);
+        completeBuffer.writeUInt32BE(0x00000000, 16); // Checksum!
+        completeBuffer.writeUInt32BE(0x000000e4, 20); // length content
+        completeBuffer.write('GWM MSG 0x0000b479 0x0000003b urn:tcomm-endpoint:device:deviceType:0:deviceSerialNumber:0 0x00000041 urn:tcomm-endpoint:service:serviceName:DeeWebsiteMessagingService {"command":"REGISTER_CONNECTION"}FABE', 24, "ascii");
+
+        let checksum = this.computeChecksum(completeBuffer, 16, 20);
+        completeBuffer.writeUInt32BE(checksum, 16); // Checksum!
+        return out
+    } catch (ex) { log.error "encodeGWRegisterAH Exception: ${ex}" }
+}
+
+String encodePingAH() {
+    state.messageId++
+    Long now = now()
+    String msg = 'MSG 0x00000065 ' // Message-type and Channel = CHANNEL_FOR_HEARTBEAT;
+    msg += encodeNumber(state.messageId) + ' f 0x00000001 '
+    Integer idx1 = msg.length()
+    msg += '0x00000000 ' // Checksum!
+    Integer idx2 = msg.length()
+    msg+= '0x00000062 ' // length content
+    byte[] buffer = new byte[98]
+    buffer = copyArrRange(buffer, 0, msg?.getBytes("ASCII"))
+    String header = 'PIN'
+    String payload = 'Regular'
+    byte[] n = new byte[header?.length() + 4 + 8 + 4 + (2 * payload?.length())] // Creates empty byte array with size of 98
+    //Integer idx = 0
+    byte[] u = header?.getBytes("UTF-8")
+    n = copyArrRange(n, 0, u)
+    Integer l = 0
+    idx = header?.length()
+    n = encode(n, l, idx, 4)
+    idx += 4
+    n = encode(n, now, idx, 8)
+    idx += 8
+    n = encode(n, payload?.length(), idx, 4)
+    idx += 4
+    n = encodePayload(n, payload, idx, payload?.length())
+    buffer = copyArrRange(buffer, msg?.length(), n)
+    def buf2End = "FABE"?.getBytes("ASCII")
+    Integer buf2EndPos = msg?.length() + n?.size()
+    buffer = copyArrRange(buffer, buf2EndPos, buf2End)
+    Long checksum = rfc1071Checksum(buffer, idx1, idx2)
+    byte[] checksumBuf = encodeNumber(checksum)?.getBytes("UTF-8")
+    buffer = copyArrRange(buffer, 39, checksumBuf)
+    String out = new String(buffer)
+    return out
+    // "MSG 0x00000065 0x0e414e47 f 0x00000001 0xbc2fbb5f 0x00000062 PIN" + 30 + "FABE"
+}
+
+String encodePingAF() {
+    this.messageId++;
+    const completeBuffer = Buffer.alloc(0x3d);
+    completeBuffer.write("MSG", 0, "ascii");
+    completeBuffer.writeUInt32BE(0x00000065, 3); // Message-type and Channel = CHANNEL_FOR_HEARTBEAT;
+    completeBuffer.writeUInt32BE(this.messageId, 7);
+    completeBuffer.write("f", 11, "ascii");
+    completeBuffer.writeUInt32BE(0x00000001, 12);
+    completeBuffer.writeUInt32BE(0x00000000, 16); // Checksum!
+    completeBuffer.writeUInt32BE(0x0000003d, 20); // length content
+
+    const header = "PIN";
+    const payload = "Regular"; // g = h.length
+    let n = new ArrayBuffer(header.length + 4 + 8 + 4 + 2 * payload.length);
+    let idx = 0;
+    let u = new Uint8Array(n, idx, header.length);
+    let l = 0;
+    let e = Date.now();
+
+    for (let q = 0; q < header.length; q++) u[q] = header.charCodeAt(q);
+    idx += header.length;
+    encode(n, l, idx, 4);
+    idx += 4;
+    encode(n, e, idx, 8);
+    idx += 8;
+    encode(n, payload.length, idx, 4);
+    idx += 4;
+    u = new Uint8Array(n, idx, payload.length * 2);
+    let q;
+    for (q = 0; q < payload.length; q++) {
+        u[q * 2] = 0;
+        u[q * 2 + 1] = payload.charCodeAt(q);
+    }
+    let buf = Buffer.from(n);
+    buf.copy(completeBuffer, 24);
+
+    completeBuffer.write("FABE", buf.length + 24, "ascii");
+
+    let checksum = this.computeChecksum(completeBuffer, 16, 20);
+    completeBuffer.writeUInt32BE(checksum, 16); // Checksum!
+    
+
     state.messageId++
     Long now = now()
     String msg = 'MSG 0x00000065 ' // Message-type and Channel = CHANNEL_FOR_HEARTBEAT;
