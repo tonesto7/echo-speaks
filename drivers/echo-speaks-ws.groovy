@@ -18,11 +18,13 @@
 // NOTICE: This device will not work on SmartThings
 
 import groovy.transform.Field
+// import java.security.*;
+
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String devVersionFLD  = '4.2.0.0'
-@Field static final String devModifiedFLD = '2021-09-29'
+@Field static final String devModifiedFLD = '2021-10-14'
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -47,6 +49,7 @@ metadata {
         capability "Initialize"
         capability "Refresh"
         capability "Actuator"
+        // command "refreshDomainState"
     }
 }
 
@@ -135,6 +138,9 @@ public void logsOff() {
 def connect() {
     if(!state.cookie || !(String)state.amazonDomain || !(String)state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
     try {
+        def macDms = getMacDmsVal()
+        getRS(macDms)
+        log.debug "macDms: ${macDms}"
         Map headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
@@ -145,11 +151,40 @@ def connect() {
             "Cookie": getCookieVal()
         ]
         logTrace("connect called")
-        String url = "https://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}"
+        String url = "wss://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}"
         // log.info "Connect URL: $url"
+        if(macDms) {
+            headers["x-dp-comm-tuning"] = "A:F;A:H"
+            headers["x-dp-reason"] = "ClientInitiated;1"
+            headers["x-dp-tcomm-purpose"] = "Regular"
+            headers["x-dp-obfuscatedBssid"] =  "-2019514039"
+            headers["x-dp-tcomm-versionName"] = "2.2.443692.0"
+            headers["x-adp-signature"] = getRS(macDms)
+            headers["x-adp-token"] = macDms.adp_token
+            headers["x-adp-alg"] = "SHA256WithRSA:1.0"
+        }
         interfaces.webSocket.connect(url, byteInterface: "true", pingInterval: 45, headers: headers)
     } catch(ex) {
         logError("WebSocket connect failed | ${ex}", false, ex)
+    }
+}
+
+String getRS(macDms) {
+    Map params = [
+        uri: (String)parent.getServerHostURL(),
+        path: "/createRS",
+        headers: [macDms: macDms],
+        contentType: sAPPJSON,
+        timeout: 20
+    ]
+    try {
+        httpGet(params) { response->
+            def sData = response?.data ?: null
+            log.trace("getRS: $sData")
+            return sData.toString() ?: null
+        }
+    } catch (ex) {
+        logError("getRS failed | ${ex}", false, ex)
     }
 }
 
@@ -652,6 +687,7 @@ static String strToHex(String arg, charset="UTF-8") { return String.format("%x",
 static String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
 
 String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : sNULL }
+String getMacDmsVal() { return (state.cookie && state.cookie?.macDms) ? state.cookie?.macDms as String : sNULL }
 //String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
 
 Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }

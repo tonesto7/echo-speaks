@@ -1990,7 +1990,7 @@ def getCookieData() {
 }
 
 Map getCookieMap() {
-    return [cookie: getCookieVal(), csrf: getCsrfVal()]
+    return [cookie: getCookieVal(), csrf: getCsrfVal(), macDms: getMacDms()]
 }
 
 Map getReqHeaderMap(Boolean extra=false) {
@@ -2025,6 +2025,17 @@ String getCsrfVal() {
         cookieDataFLD = cookieDataFLD
     }
     return cookieDataFLD[myId]?.csrf ?  (String)cookieDataFLD[myId].csrf : sNULL
+}
+
+String getMacDms() {
+    String myId=app.getId()
+    if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].macDms != null)) {
+        Map cookieData = state.cookieData
+        //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
+        cookieDataFLD[myId] = cookieData
+        cookieDataFLD = cookieDataFLD
+    }
+    return cookieDataFLD[myId]?.macDms ?  (String)cookieDataFLD[myId].macDms : sNULL
 }
 
 def storeCookieData() {
@@ -2074,14 +2085,17 @@ def clearCookieD() {
     a = a!= null ? a : 0
     a = a+1
     state.clearCnt = a
-    if(a > 5) clearCookieData('webCall', false)
-    else logTrace("skipping server call to clearCookieData()")
+    if(a > 5) {
+        clearCookieData('webCall', false)
+    } else { 
+        logTrace("skipping server call to clearCookieData()")
+    }
     String json = new JsonOutput().toJson([message: "success", version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
 }
 
 def clearCookieData(String src=sNULL, Boolean callSelf=false) {
-    logTrace("clearCookieData(${src ?: sBLANK}, $callSelf)")
+    log.trace("clearCookieData(${src ?: sBLANK}, $callSelf)")
     settingUpdate("resetCookies", sFALSE, sBOOL)
     if(!callSelf) authEvtHandler(false, "clearCookieData")
     state.remove("cookie")
@@ -2115,7 +2129,7 @@ void updateChildAuth(Boolean isValid, Boolean doInit=true) {
 @Field volatile static Map<String,List> authValidMapFLD             = [:]
 
 void authValidationEvent(Boolean valid, String src=sNULL) {
-    Boolean isValid = valid && getCookieVal() && getCsrfVal()
+    Boolean isValid = (valid && getCookieVal() && getCsrfVal())
     Integer listSize = 3
     String myId=app.getId()
     List eList = authValidMapFLD[myId]
@@ -2287,7 +2301,7 @@ Boolean validateCookie(Boolean frc=false) {
     Boolean valid = (Boolean)state.authValid
     Integer lastChk = getLastTsValSecs("lastCookieChkDt", 3600)
     Integer lastSpoke = getLastTsValSecs("lastSpokeToAmazon", 3600)
-    Boolean cookieOk = getCookieVal() && getCsrfVal()
+    Boolean cookieOk = (getCookieVal() && getCsrfVal())
     if(!frc && valid && lastChk <= 1800 && cookieOk) { return valid }
     if(!frc && valid && lastSpoke <= 1800 && lastChk < 3600 && cookieOk) { return valid }
     if(frc && valid && lastChk <= 60 && cookieOk) { return valid }

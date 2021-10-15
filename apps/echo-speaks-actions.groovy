@@ -1788,7 +1788,7 @@ private executeTaskCommands(data) {
         if(settings."${p}siren_time") runIn(settings."${p}siren_time", "postTaskCommands", [data:[type: p]])
     }
     if(settings."${p}lights") {
-        if(settings."${p}lights_trig_clear_restore" || settings."${p}lights_restore_delay") { captureLightState((List)settings."${p}lights", p) }
+        if(settings."${p}lights_trig_clear_restore" || settings."${p}lights_restore_delay") { captureDeviceState((List)settings."${p}lights", p) }
         settings."${p}lights"*.on()
         if(settings."${p}lights_leveln") {
             List hasLvlDevs = settings."${p}lights"*.filter { it.hasCommand("setLevel") }
@@ -5666,7 +5666,7 @@ private void flashLights(Map data) {
     if((Boolean)data.first) {
         data.first = false
         logTrace(msg+"capturing state")
-        captureLightState(devs, p)
+        captureDeviceState(devs, p)
         if(data.color1Map && data.color2Map) {
             data.state = "a"
             devs*.on()
@@ -5704,9 +5704,9 @@ private restoreLights(data) {
     if(p && settings."${p}lights") { restoreLightState((List)settings."${p}lights", p) }
 }
 
-void captureLightState(List devs, String p) {
+void captureDeviceState(List devs, String p) {
     String e = p+sLRM
-    String msg = "captureLightState | ${e} | "
+    String msg = "captureDeviceState | ${e} | "
     log.trace(msg+"${devs}")
     Map<String, Map> sMap = [:]
     if(devs && p) {
