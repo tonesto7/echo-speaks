@@ -191,7 +191,10 @@ String getRS(Map macDms) {
         httpPost(params) { resp->
             if(resp?.status != 200) logWarn("${resp?.status} "+meth)
             if(resp?.status == 200) {
-                def sData = resp?.data
+                def t0 = resp?.data
+                Map sData
+                if( t0 instanceof String)  sData = parseJson(resp?.data)
+                else sData =  resp?.data
                 log.trace("getRS Data  ${sData}")
                 log.trace("getRS Data (${getObjType(sData)}): ${sData?.rs}")
                 return sData.rs
