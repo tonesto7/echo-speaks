@@ -138,12 +138,11 @@ public void logsOff() {
 def connect() {
     if(!state.cookie || !(String)state.amazonDomain || !(String)state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
     try {
-        String macDms = getMacDmsVal()
-        Map macDmsMap = parseStrMap(macDms)
-        def sign = getRS(macDms)
+        Map macDms = getMacDmsVal()
         log.debug "macDms: ${macDms}"
-        log.debug "macDmsMap: ${macDmsMap}"
-        log.debug "sign: ${sign}"
+        def rs = getRS((Map)macDms).toString()
+
+        log.debug "RS: ${getObjType(rs)} ${rs.toString()}"
         Map headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
@@ -162,7 +161,7 @@ def connect() {
             headers["x-dp-tcomm-purpose"] = "Regular"
             headers["x-dp-obfuscatedBssid"] =  "-2019514039"
             headers["x-dp-tcomm-versionName"] = "2.2.443692.0"
-            headers["x-adp-signature"] = getRS(macDms)
+            headers["x-adp-signature"] = rs
             headers["x-adp-token"] = macDms.adp_token
             headers["x-adp-alg"] = "SHA256WithRSA:1.0"
         }
@@ -172,32 +171,23 @@ def connect() {
     }
 }
 
-Map parseStrMap(String str) {
-    str = str.replaceAll('\\[|\\]','')
-    def newMap = [:]
-        str.tokenize(',').each {
-        kvTuple = it.tokenize(':')
-        newMap[kvTuple[0]] = kvTuple[1]
-    }
-    return newMap
-}
-
-String getRS(macDms) {
+String getRS(Map macDms) {
     Map params = [
         uri: (String)parent.getServerHostURL(),
         path: "/createRS",
-        headers: [macdms: macDms],
+        headers: [devpk: macDms.device_private_key, adptkn: macDms.adp_token],
         contentType: sAPPJSON,
-        timeout: 20
+        timeout: 30
     ]
     try {
         httpPost(params) { response->
-            def sData = response?.data ?: null
-            log.trace("getRS: $sData")
-            return sData.toString() ?: null
+            def sData = response?.data ?: sNULL
+            log.trace("getRS Data (${getObjType(sData)}): ${sData.rs}")
+            return sData
         }
     } catch (ex) {
         logError("getRS failed | ${ex}", false, ex)
+        return sNULL
     }
 }
 
@@ -700,7 +690,7 @@ static String strToHex(String arg, charset="UTF-8") { return String.format("%x",
 static String strFromHex(String str, charset="UTF-8") { return new String(str?.decodeHex()) }
 
 String getCookieVal() { return (state.cookie && state.cookie?.cookie) ? state.cookie?.cookie as String : sNULL }
-String getMacDmsVal() { return (state.cookie && state.cookie?.macDms) ? state.cookie?.macDms as String : sNULL }
+Map getMacDmsVal() { return (state.cookie && state.cookie?.macDms) ? parseJson(state.cookie?.macDms.toString()) : sNULL }
 //String getCsrfVal() { return (state.cookie && state.cookie?.csrf) ? state.cookie?.csrf as String : null }
 
 Integer stateSize() { String j = new groovy.json.JsonOutput().toJson(state); return j?.length() }

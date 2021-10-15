@@ -2032,7 +2032,7 @@ String getMacDms() {
         cookieDataFLD[myId] = cookieData
         cookieDataFLD = cookieDataFLD
     }
-    return cookieDataFLD[myId]?.macDms ?  (String)cookieDataFLD[myId].macDms : sNULL
+    return cookieDataFLD[myId]?.macDms ? (String)cookieDataFLD[myId].macDms : sNULL
 }
 
 def storeCookieData() {
