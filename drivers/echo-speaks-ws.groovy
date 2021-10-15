@@ -81,7 +81,7 @@ def refresh() {
     logInfo("refresh() called")
 }
 
-def triggerInitialize() { runIn(3, "updated") }
+def triggerInitialize() { unschedule("initialize"); runIn(3, "updated") }
 def resetQueue() {}
 
 def installed() {
@@ -92,6 +92,7 @@ def installed() {
 def updated() {
     logInfo("updated() called")
     unschedule()
+    state.remove('reconnectDelay') // state.reconnectDelay = 1
     if(advLogsActive()) { runIn(1800, "logsOff") }
     initialize()
 }
@@ -160,13 +161,14 @@ def close() {
 
 def reconnectWebSocket() {
     // first delay is 2 seconds, doubles every time
-    Long d = state.reconnectDelay ?: 1 * 2
-    // don't def the delay get too crazy, max it out at 10 minutes
-    if(d > 600) d = 600
+    Long d = state.reconnectDelay ?: 1
+    d *= 2L
+    // don't let the delay get too crazy, max it out at 10 minutes
+    if(d > 600L) d = 600L
     state.reconnectDelay = d
-    updSocketStatus(false)
+    //close() // updSocketStatus(false)
     logInfo("reconnectWebSocket() called delay: $d")
-    runIn(d, initialize)
+    runIn(d, "initialize")
 }
 
 def sendWsMsg(String s) {
@@ -182,29 +184,32 @@ def webSocketStatus(String status) {
     logTrace("Websocket Status Event | ${status}")
     if(status.startsWith('failure: ')) {
         logWarn("Websocket Failure Message: ${status}")
-
-        reconnectWebSocket()
     } else if(status == 'status: open') {
         logInfo("Alexa WS Connection is Open")
         // success! reset reconnect delay
-//        pauseExecution(1000)
-        state.remove('reconnectDelay') // state.reconnectDelay = 1
+        // pauseExecution(1000)
+        // state.remove('reconnectDelay') // state.reconnectDelay = 1
         state.connectionActive = true
         // log.trace("Connection Initiation (Step 1)")
         runIn(1, "nextMsgSend")
+        return
     } else if (status == "status: closing") {
         logWarn("WebSocket connection closing.")
-        updSocketStatus(false)
+        unschedule("nextMsgSend")
+        unschedule("nextMsgSend1")
+        unschedule("nextMsgSend2")
+        unschedule("nextMsgSend3")
+        unschedule("nextMsgSend4")
     } else if(status?.startsWith("send error: ")) {
         logError("Websocket Send Error: $status")
-    } else {
-        logWarn("WebSocket error, reconnecting.", false)
-        reconnectWebSocket()
-    }
+    } else logWarn("WebSocket error, reconnecting. $status", false)
+    close() // updSocketStatus(false)
+    reconnectWebSocket()
 }
 
 @SuppressWarnings('unused')
 void nextMsgSend() {
+    state.remove('reconnectDelay') // state.reconnectDelay = 1
     sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
     logTrace("Gateway Handshake Message Sent (Step 1)")
 }
