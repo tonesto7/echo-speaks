@@ -138,9 +138,12 @@ public void logsOff() {
 def connect() {
     if(!state.cookie || !(String)state.amazonDomain || !(String)state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
     try {
-        def macDms = getMacDmsVal()
-        getRS(macDms)
+        String macDms = getMacDmsVal()
+        Map macDmsMap = parseStrMap(macDms)
+        def sign = getRS(macDms)
         log.debug "macDms: ${macDms}"
+        log.debug "macDmsMap: ${macDmsMap}"
+        log.debug "sign: ${sign}"
         Map headers = [
             "Connection": "keep-alive, Upgrade",
             "Upgrade": "websocket",
@@ -169,16 +172,26 @@ def connect() {
     }
 }
 
+Map parseStrMap(String str) {
+    str = str.replaceAll('\\[|\\]','')
+    def newMap = [:]
+        str.tokenize(',').each {
+        kvTuple = it.tokenize(':')
+        newMap[kvTuple[0]] = kvTuple[1]
+    }
+    return newMap
+}
+
 String getRS(macDms) {
     Map params = [
         uri: (String)parent.getServerHostURL(),
         path: "/createRS",
-        headers: [macDms: macDms],
+        headers: [macdms: macDms],
         contentType: sAPPJSON,
         timeout: 20
     ]
     try {
-        httpGet(params) { response->
+        httpPost(params) { response->
             def sData = response?.data ?: null
             log.trace("getRS: $sData")
             return sData.toString() ?: null

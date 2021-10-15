@@ -31,7 +31,7 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String appVersionFLD  = '4.2.0.0'
-@Field static final String appModifiedFLD = '2021-09-27'
+@Field static final String appModifiedFLD = '2021-10-14'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
@@ -2009,7 +2009,6 @@ String getCookieVal() {
     String myId=app.getId()
     if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].localCookie != null)) {
         Map cookieData = state.cookieData
-        //if (cookieData && cookieData.localCookie && cookieData.csrf) cookieDataFLD[myId] = cookieData
         cookieDataFLD[myId] = cookieData
         cookieDataFLD = cookieDataFLD
     }
@@ -2020,7 +2019,6 @@ String getCsrfVal() {
     String myId=app.getId()
     if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].csrf != null)) {
         Map cookieData = state.cookieData
-        //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
         cookieDataFLD[myId] = cookieData
         cookieDataFLD = cookieDataFLD
     }
@@ -2031,7 +2029,6 @@ String getMacDms() {
     String myId=app.getId()
     if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].macDms != null)) {
         Map cookieData = state.cookieData
-        //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
         cookieDataFLD[myId] = cookieData
         cookieDataFLD = cookieDataFLD
     }
