@@ -180,6 +180,7 @@ def connect() {
 
 String getRS(Map macDms) {
     String meth='getRS'
+    String res=sNULL
     Map params = [
         uri: (String)parent.getServerHostURL(),
         path: "/createRS",
@@ -197,13 +198,13 @@ String getRS(Map macDms) {
                 else sData =  resp?.data
                 log.trace("getRS Data  ${sData}")
                 log.trace("getRS Data (${getObjType(sData)}): ${sData?.rs}")
-                return sData.rs
+                res=sData.rs
             }
         }
     } catch (ex) {
         logError("getRS failed | ${ex}", false, ex)
-        return sNULL
     }
+    return res
 }
 
 def close() {
