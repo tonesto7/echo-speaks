@@ -2,5 +2,5 @@
     "versions": {
         "server": "2.7.0"
     },
-    "notices": ["I'm seeing reports of websocket connection issues which will prevent realtime device status updates.  I hope it's just an amazon backend issue and not them changing the API.  I will push out updates if they are required."]
+    "notices": ["Amazon has removed the websocket method from it's website which has broken ours preventing realtime device status updates.\nThere is a new method but it's very difficult to implement under the groovy environment.\nI will try my best to implement a fix as quickly as I can"]
 }
