@@ -2692,7 +2692,7 @@ void speechTest(String ttsMsg=sNULL) {
 void parallelSpeak(String msg) {
     logTrace("parallelSpeak() command received...")
     if(!msg) { logWarn("No Message sent with parallelSpeak(${fixLg(msg)}) command", true) }
-    else {
+    else if(isCommandTypeAllowed("TTS")) {
         if(isZone()) {
             parent.relaySpeakZone(parent.id.toString(), msg, true)
             String lastMsg = msg ?: "Nothing to Show Here..."
@@ -2749,9 +2749,6 @@ void updateLevel(oldvolume, newvolume) {
 
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
-    String healthStatus = getHealthStatus()
-    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is OFFLINE", true); return }
-
     if(settings.logTrace){
         String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${fixLg(cmdMap.message.toString())}"
         tr += cmdMap.newVolume ? " | SetVolume: (${cmdMap.newVolume})" :sBLANK
