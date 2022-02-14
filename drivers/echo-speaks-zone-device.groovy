@@ -258,12 +258,6 @@ Map getEchoDevInfo(String cmd) {
    return null
 }
 
-String getHealthStatus(Boolean lower=false) {
-    String res = device?.getStatus()
-    if(lower) { return res?.toLowerCase() }
-    return res
-}
-
 String getShortDevName(){
     return device?.displayName?.replace("Echo - ", sBLANK)
 }
