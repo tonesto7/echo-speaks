@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks App (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -17,24 +17,24 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection unused
 //file:noinspection GroovySillyAssignment
+//file:noinspection GrMethodMayBeStatic
 
 
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.transform.Field
-
 import java.text.SimpleDateFormat
 import java.util.concurrent.Semaphore
 
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.1.9.9'
-@Field static final String appModifiedFLD = '2021-09-10'
+@Field static final String appVersionFLD  = '4.2.0.0'
+@Field static final String appModifiedFLD = '2022-04-01'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4199, wsDevice: 4199, actionApp: 4199, zoneApp: 4199, zoneEchoDevice: 4199, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4200, actionApp: 4200, zoneApp: 4200, zoneEchoDevice: 4200, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -49,7 +49,9 @@ import java.util.concurrent.Semaphore
 @Field static final String sTRUE          = 'true'
 @Field static final String sBOOL          = 'bool'
 @Field static final String sENUM          = 'enum'
+@Field static final String sNUMBER        = 'number'
 @Field static final String sTIME          = 'time'
+@Field static final String sMODE          = 'mode'
 @Field static final String sAPPJSON       = 'application/json'
 @Field static final String sIN_IGNORE     = 'In Ignore Device Input'
 @Field static final String sARM_AWAY      = 'ARMED_AWAY'
@@ -81,6 +83,7 @@ import java.util.concurrent.Semaphore
 @Field static final String sSWITCH        = 'switch'
 @Field static final String sASTR          = 'a'
 @Field static final String sTSTR          = 't'
+@Field static final List<String> lSUNRISESET   = ['sunrise', 'sunset']
 
 //************************************************
 //*          IN-MEMORY ONLY VARIABLES            *
@@ -250,8 +253,8 @@ def mainPage() {
                 href "uninstallPage", title: inTS1("Uninstall this App", "uninstall"), description: inputFooter("Tap to Remove...", sCLRGRY, true)
             }
             section(sectHead("Feature Requests/Issue Reporting"), hideable: true, hidden: true) {
-                def issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
-                def featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
+                String issueUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=bug&template=bug_report.md&title=%28BUG%29+&projects=echo-speaks%2F6"
+                String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?assignees=tonesto7&labels=enhancement&template=feature_request.md&title=%5BFeature+Request%5D&projects=echo-speaks%2F6"
                 href url: featUrl, style: sEXTNRL, required: false, title: inTS1("New Feature Request", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
                 href url: issueUrl, style: sEXTNRL, required: false, title: inTS1("Report an Issue", "www"), description: inputFooter("Tap to open browser", sCLRGRY, true)
             }
@@ -297,16 +300,16 @@ def authStatusPage() {
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
 
                 // Refreshes the cookie
-                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET), description: spanSm(ckDesc), required: true, defaultValue: false, submitOnChange: true
-                paragraph pTS(ckDesc, sNULL, false, pastDayChkOk ? sNULL : sCLRRED)
-                paragraph pTS("Notice:\nAfter manually refreshing the cookie leave this page and come back before the date will change.", sNULL, false, sCLR4D9)
+                input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET) + lineBr() + spanSm(ckDesc, pastDayChkOk ? sCLRGRY : sCLRRED),
+                        required: false, defaultValue: false, submitOnChange: true
+                paragraph spanSmBldBr("Notice:", sCLR4D9) + spanSm("After manually refreshing the cookie leave this page and come back before the date will change.", sCLR4D9)
 
                 // Clears cookies for app and devices
-                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET), description: spanSm("Clear all stored cookie data from the app and devices."), required: false, defaultValue: false, submitOnChange: true
-                paragraph pTS("Clear all stored cookie data from the app and devices.", sNULL, false, sCLRGRY)
+                input "resetCookies", sBOOL, title: inTS1("Remove All Cookie Data?", sRESET) + lineBr() + spanSm("Clear all stored cookie data from the app and devices.", sCLRGRY),
+                        required: false, defaultValue: false, submitOnChange: true
 
-                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET), description: spanSm("Force devices to synchronize their stored cookies."), required: false, defaultValue: false, submitOnChange: true
-                paragraph pTS("Force devices to synchronize their stored cookies.", sNULL, false, sCLRGRY)
+                input "refreshDevCookies", sBOOL, title: inTS1("Resend Cookies to Devices?", sRESET) + lineBr() + spanSm("Force devices to synchronize their stored cookies.", sCLRGRY),
+                        required: false, defaultValue: false, submitOnChange: true
 
                 if((Boolean)settings.refreshCookie) { settingUpdate("refreshCookie", sFALSE, sBOOL); runIn(2, "runCookieRefresh") }
                 if(settings.resetCookies) { clearCookieData("resetCookieToggle", false) }
@@ -352,10 +355,10 @@ def servPrefPage() {
             } else {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
                 section(sectHead("Server Management:")) {
-                    if(oH && (String)state.herokuName) { paragraph spanSmBr("Heroku Name:", sCLR4D9) + spanSmBld(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
+                    if(oH && (String)state.herokuName) { paragraph spanSmBldBr("Heroku Name:", sCLR4D9) + spanSm(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
                     href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
-                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
-                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inputFooter(sTTP, sCLR4D9)
+                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inactFoot(sTTP)
+                    if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inactFoot(sTTP)
                 }
             }
             srvcPrefOpts()
@@ -363,7 +366,7 @@ def servPrefPage() {
         section(sectHead("Reset Options (Tap to show):"), hideable: true, hidden: true) {
             input "resetService", sBOOL, title: inTS1("Reset Service Data?", sRESET), description: "This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.",
                 required: false, defaultValue: false, submitOnChange: true
-            paragraph pTS("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sNULL, false, sCLRGRY)
+            paragraph spanSm("This will clear all references to the current server and allow you to redeploy a new instance.\nLeave the page and come back after toggling.", sCLRGRY)
             if(settings.resetService) { clearCloudConfig() }
         }
         state.resumeConfig = false
@@ -377,9 +380,9 @@ def srvcPrefOpts(Boolean req=false) {
             input "regionLocale", sENUM, title: inTS1("Select your Locale?", "www"), description: sBLANK, required: true, defaultValue: "en-US", options: localeOpts(), submitOnChange: true
         } else {
             String s = sBLANK
-            s += settings.amazonDomain ? "Amazon Domain: (${settings.amazonDomain})" : sBLANK
-            s += settings.regionLocale ? "\nLocale Region: (${settings.regionLocale})" : sBLANK
-            paragraph spanSm(s, sCLR4D9, getAppImg(sAMAZONORNG))
+            s += settings.amazonDomain ? spanSmBld("Amazon Domain: ") + spanSmBr("(${settings.amazonDomain})") : sBLANK
+            s += settings.regionLocale ? spanSmBld("Locale Region: ") + spanSm("(${settings.regionLocale})") : sBLANK
+            paragraph spanSm(lineBr() + s, sCLR4D9, getAppImg(sAMAZONORNG))
         }
     }
 }
@@ -623,7 +626,7 @@ def actionDuplicationPage() {
                     actData.settings["duplicateFlag"] = [type: sBOOL, value: true]
                     // actData?.settings["actionPause"] = [type: sBOOL, value: true]
                     actData.settings["duplicateSrcId"] = [type: "text", value: actId]
-                    addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
+                    def a=addChildApp("tonesto7", actChildName(), "${actData.label} (Dup)", [settings: actData.settings])
                     paragraph spanSmBldBr("Action Duplicated...", sCLR4D9) + spanSmBld("<br>Return to Action Page and look for the App with '(Dup)' in the name...", sCLR4D9)
                     state.actionDuplicated = true
                 } else { paragraph spanSmBld("Action not Found", sCLRRED) }
@@ -653,7 +656,7 @@ def zoneDuplicationPage() {
                     znData.settings["duplicateFlag"] = [type: sBOOL, value: true]
                     // znData?.settings["zonePause"] = [type: sBOOL, value: true]
                     znData?.settings["duplicateSrcId"] = [type: "text", value: znId]
-                    addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
+                    def a=addChildApp("tonesto7", zoneChildName(), "${znData?.label} (Dup)", [settings: znData.settings])
                     paragraph spanSmBldBr("Zone Duplicated...", sCLR4D9) + spanSmBld("<br>Return to Zone Page and look for the App with '(Dup)' in the name...", sCLR4D9)
                     state.zoneDuplicated = true
                 } else { paragraph spanSmBld("Zone not Found", sCLRRED) }
@@ -879,7 +882,10 @@ def settingsPage() {
             input "childDeviceLogDebug", sBOOL, title: inTS1("Enable Debug Logs for All Child Devices?", sDEBUG), description: "Auto disables after 6 hours", required: false, defaultValue: false, submitOnChange: true
             input "childDeviceLogTrace", sBOOL, title: inTS1("Enable Trace Logs for All Child Devices?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
             input "disableAllChildAdvLogs", sBOOL, title: inTS1("Disable All Advanced Logging on Child Apps/Devices?", sDEBUG), description: "Only enabled when asked to.\n(Auto disables after 6 hours)", required: false, defaultValue: false, submitOnChange: true
-            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace || (Boolean)settings.disableAllChildAdvLogs) { activateChildAdvLogs() }
+            /*if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace ||
+                    (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace ||
+                    (Boolean)settings.disableAllChildAdvLogs) { activateChildAdvLogs() } */
+            activateChildAdvLogs()
         }
         // }
 
@@ -1045,28 +1051,46 @@ def notifPrefPage() {
 }
 
 def setNotificationTimePage() {
-    dynamicPage(name: "setNotificationTimePage", title: "Prevent Notifications\nDuring these Days, Times or Modes", uninstall: false) {
+    settingRemove("qStartInput")
+    settingRemove("qStopInput")
+    settingRemove("quietDays")
+    settingRemove("quietModes")
+
+    dynamicPage(name: "setNotificationTimePage", title: "Restrict Notifications\nDuring these Times or to these Days or Modes", uninstall: false) {
         String a = getNotifSchedDesc()
-         if(a) {
-             section() {
-                 paragraph pTS("Restrictions Status:\n"+a, sNULL, false, sCLR4D9)
-                 paragraph pTS("Notice:\nAll selected restrictions must be inactive for notifications to be sent.", sNULL, false, sCLR4D9)
-             }
-         }
-        Boolean timeReq = settings["qStartTime"] || settings["qStopTime"]
-        section() {
-            input "qStartInput", sENUM, title: inTS1("Starting at", "start_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
-            if(settings["qStartInput"] == "A specific time") {
-                input "qStartTime", sTIME, title: inTS1("Start time", "start_time"), required: timeReq
+        if(a) {
+            section() {
+                paragraph spanSmBldBr("Restrictions Status:", sCLR4D9) + spanSm(a, sCLR4D9)
+                paragraph spanSmBldBr("NOTICE: All selected restrictions must be ${strUnder("INACTIVE")} for notifications to be sent.", sCLRORG)
+                paragraph htmlLine()
             }
-            input "qStopInput", sENUM, title: inTS1("Stopping at", "stop_time"), options: ["A specific time", "Sunrise", "Sunset"], defaultValue: null, submitOnChange: true, required: false
-            if(settings?."qStopInput" == "A specific time") {
-                input "qStopTime", sTIME, title: inTS1("Stop time", "stop_time"), required: timeReq
+        }
+        String pre = "notif"
+        Boolean timeReq = (settings["${pre}_time_start"] || settings["${pre}_time_stop"])
+        section(sectHead("Quiet Start Time:")) {
+            input "${pre}_time_start_type", sENUM, title: inTS1("Starting at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
+            if(settings."${pre}_time_start_type" == sTIME) {
+                input "${pre}_time_start", sTIME, title: inTS1("Start time", "start_time"), required: timeReq, submitOnChange: true
+            } else if(settings."${pre}_time_start_type" in lSUNRISESET) {
+                input "${pre}_time_start_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
             }
-            input "quietDays", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
-            input "quietModes", "mode", title: inTS1("When these modes are Active", "mode"), multiple: true, submitOnChange: true, required: false
+        }
+        section(sectHead("Quiet Stop Time:")) {
+            input "${pre}_time_stop_type", sENUM, title: inTS1("Stopping at...", "start_time"), options: [(sTIME):"Time of Day", "sunrise":"Sunrise", "sunset":"Sunset"], required: false , submitOnChange: true
+            if(settings."${pre}_time_stop_type" == sTIME) {
+                input "${pre}_time_stop", sTIME, title: inTS1("Stop time", "start_time"), required: timeReq, submitOnChange: true
+            } else if(settings."${pre}_time_stop_type" in lSUNRISESET) {
+                input "${pre}_time_stop_offset", sNUMBER, range: "*..*", title: inTS1("Offset in minutes (+/-)", "start_time"), required: false, submitOnChange: true
+            }
+        }
+        section(sectHead("Allowed Days:")) {
+            input "${pre}_days", sENUM, title: inTS1("Only on these week days", "day_calendar"), multiple: true, required: false, options: weekDaysEnum()
+        }
+        section(sectHead("Allowed Modes:")) {
+            input "${pre}_modes", sMODE, title: inTS1("Only in these Modes", sMODE), multiple: true, submitOnChange: true, required: false
         }
     }
+
 }
 
 def uninstallPage() {
@@ -1196,7 +1220,7 @@ def announcePage() {
                 input "test_announceAllDevices", sBOOL, title: inTS1("Test Announcement using All Supported Devices"), defaultValue: false, required: false, submitOnChange: true
             }
             if(!(Boolean)settings.test_announceAllDevices) {
-                def devs = getChildDevicesByCap("announce") ?: []
+                List devs = getChildDevicesByCap("announce") ?: []
                 input "test_announceDevices", sENUM, title: inTS1("Select Devices to Test the Announcement"), description: sTTS, options: (devs?.collectEntries { [(it?.getId()): it?.getLabel() as String] }), multiple: true, required: false, submitOnChange: true
             }
             if((Boolean)settings.test_announceAllDevices || settings.test_announceDevices) {
@@ -1449,7 +1473,7 @@ public List getChildDevicesByCap(String cap) {
 def donationPage() {
     return dynamicPage(name: "donationPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
         section(sBLANK) {
-            def str = sBLANK
+            String str = sBLANK
             str += spanSmBldBr("Hello User,") + spanSmBr("Please forgive the interuption but it's been 30 days since you installed/updated this App and I wanted to present you with this one time reminder that donations are accepted (We do not require them).")
             str += spanSmBr("<br>If you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices.")
             str += spanSmBr("<br>If you have already donated, thank you very much for your support!")
@@ -1747,7 +1771,7 @@ List<String> getInActiveZoneNames() {
 
 
 List getZoneApps() {
-    return getAllChildApps()?.findAll { (String)it?.name == zoneChildName() }
+    return ((List)getAllChildApps())?.findAll { (String)it?.name == zoneChildName() }
 }
 
 def getZoneById(String id) {
@@ -1778,11 +1802,11 @@ public List getInActiveActionNames() {
 }
 
 List getActionApps() {
-    return getAllChildApps()?.findAll { it?.name == actChildName() }
+    return ((List)getAllChildApps())?.findAll { it?.name == actChildName() }
 }
 
 List getEsDevices() {
-    return getChildDevices()?.findAll { !(Boolean)it?.isWS() && !(Boolean)it?.isZone() }
+    return ((List)getChildDevices())?.findAll { !(Boolean)it?.isWS() && !(Boolean)it?.isZone() }
 }
 
 def getSocketDevice() {
@@ -1861,15 +1885,15 @@ Boolean checkIfCodeUpdated() {
             codeUpdated = true
         }
     }
-    def wsDev = getSocketDevice()
-    if(wsDev) {
-        String ver = (String)wsDev?.devVersion()
-        if((String)codeVerMap.wsDevice != ver) {
-            chgs.push("wsDevice")
-            updCodeVerMap("wsDevice", ver)
-            codeUpdated = true
-        }
-    }
+    // def wsDev = getSocketDevice()
+    // if(wsDev) {
+    //     String ver = (String)wsDev?.devVersion()
+    //     if((String)codeVerMap.wsDevice != ver) {
+    //         chgs.push("wsDevice")
+    //         updCodeVerMap("wsDevice", ver)
+    //         codeUpdated = true
+    //     }
+    // }
     List cApps = getActionApps()
     if(cApps?.size()) {
         String ver = (String)cApps[0]?.appVersion()
@@ -2083,7 +2107,7 @@ Boolean refreshDevCookies(Boolean doInit=true) {
 
 void updateChildAuth(Boolean isValid, Boolean doInit=true) {
     Map cook = getCookieMap()
-    getChildDevices()?.each { (isValid) ? it?.updateCookies(cook, doInit) : it?.removeCookies(true) }
+    ((List)getChildDevices())?.each { (isValid) ? it?.updateCookies(cook, doInit) : it?.removeCookies(true) }
     getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook, doInit) : it?.relayRemoveCookies(true) }
 }
 
@@ -2537,8 +2561,8 @@ public updChildVers() {
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
     updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
-    def wDevs = getSocketDevice()
-    updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
+    // def wDevs = getSocketDevice()
+    // updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
 }
 
 Map getMusicProviders(Boolean frc=false) {
@@ -2612,7 +2636,7 @@ private void getNotifications(Boolean frc = false) {
     ]
     try {
         logTrace('getNotifications')
-        def sData
+        Map sData = null
         List newList = []
         httpGet(params) { response->
             sData = response?.data ?: null
@@ -2622,11 +2646,12 @@ private void getNotifications(Boolean frc = false) {
             Boolean all = true
             List s = ["ON"]
             if(all) s.push("OFF")
-            List items = sData.notifications ? sData.notifications.findAll { it.status in s /* && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber  */ } : []
+            List<String> kI = ['id', 'reminderLabel', 'createdDate', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'remainingTime', 'status']
+            List<Map<String,Object>> items = sData.notifications ? sData.notifications.findAll { it.status in s /* && (it.type == type) && it?.deviceSerialNumber == (String)state.serialNumber  */ } : []
             items?.each { item->
                 Map li = [:]
-                item.keySet()?.each { String key-> if(key in ['id', 'reminderLabel', 'createdDate', 'originalDate', 'originalTime', 'deviceSerialNumber', 'type', 'remainingDuration', 'remainingTime', 'status']) { li[key] = item[key] } }
-                newList?.push(li)
+                item.keySet()?.each { String key-> if(key in kI) { li[key] = item[key] } }
+                newList.push(li)
             }
         }
         // log.trace "notifications: $newList"
@@ -2655,11 +2680,12 @@ void getBluetoothDevices(Boolean frc=false) {
         contentType: sAPPJSON,
         timeout: 20
     ]
-//    Map btResp = [:]
+    
     try {
         logTrace("getBluetoothDevices")
-        if(!frc) execAsyncCmd("get", "getBluetoothResp", params, [:])
-        else {
+        if(!frc) { 
+            execAsyncCmd("get", "getBluetoothResp", params, [:]) 
+        } else {
             httpGet(params) { response ->
                 getBluetoothResp(response, [:])
             }
@@ -2700,13 +2726,13 @@ Map getBluetoothData(String serialNumber) {
     String curConnName = sNULL
     Map btObjs = [:]
     getBluetoothDevices(true)
-    btData = bluetoothDataFLD[myId]
+    Map btData = bluetoothDataFLD[myId]
     if(btData == null) {
         bluetoothDataFLD[myId] = [:]
         bluetoothDataFLD=bluetoothDataFLD
         btData = [:]
     }
-    Map bluData = btData && btData.bluetoothStates?.size() ? btData.bluetoothStates?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    Map bluData = btData && btData.bluetoothStates?.size() ? ((List<Map>)btData.bluetoothStates)?.find { it?.deviceSerialNumber == serialNumber } : [:]
     if(bluData && bluData.size() && bluData.pairedDeviceList && bluData.pairedDeviceList?.size()) {
         def bData = bluData.pairedDeviceList.findAll { (it?.deviceClass != "GADGET") }
         bData?.findAll { it?.address != null }?.each {
@@ -2715,7 +2741,7 @@ Map getBluetoothData(String serialNumber) {
         }
     }
     List tob = btObjs?.findAll { it?.value?.friendlyName != null }?.collect { it?.value?.friendlyName?.toString()?.replaceAll("\ufffd", sBLANK) }
-    return [btObjs: btObjs, pairedNames: tob ?: [], curConnName: curConnName?.replaceAll("\ufffd", "")]
+    return [btObjs: btObjs, pairedNames: tob ?: [], curConnName: curConnName?.replaceAll("\ufffd", sBLANK)]
 }
 
 @Field volatile static Map<String,Map> devActivityMapFLD = [:]
@@ -2862,7 +2888,7 @@ Boolean getDndEnabled(String serialNumber) {
             sData = [:]
         }
     }
-    Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? sData.doNotDisturbDeviceStatusList?.find { it?.deviceSerialNumber == serialNumber } : [:]
+    Map dndData = sData && sData.doNotDisturbDeviceStatusList?.size() ? ((List<Map>)sData.doNotDisturbDeviceStatusList)?.find { it?.deviceSerialNumber == serialNumber } : [:]
     return (dndData && dndData.enabled == true)
 }
 
@@ -2909,11 +2935,11 @@ public Map getAlexaRoutines(String autoId=sNULL) {
     Integer cnt = 1
     if(rtList.size()) {
         if(autoId) {
-            rtResp = rtList.find { it?.automationId?.toString() == autoId } ?: [:]
+            rtResp = ((List<Map>)rtList).find { it?.automationId?.toString() == autoId } ?: [:]
             //log.debug "rtResp: ${rtResp}"
             return rtResp
         } else {
-            rtList.findAll { it?.status == "ENABLED" }?.each { Map item ->
+            ((List<Map>)rtList).findAll { it?.status == "ENABLED" }?.each { Map item ->
                 String myK = item.automationId.toString()
                 if(item.name != null) {
                     items[myK] = item.name.toString()
@@ -3007,7 +3033,7 @@ void checkGuardSupportResponse(response, data) {
             Map resp = response?.data ? parseJson(response?.data?.toString()) : null
             if(resp && resp.networkDetail) {
                 Map details = parseJson(resp.networkDetail as String)
-                Map locDetails = details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
+                Map locDetails = (Map)details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
                 if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
                     def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
                     // TODO could there be multiple Guards?
@@ -3196,7 +3222,7 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
     }
     if(ex instanceof groovyx.net.http.HttpResponseException ) {
         Integer sCode = ex?.getResponse()?.getStatus()
-        def errMsg = ex?.getMessage()
+        String errMsg = ex?.getMessage()
         if(sCode == 401) {
             if(ignOn401) authValidationEvent(false, "${mName}_${sCode}")
         } else if (sCode in [400, 429]) {
@@ -3256,7 +3282,7 @@ Boolean getAlexaGuardSupported() {
 }
 
 public void updGuardActionTrig() {
-    def acts = getActionApps()
+    List acts = getActionApps()
     if(acts?.size()) { acts?.each { aa-> aa?.guardEventHandler((String)state.alexaGuardState) } }
 }
 
@@ -3385,12 +3411,13 @@ void receiveEventData(Map evtData, String src) {
             String myId=app.getId()
             String wsChildHandlerName = "Echo Speaks WS"
             String nmS = 'echoSpeaks_websocket'
-            def oldWsDev = getChildDevice(nmS)
-            if(oldWsDev) { deleteChildDevice(nmS) }
+            // def oldWsDev = getChildDevice(nmS)
+            // if(oldWsDev) { deleteChildDevice(nmS) }
             nmS = myId+'|'+nmS
             def wsDevice = getChildDevice(nmS)
-            if(!wsDevice) { addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
-            updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
+            if(wsDevice) { deleteChildDevice(nmS) }
+            // if(!wsDevice) { def a=addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+            // updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
 
             if (evtData?.echoDevices?.size()) {
                 Long execTime = evtData?.execDt ? (now()-(Long)evtData.execDt) : 0L
@@ -3630,7 +3657,7 @@ public void sendPlaybackStateToClusterMembers(String whaKey, data) {
         List clusterMembers = (List)whaMap?.clusterMembers
 
         if (clusterMembers) {
-            def clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
+            List clusterMemberDevices = getDevicesFromSerialList(clusterMembers)
             if(clusterMemberDevices) {
                 clusterMemberDevices?.each { it?.playbackStateHandler(data, true) }
             }
@@ -3647,7 +3674,7 @@ void removeDevices(Boolean all=false) {
     try {
         settingUpdate("cleanUpDevices", sFALSE, sBOOL)
         List<String> devList = getDeviceList(true)?.collect { (String)[app?.id, "echoSpeaks", it?.key].join("|") }
-        List<String> items = app.getChildDevices()?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : sNULL }
+        List<String> items = ((List)app.getChildDevices())?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : sNULL }
         logWarn("removeDevices(${all ? "all" : sBLANK}) | In Use: (${all ? 0 : devList.size()}) | Removing: (${items.size()})", true)
         if(items.size() > 0) {
             items.each {  String it -> deleteChildDevice(it) }
@@ -3702,8 +3729,8 @@ void sendAmazonCommand(String method, Map params, Map otherData=null) {
  * send speak command to one zone
  * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
  */
-void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
-    List devObj = getZoneDevices([zoneId], "TTS")
+void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false, Boolean bypassDoNotDisturb=false) {
+    List devObj = getZoneDevices([zoneId], "TTS", bypassDoNotDisturb)
     String myMsg = "sendZoneSpeak"
     devObj.each { dev ->
         Map cmdMap = [
@@ -3731,8 +3758,8 @@ void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false) {
  * send announce command to one zone
  * caller is vdevice handler via relay from zone app; this will callback the actual device(s) with status
  */
-void sendZoneAnnounce(String zoneId, String msg, Boolean parallel=false) {
-    List devObj = getZoneDevices([zoneId], "announce")
+void sendZoneAnnounce(String zoneId, String msg, Boolean parallel=false, Boolean bypassDoNotDisturb=false) {
+    List devObj = getZoneDevices([zoneId], "announce", bypassDoNotDisturb)
     String myMsg = "sendZoneAnnounce"
     devObj.each { dev ->
         Map deviceData = [
@@ -3891,7 +3918,7 @@ private List getZoneDevices(List znList, String cmd, Boolean chkDnd=false) {
                 List devices = getDevicesFromList((List)znData.zoneDevices)
                 //devices?.each { devObjs?.push([deviceTypeId: it?.getEchoDeviceType() as String, deviceSerialNumber: it?.getEchoSerial() as String]) }
                 devices?.each {
-                    Map devInfo = it?.getEchoDevInfo(cmd)
+                    Map devInfo = it?.getEchoDevInfo(cmd, true)  // ignores dnd setting in device
                     if(devInfo) {
                         Boolean dnd = chkDnd ? getDndEnabled((String)devInfo.deviceSerialNumber) : false
                         if(!dnd) devObjs?.push(devInfo)
@@ -4064,11 +4091,11 @@ void workQ() {
         Map extData=[:]
         List extList = []
 
-        Boolean oldParallel
+        Boolean oldParallel = null
         Boolean parallel = false
 
         String srcDesc
-        Map seqObj
+        Map seqObj=null
         Integer mdelay = 0
 
         // lets try to join commands in single request to Alexa
@@ -4294,7 +4321,7 @@ static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
     Integer res=v
     Integer randomInt
     if(addRandom){
-        def random = new Random()
+        Random random = new Random()
         randomInt = random?.nextInt(5) //Was using 7
         res=v + randomInt
     }
@@ -4305,11 +4332,11 @@ static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
 void finishWorkQ(response, extData){
     String meth = 'finishWorkQ'
     logTrace "running "+meth
-    Integer statusCode
+    Integer statusCode=null
     def sData
-    String respMsg
+    String respMsg=sNULL
     try {
-        statusCode = response?.status
+        statusCode = response?.status?.toInteger()
         if(response.hasError()){
            respMsg = response.getErrorMessage()
         } else sData = response?.data
@@ -4665,7 +4692,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 String str = nstr
                 String mtype = lcmd == "ssml" || isSSML ? "ssml" : "text"
                 String mval = lcmd == "ssml" || isSSML ? str : cleanString(str)
-                String mtitle = cleanString(lcmd == "ssml" || isSSML ?  str.replaceAll(/<[^>]+>/, '') : str)
+                String mtitle = cleanString(lcmd == "ssml" || isSSML ?  str.replaceAll(/<[^>]+>/, sBLANK) : str)
                 seqNode.operationPayload.content = [[
                                                             locale: ((String)settings.regionLocale ?: "en-US"),
                                                             display: [ title: cleanString(valObj[0]), body: mtitle ], //valObj[1].replaceAll(/<[^>]+>/, '') ],
@@ -4676,7 +4703,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                     seqNode.operationPayload.target.devices = [ [ deviceTypeId: deviceType, deviceSerialNumber: serialNumber ] ]
                 } else if(lcmd == "announcement_devices" && valObj?.size() && valObj[2] != null) {
 //                    log.debug spanSm("valObj: ${valObj}", sCLRGRN2)
-                    List devObjs = new JsonSlurper().parseText(valObj[2])
+                    List devObjs = (List)new JsonSlurper().parseText((String)valObj[2])
                     seqNode.operationPayload.target.devices = devObjs
                 }
                 break
@@ -4765,27 +4792,35 @@ void healthCheck() {
     chkRestartSocket()
 
     if((Boolean)state.isInstalled && getLastTsValSecs("lastMetricUpdDt") > (3600*24)) { runIn(30, "sendInstallData", [overwrite: true]) }
-    if(advLogsActive()) { logsDisable() }
+    logsDisable()
     appUpdateNotify()
 
     //if(!getOk2Notify()) { return }
     missPollNotify((Boolean)settings.sendMissedPollMsg, (settings.misPollNotifyMsgWaitVal as Integer ?: 3600))
 }
 
-Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace || (Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) }
-public void logsEnabled() { if(advLogsActive() && !getTsVal("logsEnabled")) { logTrace("enabling logging timer"); updTsVal("logsEnabled") } }
+Boolean advLogsActive() {
+    return ((Boolean)settings.logDebug || (Boolean)settings.logTrace ||
+        (Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace ||
+        (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace)
+}
+
+public void logsEnabled() {
+    if(advLogsActive() && !getTsVal("logsEnabled")) {
+        logTrace("enabling logging timer")
+        updTsVal("logsEnabled")
+    }
+}
+
 public void logsDisable() {
     if(advLogsActive()) {
         Integer dtSec = getLastTsValSecs("logsEnabled", null)
         if(dtSec && (dtSec > 3600*6)) {
             settingUpdate("logDebug", sFALSE, sBOOL)
             settingUpdate("logTrace", sFALSE, sBOOL)
-            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace || (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) {
-                settingUpdate("childAppLogDebug", sFALSE, sBOOL)
-                settingUpdate("childAppLogTrace", sFALSE, sBOOL)
-                settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
-                settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
-                runIn(12, 'disableAdvChldLogs')
+            if((Boolean)settings.childAppLogDebug || (Boolean)settings.childAppLogTrace ||
+                    (Boolean)settings.childDeviceLogDebug || (Boolean)settings.childDeviceLogTrace) {
+                runIn(4, 'disableAdvChldLogs')
             }
             remTsVal("logsEnabled")
             log.debug "Disabling debug logs"
@@ -4793,43 +4828,81 @@ public void logsDisable() {
     }
 }
 
+@Field volatile static Map<String, Map> childLogMapFLD        = [:]
+
 public void activateChildAdvLogs() {
-    if((Boolean)settings.childAppLogDebug) {
-        settingUpdate("childAppLogDebug", sFALSE, sBOOL)
-        manAllZonesDbgLogs(true)
-        manAllActsDbgLogs(true)
-    }
-    if((Boolean)settings.childAppLogTrace) {
-        settingUpdate("childAppLogTrace", sFALSE, sBOOL)
-        manAllZonesTrcLogs(true)
-        manAllActsTrcLogs(true)
-    }
-    if((Boolean)settings.childDeviceLogDebug) {
-        settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
-        manAllEchosDbgLogs(true)
-    }
-    if((Boolean)settings.childDeviceLogTrace) {
-        settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
-        manAllEchosTrcLogs(true)
-    }
+    String myId=app.getId()
+    Map myMap = childLogMapFLD[myId]
+    myMap = myMap ?: [:]
+    Boolean a
+
     if((Boolean)settings.disableAllChildAdvLogs) {
         settingUpdate("disableAllChildAdvLogs", sFALSE, sBOOL)
-        manAllZonesDbgLogs(false)
-        manAllActsDbgLogs(false)
-        manAllEchosDbgLogs(false)
-        manAllEchosTrcLogs(false)
-        manAllZonesTrcLogs(false)
-        manAllActsTrcLogs(false)
+        settingUpdate("childAppLogDebug", sFALSE, sBOOL)
+        settingUpdate("childAppLogTrace", sFALSE, sBOOL)
+        settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
+        settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
     }
+
+    a = (Boolean)settings.childAppLogDebug
+    if(a != (Boolean)myMap.childAppLogDebug) {
+        if (a) {
+            manAllZonesDbgLogs(true)
+            manAllActsDbgLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllZonesDbgLogs(false)
+            manAllActsDbgLogs(false)
+        }
+        myMap.childAppLogDebug = a
+    }
+
+    a = (Boolean)settings.childAppLogTrace
+    if(a != (Boolean)myMap.childAppLogTrace) {
+        if(a) {
+            manAllZonesTrcLogs(true)
+            manAllActsTrcLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllZonesTrcLogs(false)
+            manAllActsTrcLogs(false)
+        }
+        myMap.childAppLogTrace = a
+    }
+
+    a = (Boolean)settings.childDeviceLogDebug
+    if(a != (Boolean)myMap.childDeviceLogDebug) {
+        if(a) {
+            manAllEchosDbgLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllEchosDbgLogs(false)
+        }
+        myMap.childDeviceLogDebug = a
+    }
+
+    a = (Boolean)settings.childDeviceLogTrace
+    if(a != (Boolean)myMap.childDeviceLogTrace) {
+        if(a) {
+            manAllEchosTrcLogs(true)
+            updTsVal("logsEnabled")
+        } else {
+            manAllEchosTrcLogs(false)
+        }
+        myMap.childDeviceLogTrace = a
+    }
+
+    childLogMapFLD[myId] = myMap
+    childLogMapFLD = childLogMapFLD
 }
 
 private void manAllZonesDbgLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
 private void manAllZonesTrcLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
 private void manAllActsDbgLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
 private void manAllActsTrcLogs(Boolean enable=true) { getActionApps()?.each { ca-> enable ? ca?.enableTraceLog() : ca?.disableTraceLog() } }
-private void manAllEchosDbgLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? cd?.enableDebugLog() : cd?.disableDebugLog() }
+private void manAllEchosDbgLogs(Boolean enable=true) { ((List)getChildDevices())?.each { cd-> enable ? cd?.enableDebugLog() : cd?.disableDebugLog() }
                                                        getZoneApps()?.each { ca-> enable ? ca?.relayEnableDebugLog() : ca?.relayDisableDebugLog() } }
-private void manAllEchosTrcLogs(Boolean enable=true) { getChildDevices()?.each { cd-> enable ? cd?.enableTraceLog() : cd?.disableTraceLog() }
+private void manAllEchosTrcLogs(Boolean enable=true) { ((List)getChildDevices())?.each { cd-> enable ? cd?.enableTraceLog() : cd?.disableTraceLog() }
                                                        getZoneApps()?.each { ca-> enable ? ca?.relayEnableTraceLog() : ca?.relayDisableTraceLog() } }
 
 
@@ -4837,7 +4910,23 @@ private void disableAdvChldLogs() {
     getActionApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.logsDisable() }
     getZoneApps()?.each { ca-> ca?.relayLogsOff() }
-    getChildDevices()?.each { cd-> cd?.logsOff() }
+    ((List)getChildDevices())?.each { cd-> cd?.logsOff() }
+    settingUpdate("disableAllChildAdvLogs", sFALSE, sBOOL)
+    settingUpdate("childAppLogDebug", sFALSE, sBOOL)
+    settingUpdate("childAppLogTrace", sFALSE, sBOOL)
+    settingUpdate("childDeviceLogDebug", sFALSE, sBOOL)
+    settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
+
+    String myId=app.getId()
+    Map myMap = childLogMapFLD[myId]
+    myMap = myMap ?: [:]
+    Boolean a = false
+    myMap.childAppLogDebug = a
+    myMap.childAppLogTrace = a
+    myMap.childDeviceLogDebug = a
+    myMap.childDeviceLogTrace = a
+    childLogMapFLD[myId] = myMap
+    childLogMapFLD = childLogMapFLD
 }
 
 void missPollNotify(Boolean on, Integer wait) {
@@ -4850,7 +4939,7 @@ void missPollNotify(Boolean on, Integer wait) {
         if(lastDataUpd != 1000000) {
             String msg
             if((Boolean)state.authValid) {
-                msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue network access."
+                msg = "\nThe Echo Speaks app has NOT received any device data from Amazon in the last (${getLastTsValSecs("lastDevDataUpdDt")}) seconds.\nThere maybe an issue with network access."
             } else { msg = "\nThe Amazon login info has expired!\nPlease open the heroku amazon authentication page and login again to restore normal operation." }
             logWarn(msg.toString().replaceAll("\n", sSPACE))
 
@@ -4870,13 +4959,14 @@ void missPollNotify(Boolean on, Integer wait) {
     }
 }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 void appUpdateNotify() {
     Boolean appUpd = appUpdAvail()
     Boolean actUpd = actionUpdAvail()
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
     Boolean echoDevUpd = echoDevUpdAvail()
-    Boolean socketUpd = socketUpdAvail()
+    // Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     Boolean res=false
     if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || echoDevUpd || socketUpd || servUpd) res=true
@@ -4891,13 +4981,13 @@ void appUpdateNotify() {
         secs=getLastTsValSecs("lastUpdMsgDt")
         if(secs > updW && on) {
             String str = sBLANK
-            str += !appUpd ? "" : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
-            str += !actUpd ? "" : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
-            str += !zoneUpd ? "" : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
-            str += !zoneChildDevUpd ? "" : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
-            str += !echoDevUpd ? "" : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
-            str += !socketUpd ? "" : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
-            str += !servUpd ? "" : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
+            str += !appUpd ? sBLANK : "\nEcho Speaks App: v${state.appData?.versions?.mainApp?.ver?.toString()}"
+            str += !actUpd ? sBLANK : "\nEcho Speaks Actions: v${state.appData?.versions?.actionApp?.ver?.toString()}"
+            str += !zoneUpd ? sBLANK : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
+            str += !zoneChildDevUpd ? sBLANK : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
+            str += !echoDevUpd ? sBLANK : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
+            // str += !socketUpd ? sBLANK : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
+            str += !servUpd ? sBLANK : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
         }
@@ -4914,7 +5004,7 @@ private List codeUpdateItems(Boolean shrt=false) {
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
     Boolean devUpd = echoDevUpdAvail()
-    Boolean socketUpd = socketUpdAvail()
+    // Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     List updItems = []
     if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || devUpd || socketUpd || servUpd) {
@@ -4923,60 +5013,63 @@ private List codeUpdateItems(Boolean shrt=false) {
         if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zones: (v${state.appData?.versions?.zoneApp?.ver?.toString()})")
         if(zoneChildDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Child Device: (v${state.appData?.versions?.zoneChildDevice?.ver?.toString()})")
         if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state.appData?.versions?.echoDevice?.ver?.toString()})")
-        if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
+        // if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
         if(servUpd) updItems.push("${!shrt ? "\n" : sBLANK}Server: (v${state.appData?.versions?.server?.ver?.toString()})")
     }
     return updItems
 }
 
 Boolean getOk2Notify() {
-    Boolean smsOk // (settings.smsNumbers?.toString()?.length()>=10)
-    Boolean pushOk // (Boolean)settings.usePush
-    Boolean notifDevs = (((List)settings.notif_devs)?.size() > 0)
-    Boolean pushOver // ((Boolean)settings.pushoverEnabled && settings.pushoverDevices)
-    Boolean daysOk = quietDaysOk((List)settings.quietDays)
-    Boolean timeOk = quietTimeOk()
-    Boolean modesOk = quietModesOk((List)settings.quietModes)
-    Boolean result = true
-    if(!(smsOk || pushOk || notifDevs || pushOver)) { result= false }
-    if(!(daysOk && modesOk && timeOk)) { result= false }
-    //if(devModeFLD) logDebug("getOk2Notify() RESULT: $result | notifDevs: $notifDevs | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
+    Boolean smsOk = false
+    Boolean pushOk = false
+    Boolean pushOver = false
+    Boolean notifDevsOk = (((List)settings.notif_devs)?.size() > 0)
+    Boolean alexaMsg = ((Boolean)settings.notif_alexa_mobile)
+    Boolean daysOk = (List)settings.notif_days ? (isDayOfWeek((List)settings.notif_days)) : true
+    Boolean timeOk = notifTimeOk()
+    Boolean modesOk = (List)settings.notif_modes ? (isInMode((List)settings.notif_modes)) : true
+    Boolean result
+    result = (smsOk || pushOk || alexaMsg || notifDevsOk || pushOver)
+    if(!(daysOk && modesOk && timeOk)) { result = false }
+    logDebug("getOk2Notify() RESULT: $result | notifDevsOk: $notifDevsOk | smsOk: $smsOk | pushOk: $pushOk | pushOver: $pushOver | alexaMsg: $alexaMsg || daysOk: $daysOk | timeOk: $timeOk | modesOk: $modesOk")
     return result
 }
 
-Boolean quietModesOk(List modes) { return !(modes && location?.mode?.toString() in modes) }
-
-Boolean quietTimeOk() {
-    Date startTime = null
-    Date stopTime = null
-    def sun = getSunriseAndSunset() // current based on geofence, previously was: def sun = getSunriseAndSunset(zipCode: zipCode)
-    if(settings.qStartTime && settings.qStopTime) {
-        if(settings.qStartInput == "Sunset") { startTime = sun?.sunset }
-        else if(settings.qStartInput == "Sunrise") { startTime = sun?.sunrise }
-        else if(settings.qStartInput == "A specific time" && settings.qStartTime) { startTime = toDateTime(settings.qStartTime) }
-
-        if(settings.qStopInput == "Sunset") { stopTime = sun?.sunset }
-        else if(settings.qStopInput == "Sunrise") { stopTime = sun?.sunrise }
-        else if(settings.qStopInput == "A specific time" && settings.qStopTime) { stopTime = toDateTime(settings.qStopTime) }
+Boolean notifTimeOk() {
+    Date startTime
+    Date stopTime
+    // these are quiet time start/stop
+    String startType = settings.notif_time_start_type
+    String stopType = settings.notif_time_stop_type
+    if(startType && stopType) {
+        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     } else { return true }
+
+    Date now = new Date()
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
+        Map sun = getSunriseAndSunset()
+        Long lsunset = sun.sunset.time
+        Long lsunrise = sun.sunrise.time
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        if(startType in lSUNRISESET) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
+            startTime = new Date(startl)
+        }
+        if(stopType in lSUNRISESET) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
+            stopTime = new Date(stopl)
+        }
+    }
+
     if(startTime && stopTime) {
-        // log.debug "quietTimeOk | Start: ${startTime} | Stop: ${stopTime}"
-        Date now = new Date()
         Boolean not = startTime.getTime() > stopTime.getTime()
-        Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone) ? false : true
+        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
         isBtwn = not ? !isBtwn : isBtwn
-        //if(devModeFLD) logTrace("QuietTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT" : sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
+        logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
     } else { return true }
-}
-
-Boolean quietDaysOk(List days) {
-    if(days) {
-        def dayFmt = new SimpleDateFormat("EEEE")
-        if(location?.timeZone) { dayFmt?.setTimeZone((TimeZone)location?.timeZone) }
-        return !days.contains(dayFmt?.format(new Date()))
-    }
-    return true
 }
 
 // Sends the notifications based on app settings
@@ -5021,7 +5114,7 @@ static String getPublicImg(String imgName) { return "https://raw.githubuserconte
 static String sectH3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return """<h3 style="color:${c};font-weight: bold">${i ? """<img src="${i}" width="48"> """ : sBLANK} ${t?.replaceAll("\\n", "<br>")}</h3>${st ?: sBLANK}""" }
 
 public static String paraTS(String title = sNULL, String body = sNULL, String img = sNULL, Map tOpts=[s: 'normal', c: 'black', b: true, u:true], Map bOpts = [s:'normal', c: sNULL, b: false]) {
-    String s = ""
+    String s = sBLANK
     s += title ? "<div style='${tOpts && (String)tOpts.c != sNULL ? "color: ${(String)tOpts.c};" : sBLANK}${tOpts && (String)tOpts.s != sNULL ? "font-size: ${(String)tOpts.s};" : sBLANK}${tOpts && (Boolean)tOpts.b ? "font-weight: bold;" : sBLANK}${tOpts && (Boolean)tOpts.u ? "text-decoration: underline;" : sBLANK}'>${img != sNULL ? """<img src=${getAppImg(img)} width="42"> """ : sBLANK}${title}</div>" : sBLANK
     s += body ? "<div style='${bOpts && (String)bOpts.c != sNULL ? "color: ${(String)bOpts.c};" : sBLANK}${bOpts && (String)bOpts.s != sNULL ? "font-size: ${(String)bOpts.s};" : sBLANK}${bOpts && (Boolean)bOpts.b ? "font-weight: bold;" : sBLANK}'>${body}</div>" : sBLANK
     return s
@@ -5030,7 +5123,7 @@ public static String paraTS(String title = sNULL, String body = sNULL, String im
 static String sectHead(String str, String img = sNULL) { return str ? "<h3 style='margin-top:0;margin-bottom:0;'>" + spanImgStr(img) + span(str, "darkorange", sNULL, true) + "</h3>" + "<hr style='background-color:${sCLRGRY};font-style:italic;height:1px;border:0;margin-top:0;margin-bottom:0;'>" : sBLANK }
 static String sTS(String t, String i = sNULL, Boolean bold=false) { return "<h3>${i ? "<img src='${i}' width='42'> " : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>" }
 static String s3TS(String t, String st, String i = sNULL, String c=sCLR4D9) { return "<h3 style='color:${c};font-weight: bold;'>${i ? "<img src='${i}' width='42'> " : sBLANK} ${t?.replaceAll("\n", "<br>")}</h3>${st ? "${st}" : sBLANK}" }
-static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : ""}${color ? "</div>" : ""}" }
+static String pTS(String t, String i = sNULL, Boolean bold=true, String color=sNULL) { return "${color ? "<div style='color: $color;'>" : sBLANK}${bold ? "<b>" : sBLANK}${i ? "<img src='${i}' width='42'> " : sBLANK}${t?.replaceAll("\n", "<br>")}${bold ? "</b>" : sBLANK}${color ? "</div>" : sBLANK}" }
 
 static String inTS1(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return spanSmBldUnd(str, clr, img) }
 static String inTS(String str, String img = sNULL, String clr=sNULL, Boolean und=true) { return divSm(strUnder(str?.replaceAll("\n", sSPACE)?.replaceAll("<br>", sSPACE), und), clr, img) }
@@ -5216,7 +5309,7 @@ private String createMetricsDataJson() {
         Map swVer = (Map)state.codeVersions
         Map deviceUsageMap = [:]
         Map deviceErrorMap = [:]
-        getChildDevices()?.each { d->
+        ((List)getChildDevices())?.each { d->
             Map obj = d?.getDeviceMetrics()
             if(obj?.usage?.size()) { obj?.usage?.each { String k, v-> deviceUsageMap[k] = (deviceUsageMap[k] ? deviceUsageMap[k] + v : v) } }
             if(obj?.errors?.size()) { obj?.errors?.each { String k, v-> deviceErrorMap[k] = (deviceErrorMap[k] ? deviceErrorMap[k] + v : v) } }
@@ -5238,7 +5331,7 @@ private String createMetricsDataJson() {
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: (Boolean)getServerItem("onHeroku") ? "Cloud" : "Local",
-            versions: [app: appVersionFLD, server: (String)swVer?.server ?: "N/A", actions: (String)swVer?.actionApp ?: "N/A", zones: (String)swVer?.zoneApp ?: "N/A", device: (String)swVer?.echoDevice ?: "N/A", socket: (String)swVer?.wsDevice ?: "N/A"],
+            versions: [app: appVersionFLD, server: (String)swVer?.server ?: "N/A", actions: (String)swVer?.actionApp ?: "N/A", zones: (String)swVer?.zoneApp ?: "N/A", device: (String)swVer?.echoDevice ?: "N/A", /*socket: (String)swVer?.wsDevice ?: "N/A"*/],
             detections: [skippedDevices: getSkippedDevsAnon()],
             actions: actData,
             zones: zoneData,
@@ -5294,7 +5387,7 @@ Boolean actionUpdAvail()        { return ((Map)state.appData?.versions && (Strin
 Boolean zoneUpdAvail()          { return ((Map)state.appData?.versions && (String)state.codeVersions?.zoneApp && codeUpdIsAvail((String)state.appData.versions?.zoneApp?.ver, (String)state.codeVersions.zoneApp, "zone_app")) }
 Boolean zoneChildDevUpdAvail()  { return ((Map)state.appData?.versions && (String)state.codeVersions?.zoneEchoDevice && codeUpdIsAvail((String)state.appData.versions?.zoneChildDevice?.ver, (String)state.codeVersions.zoneEchoDevice, "zone_child_dev")) }
 Boolean echoDevUpdAvail()       { return ((Map)state.appData?.versions && (String)state.codeVersions?.echoDevice && codeUpdIsAvail((String)state.appData.versions?.echoDevice?.ver, (String)state.codeVersions.echoDevice, "dev")) }
-Boolean socketUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.wsDevice && codeUpdIsAvail((String)state.appData.versions?.wsDevice?.ver, (String)state.codeVersions.wsDevice, "socket")) }
+// Boolean socketUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.wsDevice && codeUpdIsAvail((String)state.appData.versions?.wsDevice?.ver, (String)state.codeVersions.wsDevice, "socket")) }
 Boolean serverUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.server && codeUpdIsAvail((String)state.appData.versions?.server?.ver, (String)state.codeVersions.server, "server")) }
 
 static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
@@ -5510,13 +5603,13 @@ private getDiagDataJson(Boolean asString = false) {
                 errors: devErrors ?: [],
                 speech: devSpeech
             ],
-            socket: [
-                version: state.codeVersions?.wsDevice ?: null,
-                warnings: sockWarnings ?: [],
-                errors: sockErrors ?: [],
-                active: state.websocketActive,
-                lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
-            ],
+            // socket: [
+            //     version: state.codeVersions?.wsDevice ?: null,
+            //     warnings: sockWarnings ?: [],
+            //     errors: sockErrors ?: [],
+            //     active: state.websocketActive,
+            //     lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
+            // ],
             hub: [
                 platform: platformFLD,
                 firmware: ((List)location?.hubs)[0]?.getFirmwareVersionString() ?: null,
@@ -6015,7 +6108,7 @@ String getAppNotifConfDesc() {
     Integer notifDevs = ((List)settings.notif_devs)?.size()
     if(notifDevs) {
         Boolean ok = getOk2Notify()
-        str += spanSmBld("Send Notifications Allowed:") + getOkOrNotSymHTML(ok)
+        str += spanSmBld("Send Notifications Allowed: ") + getOkOrNotSymHTML(ok)
         String ap = getAppNotifDesc()
         String nd = getNotifSchedDesc(true)
         List t0 = (List)settings.notif_devs
@@ -6027,50 +6120,51 @@ String getAppNotifConfDesc() {
 }
 
 List getQuietDays() {
-    List allDays = weekDaysEnum()
-    List curDays = settings.quietDays ?: []
-    return allDays?.findAll { (!curDays?.contains(it as String)) }
+    List<String> allDays = weekDaysEnum()
+    List curDays = (List)settings.notif_days ?: []
+    return allDays?.findAll { (!curDays?.contains(it)) }
 }
 
+@SuppressWarnings('GroovyVariableNotAssigned')
 String getNotifSchedDesc(Boolean min=false) {
-    String startType = settings.qStartInput
+    String startType = settings.notif_time_start_type
     Date startTime
-    String stopType = settings.qStopInput
+    String stopType = settings.notif_time_stop_type
     Date stopTime
-    List dayInput = settings.quietDays
-    List modeInput = settings.quietModes
+    List dayInput = (List)settings.notif_days
+    List modeInput = (List)settings.notif_modes
     String str = sBLANK
 
     if(startType && stopType) {
-        startTime = startType == 'A specific time' && settings.qStartTime ? toDateTime(settings.qStartTime) : null
-        stopTime = stopType == 'A specific time' && settings.qStopTime ? toDateTime(settings.qStopTime) : null
+        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
     }
-    if(startType in ["Sunrise", "Sunset"] || stopType in ["Sunrise", "Sunset"]) {
-        def sun = getSunriseAndSunset()
+    if(startType in lSUNRISESET || stopType in lSUNRISESET) {
+        Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
         Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
         Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
-        if(startType in ["Sunrise", "Sunset"]) {
-            Long startl = (startType == 'Sunrise' ? lsunrise : lsunset) + startoffset
+        if(startType in lSUNRISESET) {
+            Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
         }
-        if(stopType in ["Sunrise", "Sunset"]) {
-            Long stopl = (stopType == 'Sunrise' ? lsunrise : lsunset) + stopoffset
+        if(stopType in lSUNRISESET) {
+            Long stopl = (stopType == 'sunrise' ? lsunrise : lsunset) + stopoffset
             stopTime = new Date(stopl)
         }
     }
-    Boolean timeOk = quietTimeOk()
-    Boolean daysOk = quietDaysOk(dayInput)
-    Boolean modesOk = quietModesOk(modeInput)
+    Boolean timeOk = notifTimeOk()
+    Boolean daysOk = dayInput ? (isDayOfWeek(dayInput)) : true
+    Boolean modesOk = modeInput ? (isInMode(modeInput)) : true
     Boolean rest = !(daysOk && modesOk && timeOk)
     String startLbl = startTime ? epochToTime(startTime) : sBLANK
     String stopLbl = stopTime ? epochToTime(stopTime) : sBLANK
-    str += (startLbl && stopLbl) ? "${spanSm("   ${sBULLET} Restricted Times:")} ${spanSm("${startLbl} - ${stopLbl}")} ${getOkOrNotSymHTML(!timeOk)}" : sBLANK
+    str += (startLbl && stopLbl) ? spanSmBr("     ${sBULLET} Restricted Times: ${startLbl} - ${stopLbl} " + getOkOrNotSymHTML(!timeOk)) : sBLANK
     List qDays = getQuietDays()
-    str += dayInput && qDays ? "${lineBr(startLbl || stopLbl)}${spanSm("   ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}:")}${spanSm(min ? " (${qDays?.size()} selected)" : " ${qDays?.join(", ")}")} ${getOkOrNotSymHTML(!daysOk)}" : sBLANK
-    str += modeInput ? "${lineBr(startLbl || stopLbl || qDays)}${spanSm("   ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}:")}${spanSm(min ? " (${modeInput?.size()} selected)" : " ${modeInput?.join(", ")}")} ${getOkOrNotSymHTML(!modesOk)}" : sBLANK
-    str = str ? spanSmBld("Restrictions: ") + getOkOrNotSymHTML(rest) + lineBr() + str : sBLANK
+    str += dayInput && qDays ? spanSmBr("     ${sBULLET} Restricted Day${pluralizeStr(qDays, false)}: (${qDays?.join(", ")}) " + getOkOrNotSymHTML(!daysOk)) : sBLANK
+    str += modeInput ? spanSm("     ${sBULLET} Allowed Mode${pluralizeStr(modeInput, false)}: (${modeInput?.join(", ")}) " + getOkOrNotSymHTML(!modesOk)) : sBLANK
+    str = str ? spanSmBr("  ${sBULLET} Restrictions Active: " + getOkOrNotSymHTML(rest)) + spanSm(str) : sBLANK
     return (str != sBLANK) ? divSm(str, sCLR4D9) : sNULL
 }
 
@@ -6147,7 +6241,7 @@ def appInfoSect() {
         if((String)codeVer.actionApp) verMap.push([name: "Action:", ver: "v${(String)codeVer.actionApp}"])
         if((String)codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${(String)codeVer.zoneApp}"])
         if((String)codeVer.zoneEchoDevice) verMap.push([name: "Zone Device:", ver: "v${(String)codeVer.zoneEchoDevice}"])
-        if((String)codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${(String)codeVer.wsDevice}"])
+        // if((String)codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${(String)codeVer.wsDevice}"])
         if((String)codeVer.server) verMap.push([name: "Server:", ver: "v${(String)codeVer.server}"])
         if(verMap?.size()) {
             tStr += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
@@ -6191,9 +6285,9 @@ def appInfoSect() {
             }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
                 isNote = true
-                String str1 = sBLANK
+                String str1 = spanSmBld("Developer Notices:")
                 state.noticeData.notices.each { String item-> str1 += lineBr() + spanSmBr("  ${sBULLET} ${item}") }
-                paragraph divSm(str1, sCLRRED)
+                paragraph divSm(str1, sCLRORG)
             }
             if(remDevs?.size()) {
                 isNote = true
@@ -6968,6 +7062,13 @@ Boolean isSomebodyHome(List sensors) {
     return false
 }
 
+Boolean isDayOfWeek(List opts) {
+    SimpleDateFormat df = new SimpleDateFormat("EEEE")
+    df?.setTimeZone((TimeZone)location?.timeZone)
+    String day = df?.format(new Date())
+    return opts?.contains(day)
+}
+
 Boolean isInMode(List modes) {
     return (location?.mode?.toString() in modes)
 }
@@ -7036,7 +7137,7 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
     // log.trace "lock wait: ${aa}"
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
-    List<Map> eData = (List)memStore[logKey] ?: []
+    List<Map> eData = (List<Map>)memStore[logKey] ?: []
     if(eData.find { it?.message == msg }) {
         releaseTheLock(sHMLF)
         return
@@ -7076,7 +7177,7 @@ void clearDiagLogs(String type="all") {
     if(type=="all") {
         clearHistory()
         getActionApps()?.each { ca-> ca?.clearLogHistory() }
-        getChildDevices()?.each { cd-> cd?.clearLogHistory() }
+        ((List)getChildDevices())?.each { cd-> cd?.clearLogHistory() }
         getZoneApps()?.each { ca -> ca?.relayClearLogHistory() }
     }
 }
@@ -7174,7 +7275,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     Boolean wait = false
     Integer semaNum = getSemaNum(qname)
     String semaSNum = semaNum.toString()
-    def sema = getSema(semaNum)
+    Semaphore sema = getSema(semaNum)
     while(!((Boolean)sema.tryAcquire())) {
         // did not get the lock
         Long timeL = lockTimesFLD[semaSNum]
@@ -7201,7 +7302,7 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
 void releaseTheLock(String qname){
     Integer semaNum=getSemaNum(qname)
     String semaSNum=semaNum.toString()
-    def sema=getSema(semaNum)
+    Semaphore sema=getSema(semaNum)
     lockTimesFLD[semaSNum]=null
     lockTimesFLD=lockTimesFLD
     lockHolderFLD[semaSNum]=sNULL
@@ -7214,19 +7315,19 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 @Field static final Map appDuplicationTypesMapFLD = [
     stat: [
         bool: ["notif_pushover", "notif_alexa_mobile", "logInfo", "logWarn", "logError", "logDebug", "logTrace", "enableWebCoRE"],
-        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarm", "cond_months", "trig_alarm", "trig_guard"],
+        enum: ["triggerEvents", "act_EchoZones", "actionType", "cond_alarmSystemStatus", "cond_months", "trig_alarmSystemStatus", "trig_guard"],
         mode: ["cond_mode", "trig_mode"],
         number: [],
         text: ["appLbl"]
     ],
     ends: [
-        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone"],
+        bool: ["_all", "_avg", "_once", "_send_push", "_use_custom", "_stop_on_clear", "_db", "Pause", "_vol_per_zone", "_ign_empty_type", "_trig_clear_restore"],
         enum: ["_cmd", "_type", "_routineExecuted",
                "_EchoDevices",
                "_scheduled_sunState", "_scheduled_recurrence", "_scheduled_days", "_scheduled_weeks", "_scheduled_weekdays", "_scheduled_months", "_scheduled_daynums", "_scheduled_type",
-               "_routine_run", "_mode_run", "_piston_run", "_alarm_run", "_rt", "_rt_wd", "_nums", "_Codes", "_pistonExecuted", "_days", "_months", "_alarm_events"],
-        number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore"],
-        text: ["_txt", "_sms_numbers", "_label", "_date", "_message"],
+               "_routine_run", "_mode_run", "_piston_run", "_alarm_run", "_rt", "_rt_wd", "_nums", "_Codes", "_pistonExecuted", "_days", "_months", "_alarmSystemStatus_events"],
+        number: ["_wait", "_low", "_high", "_equal", "_delay", "_cnt", "_volume", "_offset", "_after", "_after_repeat", "_rt_ed", "_volume_change", "_volume_restore", "_leveln"],
+        text: ["_txt", "_sms_numbers", "_label", "_date", "_message", "_colort"],
         mode: ["_modes"],
         time: ["_time_start", "_time_stop", "_time", "_scheduled_time"]
     ],
@@ -7234,45 +7335,47 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         _devs: "notification",
         _acceleration: "accelerationSensor",
         _battery: "battery",
+        _carbonMonoxide: "carbonMonoxideDetector",
+//        _color: "colorControl",
         _contact: "contactSensor",
         _door: "garageDoorControl",
-        _doors_open: "garageDoorControl",
-        _doors_close: "garageDoorControl",
         _temperature: "temperatureMeasurement",
         _illuminance: "illuminanceMeasurement",
         _humidity: "relativeHumidityMeasurement",
         _motion: "motionSensor",
         _level: "switchLevel",
-        _button: "button",
+//        _button: "button",
+        _lock: "lock",
         _pushed: "pushableButton",
         _held: "holdableButton",
         _released: "releasableButton",
         _doubleTapped: "doubleTapableButton",
-        _presence: "presenceSensor",
-        _sirens: "alarm",
-        _switch: "switch",
         _power: "powerMeter",
-        _windowShade: "windowShades",
-        _water: "waterSensor",
-        _valve: "valve",
+        _presence: "presenceSensor",
+        _securityKeypad: "securityKeypad",
+        _smoke: "smokeDetector",
+        _switch: "switch",
         _thermostatOperatingState: "thermostat",
         _thermostatMode: "thermostat",
         _thermostatFanMode: "thermostat",
         _thermostatTemperature: "thermostat",
         _thermostatHeatingSetpoint: "thermostat",
         _thermostatCoolingSetpoint: "thermostat",
-        _carbonMonoxide: "carbonMonoxideDetector",
-        _smoke: "smokeDetector",
-        _lock: "lock",
+        _windowShade: "windowShades",
+        _water: "waterSensor",
+        _valve: "valve",
+// these are for action commands inputs
+        _doors_open: "garageDoorControl",
+        _doors_close: "garageDoorControl",
+//        _lock: "lock",   ALREADY COVERED ABOVE
         _unlock: "lock",
-        _securityKeypad: "securityKeypad",
         _disarm: "securityKeypad",
         _armHome: "securityKeypad",
         _armAway: "securityKeypad",
+        _sirens: "alarm",
         _switches_off: "switch",
         _switches_on: "switch",
-        _lights: "level",
-        _color: "colorControl",
+        _lights: "switch",
         _EchoDeviceList: ""
     ],
     dev: [
@@ -7307,9 +7410,11 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         
         // Amazon Tablets
         "A1Q7QCGNMXAKYW" : [ c: [ "t", "a" ], i: "amazon_tablet", n: "Generic Tablet" ],
+        "ATNLRCEBX3W4P"  : [ c: [ "t", "a" ], i: "amazon_tablet", n: "Generic Tablet" ],
         "A1J16TEDOYCZTN" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
         "A2M4YX06LWP8WI" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
         "A1C66CX2XD756O" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet HD" ],
+        "A2N49KXGVA18AR" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet HD 10 Plus" ],
         "A3L0T0VL9A921N" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
         "AVU7CPPF2ZRAS"  : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
         "A38EHHIB10L47V" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
@@ -7342,7 +7447,9 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A4ZP7ZC4PI6TO"  : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen1)" ],
         "A1XWJRHALS1REP" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen2)" ],
         "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
+        "A15996VY63BQ2D" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen2)" ],
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
+        "A1EIANJ7PNB0Q7" : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen1)" ],
         
         // Amazon Echo Auto's
         "A303PJF6ISQ7IC" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
@@ -7358,6 +7465,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A3VRME03NAXFUB" : [ c: [ "a", "t" ], i: "echo_flex", n: "Echo Flex" ],
         "A3SSG6GR8UU7SN" : [ c: [ "a", "t" ], i: "echo_sub_gen1", n: "Echo Sub" ],
         "A27VEYGQBW3YR5" : [ c: [ "a", "t" ], i: "echo_link", n: "Echo Link" ],
+        "A15QWUTQ6FSMYX": [ c: [ "a", "t" ], i: "echo_buds_gen2", n: "Echo Buds (Gen2)" ],
         
         // Ignored Devices
         "A112LJ20W14H95" : [ ig: true ],
@@ -7396,6 +7504,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2RJLFEH0UEKI9" : [ ig: true ],
         "AKOAGQTKAS9YB"  : [ ig: true ],
         "ATH4K2BAIXVHQ"  : [ ig: true ],
+        "A1WAR447VT003J" : [ ig: true ],
+        
         "A324YMIUSWQDGE" : [ ig: true, i: "unknown", n: "Samsung 8K TV" ],
         "A18X8OBWBCSLD8" : [ ig: true, i: "unknown", n: "Samsung Soundbar" ],
         "A1GA2W150VBSDI" : [ ig: true, i: "unknown", n: "Sony On-Hear Headphones" ],
@@ -7408,6 +7518,10 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 
         // Unknown or Needs Image
         "A16MZVIFVHX6P6" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Echo" ],
+        "A12IZU8NMHSY5U" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Device" ],
+        "A39BU42XNMN516" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Device" ],
+        "ABJ2EHL7HQT4L"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown Amplifier" ],
+        "AR6X0XNIME80V"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown TV" ],
         "A2XPGY5LRKB9BE" : [ c: [ "a", "t" ], i: "unknown", n: "Fitbit Versa 2" ],
         "A2Y04QPFCANLPQ" : [ c: [ "a", "t" ], i: "unknown", n: "Bose QuietComfort 35 II" ],
         "A3B50IC5QPZPWP" : [ c: [ "a", "t" ], i: "unknown", n: "Polk Command Bar" ],
@@ -7434,6 +7548,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1SCI5MODUBAT1" : [ c: [ "a", "t"], i: "unknown", n: "Pioneer DMH-W466NEX" ],
         "A1ETW4IXK2PYBP" : [ c: [ "a", "t"], i: "unknown", n: "Talk to Alexa" ],
         "A81PNL0A63P93"  : [ c: [ "a", "t" ], i: "unknown", n: "Home Remote" ],
+        "A1NQ0LXWBGVQS9" : [ c: [ "a", "t" ], i: "unknown", n: "2021 Samsung QLED TV" ],
+        "A6SIQKETF3L2E"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown Device" ],
         
         
         // Blocked Devices

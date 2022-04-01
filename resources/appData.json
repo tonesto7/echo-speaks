@@ -2,29 +2,29 @@
     "appDataVer": "4.0",
     "versions": {
         "mainApp": {
-            "ver": "4.1.9.9"
+            "ver": "4.2.0.0"
         },
         "actionApp": {
-            "ver": "4.1.9.9"
+            "ver": "4.2.0.0"
         },
         "zoneApp": {
-            "ver": "4.1.9.9"
+            "ver": "4.2.0.0"
         },
         "echoDevice": {
-            "ver": "4.1.9.9"
+            "ver": "4.2.0.0"
         },
         "zoneChildDevice": {
-            "ver": "4.1.9.9"
+            "ver": "4.2.0.0"
         },
         "wsDevice": {
-            "ver": "4.1.9.9"
+            "ver": "4.2.0.0"
         },
         "server": {
             "ver": "2.7.0"
         }
     },
-    "amazonDomains": ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx", "amazon.es", "amazon.in", "amazon.fr", "amazon.se"],
-    "locales": ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY", "es-ES", "fr-FR", "sv-SE"],
+    "amazonDomains": ["amazon.com", "amazon.ca", "amazon.co.uk", "amazon.com.au", "amazon.de", "amazon.it", "amazon.com.br", "amazon.com.mx", "amazon.es", "amazon.in", "amazon.fr", "amazon.se", "amazon.co.jp"],
+    "locales": ["en-US", "en-CA", "de-DE", "en-GB", "it-IT", "en-AU", "pt-BR", "es-MX", "es-UY", "es-ES", "fr-FR", "sv-SE", "jp-JP"],
     "settings": {
         "sendMetrics": true,
         "database": {

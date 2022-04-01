@@ -21,8 +21,8 @@ import groovy.transform.Field
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.1.9.9'
-@Field static final String devModifiedFLD = '2021-09-10'
+@Field static final String devVersionFLD  = '4.2.0.0'
+@Field static final String devModifiedFLD = '2021-09-29'
 @Field static final String sNULL          = (String) null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -81,7 +81,7 @@ def refresh() {
     logInfo("refresh() called")
 }
 
-def triggerInitialize() { runIn(3, "updated") }
+def triggerInitialize() { unschedule("initialize"); runIn(3, "updated") }
 def resetQueue() {}
 
 def installed() {
@@ -92,6 +92,7 @@ def installed() {
 def updated() {
     logInfo("updated() called")
     unschedule()
+    state.remove('reconnectDelay') // state.reconnectDelay = 1
     if(advLogsActive()) { runIn(1800, "logsOff") }
     initialize()
 }
@@ -124,12 +125,12 @@ def initialize() {
 }
 
 Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
+
 public void logsOff() {
     device.updateSetting("logDebug",[value:"false",type:"bool"])
     device.updateSetting("logTrace",[value:"false",type:"bool"])
     log.debug "Disabling debug logs"
 }
-
 
 def connect() {
     if(!state.cookie || !(String)state.amazonDomain || !(String)state.wsDomain || !state.wsSerial) { logError("connect: no cookie or domain"); return }
@@ -144,7 +145,9 @@ def connect() {
             "Cookie": getCookieVal()
         ]
         logTrace("connect called")
-        interfaces.webSocket.connect("https://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}", byteInterface: "true", pingInterval: 45, headers: headers)
+        String url = "https://dp-gw-na${(String)state.wsDomain}/?x-amz-device-type=ALEGCNGL9K0HM&x-amz-device-serial=${state.wsSerial}-${now()}"
+        // log.info "Connect URL: $url"
+        interfaces.webSocket.connect(url, byteInterface: "true", pingInterval: 45, headers: headers)
     } catch(ex) {
         logError("WebSocket connect failed | ${ex}", false, ex)
     }
@@ -158,13 +161,14 @@ def close() {
 
 def reconnectWebSocket() {
     // first delay is 2 seconds, doubles every time
-    Long d = state.reconnectDelay ?: 1 * 2
-    // don't def the delay get too crazy, max it out at 10 minutes
-    if(d > 600) d = 600
+    Long d = state.reconnectDelay ?: 1
+    d *= 2L
+    // don't let the delay get too crazy, max it out at 10 minutes
+    if(d > 600L) d = 600L
     state.reconnectDelay = d
-    updSocketStatus(false)
+    //close() // updSocketStatus(false)
     logInfo("reconnectWebSocket() called delay: $d")
-    runIn(d, initialize)
+    runIn(d, "initialize")
 }
 
 def sendWsMsg(String s) {
@@ -180,29 +184,32 @@ def webSocketStatus(String status) {
     logTrace("Websocket Status Event | ${status}")
     if(status.startsWith('failure: ')) {
         logWarn("Websocket Failure Message: ${status}")
-
-        reconnectWebSocket()
     } else if(status == 'status: open') {
         logInfo("Alexa WS Connection is Open")
         // success! reset reconnect delay
-//        pauseExecution(1000)
-        state.remove('reconnectDelay') // state.reconnectDelay = 1
+        // pauseExecution(1000)
+        // state.remove('reconnectDelay') // state.reconnectDelay = 1
         state.connectionActive = true
         // log.trace("Connection Initiation (Step 1)")
         runIn(1, "nextMsgSend")
+        return
     } else if (status == "status: closing") {
         logWarn("WebSocket connection closing.")
-        updSocketStatus(false)
+        unschedule("nextMsgSend")
+        unschedule("nextMsgSend1")
+        unschedule("nextMsgSend2")
+        unschedule("nextMsgSend3")
+        unschedule("nextMsgSend4")
     } else if(status?.startsWith("send error: ")) {
         logError("Websocket Send Error: $status")
-    } else {
-        logWarn("WebSocket error, reconnecting.", false)
-        reconnectWebSocket()
-    }
+    } else logWarn("WebSocket error, reconnecting. $status", false)
+    close() // updSocketStatus(false)
+    reconnectWebSocket()
 }
 
 @SuppressWarnings('unused')
 void nextMsgSend() {
+    state.remove('reconnectDelay') // state.reconnectDelay = 1
     sendWsMsg(strToHex("0x99d4f71a 0x0000001d A:HTUNE"))
     logTrace("Gateway Handshake Message Sent (Step 1)")
 }
@@ -232,9 +239,9 @@ void nextMsgSend4() {
 }
 
 def parse(message) {
-    // log.debug "parsed ${message}"
+    // log.debug("parsed ${message}")
     String newMsg = strFromHex(message)
-//    logTrace("decodedMsg: ${newMsg}")
+    logTrace("decodedMsg: ${newMsg}")
     if(newMsg) {
         if(newMsg == """0x37a3b607 0x0000009c {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
         // if(newMsg == """0xbafef3f3 0x000000cd {"protocolName":"A:H","parameters":{"AlphaProtocolHandler.supportedEncodings":"GZIP","AlphaProtocolHandler.maxFragmentSize":"16000","AlphaProtocolHandler.receiveWindowSize":"16"}}TUNE""") {
