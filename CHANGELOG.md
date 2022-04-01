@@ -6,6 +6,7 @@
 - [NEW] Added new commands for speech and announcements to bypass alexa do not disturb restrictions to speak for emergency scenarios.
 - [NEW] Added the ability to eliminate duplicate notifications for certain zigbee locks.  There is a toggle in the actions settings for locks only.
 - [NEW] Updated device support list with latest devices reported.
+- [REMOVED] Removed WebSocket device until I get time to update it or move it to a local server.
   
 ### _**Release (v4.1.9.9) - [September 10th, 2021]**_
 
