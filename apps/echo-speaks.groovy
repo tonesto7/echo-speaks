@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks App (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -23,7 +23,6 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.transform.Field
-
 import java.text.SimpleDateFormat
 import java.util.concurrent.Semaphore
 
@@ -31,11 +30,11 @@ import java.util.concurrent.Semaphore
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String appVersionFLD  = '4.2.0.0'
-@Field static final String appModifiedFLD = '2021-09-27'
+@Field static final String appModifiedFLD = '2022-04-01'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4200, wsDevice: 4200, actionApp: 4200, zoneApp: 4200, zoneEchoDevice: 4200, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4200, actionApp: 4200, zoneApp: 4200, zoneEchoDevice: 4200, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1886,15 +1885,15 @@ Boolean checkIfCodeUpdated() {
             codeUpdated = true
         }
     }
-    def wsDev = getSocketDevice()
-    if(wsDev) {
-        String ver = (String)wsDev?.devVersion()
-        if((String)codeVerMap.wsDevice != ver) {
-            chgs.push("wsDevice")
-            updCodeVerMap("wsDevice", ver)
-            codeUpdated = true
-        }
-    }
+    // def wsDev = getSocketDevice()
+    // if(wsDev) {
+    //     String ver = (String)wsDev?.devVersion()
+    //     if((String)codeVerMap.wsDevice != ver) {
+    //         chgs.push("wsDevice")
+    //         updCodeVerMap("wsDevice", ver)
+    //         codeUpdated = true
+    //     }
+    // }
     List cApps = getActionApps()
     if(cApps?.size()) {
         String ver = (String)cApps[0]?.appVersion()
@@ -2562,8 +2561,8 @@ public updChildVers() {
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
     updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
-    def wDevs = getSocketDevice()
-    updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
+    // def wDevs = getSocketDevice()
+    // updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
 }
 
 Map getMusicProviders(Boolean frc=false) {
@@ -3412,12 +3411,13 @@ void receiveEventData(Map evtData, String src) {
             String myId=app.getId()
             String wsChildHandlerName = "Echo Speaks WS"
             String nmS = 'echoSpeaks_websocket'
-            def oldWsDev = getChildDevice(nmS)
-            if(oldWsDev) { deleteChildDevice(nmS) }
+            // def oldWsDev = getChildDevice(nmS)
+            // if(oldWsDev) { deleteChildDevice(nmS) }
             nmS = myId+'|'+nmS
             def wsDevice = getChildDevice(nmS)
-            if(!wsDevice) { def a=addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
-            updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
+            if(wsDevice) { deleteChildDevice(nmS) }
+            // if(!wsDevice) { def a=addChildDevice("tonesto7", wsChildHandlerName, nmS, null, [name: wsChildHandlerName, label: "Echo Speaks - WebSocket", completedSetup: true]) }
+            // updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
 
             if (evtData?.echoDevices?.size()) {
                 Long execTime = evtData?.execDt ? (now()-(Long)evtData.execDt) : 0L
@@ -4966,7 +4966,7 @@ void appUpdateNotify() {
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
     Boolean echoDevUpd = echoDevUpdAvail()
-    Boolean socketUpd = socketUpdAvail()
+    // Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     Boolean res=false
     if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || echoDevUpd || socketUpd || servUpd) res=true
@@ -4986,7 +4986,7 @@ void appUpdateNotify() {
             str += !zoneUpd ? sBLANK : "\nEcho Speaks Zones: v${state.appData?.versions?.zoneApp?.ver?.toString()}"
             str += !zoneChildDevUpd ? sBLANK : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
             str += !echoDevUpd ? sBLANK : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
-            str += !socketUpd ? sBLANK : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
+            // str += !socketUpd ? sBLANK : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
             str += !servUpd ? sBLANK : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
@@ -5004,7 +5004,7 @@ private List codeUpdateItems(Boolean shrt=false) {
     Boolean zoneUpd = zoneUpdAvail()
     Boolean zoneChildDevUpd = zoneChildDevUpdAvail()
     Boolean devUpd = echoDevUpdAvail()
-    Boolean socketUpd = socketUpdAvail()
+    // Boolean socketUpd = socketUpdAvail()
     Boolean servUpd = serverUpdAvail()
     List updItems = []
     if(appUpd || actUpd || zoneUpd || zoneChildDevUpd || devUpd || socketUpd || servUpd) {
@@ -5013,7 +5013,7 @@ private List codeUpdateItems(Boolean shrt=false) {
         if(zoneUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zones: (v${state.appData?.versions?.zoneApp?.ver?.toString()})")
         if(zoneChildDevUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Zone Child Device: (v${state.appData?.versions?.zoneChildDevice?.ver?.toString()})")
         if(devUpd) updItems.push("${!shrt ? "\nEcho Speaks " : "ES "}Device: (v${state.appData?.versions?.echoDevice?.ver?.toString()})")
-        if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
+        // if(socketUpd) updItems.push("${!shrt ? "\nEcho Speaks " : sBLANK}Websocket: (v${state.appData?.versions?.wsDevice?.ver?.toString()})")
         if(servUpd) updItems.push("${!shrt ? "\n" : sBLANK}Server: (v${state.appData?.versions?.server?.ver?.toString()})")
     }
     return updItems
@@ -5331,7 +5331,7 @@ private String createMetricsDataJson() {
             stateUsage: "${stateSizePerc()}%",
             amazonDomain: settings?.amazonDomain,
             serverPlatform: (Boolean)getServerItem("onHeroku") ? "Cloud" : "Local",
-            versions: [app: appVersionFLD, server: (String)swVer?.server ?: "N/A", actions: (String)swVer?.actionApp ?: "N/A", zones: (String)swVer?.zoneApp ?: "N/A", device: (String)swVer?.echoDevice ?: "N/A", socket: (String)swVer?.wsDevice ?: "N/A"],
+            versions: [app: appVersionFLD, server: (String)swVer?.server ?: "N/A", actions: (String)swVer?.actionApp ?: "N/A", zones: (String)swVer?.zoneApp ?: "N/A", device: (String)swVer?.echoDevice ?: "N/A", /*socket: (String)swVer?.wsDevice ?: "N/A"*/],
             detections: [skippedDevices: getSkippedDevsAnon()],
             actions: actData,
             zones: zoneData,
@@ -5387,7 +5387,7 @@ Boolean actionUpdAvail()        { return ((Map)state.appData?.versions && (Strin
 Boolean zoneUpdAvail()          { return ((Map)state.appData?.versions && (String)state.codeVersions?.zoneApp && codeUpdIsAvail((String)state.appData.versions?.zoneApp?.ver, (String)state.codeVersions.zoneApp, "zone_app")) }
 Boolean zoneChildDevUpdAvail()  { return ((Map)state.appData?.versions && (String)state.codeVersions?.zoneEchoDevice && codeUpdIsAvail((String)state.appData.versions?.zoneChildDevice?.ver, (String)state.codeVersions.zoneEchoDevice, "zone_child_dev")) }
 Boolean echoDevUpdAvail()       { return ((Map)state.appData?.versions && (String)state.codeVersions?.echoDevice && codeUpdIsAvail((String)state.appData.versions?.echoDevice?.ver, (String)state.codeVersions.echoDevice, "dev")) }
-Boolean socketUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.wsDevice && codeUpdIsAvail((String)state.appData.versions?.wsDevice?.ver, (String)state.codeVersions.wsDevice, "socket")) }
+// Boolean socketUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.wsDevice && codeUpdIsAvail((String)state.appData.versions?.wsDevice?.ver, (String)state.codeVersions.wsDevice, "socket")) }
 Boolean serverUpdAvail()        { return ((Map)state.appData?.versions && (String)state.codeVersions?.server && codeUpdIsAvail((String)state.appData.versions?.server?.ver, (String)state.codeVersions.server, "server")) }
 
 static Integer versionStr2Int(String str) { return str ? str.replaceAll("\\.", sBLANK)?.toInteger() : null }
@@ -5603,13 +5603,13 @@ private getDiagDataJson(Boolean asString = false) {
                 errors: devErrors ?: [],
                 speech: devSpeech
             ],
-            socket: [
-                version: state.codeVersions?.wsDevice ?: null,
-                warnings: sockWarnings ?: [],
-                errors: sockErrors ?: [],
-                active: state.websocketActive,
-                lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
-            ],
+            // socket: [
+            //     version: state.codeVersions?.wsDevice ?: null,
+            //     warnings: sockWarnings ?: [],
+            //     errors: sockErrors ?: [],
+            //     active: state.websocketActive,
+            //     lastStatusUpdDt: getTsVal("lastWebsocketUpdDt")
+            // ],
             hub: [
                 platform: platformFLD,
                 firmware: ((List)location?.hubs)[0]?.getFirmwareVersionString() ?: null,
@@ -6241,7 +6241,7 @@ def appInfoSect() {
         if((String)codeVer.actionApp) verMap.push([name: "Action:", ver: "v${(String)codeVer.actionApp}"])
         if((String)codeVer.zoneApp) verMap.push([name: "Zone:", ver: "v${(String)codeVer.zoneApp}"])
         if((String)codeVer.zoneEchoDevice) verMap.push([name: "Zone Device:", ver: "v${(String)codeVer.zoneEchoDevice}"])
-        if((String)codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${(String)codeVer.wsDevice}"])
+        // if((String)codeVer.wsDevice) verMap.push([name: "Socket:", ver: "v${(String)codeVer.wsDevice}"])
         if((String)codeVer.server) verMap.push([name: "Server:", ver: "v${(String)codeVer.server}"])
         if(verMap?.size()) {
             tStr += "<table style='border: 1px solid ${sCLRGRY};border-collapse: collapse;'>"
@@ -7410,9 +7410,11 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         
         // Amazon Tablets
         "A1Q7QCGNMXAKYW" : [ c: [ "t", "a" ], i: "amazon_tablet", n: "Generic Tablet" ],
+        "ATNLRCEBX3W4P"  : [ c: [ "t", "a" ], i: "amazon_tablet", n: "Generic Tablet" ],
         "A1J16TEDOYCZTN" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
         "A2M4YX06LWP8WI" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet" ],
         "A1C66CX2XD756O" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet HD" ],
+        "A2N49KXGVA18AR" : [ c: [ "a", "t" ], i: "amazon_tablet", n: "Fire Tablet HD 10 Plus" ],
         "A3L0T0VL9A921N" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
         "AVU7CPPF2ZRAS"  : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
         "A38EHHIB10L47V" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
@@ -7447,6 +7449,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
         "A15996VY63BQ2D" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen2)" ],
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
+        "A1EIANJ7PNB0Q7" : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen1)" ],
         
         // Amazon Echo Auto's
         "A303PJF6ISQ7IC" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
@@ -7462,6 +7465,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A3VRME03NAXFUB" : [ c: [ "a", "t" ], i: "echo_flex", n: "Echo Flex" ],
         "A3SSG6GR8UU7SN" : [ c: [ "a", "t" ], i: "echo_sub_gen1", n: "Echo Sub" ],
         "A27VEYGQBW3YR5" : [ c: [ "a", "t" ], i: "echo_link", n: "Echo Link" ],
+        "A15QWUTQ6FSMYX": [ c: [ "a", "t" ], i: "echo_buds_gen2", n: "Echo Buds (Gen2)" ],
         
         // Ignored Devices
         "A112LJ20W14H95" : [ ig: true ],
@@ -7500,6 +7504,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A2RJLFEH0UEKI9" : [ ig: true ],
         "AKOAGQTKAS9YB"  : [ ig: true ],
         "ATH4K2BAIXVHQ"  : [ ig: true ],
+        "A1WAR447VT003J" : [ ig: true ],
+        
         "A324YMIUSWQDGE" : [ ig: true, i: "unknown", n: "Samsung 8K TV" ],
         "A18X8OBWBCSLD8" : [ ig: true, i: "unknown", n: "Samsung Soundbar" ],
         "A1GA2W150VBSDI" : [ ig: true, i: "unknown", n: "Sony On-Hear Headphones" ],
@@ -7512,6 +7518,10 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
 
         // Unknown or Needs Image
         "A16MZVIFVHX6P6" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Echo" ],
+        "A12IZU8NMHSY5U" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Device" ],
+        "A39BU42XNMN516" : [ c: [ "a", "t" ], i: "unknown", n: "Generic Device" ],
+        "ABJ2EHL7HQT4L"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown Amplifier" ],
+        "AR6X0XNIME80V"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown TV" ],
         "A2XPGY5LRKB9BE" : [ c: [ "a", "t" ], i: "unknown", n: "Fitbit Versa 2" ],
         "A2Y04QPFCANLPQ" : [ c: [ "a", "t" ], i: "unknown", n: "Bose QuietComfort 35 II" ],
         "A3B50IC5QPZPWP" : [ c: [ "a", "t" ], i: "unknown", n: "Polk Command Bar" ],
@@ -7538,6 +7548,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1SCI5MODUBAT1" : [ c: [ "a", "t"], i: "unknown", n: "Pioneer DMH-W466NEX" ],
         "A1ETW4IXK2PYBP" : [ c: [ "a", "t"], i: "unknown", n: "Talk to Alexa" ],
         "A81PNL0A63P93"  : [ c: [ "a", "t" ], i: "unknown", n: "Home Remote" ],
+        "A1NQ0LXWBGVQS9" : [ c: [ "a", "t" ], i: "unknown", n: "2021 Samsung QLED TV" ],
+        "A6SIQKETF3L2E"  : [ c: [ "a", "t" ], i: "unknown", n: "Unknown Device" ],
         
         
         // Blocked Devices
