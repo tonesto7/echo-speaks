@@ -1,7 +1,7 @@
 /**
  *	Echo Speaks Device (Hubitat ONLY)
  *
- *  Copyright 2018, 2019, 2020, 2021 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -24,8 +24,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = "4.1.9.9"
-@Field static final String devModifiedFLD = "2021-09-10"
+@Field static final String devVersionFLD  = '4.2.0.0'
+@Field static final String devModifiedFLD = '2022-04-01'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -185,6 +185,7 @@ metadata {
             input "logDebug", "bool", title: "Show Debug Logs?", description: "Only leave on when required", required: false, defaultValue: false
             input "logTrace", "bool", title: "Show Detailed Logs?", description: "Only Enabled when asked by the developer", required: false, defaultValue: false
             input "ignoreTimeoutErrors", "bool", required: false, title: "Don't show errors in the logs for request timeouts?", description: sBLANK, defaultValue: true
+            input "ignoreHealth", "bool", required: false, title: "Ignore Devices Online/Offline State?", description: sBLANK, defaultValue: true
             input "sendDevNotifAsAnnouncement", "bool", required: false, title: "Send Device Notifications as Announcements?", description: sBLANK, defaultValue: false
             // maxVolume not used
             // input "maxVolume", "number", required: false, title: "Set Max Volume for this device", description: "There will be a delay of 30-60 seconds in getting the current volume level"
@@ -2750,7 +2751,7 @@ void updateLevel(oldvolume, newvolume) {
 private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
     String healthStatus = getHealthStatus()
-    if(!(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is OFFLINE", true); return }
+    if(settings.ignoreHealth == false && !(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is OFFLINE", true); return }
 
     if(settings.logTrace){
         String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${fixLg(cmdMap.message.toString())}"
