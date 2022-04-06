@@ -320,7 +320,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
     if(!(String)state.deviceType) { if(!noLogs) { logWarn("DeviceType State Value Missing: ${(String)state.deviceType}", true) }; return false }
     if(!(String)state.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${(String)state.deviceOwnerCustomerId}", true) }; return false }
 
-    Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
+    Boolean isOnline = (settings.ignoreHealth != false ? true : device?.currentValue("onlineStatus") == "online")
     if(!isOnline) {
         if(!noLogs) { logWarn("Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})", true) }
         triggerDataRrshF("found offline" )
