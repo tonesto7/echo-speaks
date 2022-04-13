@@ -15,6 +15,7 @@
  */
 //file:noinspection GroovySillyAssignment
 //file:noinspection GroovyUnusedAssignment
+//file:noinspection GroovyPointlessBoolean
 
 
 import groovy.json.JsonOutput
@@ -25,7 +26,7 @@ import java.text.SimpleDateFormat
 //*               STATIC VARIABLES               *
 //************************************************
 @Field static final String devVersionFLD  = '4.2.0.0'
-@Field static final String devModifiedFLD = '2022-04-01'
+@Field static final String devModifiedFLD = '2022-04-13'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -130,7 +131,7 @@ metadata {
         command "playCalendarTomorrow", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playCalendarNext", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "stopAllDevices"
-        command "noOp"
+        command "noOp", [[name: "Internal Command Only... Does nothing here...", description: "Internal Command Only... Does nothing Here..."]]
 
         if(!isZone()) {
             command "searchMusic", [[name: "Music Search Phrase*", type: "STRING", description: "Enter the artist, song, playlist, etc."], [name: "Music Provider*", type: "ENUM", constraints: ["AMAZON_MUSIC", "APPLE_MUSIC", "TUNEIN", "PANDORA", "SIRIUSXM", "SPOTIFY", "I_HEART_RADIO", "CLOUDPLAYER"], description: "Select One of these Music Providers to use."], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing"],[name: "Sleep Time", type: "NUMBER", description: "Sleep time in seconds"]]
@@ -164,7 +165,7 @@ metadata {
 //        command "volumeDown"
         command "speechTest"
 //        command "speak", [[name: "Message to Speak*", type: "STRING", description: ""], volume, voice]
-        command "speakIgnoreDnd", [[name: "Message to Speak*", type: "STRING", description: ""], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before speak"], [name: "Voice", type: "STRING", description: "Voice to use"]]
+        command "speakIgnoreDnd", [[name: "Message to Speak (Ignores Do Not Disturb)*", type: "STRING", description: ""], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before speak"], [name: "Voice", type: "STRING", description: "Voice to use"]]
         command "sendTestAnnouncement"
         command "sendTestAnnouncementAll"
         if(!isZone()) {
@@ -175,7 +176,7 @@ metadata {
             command "removeBluetooth", [[name: "Bluetooth Device Label*", type: "STRING", description: ""]]
         }
         command "parallelSpeak", [[name: "Message to Speak*", type: "STRING", description: ""]]
-        command "parallelSpeakIgnoreDnd", [[name: "Message to Speak*", type: "STRING", description: ""]]
+        command "parallelSpeakIgnoreDnd", [[name: "Message to Speak (Ignores Do Not Disturb)*", type: "STRING", description: ""]]
         command "sendAnnouncementToDevices", ["string", "string", "object", "number", "number"]
         command "voiceCmdAsText", [[name: "Voice Command as Text*", type: "STRING", description: ""]]
     }
@@ -531,6 +532,7 @@ public void updSocketStatus(Boolean active) {
     state.websocketActive = active
 }
 
+@SuppressWarnings('GroovyFallthrough')
 void websocketUpdEvt(List<String> triggers) {
     logTrace("websocketEvt: $triggers")
     // if((Boolean)state.isWhaDevice) { return }
@@ -1357,6 +1359,7 @@ def togglePlayback() {
     }
 }
 
+@SuppressWarnings('unused')
 def noOp() {
     if(isZone()) {
         parent.relayNopCommand()
@@ -1665,9 +1668,14 @@ void seqHelper_a(String cmd, String val, String cmdType, volume, restoreVolume, 
             didV = true
         }
         seqs.push([command: cmd, cmdType: cmdType, value: val, deviceData: getDeviceData()])
-        if(didV && restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
+        if(didV) updateLevel(null, volume)
         sendMultiSequenceCommand(seqs, cmdType, parallel)
-        if(didV) updateLevel(restoreVolume, volume)
+        if(didV && restoreVolume != null) {
+            parent.queueNopCommand()
+            sendSequenceCommand("VolumeCommand", "volume", restoreVolume)
+            //seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()])
+            updateLevel(restoreVolume, volume)
+        }
         //} else { sendSequenceCommand(cmdType, cmd, val) }
     }
 }
@@ -1716,9 +1724,14 @@ void seqHelper_s(String cmd, String cmdType, volume, restoreVolume){
     } else {
         if(volume != null) {
             List seqs = [[command: "volume", value: volume, deviceData: getDeviceData()], [command: cmd, cmdType: cmdType, deviceData: getDeviceData()]]
-            if(restoreVolume != null) { seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
+            updateLevel(null, volume)
             sendMultiSequenceCommand(seqs, cmdType)
-            updateLevel(restoreVolume, volume)
+            if(restoreVolume != null) {
+                parent.queueNopCommand()
+                sendSequenceCommand("VolumeCommand", "volume", restoreVolume)
+                //seqs.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()])
+                updateLevel(restoreVolume, volume)
+            }
         } else { sendSequenceCommand(cmdType, cmd) }
     }
 }
@@ -1815,7 +1828,7 @@ def parallelPlayAnnouncement(String msg, String title=sNULL) {
     playAnnouncement(newMsg, null, null, true)
 }
 
-def playAnnouncement(String msg, String title, volume=null, restoreVolume=null) {
+def playAnnouncement(String msg, String title, Object volume=null, restoreVolume=null) {
     String newMsg= "${title ? "${title}::" : sBLANK}${msg}".toString()
     playAnnouncement(newMsg, volume, restoreVolume, false)
 }
@@ -1833,14 +1846,16 @@ def sendAnnouncementToDevices(String msg, String title=sNULL, List devObj, volum
             mainSeq.push([command: "announcement_devices", value: newmsg, cmdType: 'playAnnouncement', deviceData: getDeviceData()])
 
             //sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet",true)
+            updateLevel(null, volume)
             sendMultiSequenceCommand(mainSeq, "sendAnnouncementToDevices-VolumeSet")
 
             if(restoreVolume!=null) {
+                parent.queueNopCommand()
                 List amainSeq = []
                 devObj.each { dev-> amainSeq.push([command: "volume", value: restoreVolume, deviceData: getDeviceData()]) }
                 sendMultiSequenceCommand(amainSeq, "sendAnnouncementToDevices-VolumeRestore")
+                updateLevel(restoreVolume, volume)
             }
-            updateLevel(restoreVolume, volume)
             // log.debug "mainSeq: $mainSeq"
         } else { sendSequenceCommand("sendAnnouncementToDevices", "announcement_devices", newmsg) }
     }
@@ -1857,7 +1872,8 @@ def voiceCmdAsText(String cmd) {
     }
 }
 
-public playAnnouncementAll(String msg, String title=sNULL) {
+public playAnnouncementAll(String imsg, String title=sNULL) {
+    String msg=imsg
     if(isZone()) {
         parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncementAll', message: msg, title: title, changeVol:null, restoreVol:null, delay:0]], true)
     } else {
@@ -2185,7 +2201,7 @@ private createNotification(String type, Map opts) {
     def createdDate = now.getTime()
 
     def isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm")
-    isoFormat.setTimeZone(location.timeZone)
+    isoFormat.setTimeZone((TimeZone)location.timeZone)
     def alarmDate = isoFormat.parse("${(String)opts.date}T${(String)opts.time}")
     Long alarmTime = (Long)alarmDate.getTime()
     Map params = [
@@ -3032,14 +3048,14 @@ private String getDtNow() {
 private String formatDt(Date dt, Boolean mdy = true) {
     String formatVal = mdy ? "MMM d, yyyy - h:mm:ss a" : "E MMM dd HH:mm:ss z yyyy"
     def tf = new SimpleDateFormat(formatVal)
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    if(location?.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
     return tf.format(dt)
 }
 
 private String parseFmtDt(String parseFmt, String newFmt, String dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     def tf = new SimpleDateFormat(newFmt)
-    if(location?.timeZone) { tf.setTimeZone(location?.timeZone) }
+    if(location?.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
     return tf?.format(newDt)
 }
 /*
