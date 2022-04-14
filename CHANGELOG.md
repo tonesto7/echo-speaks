@@ -1,3 +1,10 @@
+### _**Release (v4.2.0.1) - [April 14th, 2022]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Volume Restore issue resolved.
+- [FIX] Bug fixes and optimizations.
+
 ### _**Release (v4.2.0.0) - [April 1st, 2022]**_
 
 #### _***All Apps and Devices***_
