@@ -495,6 +495,7 @@ String guardAutoDesc() {
     return str != sBLANK ? divSm(str, sCLR4D9) : sBLANK
 }
 
+@SuppressWarnings('GroovyFallthrough')
 def guardTriggerEvtHandler(evt) {
     Long evtDelay = now() - (Long)evt.date.getTime()
     logDebug("${evt.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize((String)evt?.value)}) with a delay of ${evtDelay}ms")
@@ -1117,7 +1118,7 @@ def speechPage() {
         // if(state.mainMenu) return mainPage()
         section(sBLANK) {
             paragraph pTS("This feature has been known to have issues and may not work because it's not supported by all Alexa devices.  To test each device individually I suggest using the device interface and press Test Speech or Test Announcement")
-            Map<String,String> devs = getDeviceList(true, [tts])
+            Map devs = getDeviceList(true, ['tts'])
             input "test_speechDevices", sENUM, title: inTS1("Select Devices to Test the Speech"), description: inputFooter(sTTS, sCLRGRY, true), options: (devs ? devs?.sort{it?.value} : []), multiple: true, required: false, submitOnChange: true
             if(((List) settings.test_speechDevices)?.size() >= 3) {
                 paragraph spanSmBldBr("NOTICE:", sCLRRED) + spanSm("Amazon often rate limits when 3 or more device commands are sent at a time.<br>There may be a delay in the other devices but they should play the test after a few seconds", sCLRRED)
@@ -3257,6 +3258,7 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
     } else { logError("${mName} Exception: ${ex}") }
 }
 
+@SuppressWarnings('GroovyFallthrough')
 static String guardStateConv(String gState) {
     switch(gState) {
         case "disarm":
@@ -4407,7 +4409,7 @@ Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
     } else {
         seqJson = [
             "@type": "com.amazon.alexa.behaviors.model.Sequence",
-            "startNode": createSequenceNode(cmd, val, deviceData)
+            "startNode": createSequenceNode((String)cmd, val, deviceData)
         ]
     }
     Map seqObj = [
@@ -4516,6 +4518,7 @@ private String timeTransform(String str, Boolean force=false) {
     return str
 }*/
 
+@SuppressWarnings('GroovyFallthrough')
 Map createSequenceNode(String command, value, Map deviceData = [:]) {
     //log.debug "createSequenceNode: command: $command   "
     //String nm = value.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -4538,6 +4541,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
             ]
         ]
 
+        String sval = value.toString()
         String lcmd = command.toLowerCase()
         switch (lcmd) {
             case "weather":
@@ -4616,7 +4620,6 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
             case "cannedtts_random":
             case "cannedtts":
                 List<String> okVals = (List<String>)seqItemsAvail().speech.cannedtts_random //["goodbye", "confirmations", "goodmorning", "compliments", "birthday", "goodnight", "iamhome"]
-                String sval = value.toString()
                 if(!(sval in okVals)) { return null }
                 seqNode.type = "Alexa.CannedTts.Speak"
                 String[] valObj = lcmd == 'cannedtts_random' ?  [sval, 'random'] : (sval?.contains("::") ? sval.split("::") : [sval, sval])
@@ -4624,12 +4627,12 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 break
             case "sound":
                 String sndName
-                if(value?.startsWith("amzn_sfx_")) {
-                    sndName = value
+                if(sval?.startsWith("amzn_sfx_")) {
+                    sndName = sval
                 } else {
                     Map sounds = getAvailableSounds()
-                    if(sounds[value]) { sndName = sounds[value] }
-                    else { sndName = value }
+                    if(sounds[sval]) { sndName = sounds[sval] }
+                    else { sndName = sval }
                     //if(!(sounds[value])) { return null }
                     //sndName = sounds[value]
                 }
@@ -4640,7 +4643,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 remDevSpecifics = true
                 seqNode.operationPayload?.remove('customerId')
                 seqNode.type = "Alexa.System.Wait"
-                seqNode.operationPayload.waitTimeInSeconds = value?.toInteger() ?: 5
+                seqNode.operationPayload.waitTimeInSeconds = sval?.toInteger() ?: 5
                 break
 
             case "dnd_duration":
@@ -4666,8 +4669,8 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 break
             case "speak":
                 seqNode.type = "Alexa.Speak"
-                value = cleanString(value.toString())
-                seqNode.operationPayload.textToSpeak = (String)value
+                sval = cleanString(sval)
+                seqNode.operationPayload.textToSpeak = sval
                 break
             case "volume":
                 seqNode.type = "Alexa.DeviceControls.Volume"
@@ -4682,7 +4685,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 seqNode.type = "AlexaAnnouncement"
                 seqNode.skillId = "amzn1.ask.1p.routines.messaging"
                 seqNode.operationPayload.expireAfter = "PT5S"
-                String[] valObj = (value?.toString()?.contains("::")) ? value.toString().split("::") : ["Echo Speaks", value.toString()]
+                String[] valObj = (sval?.contains("::")) ? sval.split("::") : ["Echo Speaks", sval]
                 // log.debug "valObj(size: ${valObj?.size()}): $valObj"
                 // valObj[1] = valObj[1]?.toString()?.replace(/([^0-9]?[0-9]+)\.([0-9]+[^0-9])?/, "\$1,\$2")
                 // log.debug "valObj[1]: ${valObj[1]}"
@@ -4712,7 +4715,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
                 remDevSpecifics = true
                 seqNode.type = "Alexa.Notifications.SendMobilePush"
                 seqNode.skillId = "amzn1.ask.1p.alexanotifications"
-                seqNode.operationPayload.notificationMessage = value as String
+                seqNode.operationPayload.notificationMessage = sval
                 seqNode.operationPayload.alexaUrl = "#v2/behaviors"
                 seqNode.operationPayload.title = "Echo Speaks"
                 break
@@ -4731,7 +4734,7 @@ Map createSequenceNode(String command, value, Map deviceData = [:]) {
             case "voicecmdtxt":
                 seqNode.type = "Alexa.TextCommand"
                 seqNode.skillId = "amzn1.ask.1p.tellalexa"
-                seqNode.operationPayload.text = value.toString()
+                seqNode.operationPayload.text = sval
                 break
 
             default:
@@ -7091,6 +7094,7 @@ String getAlarmSystemStatus() {
 }
 
 // This is incomplete (and currently unused)
+@SuppressWarnings('GroovyFallthrough')
 void setAlarmSystemMode(String mode) {
     switch(mode) {
         case "armAway":
