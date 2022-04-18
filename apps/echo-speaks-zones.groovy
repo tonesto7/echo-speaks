@@ -1321,6 +1321,7 @@ public zoneRefreshHandler(evt) {
  *   or a zone device handler (calling its parent)
  */
 
+@SuppressWarnings('GroovyFallthrough')
 public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=false) {
     // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
@@ -1457,6 +1458,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=fal
 |   Restriction validators
 *******************************************/
 
+@SuppressWarnings('GroovyFallthrough')
 static String attUnit(String attr) {
     switch(attr) {
         case "humidity":
@@ -2007,8 +2009,8 @@ static String randomString(Integer len) {
 }
 
 static def getRandomItem(items) {
-    def list = new ArrayList<String>()
-    items?.each { list?.add(it) }
+    List list = new ArrayList<String>()
+    items?.each { list.add(it) }
     return list?.get(new Random().nextInt(list?.size()))
 }
 
