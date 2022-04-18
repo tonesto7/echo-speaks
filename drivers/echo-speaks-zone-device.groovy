@@ -124,6 +124,7 @@ metadata {
 
         command "parallelPlayAnnouncement", [[name: "Message to Announce*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
         command "playAnnouncement", [[name: "Message to Announce*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
+        command "playAnnouncementIgnore", [[name: "Message to Announce*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"], [name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
         command "playAnnouncementAll", [[name: "Message to Announce*", type: "STRING", description: "Message to announce"],[name: "Announcement Title", type: "STRING", description: "This displays a title above message on devices with display"]]
 
         command "playCalendarToday", [[name: "Set Volume", type: "NUMBER", description: "Sets the volume before playing the message"],[name: "Restore Volume", type: "NUMBER", description: "Restores the volume after playing the message"]]
@@ -255,8 +256,8 @@ String getEchoSerial() { return (String)state.serialNumber ?: sNULL }
 String getEchoOwner() { return (String)state.deviceOwnerCustomerId ?: sNULL }
 String getEchoAccountId() { return (String)state.deviceAccountId ?: sNULL }
 
-Map getEchoDevInfo(String cmd) {
-    if(isCommandTypeAllowed(cmd)) {
+Map getEchoDevInfo(String cmd, Boolean ignoreDoNotDisturb=false) {
+    if(isCommandTypeAllowed(cmd, false, ignoreDoNotDisturb)) {
 	    return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
     }
    return null
@@ -311,7 +312,7 @@ Boolean isAuthOk(Boolean noLogs=false) {
     } else { return true }
 }
 
-Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
+Boolean isCommandTypeAllowed(String type, Boolean noLogs=false, Boolean ignoreDoNotDisturb=false) {
     if(isZone()) return true
 
     if(!type) { if(!noLogs) { logWarn("Invalid Permissions Type Received: ${type}", true) }; return false }
@@ -333,7 +334,8 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false) {
     if(!(Boolean)state.isSupportedDevice) { logWarn("You are using an Unsupported/Unknown Device all restrictions have been removed for testing! If commands function please report device info to developer", true); return true }
     if(state.permissions == null) { if(!noLogs) { logWarn("Permissions State Object Missing: ${state.permissions}", true) }; return false }
 
-    if(device?.currentValue("doNotDisturb") == sTRUE && (!(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"]))) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
+    if(!ignoreDoNotDisturb && !(type in ["volumeControl", "alarms", "reminders", "doNotDisturb", "wakeWord", "bluetoothControl", "mediaPlayer"])
+            && device?.currentValue("doNotDisturb") == sTRUE ) { if(!noLogs) { logWarn("All Voice Output Blocked... Do Not Disturb is ON", true) }; return false }
 
     if(permissionOk(type)) { return true }
     else {
@@ -1798,17 +1800,22 @@ def finishAnnounce(String msg, volume, restoreVolume){
     updateLevel(restoreVolume, volume)
 }
 
-def playAnnouncement(String msg, volume=null, restoreVolume=null, Boolean parallel=false) {
+@SuppressWarnings('unused')
+def playAnnouncementIgnore(String msg, volume=null, restoreVolume=null, Boolean parallel=false) {
+    playAnnouncement(msg, volume, restoreVolume, parallel, true)
+}
+
+def playAnnouncement(String msg, volume=null, restoreVolume=null, Boolean parallel=false, Boolean ignoreDoNotDisturb=false) {
     if(isZone()) {
         if(parallel) {
-            parent.relayAnnounceZone(parent.id.toString(), msg, true)
+            parent.relayAnnounceZone(parent.id.toString(), msg, true, ignoreDoNotDisturb)
             finishAnnounce(msg, null, null)
         } else {
             parent.zoneCmdHandler([value: 'announcement', jsonData: [zones:[parent.id.toString()], cmd:'playAnnouncement', message: msg, title: sNULL, changeVol:volume, restoreVol:restoreVolume, delay:0]], true)
             finishAnnounce(msg, volume, restoreVolume)
         }
     } else {
-        if(isCommandTypeAllowed("announce")) {
+        if(isCommandTypeAllowed("announce", false, ignoreDoNotDisturb)) {
             seqHelper_a("announcement", msg, "playAnnouncement", volume, restoreVolume, parallel)
             finishAnnounce(msg, null, null)
         }
@@ -2708,35 +2715,53 @@ void speechTest(String ttsMsg=sNULL) {
     speak(ttsMsg)
 }
 
-void parallelSpeak(String msg) {
+// custom command
+@SuppressWarnings('unused')
+void parallelSpeakIgnoreDnd(String msg) {
+    parallelSpeak(msg, true)
+}
+
+void parallelSpeak(String msg, Boolean ignoreDoNotDisturb=false) {
     logTrace("parallelSpeak() command received...")
-    if(!msg) { logWarn("No Message sent with parallelSpeak(${fixLg(msg)}) command", true) }
-    else {
-        if(isZone()) {
-            parent.relaySpeakZone(parent.id.toString(), msg, true)
-            String lastMsg = msg ?: "Nothing to Show Here..."
-            sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken", display: true, displayed: true, isStateChange:true)
-            //String t0 = getDtNow()
-            //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
-            logSpeech(msg, 200, sNULL)
+    if (isCommandTypeAllowed("TTS", false, ignoreDoNotDisturb)) {
+        if (!msg) {
+            logWarn("No Message sent with parallelSpeak(${fixLg(msg)}) command", true)
         } else {
-            speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: null, oldVolume: null, cmdDt: now()], true)
+            if (isZone()) {
+                parent.relaySpeakZone(parent.id.toString(), msg, true, ignoreDoNotDisturb)
+                String lastMsg = msg ?: "Nothing to Show Here..."
+                sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken", display: true, displayed: true, isStateChange: true)
+                //String t0 = getDtNow()
+                //sendEvent(name: "lastCmdSentDt", value: t0, descriptionText: "Last Command Timestamp: ${t0}", display: false, displayed: false)
+                logSpeech(msg, 200, sNULL)
+            } else {
+                speechCmd([cmdDesc: "SpeakCommand", message: msg, newVolume: null, oldVolume: null, cmdDt: now()], true)
+            }
         }
+    } else {
+        logWarn("Uh-Oh... The parallelSpeak($msg) Command is NOT Supported by this Device!!!")
     }
+}
+
+// custom command
+@SuppressWarnings('unused')
+void speakIgnoreDnd(String msg, volume=null, String awsPollyVoiceName = sNULL) {
+    logTrace("speakIgnoreDnd() command received...")
+    speak(msg, volume, awsPollyVoiceName, true)
 }
 
 // capability speechSynthesis
 @SuppressWarnings('unused')
-void speak(String msg, volume=null, String awsPollyVoiceName = sNULL) {
+void speak(String msg, volume=null, String awsPollyVoiceName = sNULL, Boolean ignoreDoNotDisturb=false) {
     logTrace("speak() command received...")
-    if(isCommandTypeAllowed("TTS")) {
+    if(isCommandTypeAllowed("TTS", false, ignoreDoNotDisturb)) {
         if(!msg) { logWarn("No Message sent with speak(${fixLg(msg)}) command", true) }
         else {
             Integer newvol = volume != null ? volume.toInteger() : null
             Integer restvol = state.oldVolume != null ? (Integer)state.oldVolume : null
 
             if(isZone()) {
-                parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]], true)
+                parent.zoneCmdHandler([value: 'speak', jsonData: [zones:[parent.id.toString()], cmd:'speak', message: msg, changeVol: newvol, restoreVol: restvol, delay:0]], true, ignoreDoNotDisturb)
                 String lastMsg = msg ?: "Nothing to Show Here..."
                 sendEvent(name: "lastSpeakCmd", value: lastMsg, descriptionText: "Last Text Spoken", display: true, displayed: true, isStateChange:true)
                 //String t0 = getDtNow()
