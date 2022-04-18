@@ -25,8 +25,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.0.1'
-@Field static final String appModifiedFLD = '2022-04-14'
+@Field static final String appVersionFLD  = '4.2.0.2'
+@Field static final String appModifiedFLD = '2022-04-18'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -1313,7 +1313,8 @@ public zoneRefreshHandler(evt) {
  *   or a zone device handler (calling its parent)
  */
 
-public zoneCmdHandler(evt, Boolean chldDev=false) {
+@SuppressWarnings('GroovyFallthrough')
+public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=false) {
     // log.warn "zoneCmdHandler $evt"
     String cmd = evt?.value
     Map data = evt?.jsonData
@@ -1449,6 +1450,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false) {
 |   Restriction validators
 *******************************************/
 
+@SuppressWarnings('GroovyFallthrough')
 static String attUnit(String attr) {
     switch(attr) {
         case "humidity":
@@ -1997,8 +1999,8 @@ static String randomString(Integer len) {
 }
 
 static def getRandomItem(items) {
-    def list = new ArrayList<String>()
-    items?.each { list?.add(it) }
+    List list = new ArrayList<String>()
+    items?.each { list.add(it) }
     return list?.get(new Random().nextInt(list?.size()))
 }
 
