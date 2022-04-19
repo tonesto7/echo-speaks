@@ -819,7 +819,7 @@ void scheduleCondition() {
                 stopTime = timeTodayAfter('23:59', '00:00', location.timeZone)
         }
         if(startTime && stopTime){
-            Long t = now()
+            Long t = wnow()
             Long lstart = startTime.getTime()
             Long lstop = stopTime.getTime()
 
@@ -1074,7 +1074,7 @@ Map conditionStatus() {
     if(!settings.zone_EchoDevices) ok = false
     Integer cndSize=(Integer)null
     if(ok) {
-        [sTIME, "date", "location", "device"]?.each { i->
+        [sTIME, "date", "location", "device"].each { i->
             Boolean s = "${i}CondOk"()
             if(s == null) { skipped.push(i); return }
             s ? passed.push(i) : failed.push(i)
@@ -1143,18 +1143,18 @@ Boolean multipleConditions() {
 ************************************************************************************************************/
 
 def zoneEvtHandler(evt) {
-    logTrace( "${(String)evt?.name} Event | Device: ${(String)evt?.displayName} | Value: (${strCapitalize(evt?.value?.toString())}) with a delay of ${now() - ((Date)evt?.date)?.getTime()}ms")
+    logTrace( "${(String)evt?.name} Event | Device: ${(String)evt?.displayName} | Value: (${strCapitalize(evt?.value?.toString())}) with a delay of ${wnow() - ((Date)evt?.date)?.getTime()}ms")
     checkZoneStatus(evt)
     scheduleCondition()
 }
 
 void zoneTimeStartCondHandler() {
-    Map evt = [date: new Date(), name: "Time", displayName: "Condition Start Time", value: now()]
+    Map evt = [date: new Date(), name: "Time", displayName: "Condition Start Time", value: wnow()]
     zoneEvtHandler(evt)
 }
 
 void zoneTimeStopCondHandler() {
-    Map evt = [date: new Date(), name: "Time", displayName: "Condition Stop Time", value: now()]
+    Map evt = [date: new Date(), name: "Time", displayName: "Condition Stop Time", value: wnow()]
     zoneEvtHandler(evt)
 }
 
@@ -1280,8 +1280,9 @@ private static String kvListToHtmlTable(List<Map> tabList, String color=sCLRGRY)
     return str
 }
 
-Map getZoneDevices(String cmd=sNULL, Boolean ignoreDoNotDisturb=false) {
+Map getZoneDevices(String icmd=sNULL, Boolean ignoreDoNotDisturb=false) {
     // updDeviceInputs()
+    String cmd=icmd
     List devObj = []
     List devIds = []
     if(cmd==sNULL) cmd='announce'
@@ -1364,15 +1365,20 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=fal
         switch(cmd) {
             case "speak":
                 logDebug("Sending Speak Command: (${tmsg})${msgp1}${msgv1}${msgd1}")
-                if(data.changeVol!=null || data.restoreVol!=null) {
+                if(data.changeVol!=null) {
                     zoneDevs?.each { dev->
-                        dev?.setVolumeSpeakAndRestore(data.changeVol, tmsg, data.restoreVol)
+                        dev?.setVolumeSpeakAndRestore(data.changeVol, tmsg, null)
                     }
                     /* call zone vdevice with finishSendSpeakZ */
                     if(!chldDev) relayFinishSpeak([:], 200, [message: tmsg, oldVolume: data.restoreVol, newVolume: data.changeVol])
                 } else {
                     zoneDevs?.each { dev->
                         dev?.speak(tmsg)
+                    }
+                }
+                if(data.restoreVol!=null) {
+                    zoneDevs?.each { dev->
+                        dev?.setLevel(data.restoreVol)
                     }
                 }
                 break
@@ -1482,7 +1488,7 @@ Double getDevValueAvg(devs, attr) {
 } */
 
 String getCurrentMode() {
-    return location?.mode
+    return (String)location?.mode
 }
 
 List getLocationModes(Boolean sorted=false) {
@@ -1627,7 +1633,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         if(lastDate?.contains("dtNow")) { return 10000 }
         Date lastDt = parseDate(lastDate) // Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
         Long start = lastDt.getTime()
-        Long stop = now()
+        Long stop = wnow()
         Long diff = Math.round((stop - start) / 1000L)
         return diff.abs()
     }
@@ -1757,9 +1763,9 @@ Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
 }
 
 private void updAppFlag(String key, Boolean val) {
-    def data = atomicState?.appFlagsMap ?: [:]
+    Map data = atomicState?.appFlagsMap ?: [:]
     if(key) { data[key] = val }
-    atomicState?.appFlagsMap = data
+    atomicState.appFlagsMap = data
 }
 
 @SuppressWarnings('unused')
@@ -2002,17 +2008,17 @@ static String getInputToStringDesc(inpt, addSpace = null) {
 
 static String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
-    Random rand = new Random(new Date().getTime())
+    Random rand = new Random(wnow())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
     // logDebug("randomString: ${randChars?.join()}")
     return randChars.join()
 }
 
-static def getRandomItem(items) {
-    List list = new ArrayList<String>()
+/*static def getRandomItem(List items) {
+    List list = [] //new ArrayList<String>()
     items?.each { list.add(it) }
     return list?.get(new Random().nextInt(list?.size()))
-}
+} */
 
 /***********************************************************************************************************
     HELPER FUNCTIONS
@@ -2361,3 +2367,5 @@ public Map getSettingsAndStateMap() {
     data.state = state?.findAll { !((String)it?.key in stskip) }
     return data
 }
+
+private Long wnow(){ return (Long)now() }
