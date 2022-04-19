@@ -2545,7 +2545,7 @@ void scheduleSunriseSet() {
     Map sun = getSunriseAndSunset()
     Long ltim = (String)settings.trig_scheduled_type in [sCSUNRISE] ? sun.sunrise.time : sun.sunset.time
     Long offset = (settings.trig_scheduled_sunState_offset ?: 0L) * 60000L // minutes
-    Long t = now()
+    Long t = wnow()
     Long n = ltim+offset
     if(t > n) { logDebug("Not scheduling sunrise, sunset - already past today"); return }
     Long secs = Math.round((n - t)/1000.0D) + 1L
@@ -2678,10 +2678,10 @@ Map getRandomTrigEvt() {
             (sMOTION): getRandomItem(lACTINACT),
             (sVALVE): getRandomItem(lOPNCLS),
             windowShade: getRandomItem(lOPNCLS+["opening", "closing"]),
-            (sPUSHED): getRandomItem([sPUSHED]),
-            (sRELEASED): getRandomItem([sRELEASED]),
-            (sHELD): getRandomItem([sHELD]),
-            (sDBLTAP): getRandomItem([sDBLTAP]),
+            (sPUSHED): getRandomItem((List)settings."trig_${trig}_nums"),
+            (sRELEASED): getRandomItem((List)settings."trig_${trig}_nums"),
+            (sHELD): getRandomItem((List)settings."trig_${trig}_nums"),
+            (sDBLTAP): getRandomItem((List)settings."trig_${trig}_nums"),
             (sSMOKE): getRandomItem(lDETECTCLR),
             carbonMonoxide: getRandomItem(lDETECTCLR),
             (sTEMP): isC ? getRandomItem(-1..29) : getRandomItem(30..80),
@@ -2776,7 +2776,7 @@ def scheduleTrigEvt(ievt=null) {
         String dt= dateTimeFmt(adate, "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         evt= [name: sSCHED, displayName: "Scheduled Trigger", value: fmtTime(dt), date: adate, device: [id: null]]
     }
-    Long evtDelay = now() - ((Date)evt.date).getTime()
+    Long evtDelay = wnow() - ((Date)evt.date).getTime()
     if(isTrc())logTrace("${(String)evt.name} Event | Device: ${(String)evt.displayName} | Value: (${strCapitalize(evt.value)}) with a delay of ${evtDelay}ms")
     if (!schedulesConfigured()) { return }
     String schedType = (String)settings.trig_scheduled_type
@@ -2815,7 +2815,7 @@ def scheduleTrigEvt(ievt=null) {
 
 @SuppressWarnings('GroovyFallthrough')
 def alarmEvtHandler(evt) {
-    Long evtDelay = now() - (Long)((Date)evt.date).getTime()
+    Long evtDelay = wnow() - ((Date)evt.date).getTime()
     String eN = (String)evt.name
     def eV = evt.value
     if(isTrc())logTrace("${eN} Event | Device: ${evt?.displayName} | Value: (${strCapitalize(eV)}) with a delay of ${evtDelay}ms")
@@ -2866,7 +2866,7 @@ def webcoreEvtHandler(evt) {
     def eV = evt.value
     String disN = evt.jsonData?.name
     String pId = evt.jsonData?.id
-    if(isTrc())logTrace("${eN.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
+    if(isTrc())logTrace("${eN.toUpperCase()} Event | Piston: ${disN} | pistonId: ${pId} | with a delay of ${wnow() - ((Date)evt.date).getTime()}ms")
     String inT = sTRIG+sPISTNEXEC
     List<String> lT = (List<String>)settings."${inT}"
     Boolean ok = (pId in lT)
@@ -2879,7 +2879,7 @@ def webcoreEvtHandler(evt) {
 def modeEvtHandler(evt) {
     String eN = (String)evt.name
     def eV = evt.value
-    if(isTrc())logTrace("${eN.toUpperCase()} Event | Mode: (${strCapitalize(eV)}) with a delay of ${now() - (Long)((Date)evt.date).getTime()}ms")
+    if(isTrc())logTrace("${eN.toUpperCase()} Event | Mode: (${strCapitalize(eV)}) with a delay of ${wnow() - ((Date)evt.date).getTime()}ms")
     String inT = sTRIG+sMODE
     List lT = (List)settings."${inT}"
     Boolean ok = (eV in lT)
@@ -2895,8 +2895,8 @@ void devAfterThermEvtHandler(evt) {
 }
 
 void devAfterEvtHandler(evt) {
-    Long evtT = (Long)((Date)evt.date).getTime()
-    Long now = now()
+    Long evtT = ((Date)evt.date).getTime()
+    Long now = wnow()
     Long evtDelay = now - evtT
     String eN = (String)evt?.name
     def eV = evt?.value
@@ -2990,7 +2990,7 @@ void afterEvtCheckHandler() {
     Map<String, Map> aEvtMap = (Map)getMemStoreItem(mK, [:])
     if (!aEvtMap) aEvtMap = (Map)state[mK] ?: [:]
 
-    Long mnow = (Long)now() + 750L // anything in next 750ms runs now
+    Long mnow = wnow() + 750L // anything in next 750ms runs now
     Map newMap = aEvtMap.findAll { it -> (Long)it?.value?.nextT < mnow }
     List<Long> sortList = newMap.collect { (Long)it?.value?.nextT }?.sort()
 
@@ -3031,7 +3031,7 @@ void afterEvtCheckHandler() {
                 value      : newVal,// ?: nextVal.value,
                 type       : nextVal.type,
                 data       : nextVal.data,
-                totalDur   : (now() - origD)/1000
+                totalDur   : (wnow() - origD)/1000
             ]
 
             Boolean skipEvt = true
@@ -3058,7 +3058,7 @@ void afterEvtCheckHandler() {
                 runEvt = true
 
                 if(hasRepeat) {
-                    aEvtMap[nextId].nextT = now() + ((Integer)nextVal.repeatWait * 1000L)
+                    aEvtMap[nextId].nextT = wnow() + ((Integer)nextVal.repeatWait * 1000L)
                     updMemStoreItem(mK, aEvtMap)
                     state[mK] = aEvtMap
                 }
@@ -3116,7 +3116,7 @@ void afterEvtCheckHandler() {
 
         Long myL = sortList.size() > 0 ? sortList[0] : null
         if (myL != null) {
-            Integer ssecs = (myL - now() + 600L)/1000L
+            Integer ssecs = ((myL - wnow() + 600L)/1000L).toInteger()
             ssecs = ssecs > 1 ? Math.min(ssecs, 300).toInteger() : 2
             runIn(ssecs, meth)
             logTrace(msg+"Scheduled afterEvent in ${ssecs} seconds; afterEvtMap: ${sz}")
@@ -3161,7 +3161,7 @@ void thermostatEvtHandler(evt) {
 
 @SuppressWarnings('GroovyFallthrough')
 void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
-    Long evtDelay = now() - (Long)((Date)evt.date).getTime()
+    Long evtDelay = wnow() - ((Date)evt.date).getTime()
     Boolean evtOk = false
     Boolean evtAd = false
     String meth = 'deviceEvtHandler'
@@ -3523,7 +3523,7 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait, Boolean af
             Date prevDt = parseDate((String)evtHistMap[kN].dt)
             // log.debug "prevDt: ${prevDt.toString()}"
             if (prevDt && evtDt) {
-                dur = Math.round(( (Long)evtDt.getTime() - (Long)prevDt.getTime()) / 1000.0D)
+                dur = Math.round(( evtDt.getTime() - prevDt.getTime()) / 1000.0D)
                 waitOk = waitOk ? (dur && (wait < dur)) : true
                 dayOk = !once || (once && !isDateToday(prevDt))
                 ok = (waitOk && dayOk)
@@ -4012,7 +4012,7 @@ void clearActHistory(){
 
 private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=false, Boolean isRptAct=false, Map tierData=null) {
     String meth="executeAction"
-    Long startTime = now()
+    Long startTime = wnow()
     Boolean testMode = false
     if((Boolean)settings.actTestRun) { testMode = true }
     if(isTrc())logTrace(meth+" ${src ? '('+src+')' : sBLANK}${testMode ? " | [TestMode]" : sBLANK}${allDevsResp ? " | [AllDevsResp]" : sBLANK}${isRptAct ? " | [RepeatEvt]" : sBLANK}")
@@ -4275,7 +4275,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
             } else { executeTaskCommands([type: sACT]) }
         }
     }
-    if(isTrc())logTrace(meth+" Finished | ProcessTime: (${now()-startTime}ms)")
+    if(isTrc())logTrace(meth+" Finished | ProcessTime: (${wnow()-startTime}ms)")
 }
 
 private postTaskCommands(data) {
@@ -4652,7 +4652,7 @@ private void webCoRE_init(pistonExecutedCbk=null){
 
 private void webCoRE_poll(Boolean anow=false){
     Long rUpd = (Long)webCoREFLD.updated
-    if(rUpd && (now() > (rUpd+300000L))) {
+    if(rUpd && (wnow() > (rUpd+300000L))) {
         Date aa = new Date(rUpd)
         updTsVal(sLASTWU, formatDt(aa))
     }
@@ -4684,12 +4684,12 @@ private static String getPistonById(String rId) {
 }
 
 void webCoRE_handler(evt){
-    logTrace("${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${now() - evt?.date?.getTime()}ms")
+    logTrace("${evt?.name?.toUpperCase()} Event | Value: (${strCapitalize(evt?.value)}) with a delay of ${wnow() - evt?.date?.getTime()}ms")
     switch((String)evt.value){
       case 'pistonList':
         getTheLock(sHMLF, "webCoRE_Handler")
         Long rUpd = (Long)webCoREFLD.updated
-        if(rUpd && (now() < (rUpd+1000L))) {
+        if(rUpd && (wnow() < (rUpd+1000L))) {
             releaseTheLock(sHMLF)
             break
         }
@@ -4700,7 +4700,7 @@ void webCoRE_handler(evt){
             p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name}
             Boolean a = (Boolean)webCoREFLD?.cbk
 
-            webCoREFLD = [cbk: a, updated: now(), pistons: p]
+            webCoREFLD = [cbk: a, updated: wnow(), pistons: p]
             releaseTheLock(sHMLF)
 
             updTsVal(sLASTWU)
@@ -4728,7 +4728,7 @@ Double getDevValueAvg(List devs, String attr) {
 }
 
 String getCurrentMode() {
-    return location?.mode
+    return (String)location?.mode
 }
 
 List getLocationModes(Boolean sorted=false) {
@@ -4890,7 +4890,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         if(lastDate?.contains("dtNow")) { return 10000 }
         Date lastDt = parseDate(lastDate) // Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
         Long start = lastDt.getTime()
-        Long stop = now()
+        Long stop = wnow()
         Long diff = Math.round((stop - start) / 1000L)
         return diff.abs()
     }
@@ -5314,7 +5314,7 @@ static String getInputToStringDesc(inpt, addSpace = null) {
 
 static String randomString(Integer len) {
     def pool = ["a".."z", 0..9].flatten()
-    Random rand = new Random(new Date().getTime())
+    Random rand = new Random(wnow())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
     // logDebug("randomString: ${randChars?.join()}")
     return randChars.join()
@@ -5442,8 +5442,8 @@ public Map getLogConfigs() {
         info: (Boolean) settings.logInfo,
         warn: (Boolean) settings.logWarn,
         error: (Boolean) settings.logError,
-        debug: (Boolean) settings.logDebug,
-        trace: (Boolean) settings.logTrace
+        debug: isDbg(),
+        trace: isTrc()
     ]
 }
 
@@ -5555,19 +5555,19 @@ void getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
         // did not get the lock
         Long timeL = lockTimesFLD[semaSNum]
         if(timeL == null){
-            timeL = now()
+            timeL = wnow()
             lockTimesFLD[semaSNum] = timeL
             lockTimesFLD = lockTimesFLD
         }
         if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
         pauseExecution(waitT)
 //        wait = true
-        if((now() - timeL) > 30000L) {
+        if((wnow() - timeL) > 30000L) {
             releaseTheLock(qname)
             if(devModeFLD) log.warn "overriding lock $meth"
         }
     }
-    lockTimesFLD[semaSNum] = (Long)now()
+    lockTimesFLD[semaSNum] = wnow()
     lockTimesFLD = lockTimesFLD
     lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
@@ -5883,3 +5883,5 @@ public Map getSettingsAndStateMap() {
     data.state = state?.findAll { !((String)it?.key in stateSkip) }
     return data
 }
+
+private Long wnow(){ return (Long)now() }
