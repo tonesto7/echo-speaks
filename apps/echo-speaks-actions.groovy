@@ -3810,7 +3810,8 @@ static String convEvtType(String type) {
     return (type && typeConv.containsKey(type)) ? typeConv[type] : type
 }
 
-String decodeVariables(evt, String str) {
+String decodeVariables(evt, String istr) {
+    String str=istr
     if(!str) return str
     if(evt) {
         // log.debug "str: ${str} | vars: ${(str =~ /%[a-z]+%/)}"
