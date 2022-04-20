@@ -3213,10 +3213,10 @@ void setGuardState(String guardState) {
 void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAmazon=true, Boolean ignNullMsg=false) {
     String toMsg = "Amazon"
     if(!toAmazon) { toMsg = "Echo Speaks Server" }
-    String stackTr
     if(ex) {
+        String stackTr
         try {
-            stackTr = getStackTrace(ex)
+            stackTr = (String)getStackTrace(ex)
         } catch (ignored) {
         }
         if(stackTr) logError("${mName} | Stack Trace: "+stackTr)
@@ -3411,7 +3411,7 @@ void receiveEventData(Map evtData, String src) {
             List updRequiredItems = updReqMap?.updItems
 
             String myId=app.getId()
-            String wsChildHandlerName = "Echo Speaks WS"
+            //String wsChildHandlerName = "Echo Speaks WS"
             String nmS = 'echoSpeaks_websocket'
             // def oldWsDev = getChildDevice(nmS)
             // if(oldWsDev) { deleteChildDevice(nmS) }
@@ -4488,7 +4488,8 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
     return seqCmds
 }
 
-String cleanString(String str, Boolean frcTrans=false) {
+String cleanString(String istr, Boolean frcTrans=false) {
+    String str=istr
     if(!str) { return sNULL }
     //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     //log.debug "cleanString1: $nm"
@@ -4505,7 +4506,8 @@ String cleanString(String str, Boolean frcTrans=false) {
     return str
 }
 
-private String textTransform(String str, Boolean force=false) {
+private String textTransform(String istr, Boolean force=false) {
+    String str=istr
     if(!force && (Boolean)settings.disableTextTransform) { return str }
     // Converts F temp values to readable text "19F"
     str = str.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
@@ -4940,7 +4942,8 @@ private void disableAdvChldLogs() {
     childLogMapFLD = childLogMapFLD
 }
 
-void missPollNotify(Boolean on, Integer wait) {
+void missPollNotify(Boolean ion, Integer wait) {
+    Boolean on=ion
     Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt", 1000000)
     Integer lastMissPollM = getLastTsValSecs("lastMissedPollMsgDt")
     //if(devModeFLD) logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
@@ -5883,7 +5886,8 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
 }
 
 @SuppressWarnings('GroovyAssignabilityCheck')
-static String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk=2) {
+static String seconds2Duration(Integer itimeSec, Boolean postfix=true, Integer tk=2) {
+    Integer timeSec=itimeSec
     Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000
     Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000
     Integer days = Math.floor(timeSec / 86400); timeSec -= days * 86400
