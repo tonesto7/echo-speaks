@@ -324,7 +324,7 @@ Boolean isCommandTypeAllowed(String type, Boolean noLogs=false, Boolean ignoreDo
     if(!(String)state.deviceType) { if(!noLogs) { logWarn("DeviceType State Value Missing: ${(String)state.deviceType}", true) }; return false }
     if(!(String)state.deviceOwnerCustomerId) { if(!noLogs) { logWarn("OwnerCustomerId State Value Missing: ${(String)state.deviceOwnerCustomerId}", true) }; return false }
 
-    Boolean isOnline = (device?.currentValue("onlineStatus") == "online")
+    Boolean isOnline = settings.ignoreHealth!=false || device?.currentValue("onlineStatus") == "online"
     if(!isOnline) {
         if(!noLogs) { logWarn("Commands NOT Allowed! Device is currently (OFFLINE) | Type: (${type})", true) }
         triggerDataRrshF("found offline" )
@@ -2791,12 +2791,13 @@ void updateLevel(oldvolume, newvolume) {
     }// else logWarn("Uh-Oh... UpdateLevel without any values")
 }
 
-private void speechCmd(Map cmdMap=[:], Boolean parallel=false) {
+private void speechCmd(Map icmdMap=[:], Boolean parallel=false) {
+    Map cmdMap=[:]+icmdMap
     if(!cmdMap) { logError("speechCmd | Error | cmdMap is missing"); return }
     String healthStatus = getHealthStatus()
-    if(settings.ignoreHealth == false && !(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is OFFLINE", true); return }
+    if((Boolean)settings.ignoreHealth == false && !(healthStatus in ["ACTIVE", "ONLINE"])) { logWarn("speechCmd Ignored... Device is OFFLINE", true); return }
 
-    if(settings.logTrace){
+    if((Boolean)settings.logTrace){
         String tr = "speechCmd (${cmdMap.cmdDesc}) | Msg: ${fixLg(cmdMap.message.toString())}"
         tr += cmdMap.newVolume ? " | SetVolume: (${cmdMap.newVolume})" :sBLANK
         tr += cmdMap.oldVolume ? " | Restore Volume: (${cmdMap.oldVolume})" :sBLANK
@@ -3163,6 +3164,7 @@ static String getObjType(obj) {
     else if(obj instanceof BigDecimal) {return "BigDecimal"}
     else if(obj instanceof Float) {return "Float"}
     else if(obj instanceof Byte) {return "Byte"}
+    else if(obj instanceof com.hubitat.app.DeviceWrapper)return 'Device'
     else { return "unknown"}
 }
 
