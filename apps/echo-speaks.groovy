@@ -1863,6 +1863,7 @@ Boolean checkIfCodeUpdated() {
     //if(devModeFLD) logTrace("Code versions: ${codeVerMap}")
     if(codeVerMap.mainApp != appVersionFLD) {
         checkVersionData(true)
+	state.codeVersion=[:]
         chgs.push("mainApp")
         state.pollBlocked = true
         updCodeVerMap("mainApp", appVersionFLD)
