@@ -1863,7 +1863,7 @@ Boolean checkIfCodeUpdated() {
     //if(devModeFLD) logTrace("Code versions: ${codeVerMap}")
     if(codeVerMap.mainApp != appVersionFLD) {
         checkVersionData(true)
-	state.codeVersions=[:]
+        state.codeVersions=[:]
         chgs.push("mainApp")
         state.pollBlocked = true
         updCodeVerMap("mainApp", appVersionFLD)
@@ -2563,6 +2563,9 @@ public updChildVers() {
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
     updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
+    String verZD
+    zApps.each { if(!verZD) verZD= it?.relayDevVersion() }
+    updCodeVerMap('zoneEchoDevice', verZD ?: sNULL)
     // def wDevs = getSocketDevice()
     // updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
 }
