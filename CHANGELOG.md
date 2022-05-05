@@ -1,3 +1,9 @@
+### _**Release (v4.2.0.7) - [May 5th, 2022]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Fix for new heroku deployments not working.
+
 ### _**Release (v4.2.0.6) - [May 5th, 2022]**_
 
 #### _***All Apps and Devices***_
