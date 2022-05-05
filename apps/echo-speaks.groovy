@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.0.6'
+@Field static final String appVersionFLD  = '4.2.0.7'
 @Field static final String appModifiedFLD = '2022-05-05'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4206, actionApp: 4206, zoneApp: 4206, zoneEchoDevice: 4206, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4207, actionApp: 4207, zoneApp: 4207, zoneEchoDevice: 4207, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -6341,7 +6341,7 @@ String UrlParamBuilder(Map<String,Object> items) {
     return list?.get(new Random().nextInt(list?.size()))
 } */
 
-static String randomString(Integer len) {
+private String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
     Random rand = new Random(wnow())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
