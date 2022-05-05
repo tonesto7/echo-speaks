@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.0.2'
-@Field static final String appModifiedFLD = '2022-04-18'
+@Field static final String appVersionFLD  = '4.2.0.6'
+@Field static final String appModifiedFLD = '2022-05-05'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4202, actionApp: 4202, zoneApp: 4202, zoneEchoDevice: 4202, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4206, actionApp: 4206, zoneApp: 4206, zoneEchoDevice: 4206, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -497,7 +497,7 @@ String guardAutoDesc() {
 
 @SuppressWarnings('GroovyFallthrough')
 def guardTriggerEvtHandler(evt) {
-    Long evtDelay = now() - (Long)evt.date.getTime()
+    Long evtDelay = wnow() - ((Date)evt.date).getTime()
     logDebug("${evt.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize((String)evt?.value)}) with a delay of ${evtDelay}ms")
     if(!guardRestrictOk()) {
         logDebug("guardTriggerEvtHandler | Skipping Guard Changes because Restriction are Active.")
@@ -1542,7 +1542,7 @@ def initialize() {
 
             getOtherData()
 
-            Long newD = now() - 999000
+            Long newD = wnow() - 999000L
             Date d = new Date(newD)
             updTsVal("lastDevDataUpdDt", formatDt(d)) // make sure not to cause a warning
            // remTsVal("lastDevDataUpdDt") // will force next one to gather EchoDevices
@@ -1600,7 +1600,7 @@ void appCleanup() {
     logTrace("appCleanup")
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
-        "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData",
+        "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData", "codeVersion",
         "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize", "lastMsg"
     ]
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
@@ -1625,7 +1625,7 @@ void wsEvtHandler(Map evt) {
         if("bluetooth" in trigs) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
         if("activity" in trigs) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
         if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
-        if((Boolean)evt.all == true) {
+        if((Boolean)evt.all) {
             getEsDevices()?.each { eDev->
                 atts.each { String k,v-> eDev.sendEvent(name: k, value: v, descriptionText: "ES wsEvt") }
                 if(trigs.size()) { eDev.websocketUpdEvt(trigs) }
@@ -1678,7 +1678,7 @@ def zoneStateHandler(evt) {
 
         Map t0 = zoneStatusMapFLD[myId]
         Map zoneMap = t0 ?: [:]
-        zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused, zoneDevices: data.zoneDevices, t: now()]
+        zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused, zoneDevices: data.zoneDevices, t: wnow()]
         zoneStatusMapFLD[myId] = zoneMap
         zoneStatusMapFLD = zoneStatusMapFLD
 
@@ -1726,7 +1726,7 @@ void checkZoneData() {
         zones?.each { 
             Map zoneMap = it?.myZoneStatus()
             String id = zoneMap.id
-            newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, zoneDevices: zoneMap.zoneDevices ?: null, t: now()]
+            newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, zoneDevices: zoneMap.zoneDevices ?: null, t: wnow()]
         }
         newField.initialized = [a:true]
         zoneStatusMapFLD[myId] = newField
@@ -1863,6 +1863,7 @@ Boolean checkIfCodeUpdated() {
     //if(devModeFLD) logTrace("Code versions: ${codeVerMap}")
     if(codeVerMap.mainApp != appVersionFLD) {
         checkVersionData(true)
+        state.codeVersions=[:]
         chgs.push("mainApp")
         state.pollBlocked = true
         updCodeVerMap("mainApp", appVersionFLD)
@@ -2188,12 +2189,12 @@ Integer cookieRefreshSeconds() { return ((Integer)settings.refreshCookieDays ?: 
 void clearServerAuth() {
     logDebug("clearServerAuth: serverUrl: ${getServerHostURL()}")
     Map params = [ uri: getServerHostURL(), path: "/clearAuth", timeout: 20 ]
-    Long execDt = now()
+    Long execDt = wnow()
     httpGet(params) { resp->
         // log.debug "resp: ${resp.status} | data: ${resp?.data}"
         if(resp?.status != 200) logWarn("clearServerAuth: ${resp?.status} $params")
         if (resp?.status == 200) {
-            logInfo("Clear Server Auth Completed... | Process Time: (${execDt ? (now()-execDt) : 0}ms)")
+            logInfo("Clear Server Auth Completed... | Process Time: (${execDt ? (wnow()-execDt) : 0}ms)")
         }
     }
 }
@@ -2209,7 +2210,7 @@ void wakeupServer(Boolean c=false, Boolean g=false, String src) {
     ]
 //    if(!getCookieVal() || !getCsrfVal()) { logWarn("wakeupServer | Cookie or CSRF Missing... Skipping Wakeup"); return; }
     logTrace("wakeupServer $c $g $src")
-    execAsyncCmd("post", "wakeupServerResp", params, [execDt: now(), refreshCookie: c, updateGuard: g, wakesrc: src])
+    execAsyncCmd("post", "wakeupServerResp", params, [execDt: wnow(), refreshCookie: c, updateGuard: g, wakesrc: src])
 }
 
 void runCookieRefresh() {
@@ -2226,7 +2227,7 @@ def wakeupServerResp(response, data) {
         if(response?.status == 200) {
             updTsVal("lastServerWakeDt")
             if (rData && rData == "OK") {
-                logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc}) ${data}")
+                logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc}) ${data}")
                 if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
                 if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
             } else {
@@ -2252,7 +2253,7 @@ void cookieRefresh() {
         timeout: 20
     ]
     logTrace("cookieRefresh")
-    execAsyncCmd("get", "cookieRefreshResp", params, [execDt: now()])
+    execAsyncCmd("get", "cookieRefreshResp", params, [execDt: wnow()])
 }
 
 def cookieRefreshResp(response, data) {
@@ -2265,11 +2266,11 @@ def cookieRefreshResp(response, data) {
             Map rData = response?.data ? parseJson(response?.data?.toString()) : null
             // log.debug "rData: $rData"
             if (rData && rData?.result && rData?.result?.size()) {
-                logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+                logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : 0}ms)")
                 cMsg = "Amazon Cookie was Refreshed Successfully!!!"
                 // log.debug "refreshAlexaCookie Response: ${rData?.result}"
             } else {
-                logWarn("Amazon Cookie Refresh Completed with NO DATA ${rData} | Process Time: (${data?.execDt ? (now()-data?.execDt) : 0}ms)")
+                logWarn("Amazon Cookie Refresh Completed with NO DATA ${rData} | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : 0}ms)")
                 cMsg = "Amazon Cookie was Completed with NO DATA"
             }
         }
@@ -2299,7 +2300,7 @@ Boolean validateCookie(Boolean frc=false) {
         return valid
     }
     try {
-        Long execDt = now()
+        Long execDt = wnow()
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
@@ -2340,7 +2341,7 @@ Boolean validateCookieResp(resp, data){
             Boolean valid = (aData.authenticated != false)
             authValidationEvent(valid, meth)
             updTsVal("lastCookieChkDt")
-            logDebug("Cookie Validation: (${valid}) | Process Time: (${(now()-(Long)data.dt)}ms)")
+            logDebug("Cookie Validation: (${valid}) | Process Time: (${(wnow()-(Long)data.dt)}ms)")
             return true
        }
     } catch(ex) {
@@ -2354,7 +2355,7 @@ private getCustomerData(Boolean frc=false) {
     try {
         if(!frc && state.amazonCustomerData && getLastTsValSecs("lastCustDataUpdDt") < 3600) { return state.amazonCustomerData }
         if(!isAuthValid("getCustomerData")) { return null }
-        Long execDt = now()
+        Long execDt = wnow()
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/get-customer-pfm",
@@ -2424,8 +2425,8 @@ private List getAllDeviceVolumes(Boolean frc=false) {
 //         uri: getAmazonUrl(),
 //         path: "/alexa-privacy/apd/rvh/customer-history-records",
 //         query: [
-//             startTime: (now() - 24 * 60 * 60 * 1000),
-//             endTime: now(),
+//             startTime: (wnow() - 24 * 60 * 60 * 1000),
+//             endTime: wnow(),
 //             recordType: 'VOICE_HISTORY',
 //             maxRecordSize: maxRecordSize
 //         ],
@@ -2562,6 +2563,9 @@ public updChildVers() {
     updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
     updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
     updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
+    String verZD
+    zApps.each { if(!verZD) verZD= it?.relayDevVersion() }
+    updCodeVerMap('zoneEchoDevice', verZD ?: sNULL)
     // def wDevs = getSocketDevice()
     // updCodeVerMap("wsDevice", wDevs ? wDevs?.devVersion() : null)
 }
@@ -2676,7 +2680,7 @@ void getBluetoothDevices(Boolean frc=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/bluetooth",
-        query: [cached: true, _: new Date()?.getTime()],
+        query: [cached: true, _: wnow()],
         headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20
@@ -2758,7 +2762,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         // log.debug "lastUpdSec: $lastUpdSec"
         if((frc && lastUpdSec > 3) || lastUpdSec >= 360) {
             updTsVal("lastDevActChk")
-            Long execDt = now()
+            Long execDt = wnow()
             Map params = [
                     uri: getAmazonUrl(),
                     path: "/api/activities",
@@ -2822,7 +2826,7 @@ def getLastActResp(resp, data){
                 }
             }
         }
-        logDebug("getDeviceActivity: Process Time: (${(now()-(Long)data.dt)}ms)")
+        logDebug("getDeviceActivity: Process Time: (${(wnow()-(Long)data.dt)}ms)")
     } catch(ex) {
         respExceptionHandler(ex, "getLastActResp")
     }
@@ -2838,7 +2842,7 @@ void getDoNotDisturb(Boolean frc=true) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/dnd/device-status-list",
-        query: [_: now()],
+        query: [_: wnow()],
         headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20
@@ -2986,7 +2990,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
 } */
 
 Boolean executeRoutineById(String routineId) {
-    Long execDt = now()
+    Long execDt = wnow()
     Map routineData = getAlexaRoutines(routineId)
     //log.debug "routineData: ${routineData.sequence}"
     if(routineData && routineData.sequence) {
@@ -2995,7 +2999,7 @@ Boolean executeRoutineById(String routineId) {
         seqList.push([command: routineData])
         queueMultiSequenceCommand(seqList, "ExecuteRoutine", false)
         String rtName = routineData && routineData.name ? routineData.name : sBLANK
-        logDebug("Queued Alexa Routine | Process Time: (${(now()-execDt)}ms) | Label: ${rtName} | RoutineId: ${routineId}")
+        logDebug("Queued Alexa Routine | Process Time: (${(wnow()-execDt)}ms) | Label: ${rtName} | RoutineId: ${routineId}")
         return true
     } else {
         logError("No Routine Data Returned for ID: (${routineId})")
@@ -3004,7 +3008,7 @@ Boolean executeRoutineById(String routineId) {
 }
 
 void checkGuardSupport() {
-//    Long execDt = now()
+//    Long execDt = wnow()
     Integer lastUpdSec = getLastTsValSecs("lastGuardSupChkDt")
     if(lastUpdSec < 125 ) {
         if (state.alexaGuardSupported) { getGuardState() }
@@ -3014,13 +3018,13 @@ void checkGuardSupport() {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/phoenix",
-        query: [ cached: true, _: new Date().getTime() ],
+        query: [ cached: true, _: wnow() ],
         headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20,
     ]
     logTrace("checkGuardSupport")
-    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: now()])
+    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: wnow()])
 }
 
 void checkGuardSupportResponse(response, data) {
@@ -3073,7 +3077,7 @@ void checkGuardSupportFromServer() {
         timeout: 20,
     ]
     logTrace("checkGuardSupportFromServer")
-    execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: now()])
+    execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: wnow()])
 }
 
 void checkGuardSupportServerResponse(response, data) {
@@ -3142,7 +3146,7 @@ void getGuardState() {
 }
 
 void setGuardState(String guardState) {
-    Long execTime = now()
+    Long execTime = wnow()
     String meth = "setGuardState"
     if(!isAuthValid("setGuardState")) { return }
     if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
@@ -3165,7 +3169,7 @@ void setGuardState(String guardState) {
                 updTsVal("lastSpokeToAmazon")
                 def resp = response?.data ?: null
                 if(resp && !resp.errors?.size() && resp.controlResponses && ((List)resp.controlResponses)[0] && ((List)resp.controlResponses)[0].code && (String)((List)resp.controlResponses)[0].code == "SUCCESS") {
-                    logInfo("Alexa Guard set to (${guardState}) Successfully | (${(now()-execTime)}ms)")
+                    logInfo("Alexa Guard set to (${guardState}) Successfully | (${(wnow()-execTime)}ms)")
                     state.alexaGuardState = guardState
                     updTsVal("lastGuardStateUpdDt")
                     updGuardActionTrig()
@@ -3178,12 +3182,12 @@ void setGuardState(String guardState) {
 }
 
 // private getAlexaSkills() {
-//     Long execDt = now()
+//     Long execDt = wnow()
 //     if(!isAuthValid("getAlexaSkills") || !getCustomerData()) { return } // state.amazonCustomerData
 //     if(state.skillDataMap && getLastTsValSecs("skillDataUpdDt") < 3600) { return }
 //     Map params = [
 //         uri: "https://skills-store.${getAmazonDomain()}",
-//         path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${now()}",
+//         path: "/app/secure/your-skills-page?deviceType=app&ref-suffix=evt_sv_ub&pfm=${state.amazonCustomerData?.marketPlaceId}&cor=US&lang=en-us&_=${wnow()}",
 //         headers: [
 //             Accept: "application/vnd+amazon.uitoolkit+json;ns=1;fl=0",
 //             Origin: getAmazonUrl()
@@ -3213,10 +3217,10 @@ void setGuardState(String guardState) {
 void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAmazon=true, Boolean ignNullMsg=false) {
     String toMsg = "Amazon"
     if(!toAmazon) { toMsg = "Echo Speaks Server" }
-    String stackTr
     if(ex) {
+        String stackTr
         try {
-            stackTr = getStackTrace(ex)
+            stackTr = (String)getStackTrace(ex)
         } catch (ignored) {
         }
         if(stackTr) logError("${mName} | Stack Trace: "+stackTr)
@@ -3328,7 +3332,7 @@ void getEchoDevices(Boolean lazy=false) {
     Map params = [
         uri: getAmazonUrl(),
         path: "/api/devices-v2/device",
-        query: [ cached: true, _: new Date().getTime() ],
+        query: [ cached: true, _: wnow() ],
         headers: getReqHeaderMap(true),
         contentType: sAPPJSON,
         timeout: 20,
@@ -3336,7 +3340,7 @@ void getEchoDevices(Boolean lazy=false) {
     state.deviceRefreshInProgress = true
 //    state.refreshDeviceData = false
     logTrace("getEchoDevices")
-    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: now()])
+    execAsyncCmd("get", "echoDevicesResponse", params, [execDt: wnow()])
 }
 
 void echoDevicesResponse(response, data) {
@@ -3411,7 +3415,7 @@ void receiveEventData(Map evtData, String src) {
             List updRequiredItems = updReqMap?.updItems
 
             String myId=app.getId()
-            String wsChildHandlerName = "Echo Speaks WS"
+            //String wsChildHandlerName = "Echo Speaks WS"
             String nmS = 'echoSpeaks_websocket'
             // def oldWsDev = getChildDevice(nmS)
             // if(oldWsDev) { deleteChildDevice(nmS) }
@@ -3422,7 +3426,7 @@ void receiveEventData(Map evtData, String src) {
             // updCodeVerMap("echoDeviceWs", (String)wsDevice?.devVersion())
 
             if (evtData?.echoDevices?.size()) {
-                Long execTime = evtData?.execDt ? (now()-(Long)evtData.execDt) : 0L
+                Long execTime = evtData?.execDt ? (wnow()-(Long)evtData.execDt) : 0L
                 Map<String, Map> echoDeviceMap = [:]
                 Map<String, Map> allEchoDevices = [:]
                 Map<String, Map> skippedDevices = [:]
@@ -3736,7 +3740,7 @@ void sendZoneSpeak(String zoneId, String msg, Boolean parallel=false, Boolean by
     String myMsg = "sendZoneSpeak"
     devObj.each { dev ->
         Map cmdMap = [
-            cmdDt: now(),
+            cmdDt: wnow(),
             cmdDesc: "SpeakCommand",
             message: msg,
             //msgLen: newmsg.length(),
@@ -3819,8 +3823,9 @@ void sendZoneCmd(Map cmdData) {
  * caller is actions (here or via above) when there is a list of devices
  * this will callback the actual device(s) with status for attribute updates
  */
-void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg, Integer volume, Integer restoreVolume){
+void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String imsg, Integer volume, Integer restoreVolume){
 	List<Map> devObj = odevObj.unique() // remove any duplicate devices
+        String newmsg=imsg
         String origMsg = newmsg
         if(devObj.size() == 0) {
             logWarn("sendDevObjCmd NO DEVICES | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
@@ -3854,7 +3859,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                     devObj.each { dev->
                         //mainSeq.push([command: 'sendspeak', value:cmdData.message, devType: dev.deviceTypeId, devSerial: dev.deviceSerialNumber])
                         Map cmdMap = [
-                            cmdDt: now(),
+                            cmdDt: wnow(),
                             cmdDesc: !para ? "SpeakCommand" : "SpeakParallel",
                             message: newmsg,
                             msgLen: newmsg.length(),
@@ -3890,6 +3895,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String newmsg,
                 }
 
                 if(restoreVolume!=null) {
+                    queueNopCommand()
                     List amainSeq = []
                     devObj.each { dev->
                         Map deviceData = [
@@ -3961,15 +3967,21 @@ void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boole
     List<Map> seqCmds = []
     if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume, deviceData: deviceData]) }
     seqCmds.push([command: 'sendspeak', value:cmdMap.message, deviceData:deviceData])
-    if(cmdMap.oldVolume) { seqCmds.push([command: "volume", value: cmdMap.oldVolume, deviceData: deviceData]) }
 
     queueMultiSequenceCommand(seqCmds, "sendSpeak from $device", parallel, cmdMap, device, callback)
+    queueNopCommand()
+
+    seqCmds = []
+    if(cmdMap.oldVolume) {
+        seqCmds.push([command: "volume", value: cmdMap.oldVolume, deviceData: deviceData])
+        queueMultiSequenceCommand(seqCmds, "sendSpeak last vol from $device", parallel, cmdMap, device, callback)
+    }
 }
 
 void queueNopCommand(){
     Map item= [
         t: 'nop',
-        time: now(),
+        time: wnow(),
         device: null,
         callback: null
     ]
@@ -3980,7 +3992,7 @@ void queueNopCommand(){
 void queueSequenceCommand(String type, String command, value, Map deviceData=[:], String device=sNULL, String callback=sNULL){
     Map item= [
         t: 'sequence',
-        time: now(),
+        time: wnow(),
         type: type,
         command: command,
         value: value,
@@ -4008,7 +4020,7 @@ void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean paral
     }
     Map item = [
         t: 'multi',
-        time: now(),
+        time: wnow(),
         commands: newCmds,
         srcDesc: srcDesc,
         parallel: parallel,
@@ -4075,7 +4087,7 @@ void workQ() {
     if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD }
     // log.debug "active: $active myMap: $myMap"
     Long nextOk = (Long)myMap.nextOk ?: 0L
-    if(nextOk < now()) nextOk = 0L
+    if(nextOk < wnow()) nextOk = 0L
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'cmdQ'
@@ -4084,7 +4096,7 @@ void workQ() {
     Boolean fnd = (eData.size() > 0)
 
     // if we are not doing anything grab next item off queue and start it;
-    if(!active && now() > nextOk && fnd) {
+    if(!active && wnow() > nextOk && fnd) {
 
         List<String> lmsg = []
         Double msSum = 0.0D
@@ -4236,7 +4248,7 @@ void workQ() {
             Integer mymin = 3000 // min ms between Alexa commands
 
             msSum = Math.min(240000, Math.max(msSum, mymin))
-            nextOk = (Long)now() + msSum.toLong()
+            nextOk = wnow() + msSum.toLong()
             lmsg.push("workQ FINAL ms delay is $msSum".toString())
             active = true
             myMap.active=active
@@ -4275,10 +4287,10 @@ void workQ() {
         }
     }
 
-    Long t0 = (Long)now()
+    Long t0 = wnow()
     mmsg = "workQ active: ${active} work items fnd: ${fnd} now: ${t0} nextOk: ${nextOk}"
     if(!active && fnd) { // if we have more work to do
-        t0 = (Long)now()
+        t0 = wnow()
         Long ms = nextOk+200L - t0
         if(ms <= 0L) ms = 4000
         if(t0 < nextOk) { // if we are waiting between commands due to Alexa limits, schedule wakeup to resume
@@ -4324,7 +4336,7 @@ static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
     Integer randomInt
     if(addRandom){
         Random random = new Random()
-        randomInt = random?.nextInt(5) //Was using 7
+        randomInt = random.nextInt(5) //Was using 7
         res=v + randomInt
     }
 //    logTrace("calcDelay($msgLen) | res:$res | twd: $twd | delay: $v ${addRandom ? '+ '+randomInt.toString() : sBLANK}")
@@ -4480,7 +4492,8 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
     return seqCmds
 }
 
-String cleanString(String str, Boolean frcTrans=false) {
+String cleanString(String istr, Boolean frcTrans=false) {
+    String str=istr
     if(!str) { return sNULL }
     //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     //log.debug "cleanString1: $nm"
@@ -4497,7 +4510,8 @@ String cleanString(String str, Boolean frcTrans=false) {
     return str
 }
 
-private String textTransform(String str, Boolean force=false) {
+private String textTransform(String istr, Boolean force=false) {
+    String str=istr
     if(!force && (Boolean)settings.disableTextTransform) { return str }
     // Converts F temp values to readable text "19F"
     str = str.replaceAll(/([+-]?\d+)\s?([CcFf])/) { return "${it[0]?.toString()?.replaceAll("[-]", "minus ")?.replaceAll("[FfCc]", " degrees")}" }
@@ -4932,7 +4946,8 @@ private void disableAdvChldLogs() {
     childLogMapFLD = childLogMapFLD
 }
 
-void missPollNotify(Boolean on, Integer wait) {
+void missPollNotify(Boolean ion, Integer wait) {
+    Boolean on=ion
     Integer lastDataUpd = getLastTsValSecs("lastDevDataUpdDt", 1000000)
     Integer lastMissPollM = getLastTsValSecs("lastMissedPollMsgDt")
     //if(devModeFLD) logTrace("missPollNotify() | on: ($on) | wait: ($wait) | getLastDevicePollSec: (${lastDataUpd}) | misPollNotifyWaitVal: (${settings.misPollNotifyWaitVal}) | getLastMisPollMsgSec: (${lastMissPollM})")
@@ -4990,7 +5005,7 @@ void appUpdateNotify() {
             str += !zoneChildDevUpd ? sBLANK : "\nEcho Speaks Zone Device: v${state.appData?.versions?.zoneChildDevice?.ver?.toString()}"
             str += !echoDevUpd ? sBLANK : "\nEcho Speaks Device: v${state.appData?.versions?.echoDevice?.ver?.toString()}"
             // str += !socketUpd ? sBLANK : "\nEcho Speaks Socket: v${state.appData?.versions?.wsDevice?.ver?.toString()}"
-            str += !servUpd ? sBLANK : "\n${((Boolean)getServerItem("onHeroku") == true) ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
+            str += !servUpd ? sBLANK : "\n${(Boolean)getServerItem("onHeroku") ? "Heroku Service" : "Node Service"}: v${state.appData?.versions?.server?.ver?.toString()}"
             sendMsg("Info", "Echo Speaks Update(s) are Available:${str}...\n\nPlease visit the IDE to Update your code...")
             updTsVal("lastUpdMsgDt")
         }
@@ -5865,7 +5880,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
         if(lastDate?.contains("dtNow")) { return 10000 }
         Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", lastDate)
         Long start = lastDt.getTime()
-        Long stop = now()
+        Long stop = wnow()
         Long diff = (Long)((stop - start) / 1000L)
         return diff.abs()
     } catch (ex) {
@@ -5875,7 +5890,8 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
 }
 
 @SuppressWarnings('GroovyAssignabilityCheck')
-static String seconds2Duration(Integer timeSec, Boolean postfix=true, Integer tk=2) {
+static String seconds2Duration(Integer itimeSec, Boolean postfix=true, Integer tk=2) {
+    Integer timeSec=itimeSec
     Integer years = Math.floor(timeSec / 31536000); timeSec -= years * 31536000
     Integer months = Math.floor(timeSec / 31536000); timeSec -= months * 2592000
     Integer days = Math.floor(timeSec / 86400); timeSec -= days * 86400
@@ -5897,7 +5913,7 @@ String nextCookieRefreshDur() {
     if(!lastCookieRfsh) { return "Not Sure"}
     Date lastDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(Date.parse("E MMM dd HH:mm:ss z yyyy", lastCookieRfsh)))
     Date nextDt = Date.parse("E MMM dd HH:mm:ss z yyyy", formatDt(lastDt + days))
-    Integer diff = ( ((Long)nextDt.getTime() - now()) / 1000) as Integer
+    Integer diff = ( (nextDt.getTime() - wnow()) / 1000) as Integer
     String dur = seconds2Duration(diff, false, 3)
     // log.debug "now: ${now} | lastDt: ${lastDt} | nextDt: ${nextDt} | Days: $days | Wait: $diff | Dur: ${dur}"
     return dur
@@ -6319,15 +6335,15 @@ String UrlParamBuilder(Map<String,Object> items) {
     return items.collect { String k,v -> "${k}=${URLEncoder.encode(v.toString())}" }?.join("&")?.toString()
 }
 
-static def getRandomItem(items) {
-    def list = new ArrayList<String>()
-    items?.each { list?.add(it) }
+/*static def getRandomItem(List items) {
+    def list = [] //new ArrayList<String>()
+    items?.each { list.add(it) }
     return list?.get(new Random().nextInt(list?.size()))
-}
+} */
 
 static String randomString(Integer len) {
     def pool = ["a".."z",0..9].flatten()
-    Random rand = new Random(new Date().getTime())
+    Random rand = new Random(wnow())
     def randChars = (0..len).collect { pool[rand.nextInt(pool.size())] }
 //    logDebug("randomString: ${randChars?.join()}")
     return randChars.join()
@@ -7146,7 +7162,7 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
         releaseTheLock(sHMLF)
         return
     }
-    eData.push([dt: getDtNow(), gt: now(), message: msg])
+    eData.push([dt: getDtNow(), gt: wnow(), message: msg])
     Integer lsiz=eData.size()
     if(!ssOk || lsiz > max) { eData = eData.drop( (lsiz-max) ) }
     updMemStoreItem(logKey, eData)
@@ -7284,19 +7300,19 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
         // did not get the lock
         Long timeL = lockTimesFLD[semaSNum]
         if(timeL == null){
-            timeL = now()
+            timeL = wnow()
             lockTimesFLD[semaSNum] = timeL
             lockTimesFLD = lockTimesFLD
         }
         //if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
         pauseExecution(waitT)
         wait = true
-        if((now() - timeL) > 30000L) {
+        if((wnow() - timeL) > 30000L) {
             releaseTheLock(qname)
             if(devModeFLD) log.warn "overriding lock $meth"
         }
     }
-    lockTimesFLD[semaSNum] = (Long)now()
+    lockTimesFLD[semaSNum] = wnow()
     lockTimesFLD = lockTimesFLD
     lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
     lockHolderFLD = lockHolderFLD
@@ -7607,3 +7623,5 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         wha: [ "WHA" ]
     ]
 ]
+
+private Long wnow(){ return (Long)now() }
