@@ -1,3 +1,15 @@
+### _**Release (v4.2.0.6) - [May 5th, 2022]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Fix for latest version not showing it's up to date.
+
+### _**Release (v4.2.0.5) - [April 28th, 2022]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] NoOp command description error
+
 ### _**Release (v4.2.0.4) - [April 21st, 2022]**_
 
 #### _***All Apps and Devices***_
