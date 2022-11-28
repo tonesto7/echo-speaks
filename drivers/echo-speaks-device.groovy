@@ -25,8 +25,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.2.0.7'
-@Field static final String devModifiedFLD = '2022-05-05'
+@Field static final String devVersionFLD  = '4.2.0.8'
+@Field static final String devModifiedFLD = '2022-11-28'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '

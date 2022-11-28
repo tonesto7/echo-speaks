@@ -1,3 +1,9 @@
+### _**Release (v4.2.0.8) - [November 28th, 2022]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Tweaks for Local Server Installs.
+
 ### _**Release (v4.2.0.7) - [May 5th, 2022]**_
 
 #### _***All Apps and Devices***_
