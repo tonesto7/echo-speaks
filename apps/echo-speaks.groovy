@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.0.7'
-@Field static final String appModifiedFLD = '2022-05-05'
+@Field static final String appVersionFLD  = '4.2.0.8'
+@Field static final String appModifiedFLD = '2022-11-28'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4207, actionApp: 4207, zoneApp: 4207, zoneEchoDevice: 4207, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4208, actionApp: 4208, zoneApp: 4208, zoneEchoDevice: 4208, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1962,6 +1962,7 @@ void reInitChildZones() {
 def processData() {
     logTrace("processData() | Data: ${request.JSON}")
     Map data = request?.JSON as Map
+    // log.debug "processData() | Data: ${data}"
     if(data) {
         if(data?.version) {
             updServerItem("onHeroku", (data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
@@ -2180,7 +2181,7 @@ static String toQueryString(Map m) {
 }
 
 String getServerHostURL() {
-    String srvHost = (String)getServerItem("serverHost")
+    String srvHost = (String) getServerItem("serverHost")
     return ((Boolean)getServerItem("isLocal") && srvHost) ? (srvHost ?: sNULL) : "https://${getRandAppName()}.herokuapp.com".toString()
 }
 
@@ -6191,7 +6192,7 @@ String getServiceConfDesc() {
     String str = sBLANK
     str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "${spanSmBld("Heroku:")} ${spanSmBr("(Configured)")}" : sBLANK
     str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanSmBld("Local Server:")} ${spanSmBr("(Configured)")}" : sBLANK
-    str += "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})")}"
+    str += (String)getServerItem("serverHost") ? "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})")}" : sBLANK
     str += (settings.amazonDomain) ? spanSmBld("Domain:") + spanSmBr(" (${settings?.amazonDomain})") : sBLANK
     return str != sBLANK ? divSm(str, sCLR4D9) : sNULL
 }
