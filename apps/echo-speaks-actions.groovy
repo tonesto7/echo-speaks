@@ -3602,7 +3602,7 @@ Boolean timeCondOk() {
 
         if(startTime && stopTime) {
             Boolean not = startTime.getTime() > stopTime.getTime()
-            Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
+            Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime = formatDt(startTime)
             state.stopTime = formatDt(stopTime)
@@ -3810,7 +3810,7 @@ static String convEvtType(String type) {
     return (type && typeConv.containsKey(type)) ? typeConv[type] : type
 }
 
-String decodeVariables(evt, String istr) {
+static String decodeVariables(evt, String istr) {
     String str=istr
     if(!str) return str
     if(evt) {
@@ -4576,7 +4576,7 @@ Boolean notifTimeOk() {
 
     if(startTime && stopTime) {
         Boolean not = startTime.getTime() > stopTime.getTime()
-        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
+        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
         isBtwn = not ? !isBtwn : isBtwn
         if(isTrc())logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
@@ -4829,29 +4829,31 @@ static String getAlarmSystemName(Boolean abbr=false) {
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
-String formatDt(Date dt, Boolean tzChg=true) {
+private static TimeZone mTZ(){ return TimeZone.getDefault() } // (TimeZone)location.timeZone
+
+static String formatDt(Date dt, Boolean tzChg=true) {
     return dateTimeFmt(dt, "E MMM dd HH:mm:ss z yyyy", tzChg)
 }
 
-String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
+static String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     SimpleDateFormat tf = new SimpleDateFormat(fmt)
-    if(tzChg && location?.timeZone) { tf.setTimeZone((TimeZone)location.timeZone) }
+    if(tzChg && mTZ()) { tf.setTimeZone(mTZ()) }
     return (String)tf.format(dt)
 }
 
-String convToTime(Date dt) {
+static String convToTime(Date dt) {
     String newDt = dateTimeFmt(dt, "h:mm a")
     if(newDt?.contains(":00 ")) { newDt?.replaceAll(":00 ", sSPACE) }
     return newDt
 }
 
-String convToDate(Date dt) {
+static String convToDate(Date dt) {
     String newDt = dateTimeFmt(dt, "EEE, MMM d")
     return newDt
 }
 
-String convToDateTime(Date dt) {
+static String convToDateTime(Date dt) {
     String t = dateTimeFmt(dt, "h:mm a")
     String d = dateTimeFmt(dt, "EEE, MMM d")
     return d+', '+t
@@ -4866,21 +4868,21 @@ static String strCapitalize(str) { return str ? str.toString().capitalize() : sN
 
 static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 
-String parseFmtDt(String parseFmt, String newFmt, dt) {
+static String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     return dateTimeFmt(newDt, newFmt)
 }
 
-String getDtNow() {
+static String getDtNow() {
     Date now = new Date()
     return formatDt(now)
 }
 
-String epochToTime(Date dt) {
+static String epochToTime(Date dt) {
     return dateTimeFmt(dt, "h:mm a")
 }
 
-String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
+static String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
     Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t.toString())
     return dateTimeFmt(dt, fmt)
@@ -4901,7 +4903,7 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     }
 }
 
-Map getDateMap() {
+static Map getDateMap() {
     Map m = [:]
     Date d = new Date()
     m.dayOfYear =    dateTimeFmt(d, "DD")
@@ -4919,14 +4921,14 @@ Map getDateMap() {
     return m
 }
 
-Boolean isDayOfWeek(List opts) {
+static Boolean isDayOfWeek(List opts) {
     SimpleDateFormat df = new SimpleDateFormat("EEEE")
-    df?.setTimeZone((TimeZone)location?.timeZone)
+    df?.setTimeZone(mTZ())
     String day = df?.format(new Date())
     return opts?.contains(day)
 }
 
-Boolean isMonthOfYear(List opts) {
+static Boolean isMonthOfYear(List opts) {
     Map dtMap = getDateMap()
     return ( opts?.contains((String)dtMap.monthName) )
 }
@@ -4935,7 +4937,7 @@ Boolean isTimeBetween(String startTime, String stopTime, Date curTime= new Date(
     if(!startTime && !stopTime) { return true }
     Date st = toDateTime(startTime)
     Date et = toDateTime(stopTime)
-    return timeOfDayIsBetween(st, et, curTime, (TimeZone)location?.timeZone)
+    return timeOfDayIsBetween(st, et, curTime, mTZ())
 }
 
 /******************************************
@@ -5859,10 +5861,10 @@ public Map getSettingsAndStateMap() {
             }
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
-            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] }
+            settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv-> setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : fv?.id?.toString ) ] }
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
-            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] }
+            settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv-> setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : fv?.id?.toString() ) ] }
         }
     }
     Map data = [:]
