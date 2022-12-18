@@ -2181,7 +2181,7 @@ static String toQueryString(Map m) {
 }
 
 String getServerHostURL() {
-    String srvHost = (String) getServerItem("serverHost")
+    String srvHost = (String)getServerItem("serverHost")
     return ((Boolean)getServerItem("isLocal") && srvHost) ? (srvHost ?: sNULL) : "https://${getRandAppName()}.herokuapp.com".toString()
 }
 
@@ -5084,7 +5084,7 @@ Boolean notifTimeOk() {
 
     if(startTime && stopTime) {
         Boolean not = startTime.getTime() > stopTime.getTime()
-        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
+        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
         isBtwn = not ? !isBtwn : isBtwn
         logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
@@ -5344,7 +5344,7 @@ private String createMetricsDataJson() {
             datetime: getDtNow(),
             installDt: (String)getInstData('dt'),
             updatedDt: (String)getInstData('updatedDt'),
-            timeZone: location?.timeZone?.ID?.toString(),
+            timeZone: mTZ().ID?.toString(),
             hubPlatform: platformFLD,
             authValid: (Boolean)state.authValid,
             stateUsage: "${stateSizePerc()}%",
@@ -5572,7 +5572,7 @@ private getDiagDataJson(Boolean asString = false) {
                 version: appVersionFLD,
                 installed: (String)getInstData('dt'),
                 updated: (String)getInstData('updatedDt'),
-                timeZone: location?.timeZone?.ID?.toString(),
+                timeZone: mTZ().ID?.toString(),
                 lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
                 config: state.appData?.appDataVer ?: null,
                 flags: [
@@ -5833,9 +5833,11 @@ def execDiagCmds() {
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
-String formatDt(Date dt, Boolean tzChg=true) {
+private static TimeZone mTZ(){ return TimeZone.getDefault() } // (TimeZone)location.timeZone
+
+static String formatDt(Date dt, Boolean tzChg=true) {
     def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    if(tzChg) { if(location.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) } }
+    if(tzChg) { if(mTZ()) { tf.setTimeZone(mTZ()) } }
     return (String)tf.format(dt)
 }
 
@@ -5843,34 +5845,34 @@ static String strCapitalize(String str) { return str ? str.toString().capitalize
 static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 static String pluralize(Integer itemVal, String str) { return (itemVal > 1) ? str+"s" : str }
 
-String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
+static String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
     Date newDt = Date.parse(pFormat, dt)
     return formatDt(newDt, tzFmt)
 }
 
-String parseFmtDt(String parseFmt, String newFmt, dt) {
+static String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     def tf = new SimpleDateFormat(newFmt)
-    if(location.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
+    if(mTZ()) { tf.setTimeZone(mTZ()) }
     return (String)tf.format(newDt)
 }
 
-String getDtNow() {
+static String getDtNow() {
     Date now = new Date()
     return formatDt(now)
 }
 
-String epochToTime(Date tm) {
+static String epochToTime(Date tm) {
     def tf = new SimpleDateFormat("h:mm a")
-    if(location?.timeZone) { tf?.setTimeZone((TimeZone)location?.timeZone) }
+    if(mTZ()) { tf?.setTimeZone(mTZ()) }
     return (String)tf.format(tm)
 }
 
 String time2Str(time) {
     if(time) {
-        Date t = timeToday(time as String, (TimeZone)location?.timeZone)
+        Date t = timeToday(time as String, mTZ())
         def f = new SimpleDateFormat("h:mm a")
-        f.setTimeZone((TimeZone)location?.timeZone ?: timeZone(time))
+        f.setTimeZone(mTZ()) // ?: timeZone(time))
         return (String)f.format(t)
     }
     return sNULL
@@ -7082,9 +7084,9 @@ Boolean isSomebodyHome(List sensors) {
     return false
 }
 
-Boolean isDayOfWeek(List opts) {
+static Boolean isDayOfWeek(List opts) {
     SimpleDateFormat df = new SimpleDateFormat("EEEE")
-    df?.setTimeZone((TimeZone)location?.timeZone)
+    df?.setTimeZone(mTZ())
     String day = df?.format(new Date())
     return opts?.contains(day)
 }
@@ -7456,6 +7458,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A32DOYMUN6DTXA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
         "A1RABVCI4QCIKC" : [ c: [ "a", "t" ], i: "echo_dot_gen3", n: "Echo Dot (Gen3)" ],
         "A2U21SRK4QGSE1" : [ c: [ "a", "t" ], i: "echo_dot_gen4",  n: "Echo Dot (Gen4)" ],
+        "A2DS1Q2TPD" : [ c: [ "a", "t" ], i: "echo_dot_gen5",  n: "Echo Dot (Gen5)" ],
         "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_dot_clock", n: "Echo Dot Clock" ],
         "A2H4LV5GIZ1JFT" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen4",  n: "Echo Dot Clock (Gen4)" ],
         
