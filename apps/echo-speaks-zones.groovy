@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks - Zones (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -28,8 +28,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.0.8'
-@Field static final String appModifiedFLD = '2022-11-28'
+@Field static final String appVersionFLD  = '4.2.1.0'
+@Field static final String appModifiedFLD = '2022-12-20'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -707,7 +707,7 @@ private Boolean relayGetWWebSocketStatus() {
 }
 
 @SuppressWarnings('unused')
-void relayChildInitialtedRefresh() {
+void relayChildInitiatedRefresh() {
      parent.childInitiatedRefresh()
 }
 
@@ -815,8 +815,8 @@ void scheduleCondition() {
                 stopTime = (String)state.stopTime ? parseDate((String)state.stopTime) : null
         }
         if(!startTime && !stopTime && dC){
-                startTime = timeToday('00:00', location.timeZone)
-                stopTime = timeTodayAfter('23:59', '00:00', location.timeZone)
+                startTime = timeToday('00:00', mTZ())
+                stopTime = timeTodayAfter('23:59', '00:00', mTZ())
         }
         if(startTime && stopTime){
             Long t = wnow()
@@ -932,7 +932,7 @@ Boolean timeCondOk() {
 
         if(startTime && stopTime) {
             Boolean not = startTime.getTime() > stopTime.getTime()
-            Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, location?.timeZone)
+            Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
             isBtwn = not ? !isBtwn : isBtwn
             state.startTime =  formatDt(startTime)
             state.stopTime =  formatDt(stopTime)
@@ -1587,18 +1587,20 @@ public Map getZoneMetrics() {
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
-String formatDt(Date dt, Boolean tzChg=true) {
+private static TimeZone mTZ(){ return TimeZone.getDefault() } // (TimeZone)location.timeZone
+
+static String formatDt(Date dt, Boolean tzChg=true) {
     return dateTimeFmt(dt, "E MMM dd HH:mm:ss z yyyy", tzChg)
 }
 
-String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
+static String dateTimeFmt(Date dt, String fmt, Boolean tzChg=true) {
 //    if(!(dt instanceof Date)) { try { dt = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", dt?.toString()) } catch(e) { dt = Date.parse("E MMM dd HH:mm:ss z yyyy", dt?.toString()) } }
     def tf = new SimpleDateFormat(fmt)
-    if(tzChg && location?.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
+    if(tzChg && mTZ()) { tf.setTimeZone(mTZ()) }
     return (String)tf.format(dt)
 }
 
-String convToTime(Date dt) {
+static String convToTime(Date dt) {
     String newDt = dateTimeFmt(dt, "h:mm a")
     if(newDt?.contains(":00 ")) { newDt?.toString()?.replaceAll(":00 ", sSPACE) }
     return newDt
@@ -1613,16 +1615,16 @@ static String strCapitalize(String str) { return str ? str.toString().capitalize
 
 static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 
-String getDtNow() {
+static String getDtNow() {
     Date now = new Date()
     return formatDt(now)
 }
 
-String epochToTime(Date dt) {
+static String epochToTime(Date dt) {
     return dateTimeFmt(dt, "h:mm a")
 }
 
-String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
+static String fmtTime(t, String fmt="h:mm a", Boolean altFmt=false) {
     if(!t) return sNULL
     Date dt = new Date().parse(altFmt ? "E MMM dd HH:mm:ss z yyyy" : "yyyy-MM-dd'T'HH:mm:ss.SSSZ", t.toString())
     return dateTimeFmt(dt, fmt)
@@ -1643,9 +1645,9 @@ Long GetTimeDiffSeconds(String lastDate, String sender=sNULL) {
     }
 }
 
-String getWeekDay() {
+static String getWeekDay() {
     def df = new SimpleDateFormat("EEEE")
-    df.setTimeZone((TimeZone)location?.timeZone)
+    df.setTimeZone(mTZ())
     return (String)df.format(new Date())
 }
 /*
@@ -1667,9 +1669,9 @@ String getYear() {
     return (String)df.format(new Date())
 }
 */
-String getMonth() {
+static String getMonth() {
     def df = new SimpleDateFormat("MMMMM")
-    df.setTimeZone((TimeZone)location?.timeZone)
+    df.setTimeZone(mTZ())
     return (String)df.format(new Date())
 }
 /*
@@ -1683,12 +1685,12 @@ Map getDateMap() {
     return [d: getWeekDay(), dm: getDay(), wm: getWeekMonth(), wy: getWeekYear(), m: getMonth(), y: getYear() ]
 } */
 
-Boolean isDayOfWeek(List opts) {
+static Boolean isDayOfWeek(List opts) {
     String day = getWeekDay()
     return ( opts?.contains(day) )
 }
 
-Boolean isMonthOfYear(List opts) {
+static Boolean isMonthOfYear(List opts) {
     String mon = getMonth()
     return ( opts?.contains(mon) )
 }
@@ -1697,7 +1699,7 @@ Boolean isTimeOfDay(String startTime, String stopTime) {
     if(!startTime && !stopTime) { return true }
     Date st = toDateTime(startTime)
     Date et = toDateTime(stopTime)
-    return timeOfDayIsBetween(st, et, new Date(), location.timeZone)
+    return timeOfDayIsBetween(st, et, new Date(), mTZ())
 }
 
 Boolean advLogsActive() { return ((Boolean)settings.logDebug || (Boolean)settings.logTrace) }
@@ -2094,7 +2096,7 @@ Boolean notifTimeOk() {
 
     if(startTime && stopTime) {
         Boolean not = startTime.getTime() > stopTime.getTime()
-        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
+        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
         isBtwn = not ? !isBtwn : isBtwn
         logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
@@ -2342,11 +2344,11 @@ public Map getSettingsAndStateMap() {
         }
         ((Map<String,String>)typeObj.caps).each { ck, cv->
             settings.findAll { it.key.endsWith(ck) }?.each { String fk, fv->
-                setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : it?.id?.toString ) ] } //.toString().toList()
+                setObjs[fk] = [type: "capability", value: (fv instanceof List ? fv?.collect { it?.id?.toString() } : fv?.id?.toString ) ] } //.toString().toList()
         }
         ((Map<String, String>)typeObj.dev).each { dk, dv->
             settings.findAll { it.key.endsWith(dk) }?.each { String fk, fv->
-                setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : it?.id?.toString() ) ] } //.toString().toList()
+                setObjs[fk] = [type: "device", value: (fv instanceof List ? fv.collect { it?.id?.toString() } : fv?.id?.toString() ) ] } //.toString().toList()
         }
     }
     Map data = [:]
