@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.1.1'
+@Field static final String appVersionFLD  = '4.2.1.2'
 @Field static final String appModifiedFLD = '2022-12-20'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4211, actionApp: 4211, zoneApp: 4211, zoneEchoDevice: 4211, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4212, actionApp: 4212, zoneApp: 4212, zoneEchoDevice: 4212, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -7427,6 +7427,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AP4RS91ZQ0OOI"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV (Toshiba)" ],
         "AFF5OAL5E3DIU"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV" ],
         "A3HF4YRA2L7XGC" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube" ],
+        "A1VGB7MHSIEYFK" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube Gen3" ],
         "AFF50AL5E3DIU"  : [ c: [ "a", "t" ], i: "insignia_firetv",  n: "Fire TV (Insignia)" ],
         "ADVBD696BHNV5"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen1)" ],
         "A1P7E7V3FCZKU6" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
@@ -7447,7 +7448,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AB72C64C86AW2"  : [ c: [ "a", "t" ], i: "echo_gen1", n: "Echo (Gen1)" ],
         "A7WXQPH584YP"   : [ c: [ "a", "t" ], i: "echo_gen2", n: "Echo (Gen2)" ],
         "A3FX4UWTP28V1P" : [ c: [ "a", "t" ], i: "echo_gen3", n: "Echo (Gen3)" ],
-        "A3RMGO6LYLH7YN" : [ c: [ "a", "t" ], i: "echo_gen4", n: "Echo (Gen4)" ],
+        "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_gen3", n: "Echo (Gen3)" ],
         "A2M35JJZWCQOMZ" : [ c: [ "a", "t" ], i: "echo_plus_gen1", n: "Echo Plus (Gen1)" ],
         "A18O6U1UQFJ0XK" : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo Plus (Gen2)" ],
 
@@ -7457,10 +7458,10 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A32DDESGESSHZA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
         "A32DOYMUN6DTXA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
         "A1RABVCI4QCIKC" : [ c: [ "a", "t" ], i: "echo_dot_gen3", n: "Echo Dot (Gen3)" ],
-        "A2U21SRK4QGSE1" : [ c: [ "a", "t" ], i: "echo_dot_gen4",  n: "Echo Dot (Gen4)" ],
-        "A2DS1Q2TPD" : [ c: [ "a", "t" ], i: "echo_dot_gen5",  n: "Echo Dot (Gen5)" ],
-        "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_dot_clock", n: "Echo Dot Clock" ],
+        "A3RMGO6LYLH7YN" : [ c: [ "a", "t" ], i: "echo_dot_gen4",  n: "Echo Dot (Gen4)" ],
+        "A2DS1Q2TPDJ48U" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen5",  n: "Echo Dot Clock (Gen5)" ],
         "A2H4LV5GIZ1JFT" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen4",  n: "Echo Dot Clock (Gen4)" ],
+        "A2U21SRK4QGSE1" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen4",  n: "Echo Dot Clock (Gen4)" ],
         
         // Amazon Echo Spot's
         "A10A33FOX2NUBK" : [ c: [ "a", "t" ], i: "echo_spot_gen1", n: "Echo Spot" ],
@@ -7470,6 +7471,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AWZZ5CVHX2CD"   : [ c: [ "a", "t" ], i: "echo_show_gen2", n: "Echo Show (Gen2)" ],
         "A4ZP7ZC4PI6TO"  : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen1)" ],
         "A1XWJRHALS1REP" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen2)" ],
+        "A4ZXE0RM7LQ7A" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen5)" ],
         "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
         "A15996VY63BQ2D" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen2)" ],
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],

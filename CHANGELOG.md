@@ -1,10 +1,11 @@
-### _**Release (v4.2.1.0) - [December 20th, 2022]**_
+### _**Release (v4.2.1.2) - [December 20th, 2022]**_
 
 #### _***All Apps and Devices***_
 
 - [FIX] Fixes for cloneing zones and actions.
-- [NEW] Support for 5th gen echo dot.
+- [NEW] Support for 5th gen echo dot and other devices.
 - [FIX] Cleanups and optimizations.
+  
 ### _**Release (v4.2.0.8) - [November 28th, 2022]**_
 
 #### _***All Apps and Devices***_
