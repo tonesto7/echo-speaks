@@ -1,7 +1,7 @@
 /**
  *	Echo Speaks Device (Hubitat ONLY)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -25,8 +25,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.2.0.8'
-@Field static final String devModifiedFLD = '2022-11-28'
+@Field static final String devVersionFLD  = '4.2.1.0'
+@Field static final String devModifiedFLD = '2022-12-20'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
