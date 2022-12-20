@@ -1,7 +1,7 @@
 /**
  *  Echo Speaks App (Hubitat)
- *
- *  Copyright 2018, 2019, 2020, 2021, 2022 Anthony Santilli
+ *4210
+ *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.0.7'
-@Field static final String appModifiedFLD = '2022-05-05'
+@Field static final String appVersionFLD  = '4.2.1.2'
+@Field static final String appModifiedFLD = '2022-12-20'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4207, actionApp: 4207, zoneApp: 4207, zoneEchoDevice: 4207, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4212, actionApp: 4212, zoneApp: 4212, zoneEchoDevice: 4212, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1962,6 +1962,7 @@ void reInitChildZones() {
 def processData() {
     logTrace("processData() | Data: ${request.JSON}")
     Map data = request?.JSON as Map
+    // log.debug "processData() | Data: ${data}"
     if(data) {
         if(data?.version) {
             updServerItem("onHeroku", (data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
@@ -5083,7 +5084,7 @@ Boolean notifTimeOk() {
 
     if(startTime && stopTime) {
         Boolean not = startTime.getTime() > stopTime.getTime()
-        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, (TimeZone)location?.timeZone)
+        Boolean isBtwn = !timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
         isBtwn = not ? !isBtwn : isBtwn
         logTrace("NotifTimeOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not ? startTime:stopTime})")
         return isBtwn
@@ -5343,7 +5344,7 @@ private String createMetricsDataJson() {
             datetime: getDtNow(),
             installDt: (String)getInstData('dt'),
             updatedDt: (String)getInstData('updatedDt'),
-            timeZone: location?.timeZone?.ID?.toString(),
+            timeZone: mTZ().ID?.toString(),
             hubPlatform: platformFLD,
             authValid: (Boolean)state.authValid,
             stateUsage: "${stateSizePerc()}%",
@@ -5571,7 +5572,7 @@ private getDiagDataJson(Boolean asString = false) {
                 version: appVersionFLD,
                 installed: (String)getInstData('dt'),
                 updated: (String)getInstData('updatedDt'),
-                timeZone: location?.timeZone?.ID?.toString(),
+                timeZone: mTZ().ID?.toString(),
                 lastVersionUpdDt: getTsVal("lastAppDataUpdDt"),
                 config: state.appData?.appDataVer ?: null,
                 flags: [
@@ -5832,9 +5833,11 @@ def execDiagCmds() {
 /******************************************
 |    Time and Date Conversion Functions
 *******************************************/
-String formatDt(Date dt, Boolean tzChg=true) {
+private static TimeZone mTZ(){ return TimeZone.getDefault() } // (TimeZone)location.timeZone
+
+static String formatDt(Date dt, Boolean tzChg=true) {
     def tf = new SimpleDateFormat("E MMM dd HH:mm:ss z yyyy")
-    if(tzChg) { if(location.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) } }
+    if(tzChg) { if(mTZ()) { tf.setTimeZone(mTZ()) } }
     return (String)tf.format(dt)
 }
 
@@ -5842,34 +5845,34 @@ static String strCapitalize(String str) { return str ? str.toString().capitalize
 static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
 static String pluralize(Integer itemVal, String str) { return (itemVal > 1) ? str+"s" : str }
 
-String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
+static String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
     Date newDt = Date.parse(pFormat, dt)
     return formatDt(newDt, tzFmt)
 }
 
-String parseFmtDt(String parseFmt, String newFmt, dt) {
+static String parseFmtDt(String parseFmt, String newFmt, dt) {
     Date newDt = Date.parse(parseFmt, dt?.toString())
     def tf = new SimpleDateFormat(newFmt)
-    if(location.timeZone) { tf.setTimeZone((TimeZone)location?.timeZone) }
+    if(mTZ()) { tf.setTimeZone(mTZ()) }
     return (String)tf.format(newDt)
 }
 
-String getDtNow() {
+static String getDtNow() {
     Date now = new Date()
     return formatDt(now)
 }
 
-String epochToTime(Date tm) {
+static String epochToTime(Date tm) {
     def tf = new SimpleDateFormat("h:mm a")
-    if(location?.timeZone) { tf?.setTimeZone((TimeZone)location?.timeZone) }
+    if(mTZ()) { tf?.setTimeZone(mTZ()) }
     return (String)tf.format(tm)
 }
 
 String time2Str(time) {
     if(time) {
-        Date t = timeToday(time as String, (TimeZone)location?.timeZone)
+        Date t = timeToday(time as String, mTZ())
         def f = new SimpleDateFormat("h:mm a")
-        f.setTimeZone((TimeZone)location?.timeZone ?: timeZone(time))
+        f.setTimeZone(mTZ()) // ?: timeZone(time))
         return (String)f.format(t)
     }
     return sNULL
@@ -6191,7 +6194,7 @@ String getServiceConfDesc() {
     String str = sBLANK
     str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "${spanSmBld("Heroku:")} ${spanSmBr("(Configured)")}" : sBLANK
     str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanSmBld("Local Server:")} ${spanSmBr("(Configured)")}" : sBLANK
-    str += "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})")}"
+    str += (String)getServerItem("serverHost") ? "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})")}" : sBLANK
     str += (settings.amazonDomain) ? spanSmBld("Domain:") + spanSmBr(" (${settings?.amazonDomain})") : sBLANK
     return str != sBLANK ? divSm(str, sCLR4D9) : sNULL
 }
@@ -7081,9 +7084,9 @@ Boolean isSomebodyHome(List sensors) {
     return false
 }
 
-Boolean isDayOfWeek(List opts) {
+static Boolean isDayOfWeek(List opts) {
     SimpleDateFormat df = new SimpleDateFormat("EEEE")
-    df?.setTimeZone((TimeZone)location?.timeZone)
+    df?.setTimeZone(mTZ())
     String day = df?.format(new Date())
     return opts?.contains(day)
 }
@@ -7424,6 +7427,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AP4RS91ZQ0OOI"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV (Toshiba)" ],
         "AFF5OAL5E3DIU"  : [ c: [ "a", "t" ], i: "toshiba_firetv", n: "Fire TV" ],
         "A3HF4YRA2L7XGC" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube" ],
+        "A1VGB7MHSIEYFK" : [ c: [ "a", "t" ], i: "firetv_cube", n: "Fire TV Cube Gen3" ],
         "AFF50AL5E3DIU"  : [ c: [ "a", "t" ], i: "insignia_firetv",  n: "Fire TV (Insignia)" ],
         "ADVBD696BHNV5"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen1)" ],
         "A1P7E7V3FCZKU6" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
@@ -7444,7 +7448,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AB72C64C86AW2"  : [ c: [ "a", "t" ], i: "echo_gen1", n: "Echo (Gen1)" ],
         "A7WXQPH584YP"   : [ c: [ "a", "t" ], i: "echo_gen2", n: "Echo (Gen2)" ],
         "A3FX4UWTP28V1P" : [ c: [ "a", "t" ], i: "echo_gen3", n: "Echo (Gen3)" ],
-        "A3RMGO6LYLH7YN" : [ c: [ "a", "t" ], i: "echo_gen4", n: "Echo (Gen4)" ],
+        "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_gen3", n: "Echo (Gen3)" ],
         "A2M35JJZWCQOMZ" : [ c: [ "a", "t" ], i: "echo_plus_gen1", n: "Echo Plus (Gen1)" ],
         "A18O6U1UQFJ0XK" : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo Plus (Gen2)" ],
 
@@ -7454,9 +7458,10 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A32DDESGESSHZA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
         "A32DOYMUN6DTXA" : [ c: [ "a", "t" ], i: "echo_dot_gen3",  n: "Echo Dot (Gen3)" ],
         "A1RABVCI4QCIKC" : [ c: [ "a", "t" ], i: "echo_dot_gen3", n: "Echo Dot (Gen3)" ],
-        "A2U21SRK4QGSE1" : [ c: [ "a", "t" ], i: "echo_dot_gen4",  n: "Echo Dot (Gen4)" ],
-        "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_dot_clock", n: "Echo Dot Clock" ],
+        "A3RMGO6LYLH7YN" : [ c: [ "a", "t" ], i: "echo_dot_gen4",  n: "Echo Dot (Gen4)" ],
+        "A2DS1Q2TPDJ48U" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen5",  n: "Echo Dot Clock (Gen5)" ],
         "A2H4LV5GIZ1JFT" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen4",  n: "Echo Dot Clock (Gen4)" ],
+        "A2U21SRK4QGSE1" : [ c: [ "a", "t" ], i: "echo_dot_clock_gen4",  n: "Echo Dot Clock (Gen4)" ],
         
         // Amazon Echo Spot's
         "A10A33FOX2NUBK" : [ c: [ "a", "t" ], i: "echo_spot_gen1", n: "Echo Spot" ],
@@ -7466,6 +7471,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AWZZ5CVHX2CD"   : [ c: [ "a", "t" ], i: "echo_show_gen2", n: "Echo Show (Gen2)" ],
         "A4ZP7ZC4PI6TO"  : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen1)" ],
         "A1XWJRHALS1REP" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen2)" ],
+        "A4ZXE0RM7LQ7A" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen5)" ],
         "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
         "A15996VY63BQ2D" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen2)" ],
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
