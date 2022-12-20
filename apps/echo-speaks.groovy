@@ -1,6 +1,6 @@
 /**
  *  Echo Speaks App (Hubitat)
- *
+ *4210
  *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
@@ -29,12 +29,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.1.0'
+@Field static final String appVersionFLD  = '4.2.1.1'
 @Field static final String appModifiedFLD = '2022-12-20'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4210, actionApp: 4210, zoneApp: 4210, zoneEchoDevice: 4210, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4211, actionApp: 4211, zoneApp: 4211, zoneEchoDevice: 4211, server: 270]  //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
