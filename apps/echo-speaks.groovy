@@ -1,6 +1,6 @@
 /**
  *  Echo Speaks App (Hubitat)
- *4210
+ *
  *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
@@ -1431,7 +1431,7 @@ def searchTuneInResultsPage() {
 }
 
 def dumpBrowseItem(Map item) {
-    String str = sBLANK
+    String str; str = sBLANK
     str += "ContentType: (${item.contentType})"
     str += "\nId: (${item.id})"
     str += "\nDescription: ${item.description}"
@@ -1474,7 +1474,7 @@ public List getChildDevicesByCap(String cap) {
 def donationPage() {
     return dynamicPage(name: "donationPage", title: sBLANK, nextPage: "mainPage", install: false, uninstall: false) {
         section(sBLANK) {
-            String str = sBLANK
+            String str; str = sBLANK
             str += spanSmBldBr("Hello User,") + spanSmBr("Please forgive the interuption but it's been 30 days since you installed/updated this App and I wanted to present you with this one time reminder that donations are accepted (We do not require them).")
             str += spanSmBr("<br>If you have been enjoying the software and devices please remember that we have spent thousand's of hours of our spare time working on features and stability for those applications and devices.")
             str += spanSmBr("<br>If you have already donated, thank you very much for your support!")
@@ -1601,7 +1601,7 @@ void appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData", "codeVersion",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize", "lastMsg"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize", "lastMsg", "websocketActive"
     ]
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 
@@ -1696,9 +1696,9 @@ def zoneRemovedHandler(evt) {
     if(data && id) {
         Boolean aa = getTheLock(sHMLF, "zoneRemoveHandler")
         Map t0 = zoneStatusMapFLD[myId]
-        Map zoneMap = t0 ?: [:]
+        Map zoneMap; zoneMap = t0 ?: [:]
         zoneMap = zoneMap ?: [:]
-        Boolean fnd=false
+        Boolean fnd; fnd=false
         if(zoneMap.containsKey(id)) {
             fnd = true
             zoneMap.remove(id)
@@ -1790,8 +1790,8 @@ List getInActiveApps() {
 }
 
 List getMyANames(List acts) {
-    acts = acts ?: []
-    return acts.size() ? acts.findAll { it }.collect { (String)it?.getLabel() } : []
+    List a = acts ?: []
+    return a.size() ? a.findAll { it }.collect { (String)it?.getLabel() } : []
 }
 
 public List getActiveActionNames() {
@@ -1857,17 +1857,18 @@ String getEnvParamsStr() {
 }
 
 Boolean checkIfCodeUpdated() {
-    Boolean codeUpdated = false
+    Boolean codeUpdated; codeUpdated = false
     List chgs = []
-    Map codeVerMap = (Map)state.codeVersions ?: [:]
+    Map<String,String> codeVerMap; codeVerMap = (Map<String,String>)state.codeVersions ?: [:]
     //if(devModeFLD) logTrace("Code versions: ${codeVerMap}")
     if(codeVerMap.mainApp != appVersionFLD) {
         checkVersionData(true)
-        state.codeVersions=[:]
+        codeVerMap= codeVerMap.server ? [server: codeVerMap.server] : [:]
+        state.codeVersions= codeVerMap
         chgs.push("mainApp")
         state.pollBlocked = true
         updCodeVerMap("mainApp", appVersionFLD)
-        Map iData = state.installData
+        Map iData; iData = state.installData
         iData = iData ?: [:]
         iData["updatedDt"] = getDtNow()
         iData["shownChgLog"] = false
@@ -1908,7 +1909,7 @@ Boolean checkIfCodeUpdated() {
     }
     List zApps = getZoneApps()
     if(zApps?.size()) {
-        String ver = (String)zApps[0]?.appVersion()
+        String ver; ver = (String)zApps[0]?.appVersion()
         if((String)codeVerMap.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
@@ -2072,7 +2073,7 @@ def storeCookieData() {
 
 def clearCookieD() {
 // deal with temporary problems
-    Integer a = state.clearCnt
+    Integer a; a = (Integer)state.clearCnt
     a = a!= null ? a : 0
     a = a+1
     state.clearCnt = a
@@ -2120,7 +2121,7 @@ void authValidationEvent(Boolean valid, String src=sNULL) {
     Boolean isValid = valid && getCookieVal() && getCsrfVal()
     Integer listSize = 3
     String myId=app.getId()
-    List eList = authValidMapFLD[myId]
+    List eList; eList = authValidMapFLD[myId]
     eList = eList ?: [true, true, true]
     eList.push(isValid)
     if(eList.size() > listSize) { eList = eList.drop( eList.size()-listSize ) }
@@ -2145,7 +2146,7 @@ void authEvtHandler(Boolean isAuth, String src=sNULL) {
         clearCookieData('authHandler', true)
         noAuthReminder()
         if((Boolean)settings.sendCookieInvalidMsg && getLastTsValSecs("lastCookieInvalidMsgDt") > 28800) {
-            String loc='Local Server'
+            String loc; loc='Local Server'
             if((Boolean)getServerItem("onHeroku")) loc='Heroku'
             sendMsg("${app.name} Amazon Login Issue", "Amazon Cookie Has Expired or is Missing!!! Please login again using the ${loc} Web Config page...")
             updTsVal("lastCookieInvalidMsgDt")
@@ -2286,7 +2287,7 @@ def cookieRefreshResp(response, data) {
 }
 
 Boolean validateCookie(Boolean frc=false) {
-    Boolean valid = (Boolean)state.authValid
+    Boolean valid; valid = (Boolean)state.authValid
     Integer lastChk = getLastTsValSecs("lastCookieChkDt", 3600)
     Integer lastSpoke = getLastTsValSecs("lastSpokeToAmazon", 3600)
     Boolean cookieOk = getCookieVal() && getCsrfVal()
@@ -6101,7 +6102,8 @@ void settingRemove(String name) {
 }
 
 void updCodeVerMap(String key, String val) {
-    Map cv = state.codeVersions
+    Map cv
+    cv = state.codeVersions
     cv = cv ?: [:]
     if(val && (!cv.containsKey(key) || (cv.containsKey(key) && cv[key] != val))) { cv[key] = val }
     if (cv.containsKey(key) && val == sNULL) { cv.remove(key) }
@@ -6109,7 +6111,8 @@ void updCodeVerMap(String key, String val) {
 }
 
 void cleanUpdVerMap() {
-    Map<String, String> cv = (Map<String,String>)state.codeVersions
+    Map<String, String> cv
+    cv = (Map<String,String>)state.codeVersions
     cv = cv ?: [:]
     List<String> ri = ["groupApp"]
     cv.each { String k, String v-> if(v == null) ri.push(k) }
