@@ -1,3 +1,10 @@
+### _**Release (v4.2.2.0) - [December 22nd, 2022]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Fixes submitted by @nh_shotfam.
+- [FIX] Fixed some ui issues with the Actions app.
+
 ### _**Release (v4.2.1.2) - [December 20th, 2022]**_
 
 #### _***All Apps and Devices***_
