@@ -32,8 +32,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.1.2'
-@Field static final String appModifiedFLD = '2022-12-20'
+@Field static final String appVersionFLD  = '4.2.2.0'
+@Field static final String appModifiedFLD = '2022-12-22'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -5258,8 +5258,8 @@ String getActionDesc(Boolean addFoot=true) {
         if(mT in [sANN, sANNI]) mT = sANN
         str += (mT in [sSPEAK, sANN] || isTierAct) && (String)settings."act_${mT}_txt" ? spanSmBr("Using Default Response: (True)") : sBLANK
 
-        String trigTasks = !isTierAct ? actTaskDesc(sACT) + lineBr() : sNULL
-        str += trigTasks ? spanSm(trigTasks) : sBLANK
+        String trigTasks = !isTierAct ? actTaskDesc(sACT) : sNULL
+        str  += trigTasks ? spanSm(trigTasks + lineBr()) : sBLANK
         str += addFoot ? inputFooter(sTTM) : sBLANK
     }
     str += !confd && addFoot ? inputFooter("Tap to configure (Required!)", sCLRRED, true) : sBLANK
