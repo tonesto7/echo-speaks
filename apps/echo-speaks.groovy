@@ -2645,7 +2645,7 @@ private void getNotifications(Boolean frc = false) {
     ]
     try {
         logTrace('getNotifications')
-        Map sData = null
+        Map sData; sData = null
         List newList = []
         httpGet(params) { response->
             sData = response?.data ?: null
@@ -2732,10 +2732,10 @@ Map getBluetoothData(String serialNumber) {
     if(!isAuthValid("getBluetoothData")) { return [btObjs: [:], pairedNames: [], curConnName: sBLANK] }
     String myId=app.getId()
     // logTrace("getBluetoothData: ${serialNumber}")
-    String curConnName = sNULL
+    String curConnName; curConnName= sNULL
     Map btObjs = [:]
     getBluetoothDevices(true)
-    Map btData = bluetoothDataFLD[myId]
+    Map btData; btData = bluetoothDataFLD[myId]
     if(btData == null) {
         bluetoothDataFLD[myId] = [:]
         bluetoothDataFLD=bluetoothDataFLD
@@ -2786,7 +2786,7 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
         } else if (!serialNum) runIn(3, "getDeviceActivityRunIn")
         if(serialNum) {
             String appId=app.getId()
-            Map lastActData = devActivityMapFLD[appId]
+            Map lastActData; lastActData = devActivityMapFLD[appId]
             lastActData = lastActData ?: null
             // log.debug "activityData(IN): $lastActData"
             if(lastActData && (String)lastActData.serialNumber == serialNum) {
@@ -2887,7 +2887,7 @@ void DnDResp(resp, data){
 Boolean getDndEnabled(String serialNumber) {
     if(!isAuthValid("getDndEnabled")) { return false }
     String myId=app.getId()
-    Map sData = dndDataFLD[myId]
+    Map sData; sData= dndDataFLD[myId]
     if(sData == null) {
         getDoNotDisturb()
         sData = dndDataFLD[myId]
@@ -2906,8 +2906,8 @@ public Map getAlexaRoutines(String autoId=sNULL) {
 
     String myId=app.getId()
     Integer lastU = getLastTsValSecs("alexaRoutinesUpdDt")
-    List<Map> rtList = []
-    Map rtResp = [:]
+    List<Map> rtList; rtList = []
+    Map rtResp; rtResp = [:]
 
     if(alexaRoutinesDataFLD[myId] && ( (autoId && lastU < 90) || (!autoId && lastU < 180) )) { rtList = alexaRoutinesDataFLD[myId] }
     else {
@@ -2941,7 +2941,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
 
     // log.debug "alexaRoutines: $rtList"
     Map items = [:]
-    Integer cnt = 1
+    Integer cnt; cnt = 1
     if(rtList.size()) {
         if(autoId) {
             rtResp = ((List<Map>)rtList).find { it?.automationId?.toString() == autoId } ?: [:]
@@ -3033,7 +3033,7 @@ void checkGuardSupport() {
 
 void checkGuardSupportResponse(response, data) {
     // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
-    Boolean guardSupported = false
+    Boolean guardSupported; guardSupported = false
     try {
         if(response?.status != 200) logWarn("${response?.status} checkGuardSupportResponse")
         if(response?.status == 200) {
@@ -3085,7 +3085,7 @@ void checkGuardSupportFromServer() {
 }
 
 void checkGuardSupportServerResponse(response, data) {
-    Boolean guardSupported = false
+    Boolean guardSupported; guardSupported = false
     try {
         if(response?.status != 200) {
             logWarn("checkGuardSupportServerResp: ${response?.status}")
@@ -3149,11 +3149,12 @@ void getGuardState() {
     }
 }
 
-void setGuardState(String guardState) {
+void setGuardState(String iguardState) {
     Long execTime = wnow()
     String meth = "setGuardState"
     if(!isAuthValid("setGuardState")) { return }
     if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
+    String guardState = iguardState
     guardState = guardStateConv(guardState)
     logDebug("setAlexaGuard($guardState)")
     try {
@@ -3219,7 +3220,7 @@ void setGuardState(String guardState) {
 // }
 
 void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAmazon=true, Boolean ignNullMsg=false) {
-    String toMsg = "Amazon"
+    String toMsg; toMsg = "Amazon"
     if(!toAmazon) { toMsg = "Echo Speaks Server" }
     if(ex) {
         String stackTr
@@ -3420,7 +3421,7 @@ void receiveEventData(Map evtData, String src) {
 
             String myId=app.getId()
             //String wsChildHandlerName = "Echo Speaks WS"
-            String nmS = 'echoSpeaks_websocket'
+            String nmS; nmS = 'echoSpeaks_websocket'
             // def oldWsDev = getChildDevice(nmS)
             // if(oldWsDev) { deleteChildDevice(nmS) }
             nmS = myId+'|'+nmS
@@ -3437,7 +3438,7 @@ void receiveEventData(Map evtData, String src) {
                 List unknownDevices = []
                 List curDevFamily = []
 //                Integer cnt = 0
-                String devAcctId = sNULL
+                String devAcctId; devAcctId = sNULL
                 evtData?.echoDevices?.each { String echoKey, echoValue->
                     devAcctId = echoValue?.deviceAccountId
                     logTrace("echoDevice | $echoKey | ${echoValue}")
@@ -3549,7 +3550,7 @@ void receiveEventData(Map evtData, String src) {
                     ]
 
                     String dni = [app?.id, "echoSpeaks", echoKey].join("|")
-                    def childDevice = getChildDevice(dni)
+                    def childDevice; childDevice = getChildDevice(dni)
                     String devLabel = "${(Boolean)settings.addEchoNamePrefix ? "Echo - " : sBLANK}${echoValue?.accountName}${echoValue?.deviceFamily == "WHA" ? " (WHA)" : sBLANK}"
                     String childHandlerName = "Echo Speaks Device"
                     Boolean autoRename = ((Boolean)settings.autoRenameDevices)
@@ -3621,7 +3622,7 @@ public static Map minVersions() {
 }
 
 private Map getMinVerUpdsRequired() {
-    Boolean updRequired = false
+    Boolean updRequired; updRequired = false
     List updItems = []
     Map<String, String> codeItems = [server: "Echo Speaks Server", echoDevice: "Echo Speaks Device", wsDevice: "Echo Speaks Websocket", actionApp: "Echo Speaks Actions", zoneApp: "Echo Speaks Zones", zoneEchoDevice: "Echo Speaks Zone Device"]
     Map<String, String> codeVers = (Map<String, String>)state.codeVersions ?: [:]
@@ -3702,8 +3703,9 @@ void execAsyncCmd(String method, String callbackHandler, Map params, Map otherDa
 void sendAmazonCommand(String method, Map params, Map otherData=null) {
     String meth = "sendAmazonCommand ${method} ${params} ${otherData?.cmdDesc}"
     try {
-        def rData = null
-        def rStatus = null
+        def rData, rStatus
+        rData = null
+        rStatus = null
         logTrace(meth)
         switch(method) {
             case "POST":
@@ -3800,7 +3802,7 @@ void sendZoneCmd(Map cmdData) {
     if(myCmd && znList && znList.size()) {
         List devObj = getZoneDevices(znList, myCmd in ['speak', 'speak_parallel'] ? "TTS" : "announce")
 
-        String newmsg = (String)cmdData.message
+        String newmsg; newmsg = (String)cmdData.message
         String title = (String)cmdData.title
         Integer volume = (Integer)cmdData.changeVol
         Integer restoreVolume = (Integer)cmdData.restoreVol
@@ -3829,12 +3831,12 @@ void sendZoneCmd(Map cmdData) {
  */
 void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String imsg, Integer volume, Integer restoreVolume){
 	List<Map> devObj = odevObj.unique() // remove any duplicate devices
-        String newmsg=imsg
-        String origMsg = newmsg
-        if(devObj.size() == 0) {
-            logWarn("sendDevObjCmd NO DEVICES | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
-            return
-        }
+    String newmsg; newmsg=imsg
+    String origMsg = newmsg
+    if(devObj.size() == 0) {
+        logWarn("sendDevObjCmd NO DEVICES | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
+        return
+    }
     //noinspection GroovyFallthrough
     switch(myCmd) {
             case "announcement":
@@ -3968,7 +3970,7 @@ void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boole
         account: cmdMap.account
     ] */
 //    Map st = [serialNumber: cmdMap.serialNumber, deviceType: cmdMap.deviceType]
-    List<Map> seqCmds = []
+    List<Map> seqCmds; seqCmds = []
     if(cmdMap.newVolume) { seqCmds.push([command: "volume", value: cmdMap.newVolume, deviceData: deviceData]) }
     seqCmds.push([command: 'sendspeak', value:cmdMap.message, deviceData:deviceData])
 
@@ -4010,7 +4012,7 @@ void queueSequenceCommand(String type, String command, value, Map deviceData=[:]
 void queueMultiSequenceCommand(List<Map> commands, String srcDesc, Boolean parallel=false, Map cmdMap=[:], String device=sNULL, String callback=sNULL) {
 //log.warn "commands: $commands   srcDesc: $srcDesc  parallel: $parallel  cmdMap: $cmdMap  device: $device"
 // expand speak commands and handle ssml
-    List<Map> newCmds = []
+    List<Map> newCmds; newCmds = []
     List<Map> seqCmds = commands
     seqCmds?.each { cmdItem->
         // log.debug "cmdItem: $cmdItem"
@@ -4055,7 +4057,7 @@ void addToQ(Map item) {
 
     List<String> lmsg = []
     String t = item.t
-    Boolean fir=true
+    Boolean fir; fir=true
     ['cmdMap', 'time', 'deviceData', 'device', 'callback', 'parallel', 'command', 'value', 'srcDesc', 'type'].each { String s ->
         def ss = item."${s}"
         if(ss) {
@@ -4065,7 +4067,7 @@ void addToQ(Map item) {
         }
     }
     if(item.commands?.size()) {
-        Integer cnt = 1
+        Integer cnt; cnt = 1
         item.commands.each { cmd -> 
             lmsg.push("addToQ (${item.t}) | Command(${cnt}): ${cmd}".toString())
             cnt++
@@ -4084,13 +4086,13 @@ void workQ() {
     String appId=app.getId()
     Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
     // log.trace "lock wait: ${aa}"
-    Boolean locked = true
+    Boolean locked; locked = true
 
     Map myMap = workQMapFLD[appId] ?: [:]
-    Boolean active = (Boolean)myMap.active
+    Boolean active; active = (Boolean)myMap.active
     if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD }
     // log.debug "active: $active myMap: $myMap"
-    Long nextOk = (Long)myMap.nextOk ?: 0L
+    Long nextOk; nextOk = (Long)myMap.nextOk ?: 0L
     if(nextOk < wnow()) nextOk = 0L
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
@@ -4103,18 +4105,19 @@ void workQ() {
     if(!active && wnow() > nextOk && fnd) {
 
         List<String> lmsg = []
-        Double msSum = 0.0D
-        List seqList = []
+        Double msSum; msSum = 0.0D
+        List seqList; seqList = []
         List activeD = []
-        Map extData=[:]
+        Map extData; extData=[:]
         List extList = []
 
-        Boolean oldParallel = null
-        Boolean parallel = false
+        Boolean oldParallel,parallel
+        oldParallel = null
+        parallel = false
 
         String srcDesc
-        Map seqObj=null
-        Integer mdelay = 0
+        Map seqObj; seqObj=null
+        Integer mdelay; mdelay = 0
 
         // lets try to join commands in single request to Alexa
         while(eData.size()>0){
@@ -4123,7 +4126,7 @@ void workQ() {
 
             String t=(String)item.t
             // Long tLong=(Long)item.time
-            Map cmdMap=[:]
+            Map cmdMap; cmdMap=[:]
             String device = (String)item.device
             String callback = (String)item.callback
             srcDesc = sNULL
@@ -4215,7 +4218,7 @@ void workQ() {
 
                 Map t_extData =[:]
                 if(device && callback) {
-                    String nstr = cmdMap?.message?.toString()
+                    String nstr; nstr = cmdMap?.message?.toString()
                     nstr = nstr?.trim()
                     Boolean isSSML = (nstr?.toString()?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
                     //if(isSSML) nstr = nstr[7..-9]
@@ -4237,7 +4240,7 @@ void workQ() {
                 extList.push(t_extData)
                 extData.extList = extList
 
-                Double ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
+                Double ms; ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
                 ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
                 msSum = parallel ? ms : msSum + ms
                 lmsg.push("workQ ms delay is $msSum".toString())
@@ -4291,7 +4294,7 @@ void workQ() {
         }
     }
 
-    Long t0 = wnow()
+    Long t0; t0 = wnow()
     mmsg = "workQ active: ${active} work items fnd: ${fnd} now: ${t0} nextOk: ${nextOk}"
     if(!active && fnd) { // if we have more work to do
         t0 = wnow()
@@ -4309,14 +4312,14 @@ void workQ() {
 // this does not handle SSML break commands
 // https://developer.amazon.com/en-US/docs/alexa/custom-skills/speech-synthesis-markup-language-ssml-reference.html
 Integer getMsgDur(String command, String type, String tv){
-    Integer del = 0
+    Integer del; del = 0
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         String[] valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
-        String nstr = valObj[1].trim()
+        String nstr; nstr = valObj[1].trim()
         nstr = nstr.replaceAll(/\s\s+/, sSPACE)
         //String nm = nstr.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         //log.debug "getMsgDur $nm"
-        Boolean isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
+        Boolean isSSML; isSSML = (nstr?.startsWith("<speak>") && nstr?.endsWith("</speak>"))
         if(isSSML) nstr = nstr[7..-9]
         isSSML = (isSSML || command == 'ssml')
         String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, sBLANK) : cleanString(nstr)
@@ -4336,7 +4339,7 @@ static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
     if(!msgLen) { return 30 }
     Integer twd = 2
     Integer v = (Integer)((msgLen <= 14 ? 1 : (msgLen / 14)) * twd)
-    Integer res=v
+    Integer res; res=v
     Integer randomInt
     if(addRandom){
         Random random = new Random()
@@ -4350,9 +4353,9 @@ static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
 void finishWorkQ(response, extData){
     String meth = 'finishWorkQ'
     logTrace "running "+meth
-    Integer statusCode=null
+    Integer statusCode; statusCode=null
     def sData
-    String respMsg=sNULL
+    String respMsg; respMsg=sNULL
     try {
         statusCode = response?.status?.toInteger()
         if(response.hasError()){
@@ -4362,7 +4365,7 @@ void finishWorkQ(response, extData){
         respExceptionHandler(ex, "finishWorkQ", true)
     }
 
-    Boolean retry=false
+    Boolean retry; retry=false
     if(statusCode == 200) updTsVal("lastSpokeToAmazon")
     else {
         logWarn("$meth | ${statusCode} | $respMsg  | $extData")
@@ -4389,7 +4392,7 @@ void finishWorkQ(response, extData){
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'active'
-    List<Map> activeD = (List<Map>)memStore[k] ?: []
+    List<Map> activeD; activeD = (List<Map>)memStore[k] ?: []
     if(retry) {
         log.warn "wanted to retry but did not"
 //        String kk = 'cmdQ'
@@ -4469,15 +4472,15 @@ static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
 
 static Integer getStringLen(String str) { return str?.length() ?: 0 }
 
-private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
-    //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+private static List msgSeqBuilder(String istr, Map deviceData, String cmdType) {
+    //String nm = istr.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     //log.debug "msgSeqBuilder: $nm"
     List seqCmds = []
-    List strArr = []
-    String nstr = str.trim()
+    List strArr; strArr = []
+    String nstr = istr.trim()
     Boolean isSSML = (nstr.startsWith("<speak>") && nstr.endsWith("</speak>"))
     //if(isSSML) nstr = nstr[7..-9]
-    str = nstr
+    String str;str = nstr
     if(str.length() < 450) {
         seqCmds.push([command: (isSSML ? "ssml": "speak"), value: str, deviceData: deviceData, cmdType: cmdType])
     } else {
@@ -4497,7 +4500,7 @@ private static List msgSeqBuilder(String str, Map deviceData, String cmdType) {
 }
 
 String cleanString(String istr, Boolean frcTrans=false) {
-    String str=istr
+    String str; str=istr
     if(!str) { return sNULL }
     //String nm = str.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     //log.debug "cleanString1: $nm"
@@ -4853,7 +4856,7 @@ public void logsDisable() {
 
 public void activateChildAdvLogs() {
     String myId=app.getId()
-    Map myMap = childLogMapFLD[myId]
+    Map myMap; myMap = childLogMapFLD[myId]
     myMap = myMap ?: [:]
     Boolean a
 
@@ -4939,7 +4942,7 @@ private void disableAdvChldLogs() {
     settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
 
     String myId=app.getId()
-    Map myMap = childLogMapFLD[myId]
+    Map myMap; myMap = childLogMapFLD[myId]
     myMap = myMap ?: [:]
     Boolean a = false
     myMap.childAppLogDebug = a
