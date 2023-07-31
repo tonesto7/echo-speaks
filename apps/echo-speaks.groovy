@@ -224,8 +224,8 @@ def mainPage() {
             section(sectHead("Companion Apps:")) {
                 List zones = getZoneApps()
                 List acts = getActionApps()
-                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > 1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc()
-                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > 1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc()
+                href "zonesPage", title: inTS1("Manage Zones${zones?.size() ? " (${zones?.size()} ${zones?.size() > i1 ? "Zones" : "Zone"})" : sBLANK}", "es_groups"), description: getZoneDesc()
+                href "actionsPage", title: inTS1("Manage Actions${acts?.size() ? " (${acts?.size()} ${acts?.size() > i1 ? "Actions" : "Action"})" : sBLANK}", "es_actions"), description: getActionsDesc()
             }
 
             section(sectHead("Alexa Login Service:")) {
@@ -300,7 +300,7 @@ def authStatusPage() {
             section(sectHead("Cookie Tools: (Tap to show)", getAppImg("cookie")), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
                 input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
-                if(refreshCookieDays != null && refreshCookieDays < 1) { settingUpdate("refreshCookieDays", 1, "number") }
+                if(refreshCookieDays != null && refreshCookieDays < i1) { settingUpdate("refreshCookieDays", i1, "number") }
                 if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
 
                 // Refreshes the cookie
@@ -1328,7 +1328,7 @@ void executeAnnouncement() {
     String testMsg = (String)settings.test_announceMessage
     List sDevs = (Boolean)settings.test_announceAllDevices ? getChildDevicesByCap("announce") : getDevicesFromList((List)settings.test_announceDevices)
     if(sDevs?.size()) {
-        if(sDevs.size() > 1) {
+        if(sDevs.size() > i1) {
             List<Map> devObj = []
             sDevs.each { devObj.push([deviceTypeId: (String)it?.getEchoDeviceType(), deviceSerialNumber: (String)it?.getEchoSerial()]) }
 //            String devJson = new groovy.json.JsonOutput().toJson(devObj)
@@ -1627,7 +1627,7 @@ void wsEvtHandler(Map evt) {
         List<String> trigs = (List<String>)evt.triggers
         Map<String,Object> atts = (Map<String,Object>)evt.attributes
         if("bluetooth" in trigs) { runIn(2, "getBluetoothRunIn") } // getBluetoothDevices(true)
-        if("activity" in trigs) { runIn(1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
+        if("activity" in trigs) { runIn(i1, "getDeviceActivityRunIn") } // Map a=getDeviceActivity(sNULL, true)
         if("notification" in trigs) { runIn(2, "getNotificationsRunIn") }
         if((Boolean)evt.all) {
             getEsDevices()?.each { eDev->
@@ -2943,7 +2943,7 @@ public Map getAlexaRoutines(String autoId=sNULL) {
 
     // log.debug "alexaRoutines: $rtList"
     Map items = [:]
-    Integer cnt; cnt = 1
+    Integer cnt; cnt = i1
     if(rtList.size()) {
         if(autoId) {
             rtResp = ((List<Map>)rtList).find { it?.automationId?.toString() == autoId } ?: [:]
@@ -3156,7 +3156,7 @@ void setGuardState(String iguardState) {
     String meth = "setGuardState"
     if(!isAuthValid("setGuardState")) { return }
     if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
-    String guardState = iguardState
+    String guardState; guardState = iguardState
     guardState = guardStateConv(guardState)
     logDebug("setAlexaGuard($guardState)")
     try {
@@ -4055,7 +4055,7 @@ void addToQ(Map item) {
 
     releaseTheLock(sHMLF)
 
-    if(qsiz == 1) runInMillis(300L, "workQ")
+    if(qsiz == i1) runInMillis(300L, "workQ")
     else runIn(24, "workQB")
 
     List<String> lmsg = []
@@ -4070,7 +4070,7 @@ void addToQ(Map item) {
         }
     }
     if(item.commands?.size()) {
-        Integer cnt; cnt = 1
+        Integer cnt; cnt = i1
         item.commands.each { cmd -> 
             lmsg.push("addToQ (${item.t}) | Command(${cnt}): ${cmd}".toString())
             cnt++
@@ -4341,7 +4341,7 @@ Integer getMsgDur(String command, String type, String tv){
 static Integer calcDelay(Integer msgLen=null, Boolean addRandom=false) {
     if(!msgLen) { return 30 }
     Integer twd = 2
-    Integer v = (Integer)((msgLen <= 14 ? 1 : (msgLen / 14)) * twd)
+    Integer v = (Integer)((msgLen <= 14 ? i1 : (msgLen / 14)) * twd)
     Integer res; res=v
     Integer randomInt
     if(addRandom){
@@ -5853,8 +5853,8 @@ static String formatDt(Date dt, Boolean tzChg=true) {
 }
 
 static String strCapitalize(String str) { return str ? str.toString().capitalize() : sNULL }
-static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > 1) ? "${para ? "(s)": "s"}" : sBLANK }
-static String pluralize(Integer itemVal, String str) { return (itemVal > 1) ? str+"s" : str }
+static String pluralizeStr(List obj, Boolean para=true) { return (obj?.size() > i1) ? "${para ? "(s)": "s"}" : sBLANK }
+static String pluralize(Integer itemVal, String str) { return (itemVal > i1) ? str+"s" : str }
 
 static String parseDt(String pFormat, String dt, Boolean tzFmt=true) {
     Date newDt = Date.parse(pFormat, dt)
@@ -6257,8 +6257,8 @@ static String getInputToStringDesc(List inpt, Boolean addSpace=false) {
     String str; str = sBLANK
     if(inpt) {
         inpt.sort().each { item ->
-            cnt = cnt+1
-            str += item ? (((cnt < 1) || (inpt?.size() > 1)) ? "\n      ${item}" : "${addSpace ? "      " : sBLANK}${item}") : sBLANK
+            cnt = cnt+i1
+            str += item ? (((cnt < i1) || (inpt?.size() > i1)) ? "\n      ${item}" : "${addSpace ? "      " : sBLANK}${item}") : sBLANK
         }
     }
     //log.debug "str: $str"
@@ -6320,7 +6320,7 @@ def appInfoSect() {
             }
             if(state.noticeData && state.noticeData.notices && state.noticeData.notices?.size()) {
                 isNote = true
-                String str1 = spanSmBld("Developer Notices:")
+                String str1; str1 = spanSmBld("Developer Notices:")
                 state.noticeData.notices.each { String item-> str1 += lineBr() + spanSmBr("  ${sBULLET} ${item}") }
                 paragraph divSm(str1, sCLRORG)
             }
@@ -6341,7 +6341,7 @@ def appInfoSect() {
             String body = "Requesting device support for the following device(s):\n" + unkDevs?.collect { d-> d?.collect { k,v-> "**${k}**: ${v}" }?.join("\n") }?.join("\n\n")?.toString()
             Map params = [ assignees: "tonesto7", labels: "add_device_support", title: title, body: body ]
             String featUrl = "https://github.com/tonesto7/echo-speaks/issues/new?${UrlParamBuilder(params)}"
-            href url: featUrl, style: sEXTNRL, required: false, title: inTS1(spanSmBr(unkDevs?.size() > 1 ? "Unknown Devices Found" : "Unknown Device Found", sCLRORG) + "Send the device info to the Developer on GitHub?", "info"), description: spanSm("Tap to open browser", sCLRGRY)
+            href url: featUrl, style: sEXTNRL, required: false, title: inTS1(spanSmBr(unkDevs?.size() > i1 ? "Unknown Devices Found" : "Unknown Device Found", sCLRORG) + "Send the device info to the Developer on GitHub?", "info"), description: spanSm("Tap to open browser", sCLRGRY)
         }
     }
 }
