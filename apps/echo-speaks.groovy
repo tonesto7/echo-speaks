@@ -86,6 +86,8 @@ import java.util.concurrent.Semaphore
 @Field static final String sASTR          = 'a'
 @Field static final String sTSTR          = 't'
 @Field static final List<String> lSUNRISESET   = ['sunrise', 'sunset']
+@Field static final Integer iZ            = 0
+@Field static final Integer i1            = 1
 
 //************************************************
 //*          IN-MEMORY ONLY VARIABLES            *
@@ -1176,9 +1178,9 @@ void appButtonHandler(String btn) {
         default:
             if(btn.contains("::")) {
                 List items = btn.tokenize("::")
-                if(items && items.size() > 1 && items[1]) {
-                    String k = (String)items[0]
-                    String v = (String)items[1]
+                if(items && items.size() > i1 && items[i1]) {
+                    String k = (String)items[iZ]
+                    String v = (String)items[i1]
                     switch(k) {
                         case "executeRoutine":
                             // log.debug "routine: ${rt[1]}"
@@ -1269,7 +1271,7 @@ public Map<String,Map> seqItemsAvail() {
 def sequencePage() {
     return dynamicPage(name: "sequencePage", uninstall: false, install: false) {
         section(sectHead("Command Legend:"), hideable: true, hidden: true) {
-            String str1 = "Sequence Options:"
+            String str1; str1 = "Sequence Options:"
             ((Map<String, String>)seqItemsAvailFLD.other).sort()?.each { String k, String v->
                 str1 += "${bulletItem(str1, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
             }
@@ -1277,11 +1279,11 @@ def sequencePage() {
             // seqItemsAvailFLD.dnd?.sort()?.each { String k, String v->
                 // str4 += "${bulletItem(str4, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
             // }
-            String str2 = "Music Options:"
+            String str2; str2 = "Music Options:"
             ((Map<String, String>)seqItemsAvailFLD.music).sort()?.each { String k, String v->
                 str2 += "${bulletItem(str2, "${k}${v != sNULL ? "::${v}" : sBLANK}")}"
             }
-            String str3 = "Canned TTS Options:"
+            String str3; str3 = "Canned TTS Options:"
             ((Map<String, Object>)seqItemsAvailFLD.speech).sort()?.each { String k, v->
                 String newV
                 if(v instanceof List) { newV = sBLANK; v?.sort()?.each { newV += "     ${dashItem(newV, "${it}", true)}" } }
@@ -1331,9 +1333,9 @@ void executeAnnouncement() {
             sDevs.each { devObj.push([deviceTypeId: (String)it?.getEchoDeviceType(), deviceSerialNumber: (String)it?.getEchoSerial()]) }
 //            String devJson = new groovy.json.JsonOutput().toJson(devObj)
 // send to first one which will have Amazon fan it out
-            sDevs[0]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
+            sDevs[iZ]?.sendAnnouncementToDevices(testMsg, "Echo Speaks Test", devObj, settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
         } else {
-            sDevs[0]?.playAnnouncement(testMsg, "Echo Speaks Test", settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
+            sDevs[iZ]?.playAnnouncement(testMsg, "Echo Speaks Test", settings.test_announceVolume ?: null, settings.test_announceRestVolume ?: null)
         }
     }
 }
@@ -1359,7 +1361,7 @@ Map executeTuneInSearch(String query) {
         contentType: sAPPJSON,
         timeout: 20
     ]
-    Map results = [:]
+    Map results; results = [:]
     try {
         httpGet(params) { resp ->
             if(resp?.status != 200) logWarn("${resp?.status} $params")
@@ -1502,7 +1504,7 @@ def updated() {
     if(!(Boolean)state.isInstalled) { state.isInstalled = true }
     if(!state.installData) { state.installData = [initVer: appVersionFLD, dt: getDtNow(), updatedDt: getDtNow(), shownDonation: false, sentMetrics: false] }
     unsubscribe()
-    state.clearCnt = 0
+    state.clearCnt = iZ
     state.zoneEvtsActive = false
     unschedule()
     stateMigrationChk()
@@ -1882,7 +1884,7 @@ Boolean checkIfCodeUpdated() {
     }
     List cDevs = getEsDevices()
     if(cDevs?.size()) {
-        String ver = (String)cDevs[0]?.devVersion()
+        String ver = (String)cDevs[iZ]?.devVersion()
         if((String)codeVerMap.echoDevice != ver) {
             chgs.push("echoDevice")
             state.pollBlocked = true
@@ -1901,7 +1903,7 @@ Boolean checkIfCodeUpdated() {
     // }
     List cApps = getActionApps()
     if(cApps?.size()) {
-        String ver = (String)cApps[0]?.appVersion()
+        String ver = (String)cApps[iZ]?.appVersion()
         if((String)codeVerMap.actionApp != ver) {
             chgs.push("actionApp")
             state.pollBlocked = true
@@ -1911,7 +1913,7 @@ Boolean checkIfCodeUpdated() {
     }
     List zApps = getZoneApps()
     if(zApps?.size()) {
-        String ver; ver = (String)zApps[0]?.appVersion()
+        String ver; ver = (String)zApps[iZ]?.appVersion()
         if((String)codeVerMap.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
@@ -2046,7 +2048,7 @@ def storeCookieData() {
             String myId=app.getId()
             cookieDataFLD[myId] = cookieItems
             cookieDataFLD = cookieDataFLD
-            state.clearCnt = 0
+            state.clearCnt = iZ
         }
 
         updServerItem("isLocal", (data.isLocal == true))
@@ -2076,8 +2078,8 @@ def storeCookieData() {
 def clearCookieD() {
 // deal with temporary problems
     Integer a; a = (Integer)state.clearCnt
-    a = a!= null ? a : 0
-    a = a+1
+    a = a!= null ? a : iZ
+    a = a+i1
     state.clearCnt = a
     if(a > 5) clearCookieData('webCall', false)
     else logTrace("skipping server call to clearCookieData()")
@@ -2094,7 +2096,7 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     String myId=app.getId()
     cookieDataFLD[myId] = [:]
     cookieDataFLD = cookieDataFLD
-    state.clearCnt = 0
+    state.clearCnt = iZ
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
 //    unschedule("getOtherData")
@@ -2198,7 +2200,7 @@ void clearServerAuth() {
         // log.debug "resp: ${resp.status} | data: ${resp?.data}"
         if(resp?.status != 200) logWarn("clearServerAuth: ${resp?.status} $params")
         if (resp?.status == 200) {
-            logInfo("Clear Server Auth Completed... | Process Time: (${execDt ? (wnow()-execDt) : 0}ms)")
+            logInfo("Clear Server Auth Completed... | Process Time: (${execDt ? (wnow()-execDt) : iZ}ms)")
         }
     }
 }
@@ -2231,7 +2233,7 @@ def wakeupServerResp(response, data) {
         if(response?.status == 200) {
             updTsVal("lastServerWakeDt")
             if (rData && rData == "OK") {
-                logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : 0}ms) | Source: (${data?.wakesrc}) ${data}")
+                logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : iZ}ms) | Source: (${data?.wakesrc}) ${data}")
                 if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
                 if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
             } else {
@@ -2270,11 +2272,11 @@ def cookieRefreshResp(response, data) {
             Map rData = response?.data ? parseJson(response?.data?.toString()) : null
             // log.debug "rData: $rData"
             if (rData && rData?.result && rData?.result?.size()) {
-                logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : 0}ms)")
+                logInfo("Amazon Cookie Refresh Completed | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : iZ}ms)")
                 cMsg = "Amazon Cookie was Refreshed Successfully!!!"
                 // log.debug "refreshAlexaCookie Response: ${rData?.result}"
             } else {
-                logWarn("Amazon Cookie Refresh Completed with NO DATA ${rData} | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : 0}ms)")
+                logWarn("Amazon Cookie Refresh Completed with NO DATA ${rData} | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : iZ}ms)")
                 cMsg = "Amazon Cookie was Completed with NO DATA"
             }
         }
@@ -2308,7 +2310,7 @@ Boolean validateCookie(Boolean frc=false) {
         Map params = [
             uri: getAmazonUrl(),
             path: "/api/bootstrap",
-            query: ["version": 0],
+            query: ["version": iZ],
             headers: getReqHeaderMap(true),
             contentType: sAPPJSON,
             timeout: 20,
@@ -2564,9 +2566,9 @@ public updChildVers() {
     List cApps = getActionApps()
     List zApps = getZoneApps()
     List eDevs = getEsDevices()
-    updCodeVerMap("actionApp", cApps?.size() ? cApps[0]?.appVersion() : null)
-    updCodeVerMap("zoneApp", zApps?.size() ? zApps[0]?.appVersion() : null)
-    updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[0]?.devVersion() : null)
+    updCodeVerMap("actionApp", cApps?.size() ? cApps[iZ]?.appVersion() : null)
+    updCodeVerMap("zoneApp", zApps?.size() ? zApps[iZ]?.appVersion() : null)
+    updCodeVerMap("echoDevice", eDevs?.size() ? eDevs[iZ]?.devVersion() : null)
     String verZD
     zApps.each { if(!verZD) verZD= it?.relayDevVersion() }
     updCodeVerMap('zoneEchoDevice', verZD ?: sNULL)
@@ -3437,7 +3439,7 @@ void receiveEventData(Map evtData, String src) {
                 Map<String, Map> skippedDevices = [:]
                 List unknownDevices = []
                 List curDevFamily = []
-//                Integer cnt = 0
+//                Integer cnt = iZ
                 String devAcctId; devAcctId = sNULL
                 evtData?.echoDevices?.each { String echoKey, echoValue->
                     devAcctId = echoValue?.deviceAccountId
@@ -3505,8 +3507,8 @@ void receiveEventData(Map evtData, String src) {
                     permissions["siriusXm"] = (((Map)evtData.musicProviders).containsKey("SIRIUSXM"))
                     // permissions["tidal"] = true
                     permissions["spotify"] = true //(echoValue?.capabilities.contains("SPOTIFY")) // Temporarily removed restriction check
-                    permissions["isMultiroomDevice"] = (echoValue.clusterMembers && echoValue.clusterMembers?.size() > 0) ?: false
-                    permissions["isMultiroomMember"] = (echoValue.parentClusters && echoValue.parentClusters?.size() > 0) ?: false
+                    permissions["isMultiroomDevice"] = (echoValue.clusterMembers && echoValue.clusterMembers?.size() > iZ) ?: false
+                    permissions["isMultiroomMember"] = (echoValue.parentClusters && echoValue.parentClusters?.size() > iZ) ?: false
                     permissions["alarms"] = (echoValue.capabilities?.contains("TIMERS_AND_ALARMS"))
                     permissions["reminders"] = (echoValue.capabilities?.contains("REMINDERS"))
                     permissions["doNotDisturb"] = (echoValue.capabilities?.contains("SLEEP"))
@@ -3521,7 +3523,7 @@ void receiveEventData(Map evtData, String src) {
                     echoValue["guardStatus"] = ((Boolean)state.alexaGuardSupported && (String)state.alexaGuardState) ? (String)state.alexaGuardState : ((Boolean)permissions.guardSupported ? sUnknown : "Not Supported")
                     echoValue["musicProviders"] = (Map)evtData.musicProviders
                     echoValue["permissionMap"] = permissions
-                    echoValue["hasClusterMembers"] = (echoValue.clusterMembers && echoValue.clusterMembers?.size() > 0) ?: false
+                    echoValue["hasClusterMembers"] = (echoValue.clusterMembers && echoValue.clusterMembers?.size() > iZ) ?: false
 
                     if(deviceStyleData?.n?.toString()?.toLowerCase()?.contains(sUNKNOWN)) {
                         unknownDevices.push([
@@ -3686,8 +3688,8 @@ void removeDevices(Boolean all=false) {
         settingUpdate("cleanUpDevices", sFALSE, sBOOL)
         List<String> devList = getDeviceList(true)?.collect { (String)[app?.id, "echoSpeaks", it?.key].join("|") }
         List<String> items = ((List)app.getChildDevices())?.findResults { (all || (!all && !devList?.contains(it?.deviceNetworkId as String))) ? it?.deviceNetworkId as String : sNULL }
-        logWarn("removeDevices(${all ? "all" : sBLANK}) | In Use: (${all ? 0 : devList.size()}) | Removing: (${items.size()})", true)
-        if(items.size() > 0) {
+        logWarn("removeDevices(${all ? "all" : sBLANK}) | In Use: (${all ? iZ : devList.size()}) | Removing: (${items.size()})", true)
+        if(items.size() > iZ) {
             items.each {  String it -> deleteChildDevice(it) }
         }
     } catch (ex) { logError("Device Removal Failed: ${ex}", false, ex) }
@@ -3700,6 +3702,7 @@ void execAsyncCmd(String method, String callbackHandler, Map params, Map otherDa
     } else { logError("execAsyncCmd Error | Missing a required parameter") }
 }
 
+@SuppressWarnings('GrReassignedInClosureLocalVar')
 void sendAmazonCommand(String method, Map params, Map otherData=null) {
     String meth = "sendAmazonCommand ${method} ${params} ${otherData?.cmdDesc}"
     try {
@@ -3833,7 +3836,7 @@ void sendDevObjCmd(List<Map> odevObj, String myCmd, String title, String imsg, I
 	List<Map> devObj = odevObj.unique() // remove any duplicate devices
     String newmsg; newmsg=imsg
     String origMsg = newmsg
-    if(devObj.size() == 0) {
+    if(devObj.size() == iZ) {
         logWarn("sendDevObjCmd NO DEVICES | cmd: $myCmd | devObj: $devObj | msg: ${newmsg} title: $title | volume: $volume | restoreVolume: $restoreVolume")
         return
     }
@@ -4099,7 +4102,7 @@ void workQ() {
     String k = 'cmdQ'
     List<Map> eData = (List<Map>)memStore[k] ?: []
 
-    Boolean fnd = (eData.size() > 0)
+    Boolean fnd = (eData.size() > iZ)
 
     // if we are not doing anything grab next item off queue and start it;
     if(!active && wnow() > nextOk && fnd) {
@@ -4117,7 +4120,7 @@ void workQ() {
 
         String srcDesc
         Map seqObj; seqObj=null
-        Integer mdelay; mdelay = 0
+        Integer mdelay; mdelay = iZ
 
         // lets try to join commands in single request to Alexa
         while(eData.size()>0){
@@ -4137,8 +4140,8 @@ void workQ() {
                 List<Map> seqCmds = (List<Map>)item.commands
 
                 if(srcDesc == 'ExecuteRoutine'){
-                    if(seqList.size() > 0) break // execute runs by itself
-                    Map seqMap = (Map)seqCmds[0].command // already have a sequence map
+                    if(seqList.size() > iZ) break // execute runs by itself
+                    Map seqMap = (Map)seqCmds[iZ].command // already have a sequence map
                     seqObj = sequenceBuilder(seqMap, null, null)
                     if(oldParallel == null) oldParallel = parallel
                 } else {
@@ -4152,7 +4155,7 @@ void workQ() {
 
                     //log.debug "seqCmds: $seqCmds"
                     seqList = seqList + multiSequenceListBuilder(seqCmds)
-                    if(!parallel) mdelay = 0
+                    if(!parallel) mdelay = iZ
                     seqCmds?.each { cmdItem->
                         //log.debug "cmdItem: $cmdItem"
                         if(cmdItem.command instanceof String){
@@ -4186,7 +4189,7 @@ void workQ() {
                 def value = item.value
 
                 if(command in ['announcement_devices'] ) {
-                    if(seqList.size() > 0) break // this command runs alone so finish off what we are planning to do
+                    if(seqList.size() > iZ) break // this command runs alone so finish off what we are planning to do
                     seqObj = sequenceBuilder(command, value, deviceData)
                 } else {
                     seqList = seqList + [createSequenceNode(command, value, deviceData)]
@@ -4204,7 +4207,7 @@ void workQ() {
             updMemStoreItem(k, eData)
 
             if(t=='nop') {
-                    if(seqList.size() > 0) {
+                    if(seqList.size() > iZ) {
                         lmsg.push("workQ found nop, processing current list")
                         break // finish off what we are planning to do
                     }
@@ -4241,7 +4244,7 @@ void workQ() {
                 extData.extList = extList
 
                 Double ms; ms = ((cmdMap?.msgDelay ?: 0.5D) * 1000.0D)
-                ms = Math.min(240000, Math.max(ms, 0))  // at least 0, max 240 seconds
+                ms = Math.min(240000, Math.max(ms, iZ))  // at least 0, max 240 seconds
                 msSum = parallel ? ms : msSum + ms
                 lmsg.push("workQ ms delay is $msSum".toString())
 
@@ -4250,7 +4253,7 @@ void workQ() {
             }
         }
 
-        if(seqList.size() > 0 || seqObj) {
+        if(seqList.size() > iZ || seqObj) {
 
             Integer mymin = 3000 // min ms between Alexa commands
 
@@ -4298,7 +4301,7 @@ void workQ() {
     mmsg = "workQ active: ${active} work items fnd: ${fnd} now: ${t0} nextOk: ${nextOk}"
     if(!active && fnd) { // if we have more work to do
         t0 = wnow()
-        Long ms = nextOk+200L - t0
+        Long ms; ms = nextOk+200L - t0
         if(ms <= 0L) ms = 4000
         if(t0 < nextOk) { // if we are waiting between commands due to Alexa limits, schedule wakeup to resume
             runInMillis(ms, "workQF")
@@ -4312,7 +4315,7 @@ void workQ() {
 // this does not handle SSML break commands
 // https://developer.amazon.com/en-US/docs/alexa/custom-skills/speech-synthesis-markup-language-ssml-reference.html
 Integer getMsgDur(String command, String type, String tv){
-    Integer del; del = 0
+    Integer del; del = iZ
     if(command in ['announcement_devices', 'announcement', 'announcementall'] || type in ['sendSpeak']) {
         String[] valObj = (tv?.contains("::")) ? tv.split("::") : ["Echo Speaks", tv]
         String nstr; nstr = valObj[1].trim()
@@ -4325,7 +4328,7 @@ Integer getMsgDur(String command, String type, String tv){
         String actMsg = isSSML ?  nstr?.replaceAll(/<[^>]+>/, sBLANK) : cleanString(nstr)
         //nm = actMsg.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         //log.debug "getMsgDur1 $nm"
-        Integer msgLen = actMsg?.length() ?: 0
+        Integer msgLen = actMsg?.length() ?: iZ
         del = calcDelay(msgLen)
         if(devModeFLD) logTrace("getMsgDur res: $del | actMsg: ${actMsg} msgLen: $msgLen origLen: ${tv.length()} isSSML: ${isSSML} ($command, $type, $tv)")
     }
@@ -4470,7 +4473,7 @@ static Map multiSequenceBuilder(List nodeList, Boolean parallel=false) {
     return seqMap
 }
 
-static Integer getStringLen(String str) { return str?.length() ?: 0 }
+static Integer getStringLen(String str) { return str?.length() ?: iZ }
 
 private static List msgSeqBuilder(String istr, Map deviceData, String cmdType) {
     //String nm = istr.toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -5048,7 +5051,7 @@ Boolean getOk2Notify() {
     Boolean smsOk = false
     Boolean pushOk = false
     Boolean pushOver = false
-    Boolean notifDevsOk = (((List)settings.notif_devs)?.size() > 0)
+    Boolean notifDevsOk = (((List)settings.notif_devs)?.size() > iZ)
     Boolean alexaMsg = ((Boolean)settings.notif_alexa_mobile)
     Boolean daysOk = (List)settings.notif_days ? (isDayOfWeek((List)settings.notif_days)) : true
     Boolean timeOk = notifTimeOk()
@@ -5222,12 +5225,12 @@ Integer getDaysSinceUpdated() {
     updDt = updDt ?: sNULL
     if(updDt == sNULL || updDt == "Not Set") {
         updInstData("updatedDt", getDtNow())
-        return 0
+        return iZ
     } else {
         Date start = Date.parse("E MMM dd HH:mm:ss z yyyy", updDt)
         Date stop = new Date()
         if(start && stop) { return (stop - start) }
-        return 0
+        return iZ
     }
 }
 
@@ -5341,10 +5344,10 @@ private String createMetricsDataJson() {
             if(obj?.errors?.size()) { obj?.errors?.each { String k, v-> deviceErrorMap[k] = (deviceErrorMap[k] ? deviceErrorMap[k] + v : v) } }
         }
         Map actData = [:]
-        Integer actCnt; actCnt = 0
+        Integer actCnt; actCnt = iZ
         getActionApps()?.each { a-> actData[actCnt] = a?.getActionMetrics(); actCnt++ }
         Map zoneData = [:]
-        Integer zoneCnt; zoneCnt = 0
+        Integer zoneCnt; zoneCnt = iZ
         getZoneApps()?.each { a-> zoneData[zoneCnt] = a?.getZoneMetrics(); zoneCnt++ }
         Map dataObj = [
             guid: (String)state.appGuid,
@@ -5363,9 +5366,9 @@ private String createMetricsDataJson() {
             zones: zoneData,
             counts: [
                 deviceStyleCnts: (Map)state.deviceStyleCnts ?: [:],
-                appHeartbeatCnt: state.appHeartbeatCnt ?: 0,
-                getCookieCnt: state.getCookieCnt ?: 0,
-                appErrorCnt: state.appErrorCnt ?: 0,
+                appHeartbeatCnt: state.appHeartbeatCnt ?: iZ,
+                getCookieCnt: state.getCookieCnt ?: iZ,
+                appErrorCnt: state.appErrorCnt ?: iZ,
                 deviceErrors: deviceErrorMap ?: [:],
                 deviceUsage: deviceUsageMap ?: [:]
             ]
@@ -5399,7 +5402,7 @@ static Boolean codeUpdIsAvail(String newVer, String curVer, String type) {
         if(newVer != curVer) {
             latestVer = versions?.max { a, b ->
                 List verA = a?.tokenize('.'); List verB = b?.tokenize('.'); Integer commonIndices = Math.min(verA?.size(), verB?.size())
-                for (Integer i = 0; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() } }
+                for (Integer i = iZ; i < commonIndices; ++i) { if(verA[i]?.toInteger() != verB[i]?.toInteger()) { return verA[i]?.toInteger() <=> verB[i]?.toInteger() } }
                 verA?.size() <=> verB?.size()
             }
             result = (latestVer == newVer)
@@ -5601,7 +5604,7 @@ private getDiagDataJson(Boolean asString = false) {
                         createOtherDevices: (Boolean)settings.createOtherDevices,
                         createTablets: (Boolean)settings.createTablets,
                         createWHA: (Boolean)settings.createWHA,
-                        echoDeviceFilters: settings?.echoDeviceFilter?.size() ?: 0
+                        echoDeviceFilters: settings?.echoDeviceFilter?.size() ?: iZ
                     ]
                 ],
                 stateUsage: "${stateSizePerc()}%",
@@ -5610,19 +5613,19 @@ private getDiagDataJson(Boolean asString = false) {
             ],
             actions: [
                 version: state.codeVersions?.actionApp ?: null,
-                count: actApps?.size() ?: 0,
+                count: actApps?.size() ?: iZ,
                 warnings: actWarnings ?: [],
                 errors: actErrors ?: []
             ],
             zones: [
                 version: state.codeVersions?.zoneApp ?: null,
-                count: zoneApps?.size() ?: 0,
+                count: zoneApps?.size() ?: iZ,
                 warnings: zoneWarnings ?: [],
                 errors: zoneErrors ?: []
             ],
             devices: [
                 version: state.codeVersions?.echoDevice ?: null,
-                count: echoDevs?.size() + zoneDevs.size() ?: 0,
+                count: echoDevs?.size() + zoneDevs.size() ?: iZ,
                 lastDataUpdDt: getTsVal("lastDevDataUpdDt"),
                 models: (Map)state.deviceStyleCnts ?: [:],
                 zoneDevs: zoneDevs,
@@ -5911,10 +5914,10 @@ static String seconds2Duration(Integer itimeSec, Boolean postfix=true, Integer t
     Integer seconds = Integer.parseInt((timeSec % 60) as String, 10)
     Map<String,Integer> d = [y: years, mn: months, d: days, h: hours, m: minutes, s: seconds]
     List<String> l = []
-    if(d.d > 0) { l.push("${d.d} ${pluralize(d.d, "day")}") }
-    if(d.h > 0) { l.push("${d.h} ${pluralize(d.h, "hour")}") }
-    if(d.m > 0) { l.push("${d.m} ${pluralize(d.m, "min")}") }
-    if(d.s > 0) { l.push("${d.s} ${pluralize(d.s, "sec")}") }
+    if(d.d > iZ) { l.push("${d.d} ${pluralize(d.d, "day")}") }
+    if(d.h > iZ) { l.push("${d.h} ${pluralize(d.h, "hour")}") }
+    if(d.m > iZ) { l.push("${d.m} ${pluralize(d.m, "min")}") }
+    if(d.s > iZ) { l.push("${d.s} ${pluralize(d.s, "sec")}") }
     return l.size() ? "${l.take(tk ?: 2)?.join(", ")}${postfix ? " ago" : sBLANK}".toString() : "Not Sure"
 }
 
@@ -6250,7 +6253,7 @@ String getZoneDesc() {
 }
 
 static String getInputToStringDesc(List inpt, Boolean addSpace=false) {
-    Integer cnt; cnt = 0
+    Integer cnt; cnt = iZ
     String str; str = sBLANK
     if(inpt) {
         inpt.sort().each { item ->
@@ -7090,7 +7093,7 @@ Boolean isSensorPresent(List sensors) {
 } */
 
 Boolean isSomebodyHome(List sensors) {
-    if(sensors) { return (sensors.findAll { it?.currentValue("presence") == "present" }.size() > 0) }
+    if(sensors) { return (sensors.findAll { it?.currentValue("presence") == "present" }.size() > iZ) }
     return false
 }
 
@@ -7282,9 +7285,9 @@ static void mb(String meth=sNULL){
 @Field static Semaphore histMapLockFLD = new Semaphore(1)
 
 private Integer getSemaNum(String name) {
-    if(name == sHMLF) return 0
+    if(name == sHMLF) return iZ
     log.warn "unrecognized lock name..."
-    return 0
+    return iZ
     // Integer stripes=22
     // if(name.isNumber()) return name.toInteger()%stripes
     // Integer hash=smear(name.hashCode())
@@ -7294,7 +7297,7 @@ private Integer getSemaNum(String name) {
 
 Semaphore getSema(Integer snum) {
     switch(snum) {
-        case 0: return histMapLockFLD
+        case iZ: return histMapLockFLD
         default: log.error "bad hash result $snum"
             return null
     }
