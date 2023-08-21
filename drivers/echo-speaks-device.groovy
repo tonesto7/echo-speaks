@@ -25,8 +25,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.2.2.0'
-@Field static final String devModifiedFLD = '2022-12-22'
+@Field static final String devVersionFLD  = '4.2.3.0'
+@Field static final String devModifiedFLD = '2023-08-21'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -615,7 +615,7 @@ void refreshData(Boolean full=false) {
     // logTrace("permissions: ${state.permissions}")
     if((Boolean)state.permissions?.mediaPlayer && (full || mfull || !wsActive)) {
         getPlaybackState()
-        if(!isWHA) { getPlaylists() }
+        // if(!isWHA) { getPlaylists() }
     }
     if(!isWHA) {
         if (full || mfull) {
