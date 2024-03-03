@@ -2777,15 +2777,15 @@ Map getDeviceActivity(String serialNum, Boolean frc=false) {
                     contentType: sAPPJSON,
                     timeout: 20
             ]
-            logTrace("getDeviceActivity($serialNum, $frc)")
+            //logTrace("getDeviceActivity($serialNum, $frc)")
 
-            if(!serialNum) execAsyncCmd("get", "getLastActResp", params, [dt:execDt])
-            else {
+            //if(!serialNum) execAsyncCmd("get", "getLastActResp", params, [dt:execDt])
+            /*else {
                 httpGet(params) { response ->
                     getLastActResp(response, [dt: execDt])
                 }
-            }
-        } else if (!serialNum) runIn(3, "getDeviceActivityRunIn")
+            }*/
+        }// else if (!serialNum) runIn(3, "getDeviceActivityRunIn")
         if(serialNum) {
             String appId=app.getId()
             Map lastActData; lastActData = devActivityMapFLD[appId]
@@ -7445,6 +7445,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "ADVBD696BHNV5"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen1)" ],
         "A1P7E7V3FCZKU6" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
         "A3EVMLQTU6WL1W" : [ c: [ "a", "t" ], i: "unknown", n: "Fire TV (GenX)" ],
+        "A1WZKXFLI43K86" : [ c: [ "a", "t" ], i: "unknown", n: "Fire TV Stick MAX" ],
+        "A31DTMEEVDDOIV" : [ c: [ "a", "t" ], i: "unknown", n: "Fire TV Stick Lite" ],
         
         // Amazon Tablets
         "A1Q7QCGNMXAKYW" : [ c: [ "t", "a" ], i: "amazon_tablet", n: "Generic Tablet" ],
@@ -7457,6 +7459,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AVU7CPPF2ZRAS"  : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
         "A38EHHIB10L47V" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 8" ],
         "A3R9S4ZZECZ6YL" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 10" ],
+        "A2V9UEGZ82H4KZ" : [ c: [ "a", "t" ], i: "tablet_hd10", n: "Fire Tablet HD 10" ],
 
         // Amazon Echo's
         "AB72C64C86AW2"  : [ c: [ "a", "t" ], i: "echo_gen1", n: "Echo (Gen1)" ],
@@ -7492,7 +7495,8 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
         "A1EIANJ7PNB0Q7" : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen1)" ],
         "A11QM4H9HGV71H" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen3)" ],
-        
+        "A2UONLFQW0PADH" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 8 (Gen3)" ],
+
         // Amazon Echo Auto's
         "A303PJF6ISQ7IC" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
         "A195TXHV1M5D4A" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
@@ -7550,8 +7554,6 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "ATH4K2BAIXVHQ"  : [ ig: true ],
         "A1WAR447VT003J" : [ ig: true ],
         
-        "A324YMIUSWQDGE" : [ ig: true, i: "unknown", n: "Samsung 8K TV" ],
-        "A18X8OBWBCSLD8" : [ ig: true, i: "unknown", n: "Samsung Soundbar" ],
         "A1GA2W150VBSDI" : [ ig: true, i: "unknown", n: "Sony On-Hear Headphones" ],
         "A2S24G29BFP88"  : [ ig: true, i: "unknown", n: "Ford/Lincoln Alexa App" ],
         "A1NAFO69AAQ16Bk": [ ig: true, i: "unknown", n: "Wyze Band" ],
@@ -7608,6 +7610,19 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AQCGW9PSYWRF" : [ c: [ "a", "t" ], i: "unknown", n: "TV" ],
         "A2TTLILJHVNI9X" : [ c: [ "a", "t" ], i: "unknown", n: "LG TV" ],
         "A13B2WB920IZ7X" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung HW-Q70T Soundbar" ],
+        "A2IS7199CJBT71" : [ c: [ "a", "t" ], i: "unknown", n: "TV" ],
+        "A3RCTOK2V0A4ZG" : [ c: [ "a", "t" ], i: "unknown", n: "LG TV" ],
+        "A3QS1XP2U6UJX9" : [ c: [ "a", "t" ], i: "unknown", n: "SONY WF-1000XM4" ],
+        "A2A3XFQ1AVYLHZ" : [ c: [ "a", "t" ], i: "unknown", n: "SONY WF-1000XM5" ],
+        "AMCZ48H33RCDF" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung HW-Q910B 9.1.2 ch Soundbar" ],
+        "A3GFRGUNIGG1I5" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung TV QN50Q60CAGXZD" ],
+        "A1LOQ8ZHF4G510" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung Soundbar Q990B" ],
+        "A132LT22WVG6X5" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung Soundbar Q700A" ],
+        "A1MUORL8FP149X" : [ c: [ "a", "t" ], i: "unknown", n: "Unknown" ],
+        "A1ENT81UXFMNNO" : [ c: [ "a", "t" ], i: "unknown", n: "Unknown" ],
+        "A324YMIUSWQDGE" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung 8K TV" ],
+        "A18X8OBWBCSLD8" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung Soundbar" ],
+        "A2I0SCCU3561Y8" : [ c: [ "a", "t" ], i: "unknown", n: "Samsung Soundbar Q800A" ],
 
         
         // Blocked Devices
