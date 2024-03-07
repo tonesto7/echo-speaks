@@ -2,7 +2,7 @@
 /**
  *  Echo Speaks Actions (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024  Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
