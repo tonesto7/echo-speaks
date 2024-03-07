@@ -1,7 +1,8 @@
+/* groovylint-disable CompileStatic, MethodCount, MethodSize, UnnecessaryGetter */
 /**
  *	Echo Speaks Device (Hubitat ONLY)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -25,8 +26,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.2.3.0'
-@Field static final String devModifiedFLD = '2023-08-21'
+@Field static final String devVersionFLD  = '4.2.4.0'
+@Field static final String devModifiedFLD = '2024-03-07'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '

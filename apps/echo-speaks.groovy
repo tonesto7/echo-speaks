@@ -1,7 +1,8 @@
+/* groovylint-disable CompileStatic, MethodCount, MethodSize, UnnecessaryGetter */
 /**
  *  Echo Speaks App (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -31,12 +32,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.3.0'
-@Field static final String appModifiedFLD = '2023-08-21'
+@Field static final String appVersionFLD  = '4.2.4.0'
+@Field static final String appModifiedFLD = '2024-03-07'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4230, actionApp: 4230, zoneApp: 4230, zoneEchoDevice: 4230, server: 270]  //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4240, actionApp: 4240, zoneApp: 4240, zoneEchoDevice: 4240, server: 270] //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''

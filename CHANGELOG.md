@@ -1,3 +1,10 @@
+### _**Release (v4.2.4.0) - [March 7th, 2024]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Removed getDeviceActivity errors @nh_shotfam.
+- [NEW] Added support for newer devices.
+
 ### _**Release (v4.2.3.0) - [August 21st, 2023]**_
 
 #### _***All Apps and Devices***_
