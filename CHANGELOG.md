@@ -4,6 +4,7 @@
 
 - [FIX] Removed getDeviceActivity errors @nh_shotfam.
 - [NEW] Added support for newer devices.
+- [FIX] Added this placeholder for testing
 
 ### _**Release (v4.2.3.0) - [August 21st, 2023]**_
 
