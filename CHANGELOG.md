@@ -1,3 +1,18 @@
+### _**Release (v4.2.4.0) - [March 7th, 2024]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Removed getDeviceActivity errors @nh_shotfam.
+- [NEW] Added support for newer devices.
+
+### _**Release (v4.2.3.0) - [August 21st, 2023]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Fixes submitted by @nh_shotfam.
+- [FIX] Fixed some ui issues with the Actions app.
+- [FIX] Disabled the GetPlaylists command for now as it's not working.
+
 ### _**Release (v4.2.2.0) - [December 22nd, 2022]**_
 
 #### _***All Apps and Devices***_

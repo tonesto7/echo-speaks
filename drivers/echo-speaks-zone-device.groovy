@@ -1,7 +1,8 @@
+/* groovylint-disable CompileStatic, MethodCount, MethodSize, UnnecessaryGetter */
 /**
- *	Echo Speaks Zone Device (Hubitat ONLY)
+ *    Echo Speaks Zone Device (Hubitat ONLY)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023 Anthony Santilli
+ *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -25,8 +26,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.2.2.0'
-@Field static final String devModifiedFLD = '2022-12-22'
+@Field static final String devVersionFLD  = '4.2.4.0'
+@Field static final String devModifiedFLD = '2024-03-07'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -97,7 +98,7 @@ metadata {
         attribute "volume", "number"
         attribute "wakeWords", "enum"
         attribute "wasLastSpokenToDevice", "string"
-	    
+        
         attribute "audioTrackData", "JSON_OBJECT" // To support SharpTools.io Album Art feature
 
         command "replayText"
@@ -258,7 +259,7 @@ String getEchoAccountId() { return (String)state.deviceAccountId ?: sNULL }
 
 Map getEchoDevInfo(String cmd, Boolean ignoreDoNotDisturb=false) {
     if(isCommandTypeAllowed(cmd, false, ignoreDoNotDisturb)) {
-	    return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
+        return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
     }
    return null
 }
@@ -615,7 +616,7 @@ void refreshData(Boolean full=false) {
     // logTrace("permissions: ${state.permissions}")
     if((Boolean)state.permissions?.mediaPlayer && (full || mfull || !wsActive)) {
         getPlaybackState()
-        if(!isWHA) { getPlaylists() }
+        // if(!isWHA) { getPlaylists() }
     }
     if(!isWHA) {
         if (full || mfull) {
@@ -1195,7 +1196,7 @@ private String sendAmazonCommand(String method, Map params, Map otherData=null) 
 private Map getDeviceData(){
     return [deviceType: getEchoDeviceType(), serialNumber: getEchoSerial(), owner: getEchoOwner(), account: getEchoAccountId(), dni: device.deviceNetworkId]
 //Map getEchoDevInfo(cmd) {
-//	return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
+//    return [deviceTypeId: getEchoDeviceType(), deviceSerialNumber: getEchoSerial(), deviceOwnerCustomerId: getEchoOwner(), deviceAccountId: getEchoAccountId(), dni: device.deviceNetworkId ]
 }
 
 private void sendSequenceCommand(String type, String command, value=null, String callback=sNULL) {
