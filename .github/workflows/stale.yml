@@ -2,7 +2,8 @@ name: Mark stale issues and pull requests
 
 on:
   schedule:
-  - cron: "0 8 * * *"
+    - cron: "0 8 * * *"
+  workflow_dispatch:
 
 jobs:
   stale:
@@ -10,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/stale@v1
+    - uses: actions/stale@v8
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         stale-issue-message: 'This issue has been marked stale automatically after no activity for the last 180 days.'
@@ -21,5 +22,6 @@ jobs:
         close-pr-message: 'This PR has been closed automatically after 187 days of no activity.'
         days-before-stale: 180
         days-before-close: 7
-        close-issue-label: 'Stale Issue'
-        exempt-issue-labels: 'Never Stale'
+        close-issue-label: 'closed-due-to-age'
+        close-pr-label: 'closed-due-to-age'
+        exempt-issue-labels: 'Never Stale, Keep Open'
