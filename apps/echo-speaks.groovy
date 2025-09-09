@@ -1424,7 +1424,7 @@ void appCleanup() {
     List items = [
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData", "codeVersion",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize", "lastMsg", "websocketActive"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "lastMsg", "websocketActive"
     ]
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 
@@ -1883,7 +1883,6 @@ def storeCookieData() {
         logInfo("Cookie data was updated | Reinitializing App... | in 10 seconds...")
         state.serviceConfigured = true
         updTsVal("lastCookieRrshDt")
-        checkGuardSupport()
         runIn(10, "initialize", [overwrite: true])
     } else {
         logWarn("Cookie data was updated but found invalid...")
@@ -2056,7 +2055,6 @@ def wakeupServerResp(response, data) {
             if (rData && rData == "OK") {
                 logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : iZ}ms) | Source: (${data?.wakesrc}) ${data}")
                 if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
-                if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
             } else {
                 logWarn("wakeupServerResp: noData ${rData} ${data}")
             }
@@ -3127,7 +3125,7 @@ void receiveEventData(Map evtData, String src) {
                     permissions["followUpMode"] = (echoValue.capabilities?.contains("GOLDFISH"))
                     permissions["connectedHome"] = (echoValue.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue.capabilities?.contains("PAIR_BT_SOURCE") || echoValue.capabilities?.contains("PAIR_BT_SINK"))
-                    permissions["guardSupported"] = (echoValue.capabilities?.contains("TUPLE"))
+                    // permissions["guardSupported"] = (echoValue.capabilities?.contains("TUPLE"))
                     permissions["isEchoDevice"] = (echoValue.deviceFamily in (List)deviceSupportMapFLD.families.echo)
                     echoValue["musicProviders"] = (Map)evtData.musicProviders
                     echoValue["permissionMap"] = permissions
@@ -4419,8 +4417,6 @@ void healthCheck() {
     Boolean a=validateCookie()
     if(getLastTsValSecs("lastCookieRrshDt") > cookieRefreshSeconds()) {
         runCookieRefresh()
-    } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
-        checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
     if(!(Boolean)state.noAuthActive) runIn(2, "getOtherData")
@@ -5681,9 +5677,8 @@ void stateMapMigration() {
     //Timestamp State Migrations
     Map tsItems = [
         "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
-        /* "lastCookieRefresh":"lastCookieRrshDt", */ "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
-        "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt", "lastMisPollMsgDt":"lastMissedPollMsgDt",
-        "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
+        /* "lastCookieRefresh":"lastCookieRrshDt", */ "lastVerUpdDt":"lastAppDataUpdDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt",
+        "lastMisPollMsgDt":"lastMissedPollMsgDt", "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
     ]
     tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, (String)state[k]); state.remove(k) } }
 
