@@ -1,3 +1,10 @@
+### _**Release (v4.2.5.0) - [September 8th, 2025]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Added server host override Thanks @jtp10181.
+- [FIX] Added support for 5th gen echo dot and other devices. Thanks @jtp10181.
+
 ### _**Release (v4.2.4.0) - [March 7th, 2024]**_
 
 #### _***All Apps and Devices***_
