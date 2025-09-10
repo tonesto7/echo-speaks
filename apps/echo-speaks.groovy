@@ -1422,6 +1422,7 @@ def uninstalled() {
 void appCleanup() {
     logTrace("appCleanup")
     List items = [
+	"alexaGuardAwayToggle", "alexaGuardData", "alexaGuardDataSrc", "alexaGuardState", "alexaGuardSupported",
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData", "codeVersion",
         "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "lastMsg", "websocketActive"
@@ -1434,8 +1435,12 @@ void appCleanup() {
     state.deviceRefreshInProgress = false
 
     // Settings Cleanup
-    List<String> setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
-    settings?.each { si-> ["music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"].each { String swi-> if(si.key?.startsWith(swi)) { setItems.push(si?.key as String) } } }
+    List<String> setItems = ["performBroadcast", "stHub", "cookieRefreshDays", "alexaGuardAwayToggle"]
+    settings?.each { si->
+	["guard", "music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"].each { String swi ->
+		if(si.key?.startsWith(swi)) { setItems.push(si?.key as String) }
+	}
+    }
     setItems.unique().sort().each { String sI-> if(settings?.containsKey(sI)) { settingRemove(sI) } }
     cleanUpdVerMap()
 }
