@@ -1,9 +1,25 @@
+### _**Release (v4.3.0.1) - [September 10th, 2025]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Fixed 404 errors on devices with getPlaybackState command (Thanks @khan-hubitat).
+- [FIX] Fixed issue with code version checking when devices or apps are disabled in hubitat.
+
+### _**Release (v4.3.0.0) - [September 9th, 2025]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Added server host override Thanks @jtp10181.
+- [FIX] Added support for 5th gen echo dot and other devices. Thanks @jtp10181.
+- [REMOVED] Removed Alexa Guard features as they are no longer supported by Amazon.
+
 ### _**Release (v4.2.4.0) - [March 7th, 2024]**_
 
 #### _***All Apps and Devices***_
 
 - [FIX] Removed getDeviceActivity errors @nh_shotfam.
 - [NEW] Added support for newer devices.
+- [FIX] Added this placeholder for testing
 
 ### _**Release (v4.2.3.0) - [August 21st, 2023]**_
 

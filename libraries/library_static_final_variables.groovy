@@ -35,8 +35,8 @@ library (
 @Field static final String sMODE          = 'mode'
 @Field static final String sAPPJSON       = 'application/json'
 @Field static final String sIN_IGNORE     = 'In Ignore Device Input'
-@Field static final String sARM_AWAY      = 'ARMED_AWAY'
-@Field static final String sARM_STAY      = 'ARMED_STAY'
+// @Field static final String sARM_AWAY      = 'ARMED_AWAY' // DISABLED: Alexa Guard features disabled
+// @Field static final String sARM_STAY      = 'ARMED_STAY' // DISABLED: Alexa Guard features disabled
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sMEDIUM        = 'medium'
 @Field static final String sSMALL         = 'small'

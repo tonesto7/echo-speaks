@@ -2,7 +2,7 @@
 /**
  *  Echo Speaks - Zones (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024 Anthony Santilli
+ *  Copyright 2018-2025 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -29,8 +29,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.4.0'
-@Field static final String appModifiedFLD = '2024-03-07'
+@Field static final String appVersionFLD  = '4.3.0.1'
+@Field static final String appModifiedFLD = '2025-09-10'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -712,9 +712,10 @@ void relayChildInitiatedRefresh() {
      parent.childInitiatedRefresh()
 }
 
-String relayGetAlexaGuardStatus() {
-    parent.getAlexaGuardStatus()
-}
+// DISABLED: Alexa Guard features disabled
+// String relayGetAlexaGuardStatus() {
+//     parent.getAlexaGuardStatus()
+// }
 /*
 Boolean RelayGetDndEnabled(String serial) {
     parent.getDndEnabled(serial)
@@ -2364,7 +2365,7 @@ public Map getSettingsAndStateMap() {
         // actions
         "tierSchedActive",
         // zones
-        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", "handleGuardEvents", "startTime", "stopTime", "alexaGuardState", "appFlagsMap",
+        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", /* "handleGuardEvents", */ "startTime", "stopTime", /* "alexaGuardState", */ "appFlagsMap", // DISABLED: Alexa Guard features disabled
         "dupPendingSetup", "dupOpenedByUser"
     ]
     data.state = state?.findAll { !((String)it?.key in stskip) }

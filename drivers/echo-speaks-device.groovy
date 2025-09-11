@@ -2,7 +2,7 @@
 /**
  *	Echo Speaks Device (Hubitat ONLY)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024 Anthony Santilli
+ *  Copyright 2018-2025 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -26,8 +26,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.2.4.0'
-@Field static final String devModifiedFLD = '2024-03-07'
+@Field static final String devVersionFLD  = '4.3.0.1    '
+@Field static final String devModifiedFLD = '2025-09-10'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -66,7 +66,7 @@ metadata {
         }
         attribute "alarmVolume", "number"
         attribute "alexaPlaylists", "JSON_OBJECT"
-        attribute "alexaGuardStatus", "string"
+        // attribute "alexaGuardStatus", "string" // DISABLED: Alexa Guard features disabled
         attribute "alexaWakeWord", "string"
         attribute "btDeviceConnected", "string"
         attribute "btDevicesPaired", "JSON_OBJECT"
@@ -932,21 +932,22 @@ void getBluetoothDevices() {
     }
 }
 
-void updGuardStatus(String val=sNULL) {
-    //TODO: Update this because it's not working
-    Boolean guardSup = (Boolean)state.permissions?.guardSupported
-    String t0 = guardSup ? (val ?: (!isZone() ? parent?.getAlexaGuardStatus() : parent?.relayGetAlexaGuardStatus() ) ) : "Not Supported"
-    String gState = t0 ?: "Unknown"
-    if(guardSup) {
-        //TODO: Guard is location based ?  ie we may be seeing multiple locations, each with different Guard status?
-        // get something from the parent to check this device or location's guard status
-        // we may really need a new virtual device at each location that is that location's guard status if guard is present at that location
-    }
-    if(isStateChange(device, "alexaGuardStatus", gState)) {
-        sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
-        logDebug("Alexa Guard Status: (${gState})")
-    }
-}
+// DISABLED: Alexa Guard features disabled
+// void updGuardStatus(String val=sNULL) {
+//     //TODO: Update this because it's not working
+//     Boolean guardSup = (Boolean)state.permissions?.guardSupported
+//     String t0 = guardSup ? (val ?: (!isZone() ? parent?.getAlexaGuardStatus() : parent?.relayGetAlexaGuardStatus() ) ) : "Not Supported"
+//     String gState = t0 ?: "Unknown"
+//     if(guardSup) {
+//         //TODO: Guard is location based ?  ie we may be seeing multiple locations, each with different Guard status?
+//         // get something from the parent to check this device or location's guard status
+//         // we may really need a new virtual device at each location that is that location's guard status if guard is present at that location
+//     }
+//     if(isStateChange(device, "alexaGuardStatus", gState)) {
+//         sendEvent(name: "alexaGuardStatus", value: gState, display: false, displayed: false)
+//         logDebug("Alexa Guard Status: (${gState})")
+//     }
+// }
 
 private String getBtAddrByAddrOrName(String btNameOrAddr) {
     Map btObj = state.bluetoothObjs
@@ -1253,6 +1254,8 @@ void respExceptionHandler(ex, String mName, Boolean clearOn401=false, Boolean ig
             logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
         } else if(sCode == 200) {
             if(!errMsg.contains("OK")) { logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}") }
+        } else if(sCode == 404) {
+            // Ignoring 404 Error 
         } else {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }

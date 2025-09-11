@@ -2,7 +2,7 @@
 /**
  *  Echo Speaks Actions (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024  Anthony Santilli
+ *  Copyright 2018-2025 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -33,8 +33,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.4.0'
-@Field static final String appModifiedFLD = '2024-03-07'
+@Field static final String appVersionFLD  = '4.3.0.1'
+@Field static final String appModifiedFLD = '2025-09-10'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -2843,13 +2843,14 @@ def alarmEvtHandler(evt) {
     if(!ok2Run) logDebug("alarmEvtHandler | Skipping event ${eN}  value: ${eV}, did not match ${lT} ${lE}")
 }
 
-public guardEventHandler(String guardState) {
-    Map evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
-    if(isTrc())logTrace("${evt.name} Event | Device: ${evt.displayName} | Value: (${strCapitalize(evt.value)})")
-    Boolean ok= ((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard))
-    eventCompletion(evt, ok, false, null, "guardEventHandler", guardState, (String)evt.displayName)
-    if(!ok) logDebug("guardEventHandler | Skipping event guard  value: ${guardState}, did not match ${state.handleGuardEvents} ${settings.trig_guard}")
-}
+// DISABLED: Alexa Guard features disabled
+// public guardEventHandler(String guardState) {
+//     Map evt = [name: "guard", displayName: "Alexa Guard", value: guardState, date: new Date(), device: [id: null]]
+//     if(isTrc())logTrace("${evt.name} Event | Device: ${evt.displayName} | Value: (${strCapitalize(evt.value)})")
+//     Boolean ok= ((Boolean)state.handleGuardEvents && settings.trig_guard && (sANY in (List)settings.trig_guard || guardState in (List)settings.trig_guard))
+//     eventCompletion(evt, ok, false, null, "guardEventHandler", guardState, (String)evt.displayName)
+//     if(!ok) logDebug("guardEventHandler | Skipping event guard  value: ${guardState}, did not match ${state.handleGuardEvents} ${settings.trig_guard}")
+// }
 
 void eventCompletion(evt, Boolean ok2Run, Boolean dco, Integer dcw, String meth, evtVal,
                      String evtDis, Boolean aftRepEvt=false, Boolean allDevsResp=false) {
@@ -5880,7 +5881,7 @@ public Map getSettingsAndStateMap() {
         // actions
         "tierSchedActive",
         // zones
-        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", "handleGuardEvents", "startTime", "stopTime", "alexaGuardState", "appFlagsMap",
+        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", /* "handleGuardEvents", */ "startTime", "stopTime", /* "alexaGuardState", */ "appFlagsMap", // DISABLED: Alexa Guard features disabled
         "dupPendingSetup", "dupOpenedByUser"
 
     ]

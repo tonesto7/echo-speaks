@@ -2,7 +2,7 @@
 /**
  *  Echo Speaks App (Hubitat)
  *
- *  Copyright 2018, 2019, 2020, 2021, 2022, 2023, 2024 Anthony Santilli
+ *  Copyright 2018-2025 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -32,12 +32,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.2.4.0'
-@Field static final String appModifiedFLD = '2024-03-07'
+@Field static final String appVersionFLD  = '4.3.0.1'
+@Field static final String appModifiedFLD = '2025-09-09'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4240, actionApp: 4240, zoneApp: 4240, zoneEchoDevice: 4240, server: 270] //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4301, actionApp: 4301, zoneApp: 4301, zoneEchoDevice: 4301, server: 270] //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -57,8 +57,6 @@ import java.util.concurrent.Semaphore
 @Field static final String sMODE          = 'mode'
 @Field static final String sAPPJSON       = 'application/json'
 @Field static final String sIN_IGNORE     = 'In Ignore Device Input'
-@Field static final String sARM_AWAY      = 'ARMED_AWAY'
-@Field static final String sARM_STAY      = 'ARMED_STAY'
 @Field static final String sCOMPLT        = 'complete'
 @Field static final String sMEDIUM        = 'medium'
 @Field static final String sSMALL         = 'small'
@@ -104,7 +102,6 @@ import java.util.concurrent.Semaphore
 @Field volatile static Map<String, Map> bluetoothDataFLD      = [:]
 @Field volatile static Map<String, List> alexaRoutinesDataFLD = [:]
 @Field volatile static Map<String, Map> dndDataFLD            = [:]
-@Field volatile static Boolean guardArmPendingFLD             = false
 
 definition(
     name                : "Echo Speaks",
@@ -138,8 +135,6 @@ preferences {
     page(name: "unrecogDevicesPage")
     page(name: "changeLogPage")
     page(name: "notifPrefPage")
-    page(name: "alexaGuardPage")
-    page(name: "alexaGuardAutoPage")
     page(name: "servPrefPage")
     page(name: "musicSearchTestPage")
     page(name: "alexaRoutinesTestPage")
@@ -161,7 +156,7 @@ def startPage() {
     state.isParent = true
     checkVersionData(true)
     state.childInstallOkFlag = false
-    if(!(Boolean)state.resumeConfig && (Boolean)state.isInstalled) { stateMigrationChk(); checkGuardSupport() }
+    if(!(Boolean)state.resumeConfig && (Boolean)state.isInstalled) { stateMigrationChk(); }
     if((Boolean)state.resumeConfig || ((Boolean)state.isInstalled && !(Boolean)state.serviceConfigured)) { return servPrefPage() }
     else if(showChgLogOk()) { return changeLogPage() }
     else if(showDonationOk()) { return donationPage() }
@@ -198,17 +193,6 @@ def mainPage() {
         if(newInstall) {
             deviceDetectOpts()
         } else {
-            section(sectHead("Alexa Guard:")) {
-                if((Boolean) state.alexaGuardSupported) {
-                    String gState = (String) state.alexaGuardState ? ((String) state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : sUnknown
-                    String gStateIcon = gState == sUnknown ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-                    String ad = spanSmBld("Alarm System Mode:", sCLR4D9) + spanSm(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)))
-                    ad += guardAutoConfigured() ? lineBr() + lineBr() + guardAutoDesc() : sBLANK
-                    ad += inputFooter(sTTM)
-                    href "alexaGuardPage", title: inTS1("Alexa Guard Control", gStateIcon), description: ad
-                } else { paragraph divSm("Alexa Guard is not enabled or supported by any of your Echo Devices", sCLRGRY) }
-            }
-
             section(sectHead("Alexa Devices:")) {
                 if(!newInstall) {
                     List remDevs = getRemovableDevs()
@@ -361,6 +345,9 @@ def servPrefPage() {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
                 section(sectHead("Server Management:")) {
                     if(oH && (String)state.herokuName) { paragraph spanSmBldBr("Heroku Name:", sCLR4D9) + spanSm(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
+                    paragraph spanSmBld("Current Server Host:", sCLR4D9) + " " + spanSmBr("${getServerHostURL()}", sCLR4D9)
+                    input "serverHostOverride", "text", title: inTS1("Server Host Override"), required: false, submitOnChange: true
+                    if(serverHostOverride && serverHostOverride ==~ /.*\/$/) { settingUpdate("serverHostOverride", serverHostOverride.substring(0, serverHostOverride.length()-1), "text") }
                     href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
                     if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inactFoot(sTTP)
                     if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inactFoot(sTTP)
@@ -423,154 +410,6 @@ def deviceManagePage() {
     }
 }
 
-def alexaGuardPage() {
-    return dynamicPage(name: "alexaGuardPage", uninstall: false, install: false) {
-        String gState = (String)state.alexaGuardState ? ((String)state.alexaGuardState == sARM_AWAY ? "Away" : "Home") : sUnknown
-        String gStateIcon = gState == sUnknown ? "alarm_disarm" : (gState == "Away" ? "alarm_away" : "alarm_home")
-        String gStateTitle = (gState == sUnknown || gState == "Home") ? "Set Guard to Armed?" : "Set Guard to Home?"
-        section(sectHead("Alexa Guard Control")) {
-            paragraph spanSm("Current Status:", sCLR4D9) + spanSm(" (${gState})", (gState == sUnknown ? sCLRGRY : (gState == "Away" ? sCLRORG : sCLRGRN)))
-            input "alexaGuardAwayToggle", sBOOL, title: inTS1(gStateTitle, gStateIcon), defaultValue: false, submitOnChange: true
-        }
-        if(settings.alexaGuardAwayToggle != state.alexaGuardAwayToggle) {
-            setGuardState(settings.alexaGuardAwayToggle == true ? sARM_AWAY : sARM_STAY)
-        }
-        state.alexaGuardAwayToggle = settings.alexaGuardAwayToggle
-        section(sectHead("Automate Guard Control")) {
-            String t0 = guardAutoDesc()
-            href "alexaGuardAutoPage", title: inTS1("Automate Guard Changes", "alarm_disarm"), description: (t0 ? t0 + inputFooter(sTTM) : spanSm("Automate the control of Alexa using modes, HSM, and more.", sCLRGRY) + inputFooter(sTTC, sCLRGRY, true))
-        }
-    }
-}
-
-def alexaGuardAutoPage() {
-    return dynamicPage(name: "alexaGuardAutoPage", uninstall: false, install: false) {
-        String asn = getAlarmSystemName(true)
-        List amo = getAlarmModes()
-        Boolean alarmReq = (settings.guardAwayAlarm || settings.guardHomeAlarm)
-        Boolean modeReq = (settings.guardAwayModes || settings.guardHomeModes)
-        // Boolean swReq = (settings.guardAwaySw || settings.guardHomeSw)
-        section(sectHead("Set Guard Using ${asn}")) {
-            input "guardHomeAlarm", sENUM, title: inTS1("Home in ${asn} modes.", "alarm_home"), description: inputFooter(sTTS, sCLRGRY, true), options: amo, required: alarmReq, multiple: true, submitOnChange: true
-            input "guardAwayAlarm", sENUM, title: inTS1("Away in ${asn} modes.", "alarm_away"), description: inputFooter(sTTS, sCLRGRY, true), options: amo, required: alarmReq, multiple: true, submitOnChange: true
-        }
-
-        section(sectHead("Set Guard Using Modes")) {
-            input "guardHomeModes", "mode", title: inTS1("Home in these Modes?", "mode"), description: inputFooter(sTTS, sCLRGRY, true), required: modeReq, multiple: true, submitOnChange: true
-            input "guardAwayModes", "mode", title: inTS1("Away in these Modes?", "mode"), description: inputFooter(sTTS, sCLRGRY, true), required: modeReq, multiple: true, submitOnChange: true
-        }
-
-        section(sectHead("Set Guard Using Switches:")) {
-            input "guardHomeSwitch", "capability.switch", title: inTS1("Home when any of these are On?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-            input "guardAwaySwitch", "capability.switch", title: inTS1("Away when any of these are On?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-            input "guardFollowSwitch", "capability.switch", title: inTS1("Follow Switch State (ON = Away | OFF = HOME)?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: false, required: false, submitOnChange: true
-        }
-
-        section(sectHead("Set Guard using Presence")) {
-            input "guardAwayPresence", "capability.presenceSensor", title: inTS1("Away when these devices are All away?", "presence"), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-        }
-        if(guardAutoConfigured()) {
-            section(sectHead("Delay:")) {
-                input "guardAwayDelay", "number", title: inTS1("Delay before arming Away?\n(in seconds)", "delay_time"), description: "Enter number in seconds", required: false, defaultValue: 30, submitOnChange: true
-            }
-        }
-        section(sectHead("Restrict Guard Changes (Optional):")) {
-            input "guardRestrictOnSwitch", "capability.switch", title: inTS1("Only when these are On?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-            input "guardRestrictOffSwitch", "capability.switch", title: inTS1("Only when these are Off?", sSWITCH), description: inputFooter(sTTS, sCLRGRY, true), multiple: true, required: false, submitOnChange: true
-        }
-    }
-}
-
-Boolean guardAutoConfigured() {
-    return ((settings.guardAwayAlarm && settings.guardHomeAlarm) || (settings.guardAwayModes && settings.guardHomeModes) || settings.guardFollowSwitch || (settings.guardAwaySwitch && settings.guardHomeSwitch) || settings.guardAwayPresence)
-}
-
-String guardAutoDesc() {
-    String str; str = sBLANK
-    if(guardAutoConfigured()) {
-        str += spanSmBldBr("Guard Triggers:")
-        str += (settings.guardAwayAlarm && settings.guardHomeAlarm) ? spanSmBr(" ${sBULLET} Using ${getAlarmSystemName()}") : sBLANK
-        str += settings.guardHomeModes ? spanSmBr(" ${sBULLET} Home Modes: (${settings.guardHomeModes?.size()})") : sBLANK
-        str += settings.guardAwayModes ? spanSmBr(" ${sBULLET} Away Modes: (${settings.guardAwayModes?.size()})") : sBLANK
-        str += settings.guardHomeSwitch ? spanSmBr(" ${sBULLET} Home Switches: (${settings.guardHomeSwitch?.size()})") : sBLANK
-        str += settings.guardAwaySwitch ? spanSmBr(" ${sBULLET} Away Switches: (${settings.guardAwaySwitch?.size()})") : sBLANK
-        str += settings.guardFollowSwitch ? spanSmBr(" ${sBULLET} Follow Switch: (${isSwitchOn(settings.guardFollowSwitch) ? "Armed Away" : "Disarmed"})") : sBLANK
-        str += settings.guardAwayPresence ? spanSmBr(" ${sBULLET} Presence Home: (${settings.guardAwayPresence?.size()})") : sBLANK
-    }
-    return str != sBLANK ? divSm(str, sCLR4D9) : sBLANK
-}
-
-@SuppressWarnings('GroovyFallthrough')
-def guardTriggerEvtHandler(evt) {
-    Long evtDelay = wnow() - ((Date)evt.date).getTime()
-    logDebug("${evt.name.toUpperCase()} Event | Device: ${evt?.displayName} | Value: (${strCapitalize((String)evt?.value)}) with a delay of ${evtDelay}ms")
-    if(!guardRestrictOk()) {
-        logDebug("guardTriggerEvtHandler | Skipping Guard Changes because Restriction are Active.")
-        return
-    }
-    String newState = sNULL
-    String curState = (String)state.alexaGuardState ?: sNULL
-    switch((String)evt?.name) {
-        case "mode":
-            Boolean inAwayMode = isInMode((List)settings.guardAwayModes)
-            Boolean inHomeMode = isInMode((List)settings.guardHomeModes)
-            if(inAwayMode && inHomeMode) { logError("Guard Control Trigger can't act because same mode is in both Home and Away input"); return }
-            if(inAwayMode && !inHomeMode) { newState = sARM_AWAY }
-            if(!inAwayMode && inHomeMode) { newState = sARM_STAY }
-            break
-        case "switch":
-            Boolean isFollowSwitch = (settings.guardFollowSwitch && settings.guardFollowSwitch.getId().toInteger() == evt.getDeviceId().toInteger())
-            if(isFollowSwitch) {
-                newState = isSwitchOn(settings.guardFollowSwitch) ? sARM_AWAY : sARM_STAY
-            } else {
-                Boolean inAwaySw = isSwitchOn((List)settings.guardAwaySwitch)
-                Boolean inHomeSw = isSwitchOn((List)settings.guardHomeSwitch)
-                if(inAwaySw && inHomeSw) { logError("Guard Control Trigger can't act because both switch groups are in both Home and Away input"); return }
-                if(inAwaySw && !inHomeSw) { newState = sARM_AWAY }
-                if(!inAwaySw && inHomeSw) { newState = sARM_STAY }
-            }
-            break
-        case "presence":
-            newState = isSomebodyHome((List)settings.guardAwayPresence) ? sARM_STAY : sARM_AWAY
-            break
-        case "alarmSystemStatus":
-        case "hsmStatus":
-            Boolean inAlarmHome = isInAlarmMode((List)settings.guardHomeAlarm)
-            Boolean inAlarmAway = isInAlarmMode((List)settings.guardAwayAlarm)
-            if(inAlarmAway && !inAlarmHome) { newState = sARM_AWAY }
-            if(!inAlarmAway && inAlarmHome) { newState = sARM_STAY }
-            break
-    }
-    if(guardArmPendingFLD && curState == sARM_STAY) {
-        unschedule("setGuardAway")
-        logInfo("New Guard State is Now STAY... Scheduled Arming Has Been Cancelled...")
-        guardArmPendingFLD = false
-        return
-    }
-    if(curState == newState) { logInfo("Skipping Guard Change... New Guard State is the same as current state: ($curState)") }
-    if(newState && curState != newState) {
-        if (newState == sARM_STAY) {
-            unschedule("setGuardAway")
-            logInfo("Setting Alexa Guard Mode to Home...")
-            setGuardHome()
-        }
-        if(newState == sARM_AWAY) {
-            if(settings.guardAwayDelay) {
-                guardArmPendingFLD = true
-                logWarn("Setting Alexa Guard Mode to Away in (${settings.guardAwayDelay} seconds)", true)
-                runIn(settings.guardAwayDelay, "setGuardAway")
-                
-            }
-            else { setGuardAway(); logWarn("Setting Alexa Guard Mode to Away...", true) }
-        }
-    }
-}
-
-Boolean guardRestrictOk() {
-    Boolean onSwOk = settings.guardRestrictOnSwitch ? isSwitchOn((List)settings.guardRestrictOnSwitch) : true
-    Boolean offSwOk = settings.guardRestrictOffSwitch ? !isSwitchOn((List)settings.guardRestrictOffSwitch) : true
-    return (onSwOk && offSwOk)
-}
 
 def actionsPage() {
     return dynamicPage(name: "actionsPage", nextPage: "mainPage", uninstall: false, install: false) {
@@ -1451,12 +1290,6 @@ private getChildDeviceBySerial(String serial) {
     def a = childDevs?.find { it?.deviceNetworkId?.tokenize("|")?.contains(serial) }
     return a ?: null
 }
-/*
-public getChildDeviceByCap(String cap) {
-    List childDevs = app?.getChildDevices()
-    def a= childDevs?.find { it?.currentValue("permissions") && it?.currentValue("permissions")?.toString()?.contains(cap) }
-    return a ?: null
-}*/
 
 public List getDevicesFromList(List ids) {
     List cDevs = app?.getChildDevices()
@@ -1518,22 +1351,7 @@ def initialize() {
     //if(app?.getLabel() != "Echo Speaks") { app?.updateLabel("Echo Speaks") }
     if((Boolean)settings.optOutMetrics && (String)state.appGuid) { if(removeInstallData()) { state.appGuid = sNULL; state.remove('appGuid') } }
     subscribe(location, "systemStart", startHandler)
-    if(guardAutoConfigured()) {
-        if(settings.guardAwayAlarm && settings.guardHomeAlarm) {
-            subscribe(location, "hsmStatus", guardTriggerEvtHandler)
-        }
-        if(settings.guardAwayModes && settings.guardHomeModes) {
-            subscribe(location, "mode", guardTriggerEvtHandler)
-        }
-        if(settings.guardFollowSwitch || (settings.guardAwaySwitch && settings.guardHomeSwitch)) {
-            if(settings.guardFollowSwitch) subscribe(settings.guardFollowSwitch, sSWITCH, guardTriggerEvtHandler)
-            if(settings.guardHomeSwitch) subscribe(settings.guardHomeSwitch, sSWITCH, guardTriggerEvtHandler)
-            if(settings.guardAwaySwitch) subscribe(settings.guardAwaySwitch, sSWITCH, guardTriggerEvtHandler)
-        }
-        if(settings.guardAwayPresence) {
-            subscribe(settings.guardAwayPresence, "presence", guardTriggerEvtHandler)
-        }
-    }
+
     if(!(Boolean)state.resumeConfig) {
         updChildVers()
         updateZoneSubscriptions()
@@ -1604,9 +1422,10 @@ def uninstalled() {
 void appCleanup() {
     logTrace("appCleanup")
     List items = [
+	"alexaGuardAwayToggle", "alexaGuardData", "alexaGuardDataSrc", "alexaGuardState", "alexaGuardSupported",
         "availableDevices", "consecutiveCmdCnt", "isRateLimiting", "versionData", "heartbeatScheduled", "serviceAuthenticated", "cookie", "misPollNotifyWaitVal", "misPollNotifyMsgWaitVal",
         "updNotifyWaitVal", "lastDevActivity", "devSupMap", "tempDevSupData", "devTypeIgnoreData", "codeVersion",
-        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "guardData", "guardDataSrc", "guardDataOverMaxSize", "lastMsg", "websocketActive"
+        "warnHistory", "errorHistory", "bluetoothData", "dndData", "zoneStatusMap", "lastMsg", "websocketActive"
     ]
     items.each { String si-> if(state.containsKey(si)) { state.remove(si)} }
 
@@ -1616,8 +1435,12 @@ void appCleanup() {
     state.deviceRefreshInProgress = false
 
     // Settings Cleanup
-    List<String> setItems = ["performBroadcast", "stHub", "cookieRefreshDays"]
-    settings?.each { si-> ["music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"].each { String swi-> if(si.key?.startsWith(swi)) { setItems.push(si?.key as String) } } }
+    List<String> setItems = ["performBroadcast", "stHub", "cookieRefreshDays", "alexaGuardAwayToggle"]
+    settings?.each { si->
+	["guard", "music", "tunein", "announce", "perform", "broadcast", "sequence", "speech", "test_"].each { String swi ->
+		if(si.key?.startsWith(swi)) { setItems.push(si?.key as String) }
+	}
+    }
     setItems.unique().sort().each { String sI-> if(settings?.containsKey(sI)) { settingRemove(sI) } }
     cleanUpdVerMap()
 }
@@ -1885,8 +1708,15 @@ Boolean checkIfCodeUpdated() {
     }
     List cDevs = getEsDevices()
     if(cDevs?.size()) {
-        String ver = (String)cDevs[iZ]?.devVersion()
-        if((String)codeVerMap.echoDevice != ver) {
+        String ver = null
+        // Iterate through devices until we find one that returns a version (In case the device is disabled in hubitat)
+        for(dev in cDevs) {
+            if(dev) {
+                ver = (String)dev?.devVersion()
+                if(ver) break
+            }
+        }
+        if(ver && (String)codeVerMap.echoDevice != ver) {
             chgs.push("echoDevice")
             state.pollBlocked = true
             updCodeVerMap("echoDevice", ver)
@@ -1904,8 +1734,15 @@ Boolean checkIfCodeUpdated() {
     // }
     List cApps = getActionApps()
     if(cApps?.size()) {
-        String ver = (String)cApps[iZ]?.appVersion()
-        if((String)codeVerMap.actionApp != ver) {
+        String ver = null
+        // Iterate through apps until we find one that returns a version (In case the app is disabled in hubitat)
+        for(app in cApps) {
+            if(app) {
+                ver = (String)app?.appVersion()
+                if(ver) break
+            }
+        }
+        if(ver && (String)codeVerMap.actionApp != ver) {
             chgs.push("actionApp")
             state.pollBlocked = true
             updCodeVerMap("actionApp", ver)
@@ -1914,8 +1751,15 @@ Boolean checkIfCodeUpdated() {
     }
     List zApps = getZoneApps()
     if(zApps?.size()) {
-        String ver; ver = (String)zApps[iZ]?.appVersion()
-        if((String)codeVerMap.zoneApp != ver) {
+        String ver = null
+        // Iterate through apps until we find one that returns a version (In case the app is disabled in hubitat)
+        for(app in zApps) {
+            if(app) {
+                ver = (String)app?.appVersion()
+                if(ver) break
+            }
+        }
+        if(ver && (String)codeVerMap.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
             // log.debug "zoneVer: ver"
@@ -1923,7 +1767,12 @@ Boolean checkIfCodeUpdated() {
             codeUpdated = true
         }
         ver = sNULL
-        zApps.each { if(!ver) ver = it?.relayDevVersion() }
+        for(app in zApps) {
+            if(app) {
+                ver = (String)app?.relayDevVersion()
+                if(ver) break
+            }
+        }
         if(ver && (String)codeVerMap.zoneEchoDevice != ver) {
             chgs.push("zoneEchoDevice")
             state.pollBlocked = true
@@ -2065,7 +1914,6 @@ def storeCookieData() {
         logInfo("Cookie data was updated | Reinitializing App... | in 10 seconds...")
         state.serviceConfigured = true
         updTsVal("lastCookieRrshDt")
-        checkGuardSupport()
         runIn(10, "initialize", [overwrite: true])
     } else {
         logWarn("Cookie data was updated but found invalid...")
@@ -2188,7 +2036,9 @@ static String toQueryString(Map m) {
 
 String getServerHostURL() {
     String srvHost = (String)getServerItem("serverHost")
-    return ((Boolean)getServerItem("isLocal") && srvHost) ? (srvHost ?: sNULL) : "https://${getRandAppName()}.herokuapp.com".toString()
+    String srvHostOr = (serverHostOverride && serverHostOverride ==~ /.*\/$/) ? serverHostOverride.substring(0, serverHostOverride.length()-1): serverHostOverride
+    String rtnHost = ((Boolean)getServerItem("isLocal") && srvHost) ? (srvHost ?: sNULL) : "https://${getRandAppName()}.herokuapp.com".toString()
+    return (srvHostOr) ?: rtnHost
 }
 
 Integer cookieRefreshSeconds() { return ((Integer)settings.refreshCookieDays ?: 5)*86400 as Integer }
@@ -2236,7 +2086,6 @@ def wakeupServerResp(response, data) {
             if (rData && rData == "OK") {
                 logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : iZ}ms) | Source: (${data?.wakesrc}) ${data}")
                 if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
-                if(data?.updateGuard == true) { runIn(2, "checkGuardSupportFromServer") }
             } else {
                 logWarn("wakeupServerResp: noData ${rData} ${data}")
             }
@@ -3014,180 +2863,6 @@ Boolean executeRoutineById(String routineId) {
     }
 }
 
-void checkGuardSupport() {
-//    Long execDt = wnow()
-    Integer lastUpdSec = getLastTsValSecs("lastGuardSupChkDt")
-    if(lastUpdSec < 125 ) {
-        if (state.alexaGuardSupported) { getGuardState() }
-        return
-    }
-    if(!isAuthValid("checkGuardSupport")) { return }
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/phoenix",
-        query: [ cached: true, _: wnow() ],
-        headers: getReqHeaderMap(true),
-        contentType: sAPPJSON,
-        timeout: 20,
-    ]
-    logTrace("checkGuardSupport")
-    execAsyncCmd("get", "checkGuardSupportResponse", params, [execDt: wnow()])
-}
-
-void checkGuardSupportResponse(response, data) {
-    // log.debug "checkGuardSupportResponse Resp Size(${response?.data?.toString()?.size()})"
-    Boolean guardSupported; guardSupported = false
-    try {
-        if(response?.status != 200) logWarn("${response?.status} checkGuardSupportResponse")
-        if(response?.status == 200) {
-            updTsVal("lastSpokeToAmazon")
-            Integer respLen = response?.data?.toString()?.length() ?: null
-            Map resp = response?.data ? parseJson(response?.data?.toString()) : null
-            if(resp && resp.networkDetail) {
-                Map details = parseJson(resp.networkDetail as String)
-                Map locDetails = (Map)details?.locationDetails?.locationDetails?.Default_Location?.amazonBridgeDetails?.amazonBridgeDetails["LambdaBridge_AAA/OnGuardSmartHomeBridgeService"] ?: null
-                if(locDetails && locDetails.applianceDetails && locDetails.applianceDetails.applianceDetails) {
-                    def guardKey = locDetails.applianceDetails.applianceDetails.find { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-                    // TODO could there be multiple Guards?
-                    def guardKeys = locDetails.applianceDetails.applianceDetails.findAll { it?.key?.startsWith("AAA_OnGuardSmartHomeBridgeService_") }
-                    if(devModeFLD) logTrace("Guardkeys: ${guardKeys.size()}")
-                    def guardData = locDetails.applianceDetails.applianceDetails[(String)guardKey?.key]
-                    if(devModeFLD) logTrace("Guard: ${guardData}")
-                    if(guardData?.modelName == "REDROCK_GUARD_PANEL") {
-                        //TODO: we really need to match guardData to devices (and really locations)  ie guard can be on some devices/locations and not on others
-                        state.alexaGuardData = [
-                                entityId: guardData?.entityId,
-                                applianceId: guardData?.applianceId,
-                                friendlyName: guardData?.friendlyName,
-                        ]
-                        guardSupported = true
-                    } // else { logDebug("checkGuardSupportResponse | No Guard Data Received Must Not Be Enabled...") }
-                }
-                state.alexaGuardSupported = guardSupported
-                updTsVal("lastGuardSupChkDt")
-                state.alexaGuardDataSrc = "app"
-                if(guardSupported) getGuardState()
-            } else { logError("checkGuardSupportResponse Error | No data received...") }
-        }
-    } catch (ex) {
-        respExceptionHandler(ex, 'checkGuardSupportResponse', true)
-    }
-}
-
-void checkGuardSupportFromServer() {
-    if(!isAuthValid("checkGuardSupportFromServer")) { return }
-    Map params = [
-        uri: getServerHostURL(),
-        path: "/agsData",
-        requestContentType: sAPPJSON,
-        contentType: sAPPJSON,
-        timeout: 20,
-    ]
-    logTrace("checkGuardSupportFromServer")
-    execAsyncCmd("get", "checkGuardSupportServerResponse", params, [execDt: wnow()])
-}
-
-void checkGuardSupportServerResponse(response, data) {
-    Boolean guardSupported; guardSupported = false
-    try {
-        if(response?.status != 200) {
-            logWarn("checkGuardSupportServerResp: ${response?.status}")
-        } else {
-            Map resp = response?.data ? parseJson(response?.data?.toString()) : null
-            // log.debug "GuardSupport Server Response: ${resp}"
-            if(resp) {
-                if(resp.guardData) {
-                    logDebug("AGS Server Resp: ${resp?.guardData}")
-                    state.alexaGuardData = resp.guardData
-                    guardSupported = true
-                }
-            } else { logError("checkGuardSupportServerResponse Error | No data received..."); return }
-            state.alexaGuardSupported = guardSupported
-            state.alexaGuardDataOverMaxSize = guardSupported
-            state.alexaGuardDataSrc = "server"
-            updTsVal("lastGuardSupChkDt")
-            if(guardSupported) getGuardState()
-        }
-    } catch (ex) {
-        respExceptionHandler(ex, "checkGuardSupportServerResponse", false, false)
-    }
-}
-
-void getGuardState() {
-    String meth = "getGuardState"
-    if(!isAuthValid(meth)) { return }
-    if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
-    Map params = [
-        uri: getAmazonUrl(),
-        path: "/api/phoenix/state",
-        headers: getReqHeaderMap(true),
-        contentType: sAPPJSON,
-        timeout: 20,
-        body: [ stateRequests: [ [entityId: state.alexaGuardData?.applianceId, entityType: "APPLIANCE" ] ] ]
-    ]
-    try {
-        logTrace(meth)
-        httpPostJson(params) { resp ->
-            if(resp?.status != 200) logWarn("${resp?.status} "+meth)
-            if(resp?.status == 200) {
-                updTsVal("lastSpokeToAmazon")
-                Map respData = resp?.data ?: null
-
-                if(devModeFLD) log.debug "GuardState resp: ${respData}"
-
-                if(respData && respData.deviceStates && ((List)respData.deviceStates)[0] && ((List)respData.deviceStates)[0].capabilityStates) {
-                    def guardStateData = parseJson(((List)respData.deviceStates)[0].capabilityStates as String)
-                    if(devModeFLD) logTrace("guardState: ${guardStateData}")
-                    String curState = (String)state.alexaGuardState ?: sNULL
-                    state.alexaGuardState = ((List)guardStateData?.value)[0] ? (String)((List)guardStateData?.value)[0] : (String)guardStateData?.value
-                    settingUpdate("alexaGuardAwayToggle", (((String)state.alexaGuardState == sARM_AWAY) ? sTRUE : sFALSE), sBOOL)
-                    logDebug("Alexa Guard State: (${(String)state.alexaGuardState})")
-                    if(curState != (String)state.alexaGuardState) updGuardActionTrig()
-                    updTsVal("lastGuardStateChkDt")
-                }
-            }
-        }
-    } catch (ex) {
-        respExceptionHandler(ex, meth, true)
-    }
-}
-
-void setGuardState(String iguardState) {
-    Long execTime = wnow()
-    String meth = "setGuardState"
-    if(!isAuthValid("setGuardState")) { return }
-    if(!(Boolean)state.alexaGuardSupported) { logError("Alexa Guard is either not enabled. or not supported by any of your devices"); return }
-    String guardState; guardState = iguardState
-    guardState = guardStateConv(guardState)
-    logDebug("setAlexaGuard($guardState)")
-    try {
-        String body = new JsonOutput()?.toJson([ controlRequests: [ [ entityId: state.alexaGuardData?.applianceId as String, entityType: "APPLIANCE", parameters: [action: "controlSecurityPanel", armState: guardState ] ] ] ])
-        Map params = [
-            uri: getAmazonUrl(),
-            path: "/api/phoenix/state",
-            headers: getReqHeaderMap(),//getCookieMap(),
-            contentType: sAPPJSON,
-            timeout: 20,
-            body: body
-        ]
-        logTrace(meth)
-        httpPutJson(params) { response ->
-            if(response?.status != 200) logWarn("${response?.status} $params $meth")
-            if(response?.status == 200) {
-                updTsVal("lastSpokeToAmazon")
-                def resp = response?.data ?: null
-                if(resp && !resp.errors?.size() && resp.controlResponses && ((List)resp.controlResponses)[0] && ((List)resp.controlResponses)[0].code && (String)((List)resp.controlResponses)[0].code == "SUCCESS") {
-                    logInfo("Alexa Guard set to (${guardState}) Successfully | (${(wnow()-execTime)}ms)")
-                    state.alexaGuardState = guardState
-                    updTsVal("lastGuardStateUpdDt")
-                    updGuardActionTrig()
-                } else { logError("Failed to set Alexa Guard to (${guardState}) | Reason: ${resp?.errors ?: null}") }
-            }
-        }
-    } catch (ex) {
-        respExceptionHandler(ex, meth, true)
-    }
-}
 
 // private getAlexaSkills() {
 //     Long execDt = wnow()
@@ -3270,44 +2945,6 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
     } else { logError("${mName} Exception: ${ex}") }
 }
 
-@SuppressWarnings('GroovyFallthrough')
-static String guardStateConv(String gState) {
-    switch(gState) {
-        case "disarm":
-        case "off":
-        case "stay":
-        case "home":
-        case sARM_STAY:
-            return sARM_STAY
-        case "away":
-        case sARM_AWAY:
-            return sARM_AWAY
-        default:
-            return sARM_STAY
-    }
-}
-
-String getAlexaGuardStatus() {
-    return (String)state.alexaGuardState ?: sNULL
-}
-
-Boolean getAlexaGuardSupported() {
-    return (Boolean)state.alexaGuardSupported
-}
-
-public void updGuardActionTrig() {
-    List acts = getActionApps()
-    if(acts?.size()) { acts?.each { aa-> aa?.guardEventHandler((String)state.alexaGuardState) } }
-}
-
-public setGuardHome() {
-    setGuardState(sARM_STAY)
-}
-
-public setGuardAway() {
-    setGuardState(sARM_AWAY)
-    guardArmPendingFLD = false
-}
 
 Map isFamilyAllowed(String family) {
     Map famMap = getDeviceFamilyMap()
@@ -3519,9 +3156,8 @@ void receiveEventData(Map evtData, String src) {
                     permissions["followUpMode"] = (echoValue.capabilities?.contains("GOLDFISH"))
                     permissions["connectedHome"] = (echoValue.capabilities?.contains("SUPPORTS_CONNECTED_HOME"))
                     permissions["bluetoothControl"] = (echoValue.capabilities?.contains("PAIR_BT_SOURCE") || echoValue.capabilities?.contains("PAIR_BT_SINK"))
-                    permissions["guardSupported"] = (echoValue.capabilities?.contains("TUPLE"))
+                    // permissions["guardSupported"] = (echoValue.capabilities?.contains("TUPLE"))
                     permissions["isEchoDevice"] = (echoValue.deviceFamily in (List)deviceSupportMapFLD.families.echo)
-                    echoValue["guardStatus"] = ((Boolean)state.alexaGuardSupported && (String)state.alexaGuardState) ? (String)state.alexaGuardState : ((Boolean)permissions.guardSupported ? sUnknown : "Not Supported")
                     echoValue["musicProviders"] = (Map)evtData.musicProviders
                     echoValue["permissionMap"] = permissions
                     echoValue["hasClusterMembers"] = (echoValue.clusterMembers && echoValue.clusterMembers?.size() > iZ) ?: false
@@ -4812,8 +4448,6 @@ void healthCheck() {
     Boolean a=validateCookie()
     if(getLastTsValSecs("lastCookieRrshDt") > cookieRefreshSeconds()) {
         runCookieRefresh()
-    } else if (getLastTsValSecs("lastGuardSupChkDt") > 43200) {
-        checkGuardSupport()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
 
     if(!(Boolean)state.noAuthActive) runIn(2, "getOtherData")
@@ -5669,15 +5303,6 @@ private getDiagDataJson(Boolean asString = false) {
                 ],
                 cookieData: (settings.diagShareSensitveData == true) ? state.cookieData ?: null : "Not Shared"
             ],
-            alexaGuard: [
-                supported: (Boolean)state.alexaGuardSupported,
-                status: (String)state.alexaGuardState,
-                dataSrc: (String)state.alexaGuardDataSrc,
-                lastSupportCheck: getTsVal("lastGuardSupChkDt"),
-                lastStateCheck: getTsVal("lastGuardStateChkDt"),
-                lastStateUpd: getTsVal("lastGuardStateUpdDt"),
-                stRespLimit: (Boolean)state.alexaGuardDataOverMaxSize
-            ],
             server: [
                 version: state.codeVersions?.server ?: null,
                 amazonDomain: settings?.amazonDomain,
@@ -6083,9 +5708,8 @@ void stateMapMigration() {
     //Timestamp State Migrations
     Map tsItems = [
         "musicProviderUpdDt":"musicProviderUpdDt", "lastCookieChkDt":"lastCookieChkDt", "lastServerWakeDt":"lastServerWakeDt", "lastChildInitRefreshDt":"lastChildInitRefreshDt",
-        /* "lastCookieRefresh":"lastCookieRrshDt", */ "lastVerUpdDt":"lastAppDataUpdDt", "lastGuardSupportCheck":"lastGuardSupChkDt", "lastGuardStateUpd":"lastGuardStateUpdDt",
-        "lastGuardStateCheck":"lastGuardStateChkDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt", "lastMisPollMsgDt":"lastMissedPollMsgDt",
-        "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
+        /* "lastCookieRefresh":"lastCookieRrshDt", */ "lastVerUpdDt":"lastAppDataUpdDt", "lastDevDataUpd":"lastDevDataUpdDt", "lastMetricUpdDt":"lastMetricUpdDt",
+        "lastMisPollMsgDt":"lastMissedPollMsgDt", "lastUpdMsgDt":"lastUpdMsgDt", "lastMsgDt":"lastMsgDt"
     ]
     tsItems?.each { String k, String v-> if(state.containsKey(k)) { updTsVal(v, (String)state[k]); state.remove(k) } }
 
@@ -7445,6 +7069,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AFF50AL5E3DIU"  : [ c: [ "a", "t" ], i: "insignia_firetv",  n: "Fire TV (Insignia)" ],
         "ADVBD696BHNV5"  : [ c: [ "a", "t" ], i: "firetv_stick_gen1", n: "Fire TV Stick (Gen1)" ],
         "A1P7E7V3FCZKU6" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
+        "A3IKB0DFR7GKZW" : [ c: [ "a", "t" ], i: "firetv_gen3", n: "Fire TV (Gen3)" ],
         "A3EVMLQTU6WL1W" : [ c: [ "a", "t" ], i: "unknown", n: "Fire TV (GenX)" ],
         "A1WZKXFLI43K86" : [ c: [ "a", "t" ], i: "unknown", n: "Fire TV Stick MAX" ],
         "A31DTMEEVDDOIV" : [ c: [ "a", "t" ], i: "unknown", n: "Fire TV Stick Lite" ],
@@ -7469,7 +7094,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A30YDR2MK8HMRV" : [ c: [ "a", "t" ], i: "echo_gen3", n: "Echo (Gen3)" ],
         "A2M35JJZWCQOMZ" : [ c: [ "a", "t" ], i: "echo_plus_gen1", n: "Echo Plus (Gen1)" ],
         "A18O6U1UQFJ0XK" : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo Plus (Gen2)" ],
-        "ASQZWP4GPYUT7" : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo Pop" ],
+        "ASQZWP4GPYUT7"  : [ c: [ "a", "t" ], i: "echo_plus_gen2", n: "Echo Pop" ],
 
         // Amazon Echo Dots
         "AKNO1N0KSFN8L"  : [ c: [ "a", "t" ], i: "echo_dot_gen1", n: "Echo Dot (Gen1)" ],
@@ -7484,6 +7109,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         
         // Amazon Echo Spot's
         "A10A33FOX2NUBK" : [ c: [ "a", "t" ], i: "echo_spot_gen1", n: "Echo Spot" ],
+        "A3EH2E0YZ30OD6" : [ c: [ "a", "t" ], i: "echo_spot_gen1", n: "Echo Spot (Gen2)" ],
 
         // Amazon Echo Show's
         "A1NL4BVLQ4L3N3" : [ c: [ "a", "t" ], i: "echo_show_gen1", n: "Echo Show (Gen1)" ],
@@ -7494,9 +7120,13 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1Z88NGR2BK6A2" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen1)" ],
         "A15996VY63BQ2D" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen2)" ],
         "AIPK7MM90V7TB"  : [ c: [ "a", "t" ], i: "echo_show_10_gen3", n: "Echo Show 10 (Gen3)" ],
+        "AQ24620N8QD5Q"  : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen2)" ],
         "A1EIANJ7PNB0Q7" : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen1)" ],
         "A11QM4H9HGV71H" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen3)" ],
         "A2UONLFQW0PADH" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 8 (Gen3)" ],
+
+        // Amazon Echo hub
+        "ADMKNMEVNL158" : [ c: [ "a", "t" ], i: "unknown", n: "Echo Hub" ],
 
         // Amazon Echo Auto's
         "A303PJF6ISQ7IC" : [ c: [ "a", "t" ], i: "echo_auto", n: "Echo Auto" ],
