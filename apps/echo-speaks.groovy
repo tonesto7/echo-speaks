@@ -32,12 +32,12 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.3.0.0'
+@Field static final String appVersionFLD  = '4.3.0.1'
 @Field static final String appModifiedFLD = '2025-09-09'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
-@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4300, actionApp: 4300, zoneApp: 4300, zoneEchoDevice: 4300, server: 270] //These values define the minimum versions of code this app will work with.
+@Field static final Map<String,Integer> minVersionsFLD = [echoDevice: 4301, actionApp: 4301, zoneApp: 4301, zoneEchoDevice: 4301, server: 270] //These values define the minimum versions of code this app will work with.
 
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -1703,8 +1703,15 @@ Boolean checkIfCodeUpdated() {
     }
     List cDevs = getEsDevices()
     if(cDevs?.size()) {
-        String ver = (String)cDevs[iZ]?.devVersion()
-        if((String)codeVerMap.echoDevice != ver) {
+        String ver = null
+        // Iterate through devices until we find one that returns a version (In case the device is disabled in hubitat)
+        for(dev in cDevs) {
+            if(dev) {
+                ver = (String)dev?.devVersion()
+                if(ver) break
+            }
+        }
+        if(ver && (String)codeVerMap.echoDevice != ver) {
             chgs.push("echoDevice")
             state.pollBlocked = true
             updCodeVerMap("echoDevice", ver)
@@ -1722,8 +1729,15 @@ Boolean checkIfCodeUpdated() {
     // }
     List cApps = getActionApps()
     if(cApps?.size()) {
-        String ver = (String)cApps[iZ]?.appVersion()
-        if((String)codeVerMap.actionApp != ver) {
+        String ver = null
+        // Iterate through apps until we find one that returns a version (In case the app is disabled in hubitat)
+        for(app in cApps) {
+            if(app) {
+                ver = (String)app?.appVersion()
+                if(ver) break
+            }
+        }
+        if(ver && (String)codeVerMap.actionApp != ver) {
             chgs.push("actionApp")
             state.pollBlocked = true
             updCodeVerMap("actionApp", ver)
@@ -1732,8 +1746,15 @@ Boolean checkIfCodeUpdated() {
     }
     List zApps = getZoneApps()
     if(zApps?.size()) {
-        String ver; ver = (String)zApps[iZ]?.appVersion()
-        if((String)codeVerMap.zoneApp != ver) {
+        String ver = null
+        // Iterate through apps until we find one that returns a version (In case the app is disabled in hubitat)
+        for(app in zApps) {
+            if(app) {
+                ver = (String)app?.appVersion()
+                if(ver) break
+            }
+        }
+        if(ver && (String)codeVerMap.zoneApp != ver) {
             chgs.push("zoneApp")
             state.pollBlocked = true
             // log.debug "zoneVer: ver"
@@ -1741,7 +1762,12 @@ Boolean checkIfCodeUpdated() {
             codeUpdated = true
         }
         ver = sNULL
-        zApps.each { if(!ver) ver = it?.relayDevVersion() }
+        for(app in zApps) {
+            if(app) {
+                ver = (String)app?.relayDevVersion()
+                if(ver) break
+            }
+        }
         if(ver && (String)codeVerMap.zoneEchoDevice != ver) {
             chgs.push("zoneEchoDevice")
             state.pollBlocked = true

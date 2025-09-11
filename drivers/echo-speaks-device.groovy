@@ -26,8 +26,8 @@ import java.text.SimpleDateFormat
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String devVersionFLD  = '4.3.0.0'
-@Field static final String devModifiedFLD = '2025-09-09'
+@Field static final String devVersionFLD  = '4.3.0.1    '
+@Field static final String devModifiedFLD = '2025-09-10'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -1254,6 +1254,8 @@ void respExceptionHandler(ex, String mName, Boolean clearOn401=false, Boolean ig
             logWarn("${mName} | Too Many Requests Made to Amazon | Msg: ${errMsg}")
         } else if(sCode == 200) {
             if(!errMsg.contains("OK")) { logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}") }
+        } else if(sCode == 404) {
+            // Ignoring 404 Error 
         } else {
             logError("${mName} Response Exception | Status: (${sCode}) | Msg: ${errMsg}")
         }

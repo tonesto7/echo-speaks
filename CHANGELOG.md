@@ -1,3 +1,10 @@
+### _**Release (v4.3.0.1) - [September 10th, 2025]**_
+
+#### _***All Apps and Devices***_
+
+- [FIX] Fixed 404 errors on devices with getPlaybackState command (Thanks @khan-hubitat).
+- [FIX] Fixed issue with code version checking when devices or apps are disabled in hubitat.
+
 ### _**Release (v4.3.0.0) - [September 9th, 2025]**_
 
 #### _***All Apps and Devices***_
