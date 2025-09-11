@@ -4,6 +4,7 @@
 
 - [FIX] Fixed 404 errors on devices with getPlaybackState command (Thanks @khan-hubitat).
 - [FIX] Fixed issue with code version checking when devices or apps are disabled in hubitat.
+- [FIX] Merged in @imnotbobs pull request for cleanups post alexa guard removal.
 
 ### _**Release (v4.3.0.0) - [September 9th, 2025]**_
 
