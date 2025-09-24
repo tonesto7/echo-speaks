@@ -4672,12 +4672,12 @@ private void webCoRE_execute(String pistonIdOrName,Map data=[:]) {
 }
 
 private static List webCoRE_list(){
-    List ret = ((List)webCoREFLD?.pistons)?.sort {it?.name}?.collect { [(it?.id): it?.aname?.replaceAll("<[^>]*>", sBLANK)] }
+    List ret = ((List)webCoREFLD?.pistons)?.sort {it?.n}?.collect { [(it?.id): it?.a?.replaceAll("<[^>]*>", sBLANK)] }
     return ret
 }
 /*
 private static String getPistonByName(String pistonIdOrName) {
-    String i=((List)webCoREFLD?.pistons ?: []).find{((String)it.name==pistonIdOrName)||((String)it.id==pistonIdOrName)}?.id
+    String i=((List)webCoREFLD?.pistons ?: []).find{((String)it.n==pistonIdOrName)||((String)it.id==pistonIdOrName)}?.id
 } */
 
 private static String getPistonById(String rId) {
@@ -4700,7 +4700,7 @@ void webCoRE_handler(evt){
         Map d=(Map)evt.jsonData?:[:]
         if(d.id && d.pistons && (d.pistons instanceof List)){
             p.removeAll{it.iid==d.id}
-            p+=d.pistons.collect{[iid:d.id]+it}.sort{it.name}
+            p+=d.pistons.collect{[iid:d.id]+it}.sort{it.n}
             Boolean a = (Boolean)webCoREFLD?.cbk
 
             webCoREFLD = [cbk: a, updated: wnow(), pistons: p]
