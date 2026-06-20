@@ -2080,14 +2080,20 @@ void runCookieRefresh() {
 def wakeupServerResp(response, data) {
     try {
         if(response?.status != 200) { logWarn("wakeupServerResp: ${response?.status}") }
-        def rData = response?.data ?: null
+        def rData = null
+        try {
+            rData = response?.data
+        } catch (Exception ignored) {
+            // Hubitat throws when an async HTTP response has no body.
+            // A 200 response from /wakeup is still a successful wake-up.
+        }
         if(response?.status == 200) {
             updTsVal("lastServerWakeDt")
-            if (rData && rData == "OK") {
+            if (rData == "OK") {
                 logDebug("$rData wakeupServer Completed... | Process Time: (${data?.execDt ? (wnow()-data?.execDt) : iZ}ms) | Source: (${data?.wakesrc}) ${data}")
                 if(data?.refreshCookie == true) { runIn(2, "cookieRefresh") }
             } else {
-                logWarn("wakeupServerResp: noData ${rData} ${data}")
+                logDebug("wakeupServerResp: completed without a response body | Source: (${data?.wakesrc})")
             }
         }
     } catch(ex) {
