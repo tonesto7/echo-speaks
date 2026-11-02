@@ -4846,7 +4846,12 @@ static String videoUrl() { return "https://www.youtube.com/watch?v=wQPPlTFaGb4&a
 static String textDonateUrl() { return "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HWBN4LB9NMHZ4" }
 def updateDocsInput() { href url: documentationUrl(), style: sEXTNRL, required: false, title: inTS1("View Documentation", "documentation"), description: inactFoot(sTTP) }
 
-String getAppEndpointUrl(subPath)   { return "${getApiServerUrl()}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString() }
+String getAppEndpointUrl(subPath)   {
+    // Grokbot: force HTTPS on Hubitat cloud/API base URLs (getApiServerUrl can return http://cloud.hubitat.com)
+    String base = "${getApiServerUrl()}"
+    if(base?.startsWith("http://")) { base = "https://" + base.substring(7) }
+    return "${base}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString()
+}
 
 String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}" }
 
