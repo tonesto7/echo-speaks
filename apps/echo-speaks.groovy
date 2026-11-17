@@ -4053,7 +4053,22 @@ void finishWorkQ(response, extData){
         if(extItem && (String)extItem.deviceId && (String)extItem.callback) {
             if(extItem != null && statusCode==200) extItem["amznReqId"] = response?.headers["x-amz-rid"] ?: null
             def child = getChildDevice((String)extItem.deviceId)
-            child."${(String)extItem.callback}"(sData, statusCode, extItem)
+            // Hubitat rejects computed device method calls ("Computed device command ... is not allowed"),
+            // and the throw also skipped the workQ() call below. Dispatch on the callback name instead.
+            try {
+                switch((String)extItem.callback) {
+                    case 'finishSendSpeak':
+                        child?.finishSendSpeak(sData, statusCode, extItem)
+                        break
+                    case 'finishSendSpeakZ':
+                        child?.finishSendSpeakZ(sData, statusCode, extItem)
+                        break
+                    default:
+                        logError("finishWorkQ: unknown callback ${extItem.callback} for device ${extItem.deviceId}")
+                }
+            } catch (ex) {
+                logError("finishWorkQ: callback ${extItem.callback} on device ${extItem.deviceId} failed: ${ex}")
+            }
         }
     }
 //    }
