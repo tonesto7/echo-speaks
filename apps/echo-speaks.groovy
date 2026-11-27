@@ -32,8 +32,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.3.0.1'
-@Field static final String appModifiedFLD = '2025-09-10'
+@Field static final String appVersionFLD  = '4.3.0.3'
+@Field static final String appModifiedFLD = '2026-11-27'
 @Field static final String gitBranchFLD   = 'master'
 @Field static final String platformFLD    = 'Hubitat'
 @Field static final Boolean devModeFLD    = false
@@ -106,6 +106,7 @@ import java.util.concurrent.Semaphore
 definition(
     name                : "Echo Speaks",
     namespace           : "tonesto7",
+    menu                : "Integrations",
     author              : "Anthony Santilli",
     description         : "Integrate your Amazon Echo devices into your Hubitat environment to create virtual Echo Devices. This allows you to speak text, make announcements, control media playback including volume, and many other Alexa features.",
     category            : "My Apps",
@@ -284,9 +285,9 @@ def authStatusPage() {
 
             section(sectHead("Cookie Tools: (Tap to show)", getAppImg("cookie")), hideable: true, hidden: true) {
                 String ckDesc = pastDayChkOk ? "This will Refresh your Amazon Cookie." : "It's too soon to refresh your cookie.\nMinimum wait is 24 hours!!"
-                input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-5 max)", required: true, range: '1..5', defaultValue: 5, submitOnChange: true
+                input "refreshCookieDays", "number", title: inTS1("Auto refresh cookie every?\n(in days)", "day_calendar"), description: "in Days (1-90 max)", required: true, range: '1..90', defaultValue: 5, submitOnChange: true
                 if(refreshCookieDays != null && refreshCookieDays < i1) { settingUpdate("refreshCookieDays", i1, "number") }
-                if(refreshCookieDays != null && refreshCookieDays > 5) { settingUpdate("refreshCookieDays", 5, "number") }
+                if(refreshCookieDays != null && refreshCookieDays > 90) { settingUpdate("refreshCookieDays", 90, "number") }
 
                 // Refreshes the cookie
                 input "refreshCookie", sBOOL, title: inTS1("Manually refresh cookie?", sRESET) + lineBr() + spanSm(ckDesc, pastDayChkOk ? sCLRGRY : sCLRRED),
@@ -1353,6 +1354,8 @@ def initialize() {
     subscribe(location, "systemStart", startHandler)
 
     if(!(Boolean)state.resumeConfig) {
+        // make sure the server can reach this app (hub UID / app id / token may have changed)
+        runIn(20, "checkServerCallbackUrl", [overwrite: true, data: [src: "initialize", force: true]])
         updChildVers()
         updateZoneSubscriptions()
         Boolean a=validateCookie(true)
@@ -2093,6 +2096,84 @@ def wakeupServerResp(response, data) {
     } catch(ex) {
         logError("wakeupServerResp Server may be down / unreachable")
         respExceptionHandler(ex, "wakeupServerResp", false, false)
+    }
+}
+
+/*
+ * Server callback URL self-check (4.3.0.2+)
+ * The server stores this app's endpoint URL (appCallbackUrl) to push cookies/status to the hub. It goes stale
+ * when the hub UID, app id or access token change (hub replaced/restored, app reinstalled, token reset), and every
+ * server -> hub call then fails with 404. The hub can still reach the server, so compare the server's stored URL
+ * with the current one and push the current one when they differ (same /configData endpoint as the server's web config page).
+ */
+void checkServerCallbackUrl(Map data=null) {
+    String src = (String)data?.src ?: "unknown"
+    Boolean force = (data?.force == true)
+    if(!serverConfigured()) { logTrace("checkServerCallbackUrl($src) | Server not configured... Skipping"); return }
+    if(!force && getLastTsValSecs("lastCallbackChkDt") < 21600) { return } // at most every 6 hours unless forced
+    String srvUrl = getServerHostURL()
+    if(!srvUrl) { return }
+    updTsVal("lastCallbackChkDt")
+    Map params = [
+        uri: srvUrl,
+        path: "/configData",
+        contentType: "text/plain",
+        timeout: 20
+    ]
+    logTrace("checkServerCallbackUrl($src)")
+    execAsyncCmd("get", "checkServerCallbackUrlResp", params, [src: src])
+}
+
+def checkServerCallbackUrlResp(response, data) {
+    try {
+        if(response?.hasError()) {
+            logWarn("checkServerCallbackUrl | Unable to read server config (${response?.getStatus()}): ${response?.getErrorMessage()}")
+            return
+        }
+        String body = response?.getData()?.toString()
+        Map cfg = body ? (Map)parseJson(body) : null
+        if(!cfg || !(cfg.settings instanceof Map)) {
+            logWarn("checkServerCallbackUrl | Server config response was empty or invalid")
+            return
+        }
+        String srvCbUrl = (String)((Map)cfg.settings).appCallbackUrl
+        String myCbUrl = getAppEndpointUrl("receiveData")
+        // the server may deliberately use the hub's local endpoint instead of the cloud one; both are current
+        if(srvCbUrl && (srvCbUrl == myCbUrl || srvCbUrl == getLocalEndpointUrl("receiveData"))) {
+            logDebug("checkServerCallbackUrl | Server callback URL is current (${data?.src})")
+            return
+        }
+        logWarn("Server has ${srvCbUrl ? "a stale" : "no"} hub callback URL (hub UID, app id or access token changed) | Sending the current URL to the server... (${data?.src})")
+        Map params = [
+            uri: getServerHostURL(),
+            path: "/configData",
+            headers: [appcallbackurl: myCbUrl, hubplatform: platformFLD],
+            contentType: "text/plain",
+            requestContentType: "text/plain",
+            timeout: 20
+        ]
+        execAsyncCmd("post", "updServerCallbackUrlResp", params, [src: data?.src])
+    } catch(ex) {
+        logError("checkServerCallbackUrlResp | Error checking server callback URL: ${ex?.getMessage()}", false, ex)
+    }
+}
+
+def updServerCallbackUrlResp(response, data) {
+    try {
+        if(response?.hasError()) {
+            logError("Server callback URL update FAILED (${response?.getStatus()}): ${response?.getErrorMessage()}")
+            remTsVal("lastCallbackChkDt") // retry on the next health check
+            return
+        }
+        String rData = response?.getData()?.toString()
+        if(rData == "done") {
+            logInfo("Server callback URL updated successfully (${data?.src})")
+        } else {
+            logError("Server callback URL update FAILED | Server response: ${rData}")
+            remTsVal("lastCallbackChkDt")
+        }
+    } catch(ex) {
+        logError("updServerCallbackUrlResp | Error: ${ex?.getMessage()}", false, ex)
     }
 }
 
@@ -4053,7 +4134,10 @@ void finishWorkQ(response, extData){
         if(extItem && (String)extItem.deviceId && (String)extItem.callback) {
             if(extItem != null && statusCode==200) extItem["amznReqId"] = response?.headers["x-amz-rid"] ?: null
             def child = getChildDevice((String)extItem.deviceId)
-            child."${(String)extItem.callback}"(sData, statusCode, extItem)
+            // Hubitat blocks computed device commands (SecurityException: Computed device command 'finishSendSpeak' is not allowed),
+            // so call the known callback directly. finishSendSpeak is the only callback the drivers pass.
+            if((String)extItem.callback == "finishSendSpeak") { child.finishSendSpeak(sData, statusCode, extItem) }
+            else { child."${(String)extItem.callback}"(sData, statusCode, extItem) }
         }
     }
 //    }
@@ -4449,6 +4533,7 @@ void healthCheck() {
     if(getLastTsValSecs("lastCookieRrshDt") > cookieRefreshSeconds()) {
         runCookieRefresh()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
+    checkServerCallbackUrl([src: "healthCheck"]) // throttled to every 6 hours
 
     if(!(Boolean)state.noAuthActive) runIn(2, "getOtherData")
     chkRestartSocket()
@@ -5423,6 +5508,10 @@ def getDiagData() {
                             <label for="exampleFormControlTextarea1">External URL (Click/Tap to Select)</label>
                             <textarea class="form-control z-depth-1" id="exampleFormControlTextarea1" onclick="this.focus();this.select()" rows="3" readonly>${getAppEndpointUrl("diagData")}</textarea>
                         </div>
+                        <div class="form-group ml-0 mr-4">
+                            <label for="exampleFormControlTextarea2">Local URL (Click/Tap to Select)</label>
+                            <textarea class="form-control z-depth-1" id="exampleFormControlTextarea2" onclick="this.focus();this.select()" rows="3" readonly>${getLocalEndpointUrl("diagData")}</textarea>
+                        </div>
                     </div>
                 </div>
             </body>
@@ -6021,10 +6110,13 @@ def renderConfig() {
                 <h5>1. Install the node server</h5>
                 <h5>2. Start the node server</h5>
                 <h5>3. Open the servers web config page</h5>
-                <h5>4. Copy the following URL and use it in the appCallbackUrl field of the Server Web Config Page</h5>
+                <h5>4. Copy one of the following URLs (cloud or local) and use it in the appCallbackUrl field of the Server Web Config Page</h5>
             </div>
             <div class="all-copy nameContainer mx-0 mb-2 p-1">
                 <p id="copyCallback" class="m-0 p-0">${getAppEndpointUrl("receiveData") as String}</p>
+            </div>
+            <div class="all-copy nameContainer mx-0 mb-2 p-1">
+                <p id="copyCallbackLocal" class="m-0 p-0">${getLocalEndpointUrl("receiveData") as String}</p>
             </div>
         </div>""" : """
         <div id="cloudServerDiv" class="w-100 mb-3">
@@ -6083,7 +6175,7 @@ def renderConfig() {
             console.log("copyHerokuName Click...")
             \$(this).select();
         });
-        \$("#copyCallback").on("click", function () {
+        \$("#copyCallback, #copyCallbackLocal").on("click", function () {
             console.log("copyCallback Click...")
             \$(this).select();
         });
@@ -7133,6 +7225,9 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "A1EIANJ7PNB0Q7" : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen1)" ],
         "A11QM4H9HGV71H" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen3)" ],
         "A2UONLFQW0PADH" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 8 (Gen3)" ],
+        "A345JHMQDGG1M5" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen4)" ],
+        "A2LLN0UXRW4N50" : [ c: [ "a", "t" ], i: "echo_show_11_gen4", n: "Echo Show 11 (Gen4)" ],
+        "AZANTNEUTYY6L"  : [ c: [ "a", "t" ], i: "echo_show_21", n: "Echo Show 21 (Gen1)" ],
 
         // Amazon Echo hub
         "ADMKNMEVNL158" : [ c: [ "a", "t" ], i: "unknown", n: "Echo Hub" ],

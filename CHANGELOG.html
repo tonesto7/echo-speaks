@@ -18,10 +18,27 @@
   <![endif]-->
 </head>
 <body>
+<h3 id="release-v4.3.0.3---november-27th-2026"><em><strong>Release (v4.3.0.3) - [November 27th, 2026]</strong></em></h3>
+<h4 id="echo-speaks-app"><em><strong><em>Echo Speaks App</em></strong></em></h4>
+<ul>
+<li>[NEW] The app now checks that the Echo Speaks Server has its current callback URL and sends the correct one when it is stale (for example after a hub replacement or backup restore, an app reinstall or an access token reset). Previously every server-to-hub call failed with a 404 until the URL was re-entered by hand. The check runs on initialize and every 6 hours from the health check.</li>
+<li>[NEW] The local hub endpoint URL is now shown as an alternative to the cloud URL on the diagnostics page and the server setup page, and the server can use either one. Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>, <span class="citation" data-cites="ndmaxwell">@ndmaxwell</span> and <span class="citation" data-cites="mr_fy">@mr_fy</span>.</li>
+<li>[NEW] The app now appears under the Integrations menu. Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>, <span class="citation" data-cites="ndmaxwell">@ndmaxwell</span> and <span class="citation" data-cites="mr_fy">@mr_fy</span>.</li>
+<li>[FIX] Fixed announcements failing with “SecurityException: Computed device command ‘finishSendSpeak’ is not allowed” on newer Hubitat firmware. Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>, <span class="citation" data-cites="ndmaxwell">@ndmaxwell</span> and <span class="citation" data-cites="mr_fy">@mr_fy</span>.</li>
+<li>[UPDATE] The automatic cookie refresh interval can now be set from 1 to 90 days (was 1 to 5). The default is still 5 days.</li>
+<li>[FIX] The cloud endpoint URL now always uses HTTPS (the hub could return an http:// address, which broke the Amazon login redirect). Thanks <span class="citation" data-cites="howarddavidp">@howarddavidp</span>.</li>
+<li>[FIX] Corrected the Echo Dot (Gen5) and Echo Spot 2 model names and added missing Echo Dot Gen4/Gen5 icons. Thanks <span class="citation" data-cites="jshimota01">@jshimota01</span>.</li>
+<li>[UPDATE] Added device support for the Echo Show 8 (Gen4), Echo Show 11 (Gen4) and Echo Show 21 (Gen1), with new icons. Thanks <span class="citation" data-cites="jshimota01">@jshimota01</span>.</li>
+<li>[NOTE] Echo Speaks Server v2.8.1 is recommended. It updates the Amazon login to support Amazon’s newer sign-in pages and requires Node.js 20 or newer.</li>
+</ul>
+<h4 id="echo-speaks-actions"><em><strong><em>Echo Speaks Actions</em></strong></em></h4>
+<ul>
+<li>[FIX] Fixed the webCoRE piston list for the current webCoRE piston data format. Thanks <span class="citation" data-cites="imnotbob">@imnotbob</span>.</li>
+</ul>
 <h3 id="release-v4.3.0.1---september-10th-2025"><em><strong>Release (v4.3.0.1) - [September 10th, 2025]</strong></em></h3>
 <h4 id="all-apps-and-devices"><em><strong><em>All Apps and Devices</em></strong></em></h4>
 <ul>
-<li>[FIX] Fixed 404 errors on devices with getPlaybackState command (Thanks <span class="citation" data-cites="khan-hubitat">@khan-hubitat</span>).</li>
+<li>[FIX] Fixed 404 errors on devices with getPlaybackState command (Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>).</li>
 <li>[FIX] Fixed issue with code version checking when devices or apps are disabled in hubitat.</li>
 <li>[FIX] Merged in <span class="citation" data-cites="imnotbobs">@imnotbobs</span> pull request for cleanups post alexa guard removal.</li>
 </ul>
