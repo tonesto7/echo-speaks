@@ -3,7 +3,7 @@
 #### _***Echo Speaks App***_
 
 - [NEW] The app now checks that the Echo Speaks Server has its current callback URL and sends the correct one when it is stale (for example after a hub replacement or backup restore, an app reinstall or an access token reset). Previously every server-to-hub call failed with a 404 until the URL was re-entered by hand. The check runs on initialize and every 6 hours from the health check.
-- [NEW] The local hub endpoint URL is now shown as an alternative to the cloud URL on the diagnostics page and the server setup page, and the server can use either one. Thanks @kahn-hubitat, @ndmaxwell and @mr_fy.
+- [NEW] The local hub endpoint URL is now shown as an alternative to the cloud URL on the server setup page and in the Server Callback URLs section, and the server can use either one. Thanks @kahn-hubitat, @ndmaxwell and @mr_fy.
 - [NEW] The app now appears under the Integrations menu. Thanks @kahn-hubitat, @ndmaxwell and @mr_fy.
 - [FIX] Fixed announcements failing with "SecurityException: Computed device command 'finishSendSpeak' is not allowed" on newer Hubitat firmware. Thanks @kahn-hubitat, @ndmaxwell and @mr_fy.
 - [UPDATE] The automatic cookie refresh interval can now be set from 1 to 90 days (was 1 to 5). The default is still 5 days.
@@ -13,7 +13,8 @@
 - [NOTE] Echo Speaks Server v2.8.1 is recommended. It updates the Amazon login to support Amazon's newer sign-in pages and requires Node.js 20 or newer.
 - [SECURITY] Amazon cookies, CSRF tokens and request headers are no longer written to the logs.
 - [SECURITY] The diagnostics page no longer offers a shareable link (it contained the app's access token, which also grants access to the Amazon login). Use the new "Copy Diagnostics" button and paste the text instead.
-- [NEW] Manage Cookie Login Service now has a "Server Callback URLs" section (hidden until tapped) showing the cloud and local hub URLs the server can use, which kind the server currently uses, a button to check it now, and buttons to switch the server between the cloud and local URL (local is offered only for servers on your network).
+- [NEW] Manage Cookie Login Service now has a "Server Callback URLs" section (hidden until tapped) showing the cloud and local hub URLs the server can use, which kind the server currently uses, a button to check it now, and buttons to switch the server between the cloud and local URL (local is offered only for servers on your network). The callback URL in use is also shown in the Manage Cookie Login Service summary and under Server Management.
+- [UPDATE] Server Host Override now sits below the Amazon Login Page link with a description of when to use it, and "(override)" is shown next to the server host when it is set.
 - [NEW] Added a "Reset Access Token" button (Settings > Access Token). Previously shared app links stop working and the server is sent the new callback URL automatically.
 - [FIX] The server callback URL check no longer replaces a working URL that uses a hostname, port 8443 or a reverse proxy, never sends a URL without an access token, and backs off after failed updates instead of retrying every 15 minutes. When the server uses the local URL and the hub's IP address changes, the check now sends the local URL with the new IP.
 - [FIX] Automatic cookie refresh now runs when the refresh interval is set above 11 days.
@@ -40,7 +41,8 @@
 - [FIX] "Only once per day" and "wait" restrictions now apply to mode, alarm and webCoRE triggers, and only events that actually match the trigger count toward them.
 - [FIX] Light flashing with two colors now alternates colors.
 - [FIX] Music searches no longer stop after a number of seconds equal to the restore volume.
-- [UPDATE] Each action now uses its own lock, and a failure in delayed ("after") trigger handling no longer leaves the action blocked.
+- [UPDATE] Locks are released even when an error occurs, and a failure in delayed ("after") trigger handling no longer leaves the action blocked.
+- [UPDATE] After a code update, the actions send one webCoRE piston list request between them instead of one per action.
 
 #### _***Echo Speaks Zones***_
 
@@ -64,7 +66,10 @@
 - [FIX] Play/pause/next/previous refresh only the playback state instead of all device data.
 - [FIX] Speech attributes are no longer reset to "NA" after every cookie refresh.
 - [FIX] Fixed "every X days" reminders, the reminder time zone, alarm labels losing their spaces, removing the first created notification and the reminders permission check.
-- [UPDATE] The Echo Speaks Zone Device driver is now generated from the Echo Speaks Device driver (scripts/gen-zone-driver.py), and the Hubitat bundle is rebuilt from the current code (scripts/build-bundle.py).
+
+#### _***Build and Packaging***_
+
+- [UPDATE] The Echo Speaks Zone Device driver is now generated from the Echo Speaks Device driver (scripts/gen-zone-driver.py), and the Hubitat bundle is rebuilt from the current code (scripts/build-bundle.py). A CI check keeps both in sync.
 - [REMOVED] Removed the unused libraries folder.
 
 ### _**Release (v4.3.0.1) - [September 10th, 2025]**_
