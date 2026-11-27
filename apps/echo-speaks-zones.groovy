@@ -2,7 +2,7 @@
 /**
  *  Echo Speaks - Zones (Hubitat)
  *
- *  Copyright 2018-2025 Anthony Santilli
+ *  Copyright 2018-2026 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -29,8 +29,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.3.0.1'
-@Field static final String appModifiedFLD = '2025-09-10'
+@Field static final String appVersionFLD  = '4.3.0.3'
+@Field static final String appModifiedFLD = '2026-11-27'
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
 @Field static final String sSPACE         = ' '
@@ -73,6 +73,10 @@ import java.util.concurrent.Semaphore
 @Field static final String sSWITCH        = 'switch'
 @Field static final String sCHKBOX        = 'checkbox'
 @Field static final String sCOMMAND       = 'command'
+@Field static final String sBETWEEN       = 'between'
+@Field static final String sBELOW         = 'below'
+@Field static final String sABOVE         = 'above'
+@Field static final String sEQUALS        = 'equals'
 @Field static final String zoneHistFLD    = 'zoneHistory'
 @Field static final List<String> lSUNRISESET   = ["sunrise", "sunset"]
 
@@ -80,7 +84,15 @@ import java.util.concurrent.Semaphore
 //*          IN-MEMORY ONLY VARIABLES            *
 //* (Cleared only on HUB REBOOT or CODE UPDATES) *
 //************************************************
-@Field volatile static Map<String,Map> historyMapFLD = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> historyMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+
+/*
+ * Static caches shared by every execution (and every instance) of this app. ConcurrentHashMap makes concurrent
+ * access safe; inner maps/lists are copy-on-write (copy, change, put back) so readers never see a half-updated
+ * object. ConcurrentHashMap rejects null values, so fldPut() removes the key instead.
+ */
+static void fldPut(java.util.concurrent.ConcurrentHashMap m, String k, v) { if(k == null) return; if(v == null) { m.remove(k) } else { m.put(k, v) } }
+static Map fldMapCopy(Map m) { return m != null ? new LinkedHashMap(m) : [:] }
 // @Field volatile static String gitBranchFLD = null
 
 static String appVersion()  { return appVersionFLD }
@@ -141,7 +153,7 @@ def uhOhPage () {
 }
 
 def appInfoSect()	{
-    String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
+    String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd, yyyy '@' h:mm a", true) : sNULL
     String str = spanBld((String)app.name, "black", "es_groups")
     str += (app.label && (String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (Z)", sBLANK)})") : sLINEBR
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
@@ -568,6 +580,8 @@ def initialize() {
     updDeviceInputs()
     unsubscribe()
     unschedule()
+    Boolean held = lockZoneStatus()
+    try { clearPendingZoneStatus() } finally { unlockZoneStatus(held) } // unschedule() dropped any delayed status change
     state.isInstalled = true
     updAppLabel()
     if(advLogsActive()) { logsEnabled() }
@@ -657,7 +671,7 @@ void relayClearLogHistory() { getEzDevice().each { it.clearLogHistory() } }
 @SuppressWarnings('unused')
 void relayFinishAnnouncement(String msg, LinkedHashMap vmap) { getEzDevice().each { it.finishAnnounce(msg, vmap.vol, vmap.restvol) } }
 @SuppressWarnings('unused')
-void relayFinishSpeak(Map resp, Integer statucode, Map data) { getEzDevice().each { it.finishSendSpeakZ(resp, statuscode, data) } }
+void relayFinishSpeak(Map resp, Integer statuscode, Map data) { getEzDevice().each { it.finishSendSpeakZ(resp, statuscode, data) } }
 @SuppressWarnings('unused')
 void relaySetOnline(Boolean onl) { getEzDevice().each { it.setOnlineStatus(onl) } }
 
@@ -751,6 +765,8 @@ private void processDuplication() {
 }
 
 def uninstalled() {
+    String myId = app.getId().toString()
+    [historyMapFLD, tsDtMapFLD, zoneStatusLocksFLD].each { java.util.concurrent.ConcurrentHashMap m -> m.remove(myId) } // static caches outlive the app
     sendZoneRemoved()
 }
 
@@ -813,8 +829,8 @@ void scheduleCondition() {
         Date stopTime
         if (tC) {
                 Boolean timeOk = timeCondOk() // this updates state variables
-                startTime = (String)state.startTime ? parseDate((String)state.startTime) : null
-                stopTime = (String)state.stopTime ? parseDate((String)state.stopTime) : null
+                startTime = (String)atomicState.startTime ? parseDate((String)atomicState.startTime) : null
+                stopTime = (String)atomicState.stopTime ? parseDate((String)atomicState.stopTime) : null
         }
         if(!startTime && !stopTime && dC){
                 startTime = timeToday('00:00', mTZ())
@@ -913,15 +929,15 @@ Boolean timeCondOk() {
     String startType = (String)settings.cond_time_start_type
     String stopType = (String)settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == 'time' && settings.cond_time_start ? timeToday((String)settings.cond_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == 'time' && settings.cond_time_stop ? timeToday((String)settings.cond_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
 
         if(startType in lSUNRISESET || stopType in lSUNRISESET) {
             def sun = getSunriseAndSunset()
             Long lsunset = sun.sunset.time
             Long lsunrise = sun.sunrise.time
-            Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
-            Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+            Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*60000L /* minutes */ : 0L
+            Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*60000L /* minutes */ : 0L
             if(startType in lSUNRISESET) {
                 Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
                 startTime = new Date(startl)
@@ -936,15 +952,15 @@ Boolean timeCondOk() {
             Boolean not = startTime.getTime() > stopTime.getTime()
             Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
             isBtwn = not ? !isBtwn : isBtwn
-            state.startTime =  formatDt(startTime)
-            state.stopTime =  formatDt(stopTime)
+            atomicState.startTime =  formatDt(startTime)
+            atomicState.stopTime =  formatDt(stopTime)
             logTrace("timeCondOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
             return isBtwn
         }
     }
     logTrace("timeCondOk | (null)")
-    state.startTime = sNULL
-    state.stopTime = sNULL
+    atomicState.startTime = sNULL
+    atomicState.stopTime = sNULL
     return null
 }
 
@@ -989,36 +1005,36 @@ Boolean checkDeviceCondOk(String att) {
 Boolean checkDeviceNumCondOk(String att) {
     List devs = (List)settings."cond_${att}" ?: null
     String cmd = (String)settings."cond_${att}_cmd" ?: sNULL
-    Double dcl = settings."cond_${att}_low" ?: null
-    Double dch = settings."cond_${att}_high" ?: null
-    Double dce = settings."cond_${att}_equal" ?: null
+    Double dcl = settings."cond_${att}_low" as Double
+    Double dch = settings."cond_${att}_high" as Double
+    Double dce = settings."cond_${att}_equal" as Double
     Boolean dca = ((Boolean)settings."cond_${att}_all" == true) ?: false
     if( !(att && devs && cmd) ) { return true }
 
     switch(cmd) {
         case "equals":
-            if(dce) {
+            if(dce != null) {
                 if(dca) { return allDevAttNumValsEqual(devs, att, dce) }
                 else { return anyDevAttNumValEqual(devs, att, dce) }
             }
             return true
             break
         case "between":
-            if(dcl && dch) {
+            if(dcl != null && dch != null) {
                 if(dca) { return allDevAttNumValsBetween(devs, att, dcl, dch) }
                 else { return anyDevAttNumValBetween(devs, att, dcl, dch) }
             }
             return true
             break
         case "above":
-            if(dch) {
+            if(dch != null) {
                 if(dca) { return allDevAttNumValsAbove(devs, att, dch) }
                 else { return anyDevAttNumValAbove(devs, att, dch) }
             }
             return true
             break
         case "below":
-            if(dcl) {
+            if(dcl != null) {
                 if(dca) { return allDevAttNumValsBelow(devs, att, dcl) }
                 else { return anyDevAttNumValBelow(devs, att, dcl) }
             }
@@ -1175,24 +1191,86 @@ private void addToZoneHistory(Map evt, Map condStatus, Integer max=10) {
     updMemStoreItem(zoneHistFLD, eData)
 }
 
+/*
+ * Zone status transitions are decided under a per-zone lock and stored in atomicState, so two events evaluated
+ * at the same moment cannot both see "changed" (duplicate notifications / switch commands) or overwrite each other.
+ * Slow work (condition evaluation, notifications, switches) happens outside the lock.
+ */
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Semaphore> zoneStatusLocksFLD = new java.util.concurrent.ConcurrentHashMap<String,Semaphore>()
+
+private Semaphore zoneStatusSema() {
+    String k = app.getId().toString()
+    Semaphore s = zoneStatusLocksFLD.get(k)
+    if(s == null) { zoneStatusLocksFLD.putIfAbsent(k, new Semaphore(1)); s = zoneStatusLocksFLD.get(k) }
+    return s
+}
+
+private Boolean lockZoneStatus() {
+    Semaphore sema = zoneStatusSema()
+    Long start = wnow()
+    while(!((Boolean)sema.tryAcquire())) {
+        if(wnow() - start > 15000L) { logWarn("Zone status lock wait exceeded 15s... continuing without it"); return false }
+        pauseExecution(50L)
+    }
+    return true
+}
+
+private void unlockZoneStatus(Boolean held) { if(held) zoneStatusSema().release() }
+
+private void clearPendingZoneStatus() {
+    atomicState.pendingZoneStatus = null
+    atomicState.pendingZoneStatusDue = null
+}
+
 void checkZoneStatus(evt) {
     Map condStatus = conditionStatus()
     Boolean active = (Boolean)condStatus.ok
     String delayType = active ? "active" : "inactive"
     String nm = (String)evt?.name
     String msg1 = " | Call from ${nm} / ${(String)evt?.displayName}".toString()
-    if((Boolean)state.zoneConditionsOk == active) { logTrace("checkZoneStatus: Zone: ${delayType} | No changes${msg1}"); return }
-    Boolean bypassDelay = false
-    Map data = [active: active, recheck: false, evtData: [name: nm, displayName: (String)evt?.displayName], condStatus: condStatus]
     Integer delay = settings."zone_${delayType}_delay" ?: null
-    if(!active && settings."cond_${nm}_db" == true) { bypassDelay = !isConditionOk(nm) }
-    String msg = !bypassDelay && delay ? "in (${delay} sec)" : (bypassDelay ? "Bypassing Inactive Delay for (${nm}) Event..." : sBLANK)
-    logTrace("calling updateZoneStatus [${delayType}] "+msg+msg1)
-    if(!bypassDelay && delay) {
-        runIn(delay, "updateZoneStatus", [data: data])
-    } else {
-        updateZoneStatus(data)
+    Boolean bypassDelay = false
+    String dbKey = (nm == 'hsmStatus') ? 'alarm' : nm // HSM events are named hsmStatus but the setting is cond_alarm_db
+    if(!active && settings."cond_${dbKey}_db" == true) { bypassDelay = !isConditionOk(nm) }
+    // recheck: re-evaluate conditions when a delayed update fires rather than trusting this snapshot
+    Map data = [active: active, recheck: false, evtData: [name: nm, displayName: (String)evt?.displayName], condStatus: condStatus]
+
+    Boolean runNow = false
+    Boolean held = lockZoneStatus()
+    try {
+        Boolean pend = (Boolean)atomicState.pendingZoneStatus
+        // a pending marker whose job should have fired over 15s ago is stale (job lost); ignore it
+        Boolean hasPending = pend != null && wnow() < (((Long)atomicState.pendingZoneStatusDue ?: 0L) + 15000L)
+        if((Boolean)atomicState.zoneConditionsOk == active) {
+            if(hasPending) {
+                // conditions flipped back inside the delay window: drop the delayed change instead of applying it later
+                unschedule("updateZoneStatus")
+                clearPendingZoneStatus()
+                logDebug("checkZoneStatus: Zone: ${delayType} again | Cancelled pending delayed status change${msg1}")
+            } else { logTrace("checkZoneStatus: Zone: ${delayType} | No changes${msg1}") }
+            return
+        }
+        String msg = !bypassDelay && delay ? "in (${delay} sec)" : (bypassDelay ? "Bypassing Inactive Delay for (${nm}) Event..." : sBLANK)
+        logTrace("calling updateZoneStatus [${delayType}] "+msg+msg1)
+        if(!bypassDelay && delay) {
+            if(hasPending && pend == active) {
+                // already waiting for this change: don't restart the timer (noisy sensors would postpone it forever)
+                logTrace("checkZoneStatus: ${delayType} change already pending${msg1}")
+                return
+            }
+            data.recheck = true
+            atomicState.pendingZoneStatus = active
+            atomicState.pendingZoneStatusDue = wnow() + (delay * 1000L)
+            runIn(delay, "updateZoneStatus", [data: data])
+        } else {
+            if(pend != null) { unschedule("updateZoneStatus"); clearPendingZoneStatus() }
+            data.recheck = true // conditions were evaluated before the lock; re-evaluate so an older snapshot can't win
+            runNow = true
+        }
+    } finally {
+        unlockZoneStatus(held)
     }
+    if(runNow) updateZoneStatus(data)
 }
 
 public Boolean isZoneDeviceEnabled() {
@@ -1219,13 +1297,26 @@ void sendZoneRemoved() {
 void updateZoneStatus(Map data) {
     Boolean active = (Boolean)data.active
     Map condStatus = (Map)data.condStatus
-    if((Boolean)data.recheck) {
-        condStatus = conditionStatus()
-        active = (Boolean)condStatus.ok
+    // decide and record the transition atomically; only the caller that flips the value runs the side effects.
+    // The recheck runs INSIDE the lock: an event that arrives after this evaluation then also arrives after the write
+    // below, sees the difference and corrects it (otherwise a cancel during the evaluation could be overwritten).
+    Boolean changed = false
+    Boolean held = lockZoneStatus()
+    try {
+        clearPendingZoneStatus() // in finally-safe position: a throwing recheck can't leave a marker for a job that already ran
+        if((Boolean)data.recheck) {
+            condStatus = conditionStatus()
+            active = (Boolean)condStatus.ok
+        }
+        if((Boolean)atomicState.zoneConditionsOk != active) {
+            atomicState.zoneConditionsOk = active
+            changed = true
+        }
+    } finally {
+        unlockZoneStatus(held)
     }
-    if(state.zoneConditionsOk != active) {
+    if(changed) {
         logInfo("Setting Zone (${getZoneName()}) Status to (${active ? "Active" : "Inactive"})")
-        state.zoneConditionsOk = active
         addToZoneHistory((Map)data.evtData, condStatus)
         sendZoneStatus()
         if(isZoneNotifConfigured()) {
@@ -1357,7 +1448,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=fal
         Integer delay = (Integer)data.delay // ?: null
 
         // log.warn "zoneCmdHandler cmd: $cmd data: $data zoneDevMap: $zoneDevMap zoneDevs: $zoneDevs"
-        if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarning("Zone Command Message is missing", true); return }
+        if(cmd in [ 'speak', 'announcement', 'voicecmd', 'sequence'] && !data.message) { logWarn("Zone Command Message is missing", true); return }
 
         String tmsg = (String)data.message
         String msgp1 = " to Zone (${getZoneName()})"
@@ -1391,7 +1482,7 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=fal
                     String mymsg = valS[1]
                     String mtitle = data.title ?: (valS[0] ?: getZoneName())
                     //NOTE: Only sends command to first device in the list | We send the list of devices to announce one and then Amazon does all the processing
-                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, mtitle, (List)zoneDevMap.devObj, data.changeVol, data.restoreVol)
+                    zoneDevs[0]?.sendAnnouncementToDevices(mymsg, mtitle, (List)zoneDevMap.devObj, data.changeVol, data.restoreVol, ignoreDoNotDisturb)
                     /* call zone vdevice with finishAnnounce */
                     if(!chldDev) relayFinishAnnouncement(mtitle+'::'+mymsg, [vol: (Integer)data.changeVol, restvol: (Integer)data.restoreVol])
                 }
@@ -1413,10 +1504,12 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=fal
             case "alarmvolume":
             case "volume":
                 logDebug("Sending ${data.cmd?.capitalize()} Command${msgp1}${msgv1}${msgd1}")
-                if(data.changeVol != null) {
-                    zoneDevs?.each { dev->
-                        dev?."${data.cmd}"(data.changeVol)
-                    }
+                if(data.cmd in ['volumeUp', 'volumeDown']) {
+                    // the zone device sends these without a value
+                    zoneDevs?.each { dev-> if(data.cmd == 'volumeUp') { dev?.volumeUp() } else { dev?.volumeDown() } }
+                } else if(data.changeVol != null) {
+                    if(!(data.cmd in zoneVolCmdsFLD)) { logWarn("zoneCmdHandler | Unsupported ${cmd} command: ${data.cmd}"); break }
+                    zoneDevs?.each { dev-> zoneDevVolCmd(dev, (String)data.cmd, data.changeVol) }
                     /* call zone vdevice with updateLevel */
                     if(!chldDev) getEzDevice().each { it.updateLevel(null, data.changeVol) }
                 }
@@ -1427,9 +1520,8 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=fal
             case "mute":
             case "unmute":
                 logDebug("Sending ${data.cmd?.capitalize()} Command${msgp1}${msgd1}")
-                zoneDevs?.each { dev->
-                    if(data.cmd) { dev?."${data.cmd}"() }
-                }
+                if(!(data.cmd in zoneSimpleCmdsFLD)) { logWarn("zoneCmdHandler | Unsupported ${cmd} command: ${data.cmd}"); break }
+                zoneDevs?.each { dev-> zoneDevSimpleCmd(dev, (String)data.cmd, data.changeVol) }
                     /* if(!chldDev) todo need to call zone vdevice with mute/unmute updates */
                    // getEzDevice().each { it.updateCookies(cookies) }
                 break
@@ -1438,30 +1530,93 @@ public zoneCmdHandler(evt, Boolean chldDev=false, Boolean ignoreDoNotDisturb=fal
             case "calendar":
             case "weather":
                 logDebug("Sending ${data.cmd?.capitalize()} Command${msgp1}${msgv1}${msgd1}")
-                zoneDevs?.each { dev->
-                    if(data.cmd) { dev?."${data.cmd}"(data.changeVol, data.restoreVol) }
-                }
+                if(!(data.cmd in zoneBuiltinCmdsFLD)) { logWarn("zoneCmdHandler | Unsupported ${cmd} command: ${data.cmd}"); break }
+                zoneDevs?.each { dev-> zoneDevBuiltinCmd(dev, (String)data.cmd, data.changeVol, data.restoreVol) }
                 doFin=true
                 break
             case "sounds":
                 logDebug("Sending ${data.cmd?.capitalize()} | Name: ${tmsg} Command${msgp1}${msgv1}${msgd1}")
-                zoneDevs?.each { dev->
-                    dev?."${data.cmd}"(tmsg, data.changeVol, data.restoreVol)
-                }
+                // actions send cmd "playSoundByName"; the sound name is in message
+                zoneDevs?.each { dev-> dev?.playSoundByName(tmsg, data.changeVol, data.restoreVol) }
+                doFin=true
+                break
+            case "cannedtts":
+                logDebug("Sending Canned TTS | Type: ${tmsg}${msgp1}${msgv1}${msgd1}")
+                zoneDevs?.each { dev-> dev?.playCannedRandomTts(tmsg, data.changeVol, data.restoreVol) }
                 doFin=true
                 break
             case "music":
                 logDebug("Sending ${data.cmd?.capitalize()} Command${msgp1} | Provider: ${data.provider} | Search: ${data.search}${msgd1}${msgv1}")
-                zoneDevs?.each { dev ->
-                    dev?."${data.cmd}"(data.search, data.provider, data.changeVol, data.restoreVol)
-                }
-                doFin=true
+                // actions send cmd "music"; the device command is searchMusic(search, provider, volume, sleepSeconds).
+                // restoreVol was previously passed as sleepSeconds, which stopped the music after <restoreVol> seconds.
+                zoneDevs?.each { dev -> dev?.searchMusic((String)data.search, (String)data.provider, data.changeVol, null) }
+                // searchMusic has no restore volume, so only report the volume that was set
+                if(!chldDev && data.changeVol != null) getEzDevice().each { it.updateLevel(null, data.changeVol) }
                 break
         }
         /* call zone vdevice with updateLevel */
         if(doFin && !chldDev) getEzDevice().each { it.updateLevel(data.restoreVol, data.changeVol) }
     }
 }
+/*
+ * Hubitat blocks computed device command calls (dev."${cmd}"(...) -> SecurityException on newer firmware),
+ * so every command a zone can relay to its Echo devices is dispatched explicitly here.
+ */
+@Field static final List<String> zoneSimpleCmdsFLD = ['play', 'pause', 'stop', 'togglePlayback', 'nextTrack', 'previousTrack', 'mute', 'unmute', 'doNotDisturbOn', 'doNotDisturbOff', 'volume']
+@Field static final List<String> zoneVolCmdsFLD = ['setLevel', 'setVolume', 'setAlarmVolume']
+@Field static final List<String> zoneBuiltinCmdsFLD = [
+    'playWeather', 'playTraffic', 'playSingASong', 'playFlashBrief', 'playGoodNews', 'playTellStory', 'playFunFact', 'playJoke',
+    'playCalendarToday', 'playCalendarTomorrow', 'playCalendarNext',
+    'sayWelcomeHome', 'sayCompliment', 'sayBirthday', 'sayGoodNight', 'sayGoodMorning', 'sayGoodbye', 'sayGoodBye'
+]
+
+private void zoneDevSimpleCmd(dev, String cmd, changeVol) {
+    switch(cmd) {
+        case 'play':            dev?.play(); break
+        case 'pause':           dev?.pause(); break
+        case 'stop':            dev?.stop(); break
+        case 'togglePlayback':  dev?.togglePlayback(); break
+        case 'nextTrack':       dev?.nextTrack(); break
+        case 'previousTrack':   dev?.previousTrack(); break
+        case 'mute':            dev?.mute(); break
+        case 'unmute':          dev?.unmute(); break
+        case 'doNotDisturbOn':  dev?.doNotDisturbOn(); break
+        case 'doNotDisturbOff': dev?.doNotDisturbOff(); break
+        case 'volume':          if(changeVol != null) { dev?.setVolume(changeVol) }; break // playback action "Volume"
+    }
+}
+
+private void zoneDevVolCmd(dev, String cmd, vol) {
+    switch(cmd) {
+        case 'setLevel':       dev?.setLevel(vol); break
+        case 'setVolume':      dev?.setVolume(vol); break
+        case 'setAlarmVolume': dev?.setAlarmVolume(vol); break
+    }
+}
+
+private void zoneDevBuiltinCmd(dev, String cmd, changeVol, restoreVol) {
+    switch(cmd) {
+        case 'playWeather':          dev?.playWeather(changeVol, restoreVol); break
+        case 'playTraffic':          dev?.playTraffic(changeVol, restoreVol); break
+        case 'playSingASong':        dev?.playSingASong(changeVol, restoreVol); break
+        case 'playFlashBrief':       dev?.playFlashBrief(changeVol, restoreVol); break
+        case 'playGoodNews':         dev?.playGoodNews(changeVol, restoreVol); break
+        case 'playTellStory':        dev?.playTellStory(changeVol, restoreVol); break
+        case 'playFunFact':          dev?.playFunFact(changeVol, restoreVol); break
+        case 'playJoke':             dev?.playJoke(changeVol, restoreVol); break
+        case 'playCalendarToday':    dev?.playCalendarToday(changeVol, restoreVol); break
+        case 'playCalendarTomorrow': dev?.playCalendarTomorrow(changeVol, restoreVol); break
+        case 'playCalendarNext':     dev?.playCalendarNext(changeVol, restoreVol); break
+        case 'sayWelcomeHome':       dev?.sayWelcomeHome(changeVol, restoreVol); break
+        case 'sayCompliment':        dev?.sayCompliment(changeVol, restoreVol); break
+        case 'sayBirthday':          dev?.sayBirthday(changeVol, restoreVol); break
+        case 'sayGoodNight':         dev?.sayGoodNight(changeVol, restoreVol); break
+        case 'sayGoodMorning':       dev?.sayGoodMorning(changeVol, restoreVol); break
+        case 'sayGoodbye':
+        case 'sayGoodBye':           dev?.sayGoodbye(changeVol, restoreVol); break // zone device sends "sayGoodBye"
+    }
+}
+
 /******************************************
 |   Restriction validators
 *******************************************/
@@ -1723,22 +1878,21 @@ public void disableDebugLog() { settingUpdate("logDebug", sFALSE, sBOOL); logInf
 public void enableTraceLog() { settingUpdate("logTrace", sTRUE, sBOOL); logInfo("Trace Logs Enabled From Main App...") }
 public void disableTraceLog() { settingUpdate("logTrace", sFALSE, sBOOL); logInfo("Trace Logs Disabled From Main App...") }
 
-@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> tsDtMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 private void updTsVal(String key, String dt=sNULL) {
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:]
+    Map data=fldMapCopy(tsDtMapFLD[appId])
     if(!data) data = (Map)state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
-    tsDtMapFLD[appId]=data
-    tsDtMapFLD=tsDtMapFLD
+    fldPut(tsDtMapFLD, appId, data)
 
     state.tsDtMap = data
 }
 
 private void remTsVal(key) {
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:]
+    Map data=fldMapCopy(tsDtMapFLD[appId])
     if(!data) data = (Map)state.tsDtMap ?: [:]
     if(key) {
         if(key instanceof List) {
@@ -1748,8 +1902,7 @@ private void remTsVal(key) {
                 }
         } else if(data.containsKey((String)key)) { data.remove((String)key) }
     }
-    tsDtMapFLD[appId]=data
-    tsDtMapFLD=tsDtMapFLD
+    fldPut(tsDtMapFLD, appId, data)
 
     state.tsDtMap = data
 }
@@ -1848,15 +2001,15 @@ String getNotifSchedDesc(Boolean min=false) {
     String str = sBLANK
 
     if(startType && stopType) {
-        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == sTIME && settings.notif_time_start ? timeToday((String)settings.notif_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? timeToday((String)settings.notif_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
     }
     if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
-        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*60000L /* minutes */ : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*60000L /* minutes */ : 0L
         if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
@@ -1968,8 +2121,8 @@ String getTimeCondDesc(Boolean addPre=true) {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == 'time' && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == 'time' && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == 'time' && settings.cond_time_start ? timeToday((String)settings.cond_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == 'time' && settings.cond_time_stop ? timeToday((String)settings.cond_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
     }
 
     String startLbl1 = sBLANK
@@ -1978,8 +2131,8 @@ String getTimeCondDesc(Boolean addPre=true) {
         def sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
-        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*60000L /* minutes */ : 0L
+        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*60000L /* minutes */ : 0L
         if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
@@ -2075,8 +2228,8 @@ Boolean notifTimeOk() {
     String startType = settings.notif_time_start_type
     String stopType = settings.notif_time_stop_type
     if(startType && stopType) {
-        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == sTIME && settings.notif_time_start ? timeToday((String)settings.notif_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? timeToday((String)settings.notif_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
     } else { return true }
 
     Date now = new Date()
@@ -2084,8 +2237,8 @@ Boolean notifTimeOk() {
         Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
-        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*60000L /* minutes */ : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*60000L /* minutes */ : 0L
         if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
@@ -2162,7 +2315,7 @@ Boolean minVersionFailed() {
 // }
 
 Boolean isActive() {
-    Boolean st = (Boolean)state.zoneConditionsOk
+    Boolean st = (Boolean)atomicState.zoneConditionsOk
     return st != null ? st : (Boolean)conditionStatus().ok
 }
 
@@ -2282,22 +2435,21 @@ private Map getLogHistory() {
 }
 
 @SuppressWarnings('unused')
-private void clearHistory()  { historyMapFLD = [:]; mb() }
+private void clearHistory()  { historyMapFLD.remove(app.getId().toString()) } // only this zone (was: replaced the map shared by every zone)
 
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, List val) {
     String appId = app.getId()
-    Map memStore = historyMapFLD[appId] ?: [:]
+    Map memStore = fldMapCopy(historyMapFLD[appId])
     memStore[key] = val
-    historyMapFLD[appId] = memStore
-    historyMapFLD = historyMapFLD
+    fldPut(historyMapFLD, appId, memStore)
     // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
 }
 
 private List getMemStoreItem(String key){
     String appId = app.getId()
     Map memStore = historyMapFLD[appId] ?: [:]
-    return (List)memStore[key] ?: []
+    return new ArrayList((List)memStore[key] ?: []) // copy: callers change it before updMemStoreItem()
 }
 // Memory Barrier
 @Field static Semaphore theMBLockFLD=new Semaphore(0)
@@ -2365,7 +2517,7 @@ public Map getSettingsAndStateMap() {
         // actions
         "tierSchedActive",
         // zones
-        "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", /* "handleGuardEvents", */ "startTime", "stopTime", /* "alexaGuardState", */ "appFlagsMap", // DISABLED: Alexa Guard features disabled
+        "zoneConditionsOk", "pendingZoneStatus", "pendingZoneStatusDue", "configStatusMap", "tsDtMap", "dateInstalled", /* "handleGuardEvents", */ "startTime", "stopTime", /* "alexaGuardState", */ "appFlagsMap", // DISABLED: Alexa Guard features disabled
         "dupPendingSetup", "dupOpenedByUser"
     ]
     data.state = state?.findAll { !((String)it?.key in stskip) }

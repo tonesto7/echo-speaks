@@ -18,10 +18,83 @@
   <![endif]-->
 </head>
 <body>
+<h3 id="release-v4.3.0.3---november-27th-2026"><em><strong>Release (v4.3.0.3) - [November 27th, 2026]</strong></em></h3>
+<h4 id="echo-speaks-app"><em><strong><em>Echo Speaks App</em></strong></em></h4>
+<ul>
+<li>[NEW] The app now checks that the Echo Speaks Server has its current callback URL and sends the correct one when it is stale (for example after a hub replacement or backup restore, an app reinstall or an access token reset). Previously every server-to-hub call failed with a 404 until the URL was re-entered by hand. The check runs on initialize and every 6 hours from the health check.</li>
+<li>[NEW] The local hub endpoint URL is now shown as an alternative to the cloud URL on the server setup page and in the Server Callback URLs section, and the server can use either one. Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>, <span class="citation" data-cites="ndmaxwell">@ndmaxwell</span> and <span class="citation" data-cites="mr_fy">@mr_fy</span>.</li>
+<li>[NEW] The app now appears under the Integrations menu. Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>, <span class="citation" data-cites="ndmaxwell">@ndmaxwell</span> and <span class="citation" data-cites="mr_fy">@mr_fy</span>.</li>
+<li>[FIX] Fixed announcements failing with “SecurityException: Computed device command ‘finishSendSpeak’ is not allowed” on newer Hubitat firmware. Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>, <span class="citation" data-cites="ndmaxwell">@ndmaxwell</span> and <span class="citation" data-cites="mr_fy">@mr_fy</span>.</li>
+<li>[UPDATE] The automatic cookie refresh interval can now be set from 1 to 90 days (was 1 to 5). The default is still 5 days.</li>
+<li>[FIX] The cloud endpoint URL now always uses HTTPS (the hub could return an http:// address, which broke the Amazon login redirect). Thanks <span class="citation" data-cites="howarddavidp">@howarddavidp</span>.</li>
+<li>[FIX] Corrected the Echo Dot (Gen5) and Echo Spot 2 model names and added missing Echo Dot Gen4/Gen5 icons. Thanks <span class="citation" data-cites="jshimota01">@jshimota01</span>.</li>
+<li>[UPDATE] Added device support for the Echo Show 8 (Gen4), Echo Show 11 (Gen4) and Echo Show 21 (Gen1), with new icons. Thanks <span class="citation" data-cites="jshimota01">@jshimota01</span>.</li>
+<li>[NOTE] Echo Speaks Server v2.8.1 is recommended. It updates the Amazon login to support Amazon’s newer sign-in pages and requires Node.js 20 or newer.</li>
+<li>[SECURITY] Amazon cookies, CSRF tokens and request headers are no longer written to the logs.</li>
+<li>[SECURITY] The diagnostics page no longer offers a shareable link (it contained the app’s access token, which also grants access to the Amazon login). Use the new “Copy Diagnostics” button and paste the text instead.</li>
+<li>[NEW] Manage Cookie Login Service now has a “Server Callback URLs” section (hidden until tapped) showing the cloud and local hub URLs the server can use, which kind the server currently uses, a button to check it now, and buttons to switch the server between the cloud and local URL (local is offered only for servers on your network). The callback URL in use is also shown in the Manage Cookie Login Service summary and under Server Management.</li>
+<li>[UPDATE] Server Host Override now sits below the Amazon Login Page link with a description of when to use it, and “(override)” is shown next to the server host when it is set.</li>
+<li>[NEW] Added a “Reset Access Token” button (Settings &gt; Access Token). Previously shared app links stop working and the server is sent the new callback URL automatically.</li>
+<li>[FIX] The server callback URL check no longer replaces a working URL that uses a hostname, port 8443 or a reverse proxy, never sends a URL without an access token, and backs off after failed updates instead of retrying every 15 minutes. When the server uses the local URL and the hub’s IP address changes, the check now sends the local URL with the new IP.</li>
+<li>[FIX] Automatic cookie refresh now runs when the refresh interval is set above 11 days.</li>
+<li>[FIX] One failed or deleted device no longer stalls the speech queue.</li>
+<li>[FIX] Speaking with a restore volume no longer reports the spoken text twice.</li>
+<li>[FIX] Fixed a lock override that could let two tasks run at the same time.</li>
+<li>[FIX] A local server that does not report “onHeroku” is no longer treated as a Heroku server, and the server URL it reports is preferred over the guessed herokuapp.com address.</li>
+<li>[FIX] Cookie validation now reports an unauthenticated cookie as invalid, and the Auth Status page no longer waits on Amazon each time it opens.</li>
+<li>[FIX] Echo Show 8 (Gen3) now uses the Echo Show 8 icon.</li>
+<li>[UPDATE] The in-memory caches in the app, Actions and Zones are now thread-safe (ConcurrentHashMap with copy-on-write updates), are cleared on uninstall, and server settings are cached instead of being re-read from the database on every check.</li>
+<li>[FIX] Actions now receive the zone list when the app rebuilds its zone cache (it passed an undefined value).</li>
+<li>[FIX] The local hub endpoint URL shown on the server setup page now has the correct format (http://<hub IP>/apps/api/<app id>/…).</li>
+</ul>
+<h4 id="echo-speaks-actions"><em><strong><em>Echo Speaks Actions</em></strong></em></h4>
+<ul>
+<li>[FIX] Fixed the webCoRE piston list for the current webCoRE piston data format. Thanks <span class="citation" data-cites="imnotbob">@imnotbob</span>.</li>
+<li>[FIX] Fixed the Triggers page failing to open (leftover Alexa Guard code). The Alexa Guard trigger was removed.</li>
+<li>[FIX] Fixed device commands failing on newer Hubitat firmware (“Computed device command … is not allowed”).</li>
+<li>[FIX] “All devices” triggers now wait until every selected device matches.</li>
+<li>[FIX] Sunrise/sunset offsets are applied in minutes (they were applied as seconds).</li>
+<li>[FIX] Fixed-time conditions and quiet times now use today’s date.</li>
+<li>[FIX] A threshold of 0 (for example “temperature below 0”) now works.</li>
+<li>[FIX] Scheduled triggers: month filters work for January-September, Weekly/Monthly schedules are no longer limited to one run per week or month, and One-Time schedules run once (changing the trigger time re-arms them).</li>
+<li>[FIX] “Only once per day” and “wait” restrictions now apply to mode, alarm and webCoRE triggers, and only events that actually match the trigger count toward them.</li>
+<li>[FIX] Light flashing with two colors now alternates colors.</li>
+<li>[FIX] Music searches no longer stop after a number of seconds equal to the restore volume.</li>
+<li>[UPDATE] Locks are released even when an error occurs, and a failure in delayed (“after”) trigger handling no longer leaves the action blocked.</li>
+<li>[UPDATE] After a code update, the actions send one webCoRE piston list request between them instead of one per action.</li>
+</ul>
+<h4 id="echo-speaks-zones"><em><strong><em>Echo Speaks Zones</em></strong></em></h4>
+<ul>
+<li>[FIX] Numeric conditions (battery, temperature, level, etc.) can be configured again.</li>
+<li>[FIX] Fixed zone commands failing on newer Hubitat firmware (“Computed device command … is not allowed”), including music, “Say Goodbye” and the playback Volume action.</li>
+<li>[FIX] Zone volume up/down now changes the Echo volumes, and Play Sound / Canned TTS on a zone device now play.</li>
+<li>[FIX] Fixed-time conditions now schedule correctly, and sunrise/sunset offsets are applied in minutes.</li>
+<li>[FIX] A zone change is cancelled if the conditions flip back during the activation/deactivation delay, and frequent sensor events no longer keep restarting the delay.</li>
+<li>[FIX] Two events arriving at the same moment no longer send duplicate zone notifications or switch commands.</li>
+<li>[FIX] “Deactivate immediately” now works for Alarm (HSM) conditions, and a threshold of 0 now works.</li>
+<li>[FIX] Clearing one zone’s history no longer clears the history of every zone.</li>
+<li>[FIX] Announcements that ignore Do Not Disturb (playAnnouncementIgnore) now also bypass DND when sent to a zone.</li>
+</ul>
+<h4 id="echo-speaks-device"><em><strong><em>Echo Speaks Device</em></strong></em></h4>
+<ul>
+<li>[NEW] Declared the followUpModeOn/Off, repeat, shuffle and playCannedRandomTts commands; the followUpMode attribute now updates when the change is accepted.</li>
+<li>[FIX] Announcements to several devices now set the volume on each target device.</li>
+<li>[FIX] Built-in phrases and sounds (weather, jokes, good morning, etc.) now respect Do Not Disturb, authentication and offline status like speak() on devices that support text to speech.</li>
+<li>[FIX] Alarm volume, Do Not Disturb and wake word only change on the device after Amazon accepts the change.</li>
+<li>[FIX] Mute status is always reported, and an offline device no longer triggers a refresh on every status update.</li>
+<li>[FIX] Play/pause/next/previous refresh only the playback state instead of all device data.</li>
+<li>[FIX] Speech attributes are no longer reset to “NA” after every cookie refresh.</li>
+<li>[FIX] Fixed “every X days” reminders, the reminder time zone, alarm labels losing their spaces, removing the first created notification and the reminders permission check.</li>
+</ul>
+<h4 id="build-and-packaging"><em><strong><em>Build and Packaging</em></strong></em></h4>
+<ul>
+<li>[UPDATE] The Echo Speaks Zone Device driver is now generated from the Echo Speaks Device driver (scripts/gen-zone-driver.py), and the Hubitat bundle is rebuilt from the current code (scripts/build-bundle.py). A CI check keeps both in sync.</li>
+<li>[REMOVED] Removed the unused libraries folder.</li>
+</ul>
 <h3 id="release-v4.3.0.1---september-10th-2025"><em><strong>Release (v4.3.0.1) - [September 10th, 2025]</strong></em></h3>
 <h4 id="all-apps-and-devices"><em><strong><em>All Apps and Devices</em></strong></em></h4>
 <ul>
-<li>[FIX] Fixed 404 errors on devices with getPlaybackState command (Thanks <span class="citation" data-cites="khan-hubitat">@khan-hubitat</span>).</li>
+<li>[FIX] Fixed 404 errors on devices with getPlaybackState command (Thanks <span class="citation" data-cites="kahn-hubitat">@kahn-hubitat</span>).</li>
 <li>[FIX] Fixed issue with code version checking when devices or apps are disabled in hubitat.</li>
 <li>[FIX] Merged in <span class="citation" data-cites="imnotbobs">@imnotbobs</span> pull request for cleanups post alexa guard removal.</li>
 </ul>

@@ -94,3 +94,7 @@ AWS_Files/Testing/input.json
 .vscode/settings.json
 website/
 devicetypes/graylog_device.groovy
+
+# JetBrains IDE
+.idea/
+*.iml

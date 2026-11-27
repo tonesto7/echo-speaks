@@ -1,0 +1,29 @@
+name: Generated files in sync
+
+# drivers/echo-speaks-zone-device.groovy is generated from drivers/echo-speaks-device.groovy, and
+# bundles/echospeaks.zip is built from the apps and drivers. Fails when either is edited by hand or not regenerated:
+#   python3 scripts/gen-zone-driver.py && python3 scripts/build-bundle.py
+on:
+  push:
+    paths:
+      - 'apps/**'
+      - 'drivers/**'
+      - 'bundles/**'
+      - 'scripts/**'
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'drivers/**'
+      - 'bundles/**'
+      - 'scripts/**'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check generated zone driver
+        run: python3 scripts/gen-zone-driver.py --check
+      - name: Check Hubitat bundle
+        run: python3 scripts/build-bundle.py --check
