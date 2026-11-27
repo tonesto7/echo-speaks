@@ -2,7 +2,7 @@
 /**
  *  Echo Speaks App (Hubitat)
  *
- *  Copyright 2018-2025 Anthony Santilli
+ *  Copyright 2018-2026 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -92,16 +92,24 @@ import java.util.concurrent.Semaphore
 //*          IN-MEMORY ONLY VARIABLES            *
 //* (Cleared only on HUB REBOOT or CODE UPDATES) *
 //************************************************
-@Field volatile static Map<String, Map> historyMapFLD         = [:]
-@Field volatile static Map<String, Map> cookieDataFLD         = [:]
-@Field volatile static Map<String, Map> echoDeviceMapFLD      = [:]
-@Field volatile static Map<String, Map> childDupMapFLD        = [:]
-@Field volatile static Map<String,Map> workQMapFLD            = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> historyMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+
+/*
+ * Static caches shared by every execution (and every instance) of this app. ConcurrentHashMap makes concurrent
+ * access safe; inner maps/lists are copy-on-write (copy, change, put back) so readers never see a half-updated
+ * object. ConcurrentHashMap rejects null values, so fldPut() removes the key instead.
+ */
+static void fldPut(java.util.concurrent.ConcurrentHashMap m, String k, v) { if(k == null) return; if(v == null) { m.remove(k) } else { m.put(k, v) } }
+static Map fldMapCopy(Map m) { return m != null ? new LinkedHashMap(m) : [:] }
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> cookieDataFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> echoDeviceMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> childDupMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> workQMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 //@Field static Map<String,          Map> guardDataFLD        = [:]
-@Field volatile static Map<String, Map> zoneStatusMapFLD      = [:]
-@Field volatile static Map<String, Map> bluetoothDataFLD      = [:]
-@Field volatile static Map<String, List> alexaRoutinesDataFLD = [:]
-@Field volatile static Map<String, Map> dndDataFLD            = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> zoneStatusMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> bluetoothDataFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,List> alexaRoutinesDataFLD = new java.util.concurrent.ConcurrentHashMap<String,List>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> dndDataFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 definition(
     name                : "Echo Speaks",
@@ -267,7 +275,11 @@ def authStatusPage() {
             Integer lastChkSec = getLastTsValSecs("lastCookieRrshDt")
             Boolean pastDayChkOk = (lastChkSec > 86400)
             section(sectHead("Cookie Status:")) {
-                Boolean cookieValid = validateCookie(true)
+                // don't block the page on Amazon: show the latest validation result and refresh it in the background
+                // (validateCookie() without force runs at most every 30 minutes)
+                validateCookie()
+                List avHist = (List)state.authValidHistory
+                Boolean cookieValid = avHist ? (avHist[-1] == true) : (Boolean)state.authValid
                 Boolean chk1 = (state.cookieData && state.cookieData.localCookie)
                 Boolean chk2 = (state.cookieData && state.cookieData.csrf  )
                 Boolean chk3 = (lastChkSec < 432000)
@@ -335,7 +347,8 @@ def servPrefPage() {
                 href url: getAppEndpointUrl("config"), style: sEXTNRL, title: inTS1("Begin Server Setup", "upload"), description: inactFoot(sTTP)
             }
         } else {
-            String myUrl = "${getServerHostURL()}/config"
+            String srvHostUrl = getServerHostURL()
+            String myUrl = srvHostUrl ? "${srvHostUrl}/config".toString() : getAppEndpointUrl("config")
             String t0 = getServiceConfDesc()
             if(!authValid) {
                 section(sectHead("Authentication:")) {
@@ -346,14 +359,24 @@ def servPrefPage() {
                 Boolean oH = (Boolean)getServerItem("onHeroku")
                 section(sectHead("Server Management:")) {
                     if(oH && (String)state.herokuName) { paragraph spanSmBldBr("Heroku Name:", sCLR4D9) + spanSm(" ${sBULLET} ${(String)state.herokuName}", sCLR4D9) }
-                    paragraph spanSmBld("Current Server Host:", sCLR4D9) + " " + spanSmBr("${getServerHostURL()}", sCLR4D9)
-                    input "serverHostOverride", "text", title: inTS1("Server Host Override"), required: false, submitOnChange: true
-                    if(serverHostOverride && serverHostOverride ==~ /.*\/$/) { settingUpdate("serverHostOverride", serverHostOverride.substring(0, serverHostOverride.length()-1), "text") }
+                    Boolean hostOverridden = (settings.serverHostOverride as Boolean)
+                    paragraph spanSmBld("Current Server Host:", sCLR4D9) + " " + spanSm("${srvHostUrl ?: "Unknown"}", sCLR4D9) +
+                        (hostOverridden ? spanSmBld(" (override)", sCLRORG) : sBLANK) + lineBr() +
+                        spanSmBld("Callback URL in use:", sCLR4D9) + " " + spanSmBr(callbackUrlStatusDesc(), sCLR4D9)
                     href url: myUrl, style: sEXTNRL, title: inTS1("Amazon Login Page", sAMAZONORNG), description: t0 + inputFooter(sTTP, sCLR4D9)
                     if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/settings", style: sEXTNRL, title: inTS1("Heroku App Settings", sHEROKU), description: inactFoot(sTTP)
                     if(oH) href url: "https://dashboard.heroku.com/apps/${getRandAppName()}/logs", style: sEXTNRL, title: inTS1("Heroku App Logs", sHEROKU), description: inactFoot(sTTP)
+                    // advanced: kept below the login link
+                    input "serverHostOverride", "text", title: inTS1("Server Host Override (Advanced)"), required: false, submitOnChange: true,
+                        description: "Leave blank to use the address the server reports"
+                    if(serverHostOverride && serverHostOverride ==~ /.*\/$/) { settingUpdate("serverHostOverride", serverHostOverride.substring(0, serverHostOverride.length()-1), "text") }
+                    paragraph spanSm("The address this hub uses to reach the Echo Speaks server (login page, cookie refresh, wakeup and the callback URL check). " +
+                        "Only set it when the address the server reports is not reachable from the hub, e.g. a Docker container reporting an internal IP, " +
+                        "a moved server or a reverse proxy. Example: http://192.168.1.50:8091. " +
+                        "It stays in effect until cleared, even if the server reports a new address.", sCLRGRY)
                 }
             }
+            serverCallbackUrlsSect()
             srvcPrefOpts()
         }
         section(sectHead("Reset Options (Tap to show):"), hideable: true, hidden: true) {
@@ -364,6 +387,67 @@ def servPrefPage() {
         }
         state.resumeConfig = false
     }
+}
+
+// Read-only view of the hub URLs the Echo Speaks server can use as its appCallbackUrl, and which one it uses now.
+// Hidden by default: both URLs carry the app access token.
+def serverCallbackUrlsSect() {
+    section(sectHead("Server Callback URLs (Tap to show):"), hideable: true, hidden: true) {
+        paragraph spanSmBld("Do not share these URLs.", sCLRRED) + spanSmBr(" They contain this app's access token, which also grants access to your Amazon login. Only enter them in your own Echo Speaks server (appCallbackUrl). Use Reset Access Token if one was shared.", sCLRRED)
+        Map cb = (Map)state.srvCbUrlInfo
+        String chk = cb?.dt ? " | Checked: ${cb.dt}".toString() : sBLANK
+        paragraph spanSmBld("Server is using: ", sCLR4D9) + spanSmBr(callbackUrlStatusDesc() + chk, sCLR4D9)
+        paragraph spanSmBld("Cloud URL", sCLR4D9) + spanSm(" (works from anywhere; needs the hub's cloud connection)", sCLRGRY) + lineBr() + spanSm(getAppEndpointUrl("receiveData") as String, sCLRGRY)
+        paragraph spanSmBld("Local URL", sCLR4D9) + spanSm(" (server on the same network as the hub; no cloud needed)", sCLRGRY) + lineBr() + spanSm(getLocalEndpointUrl("receiveData") as String, sCLRGRY)
+        // switching: the hub pushes the URL to the server (hub -> server), so a switch can always be undone from here
+        String curKind = (String)cb?.kind
+        Boolean srvLocal = ((Boolean)getServerItem("isLocal") == true)
+        Boolean canSwitch = (getServerHostURL() != null && state.accessToken)
+        if(!canSwitch) {
+            paragraph spanSm("Switching is not available: the server address or the app access token is unknown.", sCLRGRY)
+        } else {
+            if(curKind != "cloud") input "btnUseCloudCallback", "button", title: "Switch Server to Cloud URL", width: 6
+            if(curKind != "local") {
+                if(srvLocal) { input "btnUseLocalCallback", "button", title: "Switch Server to Local URL", width: 6 }
+                else { paragraph spanSm("Local URL: not offered because this server is not on your local network (it can't reach the hub's local address).", sCLRGRY) }
+            }
+            if(!curKind) paragraph spanSm("Tip: check first so the page knows which URL the server uses now.", sCLRGRY)
+        }
+        if(state.cbSwitchMsg) paragraph spanSmBr((String)state.cbSwitchMsg, ((String)state.cbSwitchMsg).contains("FAILED") ? sCLRRED : sCLR4D9)
+        input "btnCheckCallbackUrl", "button", title: "Check Server Callback URL Now", width: 6
+        paragraph spanSm("Checks and switches run in the background; reopen this page after a few seconds to see the result. The app also checks automatically every 6 hours and sends the current URL when the server's is stale.", sCLRGRY)
+    }
+}
+
+/** e.g. "Local URL", "Cloud URL (STALE - will be updated)", "Not checked yet" (from the last self-check) */
+String callbackUrlStatusDesc() {
+    Map cb = (Map)state.srvCbUrlInfo
+    if(!cb?.kind) return "Not checked yet"
+    return "${callbackUrlKindDesc((String)cb.kind)}${cb.current == false ? " (STALE - will be updated)" : sBLANK}".toString()
+}
+
+/** none | cloud | local | other (hostname, port or reverse proxy) */
+String callbackUrlKind(String url) {
+    if(!url) return "none"
+    Integer qIdx = url.indexOf('?')
+    String path = qIdx >= 0 ? url.substring(0, qIdx) : url
+    if(path.contains("hubitat.com/")) return "cloud"
+    if(path.endsWith("/apps/api/${app?.id}/receiveData".toString())) return "local"
+    return "other"
+}
+
+static String callbackUrlKindDesc(String kind) {
+    switch(kind) {
+        case "cloud": return "Cloud URL"
+        case "local": return "Local URL"
+        case "other": return "Custom URL (hostname, port or proxy)"
+        case "none":  return "No callback URL"
+        default:      return "Unknown"
+    }
+}
+
+private void updSrvCbUrlInfo(String kind, Boolean current) {
+    state.srvCbUrlInfo = [kind: kind, current: current, dt: getDtNow()] // the kind only, never the URL/token
 }
 
 def srvcPrefOpts(Boolean req=false) {
@@ -464,7 +548,7 @@ def actionDuplicationPage() {
                     String actId = (String)act.getId().toString()
                     if(actData.settings && actData.state) {
                         String myId=app.getId()
-                        if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
+                        childDupMapFLD.putIfAbsent(myId, [:])
                         if(!childDupMapFLD[myId].actions) childDupMapFLD[myId].actions = [:]
                         childDupMapFLD[myId].actions[actId] = actData
                         log.debug "Dup Data: ${childDupMapFLD[myId].actions[actId]}"
@@ -493,7 +577,7 @@ def zoneDuplicationPage() {
                     String znId = (String)zn.getId().toString()
                     if(znData.settings && znData.state) {
                         String myId=app.getId()
-                        if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
+                        childDupMapFLD.putIfAbsent(myId, [:])
                         if(!childDupMapFLD[myId].zones) childDupMapFLD[myId].zones = [:]
                         childDupMapFLD[myId].zones[znId] = znData
                         log.debug "Dup Data: ${childDupMapFLD[myId].zones[znId]}"
@@ -741,9 +825,16 @@ def settingsPage() {
         }
         showDevSharePrefs()
         section(sectHead("Diagnostic Data:")) {
-            paragraph pTS("If you are having trouble send a private message to the developer with a link to this page that is shown below.", sNULL, false, sCLRGRY)
+            paragraph pTS("If you are having trouble, open the Diagnostic Data page, tap 'Copy Diagnostics' and paste the text into a private message to the developer. Never share the page's URL: it contains this app's access token, which also grants access to your Amazon login cookie.", sNULL, false, sCLRGRY)
             input "diagShareSensitveData", sBOOL, title: inTS1("Share Cookie Data?", "question"), required: false, defaultValue: false, submitOnChange: true
             href url: getAppEndpointUrl("diagData"), style: sEXTNRL, title: inTS1("Diagnostic Data"), description: spanSm("Tap to view", sCLRGRY)
+        }
+        section(sectHead("Access Token:")) {
+            paragraph pTS("If you ever shared a Diagnostic Data link (or any other URL from this app), reset the access token. Old links stop working and the Echo Speaks server is sent the new callback URL automatically.", sNULL, false, sCLRGRY)
+            Boolean confirmPending = state.tokenResetReqDt && (wnow() - (Long)state.tokenResetReqDt) < 60000L
+            if(confirmPending) { paragraph spanSmBld("Tap the button again within 60 seconds to confirm the reset.", sCLRRED) }
+            if(state.tokenResetMsg) { paragraph spanSm((String)state.tokenResetMsg, sCLRGRY) }
+            input "btnResetAccessToken", "button", title: (confirmPending ? "Confirm Access Token Reset" : "Reset Access Token"), width: 4
         }
     }
 }
@@ -1016,6 +1107,29 @@ void appButtonHandler(String btn) {
             state.mainMenu = true
             break
 
+        case "btnCheckCallbackUrl":
+            state.remove("cbSwitchMsg")
+            checkServerCallbackUrl([src: "settings", force: true])
+            break
+
+        case "btnUseCloudCallback":
+        case "btnUseLocalCallback":
+            String toUrl = (btn == "btnUseLocalCallback") ? getLocalEndpointUrl("receiveData") : getAppEndpointUrl("receiveData")
+            state.cbSwitchMsg = "Switching the server to the ${btn == "btnUseLocalCallback" ? "Local" : "Cloud"} URL... reopen this page in a few seconds".toString()
+            postServerCallbackUrl(toUrl as String, "settings switch", true)
+            break
+
+        case "btnResetAccessToken":
+            // two taps within 60 seconds so a stray tap doesn't break the server connection
+            if(state.tokenResetReqDt && (wnow() - (Long)state.tokenResetReqDt) < 60000L) {
+                state.remove("tokenResetReqDt")
+                resetAccessToken()
+            } else {
+                state.tokenResetReqDt = wnow()
+                state.remove("tokenResetMsg")
+            }
+            break
+
         default:
             if(btn.contains("::")) {
                 List items = btn.tokenize("::")
@@ -1205,7 +1319,7 @@ Map executeTuneInSearch(String query) {
     Map results; results = [:]
     try {
         httpGet(params) { resp ->
-            if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status != 200) logWarn("${resp?.status} ${sanitizeParams(params)}")
             if(resp?.status == 200) {
                 results = resp?.data ?: [:]
                 updTsVal("lastSpokeToAmazon")
@@ -1400,7 +1514,7 @@ void updateZoneSubscriptions() {
         subscribe(location, "es3ZoneState", zoneStateHandler)
         subscribe(location, "es3ZoneRemoved", zoneRemovedHandler)
         state.zoneEvtsActive = true
-        zoneStatusMapFLD = [:]
+        zoneStatusMapFLD.remove(app.getId().toString())
         checkZoneData()
         runIn(6, "requestZoneRefresh")
     }
@@ -1420,6 +1534,10 @@ def uninstalled() {
     clearCloudConfig()
     clearCookieData("App Uninstalled", false)
     removeDevices(true)
+    String myId = app.getId().toString()
+    [historyMapFLD, cookieDataFLD, echoDeviceMapFLD, childDupMapFLD, workQMapFLD, zoneStatusMapFLD, bluetoothDataFLD,
+     alexaRoutinesDataFLD, dndDataFLD, authValidMapFLD, devActivityMapFLD, healthChkMapFLD, childLogMapFLD, tsDtMapFLD,
+     serverDataMapFLD].each { java.util.concurrent.ConcurrentHashMap m -> m.remove(myId) } // static caches outlive the app
 }
 
 void appCleanup() {
@@ -1507,15 +1625,13 @@ def zoneStateHandler(evt) {
     if(data && id) {
         Boolean aa = getTheLock(sHMLF, "zoneStateHandler")
 
-        Map t0 = zoneStatusMapFLD[myId]
-        Map zoneMap = t0 ?: [:]
+        Map zoneMap = fldMapCopy(zoneStatusMapFLD[myId])
         zoneMap[id] = [name: data?.name, active: data?.active, paused: data?.paused, zoneDevices: data.zoneDevices, t: wnow()]
-        zoneStatusMapFLD[myId] = zoneMap
-        zoneStatusMapFLD = zoneStatusMapFLD
+        fldPut(zoneStatusMapFLD, myId, zoneMap)
 
         releaseTheLock(sHMLF)
 
-        getActionApps()?.each { it?.updZones(zoneMap) }
+        getActionApps()?.each { it?.updZones(fldMapCopy(zoneMap)) }
     }
 }
 
@@ -1526,19 +1642,16 @@ def zoneRemovedHandler(evt) {
     String myId=app.getId()
     if(data && id) {
         Boolean aa = getTheLock(sHMLF, "zoneRemoveHandler")
-        Map t0 = zoneStatusMapFLD[myId]
-        Map zoneMap; zoneMap = t0 ?: [:]
-        zoneMap = zoneMap ?: [:]
+        Map zoneMap = fldMapCopy(zoneStatusMapFLD[myId])
         Boolean fnd; fnd=false
         if(zoneMap.containsKey(id)) {
             fnd = true
             zoneMap.remove(id)
-            zoneStatusMapFLD[myId] = zoneMap
-            zoneStatusMapFLD = zoneStatusMapFLD
+            fldPut(zoneStatusMapFLD, myId, zoneMap)
         }
         releaseTheLock(sHMLF)
         if(fnd){
-            getActionApps()?.each { it?.updZones(zoneMap) }
+            getActionApps()?.each { it?.updZones(fldMapCopy(zoneMap)) }
         }
     }
 }
@@ -1560,19 +1673,18 @@ void checkZoneData() {
             newField[id] = [name: (String)zoneMap.name, active: (Boolean)zoneMap.active, paused: (Boolean)zoneMap.paused, zoneDevices: zoneMap.zoneDevices ?: null, t: wnow()]
         }
         newField.initialized = [a:true]
-        zoneStatusMapFLD[myId] = newField
-        zoneStatusMapFLD = zoneStatusMapFLD
+        fldPut(zoneStatusMapFLD, myId, newField)
 
         releaseTheLock(sHMLF)
 
-        getActionApps()?.each { it?.updZones(zoneMap) }
+        getActionApps()?.each { it?.updZones(fldMapCopy(newField)) } // was the undefined name zoneMap
     }
 }
 
 public Map getZones(Boolean chld=false) {
     String myId=app.getId()
     checkZoneData()
-    Map a = zoneStatusMapFLD[myId]
+    Map a = fldMapCopy(zoneStatusMapFLD[myId]) // a copy: callers (and this method) change it
 
     if(!chld) {
         String i = 'initialized'
@@ -1666,6 +1778,7 @@ void clearCloudConfig() {
     remServerItem(["onHeroku", "serverHost", "isLocal"])
     settingRemove("useHeroku")
     state.remove("herokuName")
+    state.remove("srvCbUrlInfo"); state.remove("cbUrlUpdFails"); state.remove("cbSwitchMsg") // the old server's callback status no longer applies
     state.serviceConfigured = false
     state.resumeConfig = true
     clearCookieData("clearCloudConfig", false)
@@ -1818,18 +1931,18 @@ void reInitChildZones() {
 }
 
 def processData() {
-    logTrace("processData() | Data: ${request.JSON}")
+    logTrace("processData() | Data keys: ${(request?.JSON instanceof Map) ? ((Map)request.JSON).keySet() : 'n/a'}")
     Map data = request?.JSON as Map
     // log.debug "processData() | Data: ${data}"
     if(data) {
         if(data?.version) {
-            updServerItem("onHeroku", (data?.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
+            updServerItem("onHeroku", serverIsHeroku(data))
             updServerItem("isLocal", (data?.isLocal == true))
             updServerItem("serverHost", ((String)data?.serverUrl ?: sNULL))
             logTrace("processData Received | Version: ${data?.version} | onHeroku: ${data?.onHeroku} | serverUrl: ${data?.serverUrl}")
             updCodeVerMap("server", (String)data?.version)
             state.serviceConfigured = true
-        } else { log.debug "data: $data" }
+        } else { logDebug("processData | no version in data | keys: ${data?.keySet()}") }
     }
     String json = new JsonOutput().toJson([message: "success", version: appVersionFLD])
     render contentType: sAPPJSON, data: json, status: 200
@@ -1870,8 +1983,7 @@ String getCookieVal() {
     if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].localCookie != null)) {
         Map cookieData = state.cookieData
         //if (cookieData && cookieData.localCookie && cookieData.csrf) cookieDataFLD[myId] = cookieData
-        cookieDataFLD[myId] = cookieData
-        cookieDataFLD = cookieDataFLD
+        fldPut(cookieDataFLD, myId, cookieData)
     }
     return cookieDataFLD[myId]?.localCookie ? (String)cookieDataFLD[myId].localCookie : sNULL
 }
@@ -1881,8 +1993,7 @@ String getCsrfVal() {
     if(! (cookieDataFLD[myId]!=null && cookieDataFLD[myId].csrf != null)) {
         Map cookieData = state.cookieData
         //if (cookieData && cookieData?.localCookie && cookieData?.csrf) { cookieDataFLD[myId] = cookieData; }
-        cookieDataFLD[myId] = cookieData
-        cookieDataFLD = cookieDataFLD
+        fldPut(cookieDataFLD, myId, cookieData)
     }
     return cookieDataFLD[myId]?.csrf ?  (String)cookieDataFLD[myId].csrf : sNULL
 }
@@ -1899,13 +2010,12 @@ def storeCookieData() {
             data.cookieData.each { String k,v-> cookieItems[k] = v as String }
             state.cookieData = cookieItems
             String myId=app.getId()
-            cookieDataFLD[myId] = cookieItems
-            cookieDataFLD = cookieDataFLD
+            fldPut(cookieDataFLD, myId, cookieItems)
             state.clearCnt = iZ
         }
 
         updServerItem("isLocal", (data.isLocal == true))
-        updServerItem("onHeroku", (data.onHeroku != false || (!data?.isLocal && (Boolean)settings.useHeroku)))
+        updServerItem("onHeroku", serverIsHeroku(data))
         updServerItem("serverHost", ((String)data.serverUrl ?: sNULL))
         updCodeVerMap("server", (String)data.version)
         remTsVal(["lastCookieChkDt", "lastSpokeToAmazon"])
@@ -1946,8 +2056,7 @@ def clearCookieData(String src=sNULL, Boolean callSelf=false) {
     state.remove("cookie")
     state.remove("cookieData")
     String myId=app.getId()
-    cookieDataFLD[myId] = [:]
-    cookieDataFLD = cookieDataFLD
+    fldPut(cookieDataFLD, myId, [:])
     state.clearCnt = iZ
     remTsVal(["lastCookieChkDt", "lastCookieRrshDt"])
     unschedule("getEchoDevices")
@@ -1971,18 +2080,17 @@ void updateChildAuth(Boolean isValid, Boolean doInit=true) {
     getZoneApps()?.each { (isValid) ? it?.relayUpdateCookies(cook, doInit) : it?.relayRemoveCookies(true) }
 }
 
-@Field volatile static Map<String,List> authValidMapFLD             = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,List> authValidMapFLD = new java.util.concurrent.ConcurrentHashMap<String,List>()
 
 void authValidationEvent(Boolean valid, String src=sNULL) {
     Boolean isValid = valid && getCookieVal() && getCsrfVal()
     Integer listSize = 3
     String myId=app.getId()
     List eList; eList = authValidMapFLD[myId]
-    eList = eList ?: [true, true, true]
+    eList = eList ? new ArrayList(eList) : [true, true, true]
     eList.push(isValid)
     if(eList.size() > listSize) { eList = eList.drop( eList.size()-listSize ) }
-    authValidMapFLD[myId]= eList
-    authValidMapFLD[myId]= authValidMapFLD[myId]
+    fldPut(authValidMapFLD, myId, eList)
     state.authValidHistory = eList
     if(eList.every { it == false }) {
         if(!(Boolean)state.noAuthActive) {
@@ -2037,29 +2145,47 @@ static String toQueryString(Map m) {
     return m.collect { k, v -> "${k}=${URLEncoder.encode(v?.toString(), "utf-8").replaceAll("\\+", "%20")}" }?.sort()?.join("&")
 }
 
+/**
+ * onHeroku was "anything but an explicit false", so a local server that didn't send the field was flagged as Heroku too.
+ * Now: onHeroku:true wins, a local server (isLocal:true) is never Heroku, otherwise follow the Heroku/cloud deploy setting.
+ */
+Boolean serverIsHeroku(Map data) {
+    if(data?.onHeroku == true) return true
+    if(data?.isLocal == true) return false
+    return ((Boolean)settings.useHeroku != false) // not local: cloud deploy (old behavior), unless the user chose local
+}
+
 String getServerHostURL() {
     String srvHost = (String)getServerItem("serverHost")
     String srvHostOr = (serverHostOverride && serverHostOverride ==~ /.*\/$/) ? serverHostOverride.substring(0, serverHostOverride.length()-1): serverHostOverride
-    String rtnHost = ((Boolean)getServerItem("isLocal") && srvHost) ? (srvHost ?: sNULL) : "https://${getRandAppName()}.herokuapp.com".toString()
-    return (srvHostOr) ?: rtnHost
+    if(srvHostOr) return srvHostOr
+    // prefer the URL the server reported (local, newer Heroku app URLs, or any other host); the <name>.herokuapp.com
+    // guess is only a fallback for Heroku servers that never reported one
+    if(srvHost) return srvHost
+    return (Boolean)getServerItem("onHeroku") ? "https://${getRandAppName()}.herokuapp.com".toString() : sNULL
 }
 
 Integer cookieRefreshSeconds() { return ((Integer)settings.refreshCookieDays ?: 5)*86400 as Integer }
 
 void clearServerAuth() {
-    logDebug("clearServerAuth: serverUrl: ${getServerHostURL()}")
-    Map params = [ uri: getServerHostURL(), path: "/clearAuth", timeout: 20 ]
-    Long execDt = wnow()
-    httpGet(params) { resp->
-        // log.debug "resp: ${resp.status} | data: ${resp?.data}"
-        if(resp?.status != 200) logWarn("clearServerAuth: ${resp?.status} $params")
-        if (resp?.status == 200) {
-            logInfo("Clear Server Auth Completed... | Process Time: (${execDt ? (wnow()-execDt) : iZ}ms)")
-        }
+    String srvUrl = getServerHostURL()
+    logDebug("clearServerAuth: serverUrl: ${srvUrl}")
+    if(!srvUrl) { logWarn("clearServerAuth | No server URL known... Skipping"); return }
+    Map params = [ uri: srvUrl, path: "/clearAuth", timeout: 20 ]
+    // async: nothing waits on the result, and a sync call could block the caller for up to 20s
+    execAsyncCmd("get", "clearServerAuthResp", params, [execDt: wnow()])
+}
+
+def clearServerAuthResp(response, data) {
+    if(response?.hasError() || response?.getStatus() != 200) {
+        logWarn("clearServerAuth FAILED (${response?.getStatus()}): ${response?.hasError() ? response?.getErrorMessage() : sBLANK}")
+        return
     }
+    logInfo("Clear Server Auth Completed... | Process Time: (${data?.execDt ? (wnow()-(Long)data.execDt) : iZ}ms)")
 }
 
 void wakeupServer(Boolean c=false, Boolean g=false, String src) {
+    if(!getServerHostURL()) { logWarn("wakeupServer($src) | No server URL known... Skipping"); return }
     Map params = [
         uri: getServerHostURL(),
         path: "/wakeup",
@@ -2110,7 +2236,8 @@ void checkServerCallbackUrl(Map data=null) {
     String src = (String)data?.src ?: "unknown"
     Boolean force = (data?.force == true)
     if(!serverConfigured()) { logTrace("checkServerCallbackUrl($src) | Server not configured... Skipping"); return }
-    if(!force && getLastTsValSecs("lastCallbackChkDt") < 21600) { return } // at most every 6 hours unless forced
+    if(!state.accessToken) { logWarn("checkServerCallbackUrl($src) | No access token yet (open the app once to create it)... Skipping"); return }
+    if(!force && getLastTsValSecs("lastCallbackChkDt") < callbackChkIntervalSecs()) { return } // every 6 hours, backing off after failed updates
     String srvUrl = getServerHostURL()
     if(!srvUrl) { return }
     updTsVal("lastCallbackChkDt")
@@ -2122,6 +2249,59 @@ void checkServerCallbackUrl(Map data=null) {
     ]
     logTrace("checkServerCallbackUrl($src)")
     execAsyncCmd("get", "checkServerCallbackUrlResp", params, [src: src])
+}
+
+// 6 hours normally; after failed updates retry sooner at first, then back off (30m, 1h, 2h ... capped at 24h)
+Integer callbackChkIntervalSecs() {
+    Integer fails = (Integer)state.cbUrlUpdFails ?: 0
+    if(fails <= 0) return 21600
+    return Math.min(900 * (1 << Math.min(fails, 7)), 86400) as Integer
+}
+
+/**
+ * True when the server's callback URL already reaches this app instance with the current token.
+ * Scheme/host are ignored so hostname, https:8443 and reverse-proxy setups are not overwritten;
+ * for Hubitat cloud URLs the hub UID must match as well.
+ */
+Boolean callbackUrlIsCurrent(String url) {
+    if(!callbackUrlPathOk(url) || !state.accessToken) return false
+    if(localCallbackIpStale(url)) return false
+    Integer qIdx = url.indexOf('?')
+    String query = qIdx >= 0 ? url.substring(qIdx + 1) : sBLANK
+    String tok = query.split('&').find { String q -> q.startsWith("access_token=") }?.substring(13)
+    return (tok == (String)state.accessToken)
+}
+
+/** Host part of a URL without scheme, port, path or query (e.g. 192.168.1.20). */
+static String urlHost(String url) {
+    if(!url) return sNULL
+    String h = url.contains("://") ? url.substring(url.indexOf("://") + 3) : url
+    Integer i = h.indexOf('/'); if(i >= 0) h = h.substring(0, i)
+    i = h.indexOf('?'); if(i >= 0) h = h.substring(0, i)
+    i = h.lastIndexOf(':'); if(i >= 0) h = h.substring(0, i)
+    return h.toLowerCase()
+}
+
+/**
+ * A local-form callback URL that uses an IP address other than the hub's current one (e.g. new DHCP lease).
+ * Hostnames (hubitat.local, a DNS name, a proxy) are left alone: they don't change with the hub's IP.
+ */
+Boolean localCallbackIpStale(String url) {
+    if(callbackUrlKind(url) != "local") return false
+    String h = urlHost(url)
+    String hubIp = urlHost((String)getLocalApiServerUrl())
+    return (h && hubIp && (h ==~ /\d{1,3}(\.\d{1,3}){3}/) && h != hubIp)
+}
+
+/** True when the URL (ignoring scheme, host and token) points at this app instance's receiveData endpoint. */
+Boolean callbackUrlPathOk(String url) {
+    if(!url) return false
+    Integer qIdx = url.indexOf('?')
+    String path = qIdx >= 0 ? url.substring(0, qIdx) : url
+    // cloud: .../<hubUID>/apps/<id>/receiveData | local: http://IP[:port]/apps/api/<id>/receiveData
+    if(!path.endsWith("/apps/${app?.id}/receiveData".toString()) && !path.endsWith("/apps/api/${app?.id}/receiveData".toString())) return false
+    if(path.contains("hubitat.com/") && !path.contains("/${getHubUID()}/apps/".toString())) return false
+    return true
 }
 
 def checkServerCallbackUrlResp(response, data) {
@@ -2138,51 +2318,90 @@ def checkServerCallbackUrlResp(response, data) {
         }
         String srvCbUrl = (String)((Map)cfg.settings).appCallbackUrl
         String myCbUrl = getAppEndpointUrl("receiveData")
-        // the server may deliberately use the hub's local endpoint instead of the cloud one; both are current
-        if(srvCbUrl && (srvCbUrl == myCbUrl || srvCbUrl == getLocalEndpointUrl("receiveData"))) {
+        Boolean ipChanged = localCallbackIpStale(srvCbUrl)
+        if(ipChanged) {
+            // the server uses the local URL but the hub's IP changed: send the local URL with the current IP
+            myCbUrl = getLocalEndpointUrl("receiveData") as String
+        } else if(srvCbUrl && callbackUrlPathOk(srvCbUrl) && state.accessToken) {
+            // only the token is stale (e.g. after "Reset Access Token"): keep the server's chosen URL form (local, hostname, proxy)
+            Integer qIdx = srvCbUrl.indexOf('?')
+            myCbUrl = (qIdx >= 0 ? srvCbUrl.substring(0, qIdx) : srvCbUrl) + "?access_token=${state.accessToken}"
+        }
+        // the server may deliberately use the hub's local endpoint (IP, hostname, proxy) instead of the cloud one; all are current
+        if(callbackUrlIsCurrent(srvCbUrl)) {
+            updSrvCbUrlInfo(callbackUrlKind(srvCbUrl), true)
+            state.remove("cbUrlUpdFails")
             logDebug("checkServerCallbackUrl | Server callback URL is current (${data?.src})")
             return
         }
-        logWarn("Server has ${srvCbUrl ? "a stale" : "no"} hub callback URL (hub UID, app id or access token changed) | Sending the current URL to the server... (${data?.src})")
-        Map params = [
-            uri: getServerHostURL(),
-            path: "/configData",
-            headers: [appcallbackurl: myCbUrl, hubplatform: platformFLD],
-            contentType: "text/plain",
-            requestContentType: "text/plain",
-            timeout: 20
-        ]
-        execAsyncCmd("post", "updServerCallbackUrlResp", params, [src: data?.src])
+        String why = ipChanged ? "the hub's local IP changed (now ${urlHost((String)getLocalApiServerUrl())})" : "hub UID, app id or access token changed"
+        logWarn("Server has ${srvCbUrl ? "a stale" : "no"} hub callback URL (${why}) | Sending the current URL to the server... (${data?.src})")
+        updSrvCbUrlInfo(callbackUrlKind(srvCbUrl), false)
+        postServerCallbackUrl(myCbUrl, (String)data?.src, false)
     } catch(ex) {
         logError("checkServerCallbackUrlResp | Error checking server callback URL: ${ex?.getMessage()}", false, ex)
     }
 }
 
+/** Sends a hub callback URL to the server (POST /configData, the same call the self-check uses). */
+void postServerCallbackUrl(String url, String src, Boolean manual) {
+    String srvUrl = getServerHostURL()
+    if(!srvUrl || !url) { logWarn("postServerCallbackUrl($src) | No server URL or callback URL... Skipping"); return }
+    Map params = [
+        uri: srvUrl,
+        path: "/configData",
+        headers: [appcallbackurl: url, hubplatform: platformFLD],
+        contentType: "text/plain",
+        requestContentType: "text/plain",
+        timeout: 20
+    ]
+    execAsyncCmd("post", "updServerCallbackUrlResp", params, [src: src, sentKind: callbackUrlKind(url), manual: manual])
+}
+
 def updServerCallbackUrlResp(response, data) {
     try {
+        Boolean manual = (data?.manual == true)
         if(response?.hasError()) {
-            logError("Server callback URL update FAILED (${response?.getStatus()}): ${response?.getErrorMessage()}")
-            remTsVal("lastCallbackChkDt") // retry on the next health check
+            String m = "(${response?.getStatus()}): ${response?.getErrorMessage()}".toString()
+            if(manual) { cbSwitchFailed(m) } else { cbUrlUpdFailed(m) }
             return
         }
         String rData = response?.getData()?.toString()
         if(rData == "done") {
+            state.remove("cbUrlUpdFails")
+            updSrvCbUrlInfo((String)data?.sentKind ?: "unknown", true)
+            if(manual) state.cbSwitchMsg = "Switched the server to the ${callbackUrlKindDesc((String)data?.sentKind)} at ${getDtNow()}".toString()
             logInfo("Server callback URL updated successfully (${data?.src})")
         } else {
-            logError("Server callback URL update FAILED | Server response: ${rData}")
-            remTsVal("lastCallbackChkDt")
+            String m = "| Server response: ${rData}".toString()
+            if(manual) { cbSwitchFailed(m) } else { cbUrlUpdFailed(m) }
         }
     } catch(ex) {
         logError("updServerCallbackUrlResp | Error: ${ex?.getMessage()}", false, ex)
     }
 }
 
+// a switch requested from the settings page failed: report it there; the server keeps its previous URL
+void cbSwitchFailed(String msg) {
+    logError("Server callback URL switch FAILED ${msg}")
+    state.cbSwitchMsg = "Switch FAILED ${msg}. The server keeps its previous URL.".toString()
+}
+
+// keeps lastCallbackChkDt so the next attempt waits callbackChkIntervalSecs(); only the first failure logs an error
+void cbUrlUpdFailed(String msg) {
+    Integer fails = ((Integer)state.cbUrlUpdFails ?: 0) + 1
+    state.cbUrlUpdFails = fails
+    String m = "Server callback URL update FAILED ${msg} | Attempt ${fails}, next retry in ${(Integer)(callbackChkIntervalSecs()/60)} min"
+    if(fails == 1) logError(m) else logWarn(m)
+}
+
 void cookieRefresh() {
     Map cookieData = state.cookieData ?: [:]
     if (!cookieData || !cookieData?.loginCookie || !cookieData?.refreshToken) {
-        logError("cookieRefresh: Required Registration data is missing for Cookie Refresh ${cookieData}")
+        logError("cookieRefresh: Required Registration data is missing for Cookie Refresh | Keys present: ${cookieData?.keySet()}")
         return
     }
+    if(!getServerHostURL()) { logError("cookieRefresh | No server URL known... Skipping"); return }
     Map params = [
         uri: getServerHostURL(),
         path: "/refreshCookie",
@@ -2279,7 +2498,7 @@ Boolean validateCookieResp(resp, data){
             authValidationEvent(valid, meth)
             updTsVal("lastCookieChkDt")
             logDebug("Cookie Validation: (${valid}) | Process Time: (${(wnow()-(Long)data.dt)}ms)")
-            return true
+            return valid
        }
     } catch(ex) {
         respExceptionHandler(ex, "validCookieResp", true)
@@ -2303,7 +2522,7 @@ private getCustomerData(Boolean frc=false) {
         ]
         logTrace("getCustomerData")
         httpGet(params) { resp->
-            if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status != 200) logWarn("${resp?.status} ${sanitizeParams(params)}")
             if(resp?.status == 200) {
                 updTsVal("lastSpokeToAmazon")
                 Map pData = resp?.data ?: null
@@ -2338,7 +2557,7 @@ private List getAllDeviceVolumes(Boolean frc=false) {
     try {
         logTrace("getAllDeviceVolumes")
         httpGet(params) { response ->
-            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status != 200) logWarn("${response?.status} ${sanitizeParams(params)}")
             if(response?.status == 200) {
                 updTsVal("lastSpokeToAmazon")
                 Map rData = response?.data ?: [:]
@@ -2375,7 +2594,7 @@ private List getAllDeviceVolumes(Boolean frc=false) {
 //     try {
 //         logTrace("getCustomerHistoryRecords")
 //         httpGet(params) { response ->
-//             if(response?.status != 200) logWarn("${response?.status} $params")
+//             if(response?.status != 200) logWarn("${response?.status} ${sanitizeParams(params)}")
 //             if(response?.status == 200) {
 //             updTsVal("lastSpokeToAmazon")
 //             def result = response?.data
@@ -2467,7 +2686,7 @@ private userCommIds() {
         ]
         logTrace("userCommIds")
         httpGet(params) { response->
-            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status != 200) logWarn("${response?.status} ${sanitizeParams(params)}")
             if(response?.status == 200) {
                 updTsVal("lastSpokeToAmazon")
                 List resp = response?.data ?: []
@@ -2522,7 +2741,7 @@ Map getMusicProviders(Boolean frc=false) {
     try {
         logTrace("getMusicProviders")
         httpGet(params) { response ->
-            if(response?.status != 200) logWarn("${response?.status} $params")
+            if(response?.status != 200) logWarn("${response?.status} ${sanitizeParams(params)}")
             if(response?.status == 200) {
                 updTsVal("lastSpokeToAmazon")
                 List<Map> rData = (List<Map>)response?.data ?: []
@@ -2634,7 +2853,7 @@ void getBluetoothDevices(Boolean frc=false) {
         }
     } catch (ex) {
         respExceptionHandler(ex, "getBluetoothDevices", true)
-        if(!bluetoothDataFLD[myId]) { bluetoothDataFLD[myId] = [:] }
+        bluetoothDataFLD.putIfAbsent(myId, [:])
     }
 }
 
@@ -2650,14 +2869,13 @@ void getBluetoothResp(resp, data) {
             else { btResp = resp?.data }
             // log.debug "Bluetooth Items: ${btResp}"
             String myId=app.getId()
-            bluetoothDataFLD[myId] = btResp
-            bluetoothDataFLD=bluetoothDataFLD
+            fldPut(bluetoothDataFLD, myId, btResp)
             updTsVal("bluetoothUpdDt")
         }
     } catch(ex) {
         respExceptionHandler(ex, "getBluetoothResp", true)
         String myId=app.getId()
-        if(!bluetoothDataFLD[myId]) { bluetoothDataFLD[myId] = [:] }
+        bluetoothDataFLD.putIfAbsent(myId, [:])
     }
 }
 
@@ -2670,8 +2888,7 @@ Map getBluetoothData(String serialNumber) {
     getBluetoothDevices(true)
     Map btData; btData = bluetoothDataFLD[myId]
     if(btData == null) {
-        bluetoothDataFLD[myId] = [:]
-        bluetoothDataFLD=bluetoothDataFLD
+        fldPut(bluetoothDataFLD, myId, [:])
         btData = [:]
     }
     Map bluData = btData && btData.bluetoothStates?.size() ? ((List<Map>)btData.bluetoothStates)?.find { it?.deviceSerialNumber == serialNumber } : [:]
@@ -2686,7 +2903,7 @@ Map getBluetoothData(String serialNumber) {
     return [btObjs: btObjs, pairedNames: tob ?: [], curConnName: curConnName?.replaceAll("\ufffd", sBLANK)]
 }
 
-@Field volatile static Map<String,Map> devActivityMapFLD = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> devActivityMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 void getDeviceActivityRunIn() {
      Map a = getDeviceActivity(sNULL, true)
@@ -2758,8 +2975,7 @@ def getLastActResp(resp, data){
                     Map lastActData = [ serialNumber: lastDevice?.serialNumber, spokenText: lastDescription?.summary, lastSpokenDt: lastCommand.creationTimestamp ]
 
                     String appId=app.getId()
-                    devActivityMapFLD[appId] = lastActData
-                    devActivityMapFLD = devActivityMapFLD
+                    fldPut(devActivityMapFLD, appId, lastActData)
                 }
             }
         }
@@ -2791,7 +3007,7 @@ void getDoNotDisturb(Boolean frc=true) {
         execAsyncCmd("get", "DnDResp", params, [:])
     } catch (ex) {
         respExceptionHandler(ex, "getDoNotDisturb", true)
-        if(!dndDataFLD[myId]) { dndDataFLD[myId] = [:] }
+        dndDataFLD.putIfAbsent(myId, [:])
     }
 }
 
@@ -2807,13 +3023,12 @@ void DnDResp(resp, data){
             else dndResp = resp?.data
 //            log.debug "DoNotDisturb Data: ${dndResp}"
             String myId=app.getId()
-            dndDataFLD[myId] = (Map)dndResp
-            dndDataFLD=dndDataFLD
+            fldPut(dndDataFLD, myId, (Map)dndResp)
         }
     } catch(ex) {
         respExceptionHandler(ex, "DnDResp", true)
         String myId=app.getId()
-        if(!dndDataFLD[myId]) { dndDataFLD[myId] = [:] }
+        dndDataFLD.putIfAbsent(myId, [:])
     }
 }
 
@@ -2825,8 +3040,7 @@ Boolean getDndEnabled(String serialNumber) {
         getDoNotDisturb()
         sData = dndDataFLD[myId]
         if(sData == null) {
-            dndDataFLD[myId] = [:]
-            dndDataFLD=dndDataFLD
+            fldPut(dndDataFLD, myId, [:])
             sData = [:]
         }
     }
@@ -2856,13 +3070,12 @@ public Map getAlexaRoutines(String autoId=sNULL) {
         try {
             logTrace("getAlexaRoutines($autoId)")
             httpGet(params) { response ->
-                if(response?.status != 200) logWarn("${response?.status} $params")
+                if(response?.status != 200) logWarn("${response?.status} ${sanitizeParams(params)}")
                 if(response?.status == 200) {
                     rtList = response?.data ?: []
                     updTsVal("lastSpokeToAmazon")
                     updTsVal("alexaRoutinesUpdDt")
-                    alexaRoutinesDataFLD[myId] = rtList
-                    alexaRoutinesDataFLD=alexaRoutinesDataFLD
+                    fldPut(alexaRoutinesDataFLD, myId, rtList)
                 }
             }
         } catch (ex) {
@@ -2962,7 +3175,7 @@ Boolean executeRoutineById(String routineId) {
 //     try {
 //         logTrace("getAlexaSkills")
 //         httpGet(params) { response->
-//             if(response?.status != 200) logWarn("${response?.status} $params")
+//             if(response?.status != 200) logWarn("${response?.status} ${sanitizeParams(params)}")
 //             if(response?.status == 200) {
 //             updTsVal("lastSpokeToAmazon")
 //             def respData = response?.data ?: null
@@ -2999,7 +3212,7 @@ void respExceptionHandler(ex, String mName, Boolean ignOn401=false, Boolean toAm
             if((sCode in [400, 429]) && respMsgLow) { // && (respMsgLow in ["rate exceeded", "too many requests"])) {
                 switch(respMsgLow) {
                     case "rate exceeded":
-                        logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                        logWarn("You've been rate-limited by Amazon for sending too many consecutive commands to your devices... | The command was dropped", true)
                         break
                     case "too many requests":
                         logError("${mName} | ${toMsg} is currently rate-limiting your requests | Msg: ${errMsg}")
@@ -3305,11 +3518,11 @@ void receiveEventData(Map evtData, String src) {
                 }
                 logDebug("Device Data Received and Updated for (${echoDeviceMap?.size()}) Alexa Devices | Took: (${execTime}ms) | Last Refreshed: (${(getLastTsValSecs("lastDevDataUpdDt")/60).toFloat()?.round(1)} minutes)")
                 updTsVal("lastDevDataUpdDt")
-                state.echoDeviceMap = echoDeviceMap
-                echoDeviceMapFLD[myId] = echoDeviceMap
-                echoDeviceMapFLD = echoDeviceMapFLD
-                state.allEchoDevices = allEchoDevices
-                state.skippedDevices = skippedDevices
+                // state only backs up the in-memory copy for cold starts; skip the (large) write when nothing changed
+                if(state.echoDeviceMap != echoDeviceMap) state.echoDeviceMap = echoDeviceMap
+                fldPut(echoDeviceMapFLD, myId, echoDeviceMap)
+                if(state.allEchoDevices != allEchoDevices) state.allEchoDevices = allEchoDevices
+                if(state.skippedDevices != skippedDevices) state.skippedDevices = skippedDevices
                 state.deviceStyleCnts = curDevFamily.countBy { it }
                 state.unknownDevices = unknownDevices
             } else {
@@ -3331,8 +3544,7 @@ void receiveEventData(Map evtData, String src) {
 Map<String,Map> getEchoDeviceMap(){
     String myId=app.getId()
     if(!echoDeviceMapFLD[myId]) {
-        echoDeviceMapFLD[myId] = (Map)state.echoDeviceMap
-        echoDeviceMapFLD = echoDeviceMapFLD
+        fldPut(echoDeviceMapFLD, myId, (Map)state.echoDeviceMap)
     }
     return echoDeviceMapFLD[myId]
 }
@@ -3413,6 +3625,12 @@ void removeDevices(Boolean all=false) {
     } catch (ex) { logError("Device Removal Failed: ${ex}", false, ex) }
 }
 
+/** Returns a copy of http params safe for logging (drops auth headers / cookies). */
+static Map sanitizeParams(Map p) {
+    if(!p) return p
+    return p.findAll { k, v -> !(k?.toString()?.toLowerCase() in ['headers', 'cookie', 'cookies']) }
+}
+
 void execAsyncCmd(String method, String callbackHandler, Map params, Map otherData = null) {
     if(method && callbackHandler && params) {
         String m = method?.toString()?.toLowerCase()
@@ -3422,7 +3640,7 @@ void execAsyncCmd(String method, String callbackHandler, Map params, Map otherDa
 
 @SuppressWarnings('GrReassignedInClosureLocalVar')
 void sendAmazonCommand(String method, Map params, Map otherData=null) {
-    String meth = "sendAmazonCommand ${method} ${params} ${otherData?.cmdDesc}"
+    String meth = "sendAmazonCommand ${method} ${sanitizeParams(params)} ${otherData?.cmdDesc}"
     try {
         def rData, rStatus
         rData = null
@@ -3701,7 +3919,7 @@ void sendSpeak(Map cmdMap, Map deviceData, String device, String callback, Boole
     seqCmds = []
     if(cmdMap.oldVolume) {
         seqCmds.push([command: "volume", value: cmdMap.oldVolume, deviceData: deviceData])
-        queueMultiSequenceCommand(seqCmds, "sendSpeak last vol from $device", parallel, cmdMap, device, callback)
+        queueMultiSequenceCommand(seqCmds, "sendSpeak last vol from $device", parallel, cmdMap, device, sNULL) // callback only once, on the speak item
     }
 }
 
@@ -3766,7 +3984,7 @@ void addToQ(Map item) {
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'cmdQ'
-    List<Map> eData = (List)memStore[k] ?: []
+    List<Map> eData = new ArrayList((List)memStore[k] ?: []) // copy-on-write
     eData.push(item)
     Integer qsiz = eData.size()
     updMemStoreItem(k, eData)
@@ -3809,16 +4027,16 @@ void workQ() {
     // log.trace "lock wait: ${aa}"
     Boolean locked; locked = true
 
-    Map myMap = workQMapFLD[appId] ?: [:]
+    Map myMap = fldMapCopy(workQMapFLD[appId])
     Boolean active; active = (Boolean)myMap.active
-    if(active==null) { active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD }
+    if(active==null) { active = false;  myMap.active=active; fldPut(workQMapFLD, appId, myMap) }
     // log.debug "active: $active myMap: $myMap"
     Long nextOk; nextOk = (Long)myMap.nextOk ?: 0L
     if(nextOk < wnow()) nextOk = 0L
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
     String k = 'cmdQ'
-    List<Map> eData = (List<Map>)memStore[k] ?: []
+    List<Map> eData = new ArrayList((List<Map>)memStore[k] ?: []) // copy-on-write (items are removed below)
 
     Boolean fnd = (eData.size() > iZ)
 
@@ -3980,7 +4198,7 @@ void workQ() {
             lmsg.push("workQ FINAL ms delay is $msSum".toString())
             active = true
             myMap.active=active
-            myMap.nextOk = nextOk; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
+            myMap.nextOk = nextOk; fldPut(workQMapFLD, appId, myMap)
 
             locked = false
             releaseTheLock(sHMLF)
@@ -4094,11 +4312,11 @@ void finishWorkQ(response, extData){
         if((statusCode in [400, 429]) && respMsgLow && (respMsgLow in ["rate exceeded", "too many requests"])) {
             switch(respMsgLow) {
                 case "rate exceeded":
-                    logWarn("You've been rate-limited by Amazon for sending too many consectutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    logWarn("You've been rate-limited by Amazon for sending too many consecutive commands to your devices... | The command was dropped", true)
                     retry=true
                     break
                 case "too many requests":
-                    logWarn("You've sent too many consecutive commands to your devices... | Device will retry again in ${rDelay} seconds", true)
+                    logWarn("You've sent too many consecutive commands to your devices... | The command was dropped", true)
                     retry=true
                     break
             }
@@ -4106,42 +4324,39 @@ void finishWorkQ(response, extData){
     }
 
     String appId=app.getId()
-    Boolean aa = getTheLock(sHMLF, "addToQ(${item})")
+    try {
+        Boolean aa = getTheLock(sHMLF, meth)
+        try {
+            // static maps are reset when code is saved; an async response may arrive after that
+            Map myMap = fldMapCopy(workQMapFLD[appId])
+            myMap.active=false; fldPut(workQMapFLD, appId, myMap)
 
-    Map myMap = workQMapFLD[appId]
-    Boolean active = false;  myMap.active=active; workQMapFLD[appId]=myMap; workQMapFLD=workQMapFLD
-
-    Map<String,List> memStore = historyMapFLD[appId] ?: [:]
-    String k = 'active'
-    List<Map> activeD; activeD = (List<Map>)memStore[k] ?: []
-    if(retry) {
-        log.warn "wanted to retry but did not"
-//        String kk = 'cmdQ'
-//        List<Map> eData = (List<Map>)memStore[kk] ?: []
-//        List<Map> newL = activeD + eData
-//        activeD = newL
-// TODO delays
-        activeD = []
-    } else {
-        activeD = []
-    }
-    updMemStoreItem(k, activeD)
-
-    releaseTheLock(sHMLF)
-
-//    if(!retry) {
-    extData?.extList?.each  { extItem ->
-        if(extItem && (String)extItem.deviceId && (String)extItem.callback) {
-            if(extItem != null && statusCode==200) extItem["amznReqId"] = response?.headers["x-amz-rid"] ?: null
-            def child = getChildDevice((String)extItem.deviceId)
-            // Hubitat blocks computed device commands (SecurityException: Computed device command 'finishSendSpeak' is not allowed),
-            // so call the known callback directly. finishSendSpeak is the only callback the drivers pass.
-            if((String)extItem.callback == "finishSendSpeak") { child.finishSendSpeak(sData, statusCode, extItem) }
-            else { child."${(String)extItem.callback}"(sData, statusCode, extItem) }
+            // TODO: requeue with a delay when retry is set; for now rate-limited commands are dropped
+            updMemStoreItem('active', [])
+        } finally {
+            releaseTheLock(sHMLF)
         }
+
+        String amznReqId = null
+        if(statusCode == 200) { try { amznReqId = response?.headers?.get("x-amz-rid") } catch(ignored) {} }
+        extData?.extList?.each  { extItem ->
+            if(extItem && (String)extItem.deviceId && (String)extItem.callback) {
+                try {
+                    if(statusCode==200) extItem["amznReqId"] = amznReqId
+                    def child = getChildDevice((String)extItem.deviceId)
+                    if(!child) { logWarn("$meth | Device ${extItem.deviceId} not found (deleted?) | Skipping ${extItem.callback} callback"); return }
+                    // Hubitat blocks computed device commands (SecurityException: Computed device command 'finishSendSpeak' is not allowed),
+                    // so call the known callback directly. finishSendSpeak is the only callback the drivers pass.
+                    if((String)extItem.callback == "finishSendSpeak") { child.finishSendSpeak(sData, statusCode, extItem) }
+                    else { child."${(String)extItem.callback}"(sData, statusCode, extItem) }
+                } catch(ex) {
+                    logError("$meth | ${extItem.callback} callback failed for device ${extItem.deviceId}: ${ex?.getMessage()}", false, ex)
+                }
+            }
+        }
+    } finally {
+        workQ() // always continue with the next queued command
     }
-//    }
-    workQ()
 }
 
 Map sequenceBuilder(cmd, val, Map deviceData=[:]) {
@@ -4513,14 +4728,13 @@ static Map notifValEnum(Boolean allowCust = true) {
     return items
 }
 
-@Field volatile static Map<String,Boolean> healthChkMapFLD = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Boolean> healthChkMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Boolean>()
 
 void healthCheck() {
     logTrace("healthCheck")
     String appId=app.getId()
     if(!healthChkMapFLD[appId]) {
-        healthChkMapFLD[appId] = true
-        healthChkMapFLD = healthChkMapFLD
+        fldPut(healthChkMapFLD, appId, true)
     }
 
     if(!devModeFLD && advLogsActive()) { logsEnabled() }
@@ -4530,7 +4744,7 @@ void healthCheck() {
         return
     }
     Boolean a=validateCookie()
-    if(getLastTsValSecs("lastCookieRrshDt") > cookieRefreshSeconds()) {
+    if(state.cookieData?.refreshToken && getLastTsValSecs("lastCookieRrshDt", Integer.MAX_VALUE) > cookieRefreshSeconds()) { // missing timestamp => refresh due
         runCookieRefresh()
     } else if(getLastTsValSecs("lastServerWakeDt") > 86400 && serverConfigured()) { wakeupServer(false, false, "healthCheck") }
     checkServerCallbackUrl([src: "healthCheck"]) // throttled to every 6 hours
@@ -4575,12 +4789,11 @@ public void logsDisable() {
     }
 }
 
-@Field volatile static Map<String, Map> childLogMapFLD        = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> childLogMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 public void activateChildAdvLogs() {
     String myId=app.getId()
-    Map myMap; myMap = childLogMapFLD[myId]
-    myMap = myMap ?: [:]
+    Map myMap; myMap = fldMapCopy(childLogMapFLD[myId])
     Boolean a
 
     if((Boolean)settings.disableAllChildAdvLogs) {
@@ -4639,8 +4852,7 @@ public void activateChildAdvLogs() {
         myMap.childDeviceLogTrace = a
     }
 
-    childLogMapFLD[myId] = myMap
-    childLogMapFLD = childLogMapFLD
+    fldPut(childLogMapFLD, myId, myMap)
 }
 
 private void manAllZonesDbgLogs(Boolean enable=true) { getZoneApps()?.each { ca-> enable ? ca?.enableDebugLog() : ca?.disableDebugLog() } }
@@ -4665,15 +4877,13 @@ private void disableAdvChldLogs() {
     settingUpdate("childDeviceLogTrace", sFALSE, sBOOL)
 
     String myId=app.getId()
-    Map myMap; myMap = childLogMapFLD[myId]
-    myMap = myMap ?: [:]
+    Map myMap; myMap = fldMapCopy(childLogMapFLD[myId])
     Boolean a = false
     myMap.childAppLogDebug = a
     myMap.childAppLogTrace = a
     myMap.childDeviceLogDebug = a
     myMap.childDeviceLogTrace = a
-    childLogMapFLD[myId] = myMap
-    childLogMapFLD = childLogMapFLD
+    fldPut(childLogMapFLD, myId, myMap)
 }
 
 void missPollNotify(Boolean ion, Integer wait) {
@@ -4856,7 +5066,6 @@ public static String gitBranch() { return gitBranchFLD }
 
 static String getAppImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/echo-speaks/${gitBranchFLD}/resources/icons/${imgName}.png" }
 
-static String getPublicImg(String imgName) { return "https://raw.githubusercontent.com/tonesto7/SmartThings-tonesto7-public/master/resources/icons/${imgName}.png" }
 
 //static String sectTS(String t, String i = sNULL, Boolean bold=false) { return """<h3>${i ? """<img src="${i}" width="48"> """ : sBLANK} ${bold ? "<b>" : sBLANK}${t?.replaceAll("\\n", "<br>")}${bold ? "</b>" : sBLANK}</h3>""" }
 
@@ -4938,7 +5147,8 @@ String getAppEndpointUrl(subPath)   {
     return "${base}/${getHubUID()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}".toString()
 }
 
-String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/apps/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}" }
+// getLocalApiServerUrl() already ends in /apps/api, so the local form is http://IP/apps/api/<appId>/<path>
+String getLocalEndpointUrl(subPath) { return "${getLocalApiServerUrl()}/${app?.id}${subPath ? "/${subPath}" : sBLANK}?access_token=${state.accessToken}" }
 
 /******************************************
 |       Changelog Logic
@@ -5186,7 +5396,7 @@ private getWebData(Map params, String desc, Boolean text=true) {
     try {
         // log.trace("getWebData: ${desc} data")
         httpGet(params) { resp ->
-            if(resp?.status != 200) logWarn("${resp?.status} $params")
+            if(resp?.status != 200) logWarn("${resp?.status} ${sanitizeParams(params)}")
             if(resp?.data) {
                 if(text) { return resp.data.text?.toString() }
                 return resp.data
@@ -5196,7 +5406,7 @@ private getWebData(Map params, String desc, Boolean text=true) {
         incrementCntByKey("appErrorCnt")
         if(ex instanceof groovyx.net.http.HttpResponseException) {
             logWarn("${desc} file not found")
-        } else { logError("getWebData(params: $params, desc: $desc, text: $text) Exception: ${ex}", false, ex) }
+        } else { logError("getWebData(params: ${sanitizeParams(params)}, desc: $desc, text: $text) Exception: ${ex}", false, ex) }
         return "${desc} info not found"
     }
 }
@@ -5400,7 +5610,7 @@ private getDiagDataJson(Boolean asString = false) {
                 lastServerWakeDt: getTsVal("lastServerWakeDt"),
                 lastServerWakeDur: getTsVal("lastServerWakeDt") ? seconds2Duration(getLastTsValSecs("lastServerWakeDt")) : null,
                 serverPlatform: (Boolean)getServerItem("onHeroku") ? "Cloud" : "Local",
-                hostUrl: getServerHostURL(),
+                hasHostUrl: (getServerHostURL() != null), // not the URL itself: the server's /configData returns the callback URL with the access token
                 randomName: getRandAppName()
             ],
             versionChecks: [
@@ -5431,7 +5641,6 @@ def getDiagDataText() {
 }
 
 def getDiagData() {
-    def ema = new String("dG9uZXN0bzdAZ21haWwuY29t"?.decodeBase64())
     String html = """
         <!DOCTYPE html>
         <html lang="en">
@@ -5482,7 +5691,7 @@ def getDiagData() {
                     <div class="px-0">
                         <div class="d-flex justify-content-center">
                             <div class="btn-group btn-matrix mt-1">
-                                <button id="emailBtn" onclick="location.href='mailto:${ema?.toString()}?subject=Echo%20Speaks%20Diagnostics&body=${getAppEndpointUrl("diagData")}'" class="btn btn-sm btn-success rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-envelope fa-2x m-1"></i><span class="">Share with Developer</span></div></button>
+                                <button id="copyBtn" onclick="copyDiag()" class="btn btn-sm btn-success rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-copy fa-2x m-1"></i><span class="">Copy Diagnostics</span></div></button>
                                 <button id="asJsonBtn" onclick="location.href='${getAppEndpointUrl("diagDataJson")}'" class="btn btn-sm btn-info rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-code fa-2x m-1"></i><span>View Data as JSON</span></div></button>
                                 <button id="asTextBtn" onclick="location.href='${getAppEndpointUrl("diagDataText")}'" class="btn btn-sm btn-dark rounded-15 p-2 my-2 mx-3" type="button"><div class="valign-center"><i class="fas fa-file-alt fa-2x m-1"></i><span>View Data as Text</span></div></button>
                             </div>
@@ -5503,21 +5712,29 @@ def getDiagData() {
                             </section>
                         </div>
                     </div>
-                    <div class="w-100" style="position: fixed; bottom: 0;">
-                        <div class="form-group ml-0 mr-4">
-                            <label for="exampleFormControlTextarea1">External URL (Click/Tap to Select)</label>
-                            <textarea class="form-control z-depth-1" id="exampleFormControlTextarea1" onclick="this.focus();this.select()" rows="3" readonly>${getAppEndpointUrl("diagData")}</textarea>
-                        </div>
-                        <div class="form-group ml-0 mr-4">
-                            <label for="exampleFormControlTextarea2">Local URL (Click/Tap to Select)</label>
-                            <textarea class="form-control z-depth-1" id="exampleFormControlTextarea2" onclick="this.focus();this.select()" rows="3" readonly>${getLocalEndpointUrl("diagData")}</textarea>
-                        </div>
+                    <div class="text-center mx-3">
+                        <p class="small text-warning mb-1">To get help, tap Copy Diagnostics and paste the text into a private message.<br>Do not share this page's URL: it contains this app's access token, which also grants access to your Amazon login.</p>
+                        <p id="copyStatus" class="small mb-1"></p>
+                        <textarea class="form-control z-depth-1 d-none" id="diagText" onclick="this.focus();this.select()" rows="12" readonly></textarea>
                     </div>
                 </div>
             </body>
             <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.14.0/js/mdb.min.js"></script>
             <script>
                 \$('.cmd_btn').click(function() { console.log('cmd_btn type: ', \$(this).attr("data-cmdtype")); execCmd(\$(this).attr("data-cmdtype")); });
+                function copyDiag() {
+                    var st = document.getElementById('copyStatus');
+                    var ta = document.getElementById('diagText');
+                    st.textContent = 'Loading diagnostics...';
+                    // relative URL works whether this page was opened via the cloud or the local hub address
+                    fetch('diagDataText' + window.location.search).then(function(r) { return r.text(); }).then(function(txt) {
+                        ta.value = txt; ta.classList.remove('d-none'); ta.focus(); ta.select();
+                        var done = function() { st.textContent = 'Copied to clipboard. Paste it into your message.'; };
+                        var manual = function() { st.textContent = 'Select the text below and copy it manually.'; };
+                        if(navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(txt).then(done, function() { try { document.execCommand('copy') ? done() : manual(); } catch(e) { manual(); } }); }
+                        else { try { document.execCommand('copy') ? done() : manual(); } catch(e) { manual(); } }
+                    }).catch(function(e) { st.textContent = 'Failed to load diagnostics: ' + e; });
+                }
                 function execCmd(cmd) { if(!cmd) return; \$.getJSON(cmdUrl.replace('diagCmds', `diagCmds/\${cmd}`), function(result){ console.log(result); }); }
             </script>
         </html>
@@ -5681,22 +5898,21 @@ private getInstData(String key) {
 }
 
 @Field static final List<String> svdTSValsFLD = ["lastCookieRrshDt", "lastServerWakeDt"]
-@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> tsDtMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 private void updTsVal(String key, String dt=sNULL) {
     String val = dt ?: getDtNow()
     if(key in svdTSValsFLD) { updServerItem(key, val); return }
 
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:]
+    Map data=fldMapCopy(tsDtMapFLD[appId])
     if(key) data[key]=val
-    tsDtMapFLD[appId]=data
-    tsDtMapFLD=tsDtMapFLD
+    fldPut(tsDtMapFLD, appId, data)
 }
 
 private void remTsVal(key) {
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:]
+    Map data=fldMapCopy(tsDtMapFLD[appId])
     if(key) {
         if(key instanceof List) {
             List<String> aa = (List<String>)key
@@ -5709,8 +5925,7 @@ private void remTsVal(key) {
             if(data.containsKey(sKey)) { data.remove(sKey) }
             if(sKey in svdTSValsFLD) { remServerItem(sKey) }
         }
-        tsDtMapFLD[appId]=data
-        tsDtMapFLD=tsDtMapFLD
+        fldPut(tsDtMapFLD, appId, data)
     }
 }
 
@@ -5728,7 +5943,7 @@ Integer getLastTsValSecs(String val, Integer nullVal=1000000) {
         return (val && getTsVal(val)) ? GetTimeDiffSeconds(getTsVal(val)).toInteger() : nullVal
 }
 
-@Field volatile static Map<String,Map> serverDataMapFLD=[:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> serverDataMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 void updServerItem(String key, val) {
     Map data; data = atomicState?.serverDataMap
@@ -5737,8 +5952,7 @@ void updServerItem(String key, val) {
         String appId=app.getId()
         data[key] = val
         atomicState.serverDataMap = data
-        serverDataMapFLD[appId]= [:]
-        serverDataMapFLD = serverDataMapFLD
+        fldPut(serverDataMapFLD, appId, fldMapCopy(data)) // keep the cache in step instead of emptying it
     }
 }
 
@@ -5752,25 +5966,21 @@ void remServerItem(key) {
         } else { if(data.containsKey((String)key)) { data.remove((String)key) } }
         String appId=app.getId()
         atomicState?.serverDataMap = data
-        serverDataMapFLD[appId]= [:]
-        serverDataMapFLD = serverDataMapFLD
+        fldPut(serverDataMapFLD, appId, fldMapCopy(data))
     }
 }
 
+// Cached copy of atomicState.serverDataMap: loaded once per code load/reboot (it used to re-read atomicState on
+// every call after a restart and for every false/null value, e.g. onHeroku:false)
 def getServerItem(String key) {
+    if(!key) return null
     String appId=app.getId()
-    Map fdata; fdata = serverDataMapFLD[appId]
-    if(fdata == null) fdata = [:]
-    if(key) {
-        if(fdata[key] == null) {
-            Map sMap = atomicState?.serverDataMap
-            if(sMap && sMap[key]) {
-                fdata[key]=sMap[key]
-            }
-        }
-        return fdata[key]
+    Map fdata = serverDataMapFLD[appId]
+    if(fdata == null) {
+        fdata = fldMapCopy((Map)atomicState?.serverDataMap)
+        fldPut(serverDataMapFLD, appId, fdata)
     }
-    return null
+    return fdata[key]
 }
 
 void updAppFlag(String key, Boolean val) {
@@ -5926,7 +6136,8 @@ String getServiceConfDesc() {
     String str; str = sBLANK
     str += ((String)state.herokuName && (Boolean)getServerItem("onHeroku")) ? "${spanSmBld("Heroku:")} ${spanSmBr("(Configured)")}" : sBLANK
     str += ((Boolean)state.serviceConfigured && (Boolean)getServerItem("isLocal")) ? "${spanSmBld("Local Server:")} ${spanSmBr("(Configured)")}" : sBLANK
-    str += (String)getServerItem("serverHost") ? "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})")}" : sBLANK
+    str += ((String)getServerItem("serverHost") || settings.serverHostOverride) ? "${spanSmBld("Server:")} ${spanSmBr("(${getServerHostURL()})${settings.serverHostOverride ? " (override)" : sBLANK}")}" : sBLANK
+    str += (Boolean)state.serviceConfigured ? "${spanSmBld("Callback URL:")} ${spanSmBr("(${callbackUrlStatusDesc()})")}" : sBLANK
     str += (settings.amazonDomain) ? spanSmBld("Domain:") + spanSmBr(" (${settings?.amazonDomain})") : sBLANK
     return str != sBLANK ? divSm(str, sCLR4D9) : sNULL
 }
@@ -6092,6 +6303,37 @@ Boolean getAccessToken() {
         logError("getAccessToken Exception: ${ex}")
         return false
     }
+}
+
+/**
+ * Replaces the app's OAuth access token so previously shared endpoint URLs stop working,
+ * then forces the server callback self-check so the server receives the new callback URL.
+ */
+void resetAccessToken() {
+    String oldTok = (String)state.accessToken
+    try {
+        try { revokeAccessToken() } catch(ignored) { /* not available on every platform version; createAccessToken() replaces it */ }
+        state.remove("accessToken")
+        state.accessToken = createAccessToken()
+    } catch(ex) {
+        logError("resetAccessToken | Unable to create a new access token (is OAuth enabled for this app?): ${ex}", false, ex)
+        if(!state.accessToken && oldTok) state.accessToken = oldTok // the old one may have been revoked, but keep the app's URLs consistent
+        state.tokenResetMsg = "Reset FAILED: ${ex?.getMessage()}. Make sure OAuth is enabled for Echo Speaks in Apps Code."
+        return
+    }
+    if(!state.accessToken || state.accessToken == oldTok) {
+        logError("resetAccessToken | The hub returned the same or an empty access token; old links may still work")
+        state.tokenResetMsg = "Reset did not produce a new token. Old links may still work."
+        return
+    }
+    logWarn("Access token was reset | Previously shared app URLs no longer work", true)
+    state.remove("cbUrlUpdFails")
+    String srvMsg = sBLANK
+    if(serverConfigured()) {
+        checkServerCallbackUrl([src: "tokenReset", force: true])
+        srvMsg = " The Echo Speaks server is being sent the new callback URL; check the logs if speech stops working."
+    }
+    state.tokenResetMsg = "Access token reset at ${getDtNow()}.${srvMsg}"
 }
 
 private getTextEditChild(id) {
@@ -6895,7 +7137,7 @@ void addToLogHistory(String logKey, String msg, Integer max=10) {
     // log.trace "lock wait: ${aa}"
 
     Map<String,List> memStore = historyMapFLD[appId] ?: [:]
-    List<Map> eData = (List<Map>)memStore[logKey] ?: []
+    List<Map> eData = new ArrayList((List<Map>)memStore[logKey] ?: []) // copy-on-write
     if(eData.find { it?.message == msg }) {
         releaseTheLock(sHMLF)
         return
@@ -6958,11 +7200,10 @@ private void clearLogHistory() {
     Boolean aa = getTheLock(sHMLF, "clearLogHistory")
     // log.trace "lock wait: ${aa}"
 
-    Map memStore = historyMapFLD[appId] ?: [:]
+    Map memStore = fldMapCopy(historyMapFLD[appId])
     memStore["warnHistory"] = []
     memStore["errorHistory"] = []
-    historyMapFLD[appId] = memStore
-    historyMapFLD = historyMapFLD
+    fldPut(historyMapFLD, appId, memStore)
 
     releaseTheLock(sHMLF)
 }
@@ -6972,8 +7213,7 @@ private void clearHistory() {
     Boolean aa = getTheLock(sHMLF, "clearHistory")
     // log.trace "lock wait: ${aa}"
 
-    historyMapFLD[appId] = [:]
-    historyMapFLD = historyMapFLD
+    fldPut(historyMapFLD, appId, [:])
 
     releaseTheLock(sHMLF)
 }
@@ -6981,17 +7221,16 @@ private void clearHistory() {
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, List val) {
     String appId = app.getId()
-    Map memStore = historyMapFLD[appId] ?: [:]
+    Map memStore = fldMapCopy(historyMapFLD[appId])
     memStore[key] = val
-    historyMapFLD[appId] = memStore
-    historyMapFLD = historyMapFLD
+    fldPut(historyMapFLD, appId, memStore)
     // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
 }
 
 private List<Map> getMemStoreItem(String key){
     String appId = app.getId()
     Map<String, List> memStore = historyMapFLD[appId] ?: [:]
-    return (List)memStore[key] ?: []
+    return new ArrayList((List)memStore[key] ?: []) // copy: callers may change it before updMemStoreItem()
 }
 
 // Memory Barrier
@@ -7025,8 +7264,8 @@ Semaphore getSema(Integer snum) {
     }
 }
 
-@Field volatile static Map<String,Long> lockTimesFLD = [:]
-@Field volatile static Map<String,String> lockHolderFLD = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Long> lockTimesFLD = new java.util.concurrent.ConcurrentHashMap<String,Long>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,String> lockHolderFLD = new java.util.concurrent.ConcurrentHashMap<String,String>()
 
 Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     Long waitT = longWait ? 1000L : 60L
@@ -7039,21 +7278,20 @@ Boolean getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
         Long timeL; timeL = lockTimesFLD[semaSNum]
         if(timeL == null){
             timeL = wnow()
-            lockTimesFLD[semaSNum] = timeL
-            lockTimesFLD = lockTimesFLD
+            fldPut(lockTimesFLD, semaSNum, timeL)
         }
         //if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
         pauseExecution(waitT)
         wait = true
         if((wnow() - timeL) > 30000L) {
-            releaseTheLock(qname)
-            if(devModeFLD) log.warn "overriding lock $meth"
+            // take over a lock held > 30s without releasing it: releasing someone else's permit and then
+            // having the stuck holder release again would leave 2 permits (no mutual exclusion)
+            log.warn "overriding lock ${qname} held by ${(String)lockHolderFLD[semaSNum]} | $meth"
+            break
         }
     }
-    lockTimesFLD[semaSNum] = wnow()
-    lockTimesFLD = lockTimesFLD
-    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
-    lockHolderFLD = lockHolderFLD
+    fldPut(lockTimesFLD, semaSNum, wnow())
+    fldPut(lockHolderFLD, semaSNum, "${app.getId()} ${meth}".toString())
     return wait
 }
 
@@ -7061,11 +7299,9 @@ void releaseTheLock(String qname){
     Integer semaNum=getSemaNum(qname)
     String semaSNum=semaNum.toString()
     Semaphore sema=getSema(semaNum)
-    lockTimesFLD[semaSNum]=null
-    lockTimesFLD=lockTimesFLD
-    lockHolderFLD[semaSNum]=sNULL
-    lockHolderFLD=lockHolderFLD
-    sema.release()
+    fldPut(lockTimesFLD, semaSNum, null)
+    fldPut(lockHolderFLD, semaSNum, sNULL)
+    sema.drainPermits(); sema.release() // always exactly 1 permit afterwards (also after an override / double release)
 }
 
 public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
@@ -7224,7 +7460,7 @@ public static Map getAppDuplTypes() { return appDuplicationTypesMapFLD }
         "AQ24620N8QD5Q"  : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen2)" ],
         "A1EIANJ7PNB0Q7" : [ c: [ "a", "t" ], i: "echo_show_15", n: "Echo Show 15 (Gen1)" ],
         "A11QM4H9HGV71H" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 5 (Gen3)" ],
-        "A2UONLFQW0PADH" : [ c: [ "a", "t" ], i: "echo_show_5", n: "Echo Show 8 (Gen3)" ],
+        "A2UONLFQW0PADH" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen3)" ],
         "A345JHMQDGG1M5" : [ c: [ "a", "t" ], i: "echo_show_8", n: "Echo Show 8 (Gen4)" ],
         "A2LLN0UXRW4N50" : [ c: [ "a", "t" ], i: "echo_show_11_gen4", n: "Echo Show 11 (Gen4)" ],
         "AZANTNEUTYY6L"  : [ c: [ "a", "t" ], i: "echo_show_21", n: "Echo Show 21 (Gen1)" ],

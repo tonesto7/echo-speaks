@@ -25,7 +25,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-actions.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.3.0.1"
+            "version": "4.3.0.3"
         },
         {
             "id": "50ad91a0-eb51-4d6f-98d2-f1654221baa9",
@@ -34,7 +34,7 @@
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/apps/echo-speaks-zones.groovy",
             "required": true,
             "oauth": false,
-            "version": "4.3.0.1"
+            "version": "4.3.0.3"
         }
     ],
     "drivers": [
@@ -44,7 +44,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-device.groovy",
             "required": true,
-            "version": "4.3.0.1"
+            "version": "4.3.0.3"
         },
         {
             "id": "afac5950-3dc0-4109-95ec-79aa3c7ef208",
@@ -52,7 +52,7 @@
             "namespace": "tonesto7",
             "location": "https://raw.githubusercontent.com/tonesto7/echo-speaks/master/drivers/echo-speaks-zone-device.groovy",
             "required": true,
-            "version": "4.3.0.1"
+            "version": "4.3.0.3"
         }
     ]
 }

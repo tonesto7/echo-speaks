@@ -2,7 +2,7 @@
 /**
  *  Echo Speaks Actions (Hubitat)
  *
- *  Copyright 2018-2025 Anthony Santilli
+ *  Copyright 2018-2026 Anthony Santilli
  *  Code Contributions by @nh.schottfam
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -33,8 +33,8 @@ import java.util.concurrent.Semaphore
 //************************************************
 //*               STATIC VARIABLES               *
 //************************************************
-@Field static final String appVersionFLD  = '4.3.0.1'
-@Field static final String appModifiedFLD = '2025-09-10'
+@Field static final String appVersionFLD  = '4.3.0.3'
+@Field static final String appModifiedFLD = '2026-11-27'
 @Field static final Boolean devModeFLD    = false
 @Field static final String sNULL          = (String)null
 @Field static final String sBLANK         = ''
@@ -159,7 +159,15 @@ import java.util.concurrent.Semaphore
 //*          IN-MEMORY ONLY VARIABLES            *
 //* (Cleared only on HUB REBOOT or CODE UPDATES) *
 //************************************************
-@Field volatile static Map<String,Map> historyMapFLD = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> historyMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
+
+/*
+ * Static caches shared by every execution (and every instance) of this app. ConcurrentHashMap makes concurrent
+ * access safe; inner maps/lists are copy-on-write (copy, change, put back) so readers never see a half-updated
+ * object. ConcurrentHashMap rejects null values, so fldPut() removes the key instead.
+ */
+static void fldPut(java.util.concurrent.ConcurrentHashMap m, String k, v) { if(k == null) return; if(v == null) { m.remove(k) } else { m.put(k, v) } }
+static Map fldMapCopy(Map m) { return m != null ? new LinkedHashMap(m) : [:] }
 // @Field volatile static String gitBranchFLD = null
 
 static String appVersion()    { return appVersionFLD }
@@ -227,7 +235,7 @@ def uhOhPage() {
 }
 
 def appInfoSect() {
-    String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd '@' h:mm a", true) : sNULL
+    String instDt = state.dateInstalled ? fmtTime((String)state.dateInstalled, "MMM dd, yyyy '@' h:mm a", true) : sNULL
     String str = spanBld((String)app.name, "black", "es_groups")
     str += ( app.label && (String)app.label != (String)app.name) ? spanBldBr(" (${app.label.replace(" (A)", sBLANK)})") : sLINEBR
     str += spanSmBld("Version: ") + spanSmBr(appVersionFLD)
@@ -246,8 +254,7 @@ private Map buildTriggerEnum() {
     buildItems["Thermostat Devices"] = [(sCOOLSP):"Thermostat Cooling Setpoint", (sHEATSP):"Thermostat Heating Setpoint", (sTHERMTEMP):"Thermostat Ambient Temp", (sTHERMOS):"Thermostat Operating State", (sTHERMMODE):"Thermostat Mode", (sTHERMFM):"Thermostat Fan Mode"].sort{ it?.value }
     buildItems["Button Devices"] = [(sPUSHED):"Button (Pushable)", (sRELEASED):"Button (Releasable)", (sHELD):"Button (Holdable)", (sDBLTAP):"Button (Double Tapable)"].sort{ it?.value }
 // TODO siren (capability.alarm, attr alarm - ENUM ["strobe", "off", "both", "siren"]
-    buildItems["Safety & Security"] = [(sALRMSYSST): getAlarmSystemName(), (sSMOKE):"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide", "guard":"Alexa Guard"].sort{ it?.value }
-    if(!parent?.guardAutoConfigured()) { buildItems["Safety & Security"].remove("guard") }
+    buildItems["Safety & Security"] = [(sALRMSYSST): getAlarmSystemName(), (sSMOKE):"Fire/Smoke", "carbonMonoxide":"Carbon Monoxide"].sort{ it?.value } // Alexa Guard was removed (parent no longer has guardAutoConfigured)
     return buildItems.collectEntries { it?.value }?.sort { it?.value }
 }
 
@@ -522,17 +529,6 @@ def triggersPage() {
                         input "trig_${inT}_once", sBOOL, title: inTS1("Only alert once a day? (per type: mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
                         input "trig_${inT}_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)", sDELAYT) + optPrefix(), required: false, defaultValue: null, submitOnChange: true
                         triggerMsgInput(sALRMSYSST)
-                    }
-                }
-            }
-
-            if (valTrigEvt("guard")) {
-                section (sectHead("Alexa Guard Events"), hideable: true) {
-                    input "trig_guard", sENUM, title: inTS1("Alexa Guard Modes", "alarm_home"), options: ["ARMED_STAY", "ARMED_AWAY", sANY], multiple: true, required: true, submitOnChange: true
-                    if(settings.trig_guard) {
-                        // input "trig_guard_once", sBOOL, title: inTS1("Only alert once a day?\n(per mode)", sQUES), required: false, defaultValue: false, submitOnChange: true
-                        // input "trig_guard_wait", sNUMBER, title: inTS1("Wait between each report (in seconds)\n(Optional)", sDELAYT), required: false, defaultValue: null, submitOnChange: true
-                        triggerMsgInput("guard")
                     }
                 }
             }
@@ -862,8 +858,7 @@ def triggerMsgInput(String inType /*, Boolean showRepInputs=false, Integer itemC
 
 Boolean locationTriggers() {
     return  (valTrigEvt(sMODE) && (List)settings.trig_mode) || (valTrigEvt(sALRMSYSST) && (List)settings.trig_alarmSystemStatus) ||
-        (valTrigEvt(sPISTNEXEC) && settings.trig_pistonExecuted) ||
-        (valTrigEvt("guard") && settings.trig_guard)
+        (valTrigEvt(sPISTNEXEC) && settings.trig_pistonExecuted)
 }
 
 Boolean deviceTriggers() {
@@ -1787,7 +1782,13 @@ private executeTaskCommands(data) {
     if(settings."${p}doors_open") { settings."${p}doors_open"*.open() }
     if(settings."${p}sirens" && (String)settings."${p}siren_cmd") {
         String cmd= (String)settings."${p}siren_cmd"
-        settings."${p}sirens"*."${cmd}"()
+        List sirens = (List)settings."${p}sirens"
+        switch(cmd) {
+            case "both":   sirens*.both(); break
+            case "strobe": sirens*.strobe(); break
+            case "siren":  sirens*.siren(); break
+            default: logWarn("executeTaskCommands | Unsupported siren command: ${cmd}")
+        }
         if(settings."${p}siren_time") runIn(settings."${p}siren_time", "postTaskCommands", [data:[type: p]])
     }
     if(settings."${p}lights") {
@@ -2142,6 +2143,11 @@ static Boolean wordInString(String findStr, String fullStr) {
     return (findStr in parts)
 }
 
+def uninstalled() {
+    String myId = app.getId().toString()
+    [historyMapFLD, zoneStatusMapFLD, tsDtMapFLD].each { java.util.concurrent.ConcurrentHashMap m -> m.remove(myId) } // static caches outlive the app
+}
+
 def installed() {
     logInfo("Installed Event Received...")
     state.dateInstalled = getDtNow()
@@ -2159,6 +2165,7 @@ def installed() {
 
 def updated() {
     logInfo("Updated Event Received...")
+    state.remove("startTime"); state.remove("stopTime") // were written on every time-condition check but never read
     Boolean maybeDup = ((String)app?.getLabel())?.contains(" (Dup)")
     if(maybeDup) logInfo("updated found maybe a dup... ${(Boolean)settings.duplicateFlag}")
     if((Boolean)settings.duplicateFlag) {
@@ -2556,7 +2563,7 @@ void scheduleSunriseSet() {
 }
 
 void subscribeToEvts() {
-    state.handleGuardEvents = false
+    state.remove("handleGuardEvents")
     if(minVersionFailed()) { logError("CODE UPDATE required to RESUME operation.  No events will be monitored.", true); return }
     if(isPaused(true)) { logWarn("Action is PAUSED... No Events will be subscribed to or scheduled....", true); return }
     ((List<String>)settings.triggerEvents)?.each { String te->
@@ -2569,12 +2576,9 @@ void subscribeToEvts() {
                             scheduleSunriseSet()
                             schedule('29 0 0 1/1 * ? * ', "scheduleSunriseSet")  // run at 00:00:29 every day
                         }
+                        else if((String)settings.trig_scheduled_type == sONETIME && (String)state.oneTimeSchedDone == (String)settings.trig_scheduled_time) { logInfo("One-Time schedule already ran... Change the trigger time to re-arm it") }
                         else if((String)settings.trig_scheduled_type in [sONETIME, sRECURRING] && settings.trig_scheduled_time) { schedule(cronBuilder(), "scheduleTrigEvt") }
                     }
-                    break
-                case "guard":
-                    // Alexa Guard Status Events
-                    if(settings.trig_guard) state.handleGuardEvents = true
                     break
                 case sALRMSYSST:
                     // Location Alarm Events
@@ -2588,6 +2592,8 @@ void subscribeToEvts() {
                     break
                 case sPISTNEXEC:
                     break
+                case "guard":
+                    break // Alexa Guard was removed; older actions may still list it (trig_guard holds mode names, not devices)
                 case sTHERMTEMP:
                     if (settings."trig_${te}_cmd") subscribe(settings."trig_${te}", sTEMP, getThermEvtHandlerName(te))
                     break
@@ -2629,10 +2635,6 @@ private executeActTest() {
                         String hand = getThermEvtHandlerName(te)
                         evt.name = sTEMP
                         "${hand}"(evt)
-                        break
-                    case "guard":
-                        // Alexa Guard Status Events
-                        guardEventHandler((String)evt.value)
                         break
                     case sALRMSYSST:
                         // Location Alarm Events
@@ -2693,7 +2695,6 @@ Map getRandomTrigEvt() {
             (sPOWER): getRandomItem(100..3000),
             (sMODE): getRandomItem((List)location?.modes),
             (sALRMSYSST): getRandomItem(getAlarmTrigOpts()?.collect {(String)it.key}),
-            guard: getRandomItem(["ARMED_AWAY", "ARMED_STAY"]),
             (sTHERMTEMP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
             (sCOOLSP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
             (sHEATSP): isC ? getRandomItem(10..33) : getRandomItem(50..90),
@@ -2719,7 +2720,7 @@ Map getRandomTrigEvt() {
     return evt
 }
 
-@Field volatile static Map<String,Map> zoneStatusMapFLD = [:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> zoneStatusMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 def zoneStateHandler(evt) {
     // TODO This is here as placeholder to prevent flooding the logs with errors after upgrading to v4.0
@@ -2731,15 +2732,14 @@ def zoneRemovedHandler(evt) {
 
 public updZones(Map zoneMap) {
     String myId=app.getId()
-    zoneStatusMapFLD[myId] = zoneMap
-    zoneStatusMapFLD = zoneStatusMapFLD
+    fldPut(zoneStatusMapFLD, myId, zoneMap)
 }
 
 public Map getZones(Boolean noCache = false) {
     String myId=app.getId()
-    Map a = zoneStatusMapFLD[myId]
+    Map a = fldMapCopy(zoneStatusMapFLD[myId]) // copy: 'initialized' is removed below
     if(noCache || !a) {
-        a = parent.getZones(true)
+        a = fldMapCopy(parent.getZones(true))
     }
     String i = 'initialized'
     if(a.containsKey(i))a.remove(i)
@@ -2800,13 +2800,20 @@ def scheduleTrigEvt(ievt=null) {
     Boolean dOk  = (srecur in ["Daily"]) ? (sTrigMap?.lastRun?.dayName != dateMap.dayName) : true
     Boolean wdOk = (days && srecur in ["Daily", "Weekly"]) ? (dateMap.dayNameShort in days) : true
     Boolean mdOk = daynums ? (dateMap.day in daynums) : true
-    Boolean wOk  = (weeks && srecur in ["Weekly"]) ? (dateMap.week in weeks && sTrigMap?.lastRun?.week != dateMap.week) : true
-    Boolean mOk  = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months && sTrigMap?.lastRun?.month != dateMap.month) : true
-    Boolean ok   = (dOk && wdOk && mdOk && wOk && mOk && dChk)
-    if(ok) {
+    // dChk already limits runs to once per day; week/month filters only restrict which weeks/months are allowed
+    Boolean wOk  = (weeks && srecur in ["Weekly", "Monthly"]) ? (dateMap.week in weeks) : true
+    Boolean mOk  = (months && srecur in ["Weekly", "Monthly"]) ? (dateMap.month in months) : true
+    Boolean isTest = ((String)evt.name == "test")
+    Boolean ok   = (dOk && wdOk && mdOk && wOk && mOk && (dChk || schedType == sONETIME))
+    if(ok && !isTest) {
         sTrigMap.lastRun = dateMap
         updMemStoreItem("schedTrigMap", sTrigMap)
         state.schedTrigMap = sTrigMap
+        if(schedType == sONETIME) {
+            // the cron is daily; a One-Time trigger must not fire again until its time setting is changed
+            unschedule("scheduleTrigEvt")
+            state.oneTimeSchedDone = (String)settings.trig_scheduled_time
+        }
     }
 
     releaseTheLock(sHMLF)
@@ -2854,7 +2861,7 @@ def alarmEvtHandler(evt) {
 
 void eventCompletion(evt, Boolean ok2Run, Boolean dco, Integer dcw, String meth, evtVal,
                      String evtDis, Boolean aftRepEvt=false, Boolean allDevsResp=false) {
-    Boolean evtWaitOk = ((dco || dcw!=null) ? evtWaitRestrictionOk([date: evt?.date, device: evt?.device, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw, aftRepEvt) : true)
+    Boolean evtWaitOk = ((ok2Run && (dco || dcw!=null)) ? evtWaitRestrictionOk([date: evt?.date, device: evt?.device, value: evtVal, name: evt?.name, displayName: evtDis], dco, dcw, aftRepEvt) : true)
     Boolean ok = evtWaitOk && ok2Run
     if(isDbg()) logDebug(meth+" | execOk: ${ok} | ok2Run :${ok2Run} | evtWaitOk: ${evtWaitOk}")
     if(getConfStatusItem("tiers")) {
@@ -2987,6 +2994,7 @@ void afterEvtCheckHandler() {
 
     getTheLock(sHMLF, meth)
     Boolean hasLock = true
+    try {
 
     String mK = "afterEvtMap"
     Map<String, Map> aEvtMap = (Map)getMemStoreItem(mK, [:])
@@ -3004,11 +3012,13 @@ void afterEvtCheckHandler() {
             aEvtMap = (Map)getMemStoreItem(mK, [:])
             if (!aEvtMap) aEvtMap = (Map)state[mK] ?: [:]
         }
+        // the map was reloaded after re-taking the lock: the entry may have been removed or re-timed meanwhile
         def nextItem = aEvtMap.find { eM -> (Long)eM?.value?.nextT == lit }
         Map nextVal = (Map)nextItem?.value ?: null
+        if(!nextVal) { logTrace(msg+"after-event entry for ${lit} no longer queued... skipping"); return } // continue to next time
         String eN = (String)nextVal.name
         String edisplayN = (String)nextVal.displayName
-        String edId = (String)nextVal.device.id
+        String edId = (String)((Map)nextVal.device)?.id
         String nextId = (edId && eN) ? "${edId}_${eN}" : sNULL
         Boolean remEvt
         Boolean runEvt = false
@@ -3129,6 +3139,10 @@ void afterEvtCheckHandler() {
         hasLock = false
         clearAfterCheckSchedule()
     }
+
+    } finally {
+        if(hasLock) releaseTheLock(sHMLF) // an exception must not leave this action's lock held
+    }
 }
 
 // TODO remove
@@ -3200,7 +3214,7 @@ void deviceEvtHandler(evt, Boolean aftEvt=false, Boolean aftRepEvt=false) {
             if(d?.size() && dc) {
                 if(dc == sANY) { evtOk = true }
                 else {
-                    if(dca && (allDevAttValsEqual(d, dc, (String)eV))) { evtOk = true; evtAd = true }
+                    if(dca) { if(allDevAttValsEqual(d, eN, dc)) { evtOk = true; evtAd = true } } // "all devices" must all match
                     else if(eV == dc) { evtOk=true }
                 }
             }
@@ -3446,7 +3460,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
         //noinspection GroovyFallthrough
         switch(cmd) {
             case sEQUALS:
-                if(dce) {
+                if(dce != null) {
                     if(!dca && dce == evtValue) evtOk=true
                     else if(dca && allDevAttNumValsEqual(devs, en, dce)) { evtOk=true; evtAd=true }
                 }
@@ -3454,7 +3468,7 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
             case sNBETWEEN:
                 not=true
             case sBETWEEN:
-                if(dcl && dch) {
+                if(dcl != null && dch != null) {
                     if(!dca) {
                         evtOk = (evtValue >= dcl) && (evtValue <= dch)
                         if(not) evtOk=!evtOk
@@ -3462,13 +3476,13 @@ Map deviceEvtProcNumValue(evt, List devs=null, String cmd=sNULL, Double dcl=null
                 }
                 break
             case sABOVE:
-                if(dch) {
+                if(dch != null) {
                     if(!dca && (evtValue > dch)) evtOk=true
                     else if(dca && allDevAttNumValsAbove(devs, en, dch)) { evtOk=true; evtAd=true }
                 }
                 break
             case sBELOW:
-                if(dcl) {
+                if(dcl != null) {
                     if(!dca && (evtValue < dcl)) evtOk=true
                     else if(dca && allDevAttNumValsBelow(devs, en, dcl)) { evtOk=true; evtAd=true }
                 }
@@ -3508,13 +3522,15 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait, Boolean af
     String msg = sBLANK
     Boolean dayOk
     String n = (String)evt?.name
-    String dID= evt?.device?.id as String
+    // mode / HSM / webCoRE events have no device; track them under "location" so once-per-day and wait still apply
+    String dID= (evt?.device?.id as String) ?: "location"
     if(evt && n && dID) {
         String kN= dID + '_' +n
         msg = "Last ${n.capitalize()} Event for Device ($dID) | onceDaily ${once} | wait ${wait} | repeatEvt: ${aftRepEvt} | "
         Date evtDt = (Date)evt.date
 
         getTheLock(sHMLF, meth)
+        try {
 
         String mK = "valEvtHistory"
         Map evtHistMap = (Map)getMemStoreItem(mK, [:])
@@ -3539,9 +3555,11 @@ private Boolean evtWaitRestrictionOk(evt, Boolean once, Integer wait, Boolean af
             state[mK] = evtHistMap
         }
 
-        releaseTheLock(sHMLF)
+        } finally {
+            releaseTheLock(sHMLF)
+        }
     } else {
-        msg="missing evt, name ($n) or deviceId ($dID)"
+        msg="missing evt or name ($n)"
     }
     msg += " Status: (${ok ? okSymFLD : notOkSymFLD})"
     if(isDbg())logDebug(meth+": "+msg)
@@ -3583,15 +3601,15 @@ Boolean timeCondOk() {
     String startType = (String)settings.cond_time_start_type
     String stopType = (String)settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == sTIME && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == sTIME && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == sTIME && settings.cond_time_start ? timeToday((String)settings.cond_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == sTIME && settings.cond_time_stop ? timeToday((String)settings.cond_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
 
         if(startType in lSUNRISESET || stopType in lSUNRISESET) {
             Map sun = getSunriseAndSunset()
             Long lsunset = sun.sunset.time
             Long lsunrise = sun.sunrise.time
-            Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
-            Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+            Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*60000L /* minutes */ : 0L
+            Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*60000L /* minutes */ : 0L
             if(startType in lSUNRISESET) {
                 Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
                 startTime = new Date(startl)
@@ -3606,15 +3624,11 @@ Boolean timeCondOk() {
             Boolean not = startTime.getTime() > stopTime.getTime()
             Boolean isBtwn = timeOfDayIsBetween((not ? stopTime : startTime), (not ? startTime : stopTime), now, mTZ())
             isBtwn = not ? !isBtwn : isBtwn
-            state.startTime = formatDt(startTime)
-            state.stopTime = formatDt(stopTime)
             if(isTrc())logTrace("timeCondOk ${isBtwn} | CurTime: (${now}) is${!isBtwn ? " NOT": sBLANK} between (${not ? stopTime:startTime} and ${not? startTime:stopTime})")
             return isBtwn
         }
     }
     if(isTrc())logTrace("timeCondOk | (null)")
-    state.startTime = sNULL
-    state.stopTime = sNULL
     return null
 }
 
@@ -3674,24 +3688,24 @@ Boolean checkDeviceNumCondOk(String att) {
     //noinspection GroovyFallthrough
     switch(cmd) {
         case sEQUALS:
-            if(dce) {
+            if(dce != null) {
                 a = dca ? allDevAttNumValsEqual(devs, att, dce) : anyDevAttNumValEqual(devs, att, dce)
             }
             break
         case sNBETWEEN:
             not=true
         case sBETWEEN:
-            if(dcl && dch) {
+            if(dcl != null && dch != null) {
                 a = dca ? allDevAttNumValsBetween(devs, att, dcl, dch, not) : anyDevAttNumValBetween(devs, att, dcl, dch, not)
             }
             break
         case sABOVE:
-            if(dch) {
+            if(dch != null) {
                 a = dca ? allDevAttNumValsAbove(devs, att, dch) : anyDevAttNumValAbove(devs, att, dch)
             }
             break
         case sBELOW:
-            if(dcl) {
+            if(dcl != null) {
                 a = dca ? allDevAttNumValsBelow(devs, att, dcl) : anyDevAttNumValBelow(devs, att, dcl)
             }
             break
@@ -3749,7 +3763,7 @@ Boolean devCondConfigured(String att) {
 }
 
 Boolean devNumCondConfigured(String att) {
-    return (settings."cond_${att}_cmd" && (settings."cond_${att}_low"!=null || settings."cond_${att}_high"!=null || settings."trig_${att}_equal"!=null))
+    return (settings."cond_${att}_cmd" && (settings."cond_${att}_low"!=null || settings."cond_${att}_high"!=null || settings."cond_${att}_equal"!=null))
 }
 
 Boolean timeCondConfigured() {
@@ -4116,7 +4130,9 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
-                            dev?."${mCmd}"(mText)
+                            if(mCmd == "voiceCmdAsText") { dev?.voiceCmdAsText(mText) }
+                            else if(mCmd == "executeSequenceCommand") { dev?.executeSequenceCommand(mText) }
+                            else { logWarn("executeAction | Unsupported ${actType} command: ${mCmd}") }
                         }
                         if(isDbg())logDebug("Sending ${mAct} Command: (${mText}) to devices (${actDevices})${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                     }
@@ -4132,7 +4148,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
-                            if(mCmd != "volume") dev?."${mCmd}"()
+                            if(mCmd != "volume") echoSimpleCmd(dev, mCmd)
                             else if(mCmd == "volume" && changeVol != null) dev?.setVolume(changeVol)
                         }
                         if(isDbg())logDebug("Sending ${actType.capitalize()} Command: (${mCmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol != null  ? " | Volume: ${changeVol}" : sBLANK}")
@@ -4150,7 +4166,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
-                            dev?."${actConf[actType].cmd}"(changeVol, restoreVol)
+                            echoBuiltinCmd(dev, (String)actConf[actType].cmd, changeVol, restoreVol)
                         }
                         if(isDbg())logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
@@ -4165,7 +4181,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
-                            dev?."${actConf[actType].cmd}"(actConf[actType].name, changeVol, restoreVol)
+                            dev?.playSoundByName((String)actConf[actType].name, changeVol, restoreVol) // cmd is always playSoundByName
                         }
                         if(isDbg())logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd} | Name: ${actConf[actType].name}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
@@ -4177,7 +4193,9 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                 if(actConf[actType] && actConf[actType].cmd && actConf[actType].label && actConf[actType].date && actConf[actType].time) {
                     List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                     actDevices?.each { dev->
-                        dev?."${actConf[actType].cmd}"(actConf[actType].label, actConf[actType].date, actConf[actType].time)
+                        if(actConf[actType].cmd == "createAlarm") { dev?.createAlarm((String)actConf[actType].label, (String)actConf[actType].date, (String)actConf[actType].time) }
+                        else if(actConf[actType].cmd == "createReminderNew") { dev?.createReminderNew((String)actConf[actType].label, (String)actConf[actType].date, (String)actConf[actType].time) }
+                        else { logWarn("executeAction | Unsupported ${actType} command: ${actConf[actType].cmd}") }
                         // dev?."${actConf[actType]?.cmd}"(actConf[actType]?.label, actConf[actType]?.date, actConf[actType]?.time, actConf[actType]?.recur?.type, actConf[actType]?.recur?.opt)
                     }
                     if(isDbg())logDebug("Sending ${actType?.toString()?.capitalize()} Command: (${actConf[actType]?.cmd}) to ${actDevices} | Label: ${actConf[actType]?.label} | Date: ${actConf[actType]?.date} | Time: ${actConf[actType]?.time}")
@@ -4193,7 +4211,8 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                     } else if(actDevSiz) {
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         actDevices.each { dev->
-                            dev?."${actConf[actType]?.cmd}"(actConf[actType]?.search, convMusicProvider((String)actConf[actType]?.provider), changeVol, restoreVol)
+                            // searchMusic(search, provider, volume, sleepSeconds): restoreVol was previously passed as sleepSeconds
+                            dev?.searchMusic((String)actConf[actType]?.search, convMusicProvider((String)actConf[actType]?.provider), changeVol, null)
                         }
                         if(isDbg())logDebug("Sending ${actType.capitalize()} | Provider: ${actConf[actType]?.provider} | Search: ${actConf[actType]?.search} | Command: (${actConf[actType]?.cmd}) to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}${changeVol!=null ? " | Volume: ${changeVol}" : sBLANK}${restoreVol!=null ? " | Restore Volume: ${restoreVol}" : sBLANK}")
                     }
@@ -4203,7 +4222,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
             case "alexaroutine":
                 if(actConf[actType] && actConf[actType].cmd && actConf[actType].routineId) {
                     List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
-                    actDevices[0]?."${actConf[actType].cmd}"((String)actConf[actType].routineId)
+                    actDevices[0]?.executeRoutineId((String)actConf[actType].routineId) // cmd is always executeRoutineId
                     if(isDbg())logDebug("Sending ${actType.capitalize()} Command: (${actConf[actType].cmd}) | RoutineId: ${actConf[actType].routineId} to ${actDevices}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                 }
                 break
@@ -4214,7 +4233,7 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                         List actDevices = parent?.getDevicesFromList(settings.act_EchoDevices)
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() } // TODO
                         if(aDev) {
-                            aDev?."${d?.cmd}"(d?.wakeword)
+                            aDev?.setWakeWord((String)d?.wakeword) // cmd is always setWakeWord
                             if(isDbg())logDebug("Sending WakeWord: (${d?.wakeword}) | Command: (${d?.cmd}) to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                         }
                     }
@@ -4228,9 +4247,9 @@ private void executeAction(evt = null, String src=sNULL, Boolean allDevsResp=fal
                         def aDev = actDevices?.find { it?.id?.toString() == d?.device?.toString() }
                         if(aDev) {
                             if(d?.cmd == "disconnectBluetooth") {
-                                aDev?."${d?.cmd}"()
+                                aDev?.disconnectBluetooth()
                             } else {
-                                aDev?."${d?.cmd}"(d?.btDevice)
+                                aDev?.connectBluetooth((String)d?.btDevice)
                             }
                             if(isDbg())logDebug("Sending ${d?.cmd} | Bluetooth Device: ${d?.btDevice} to ${aDev}${actDelay ? " | Delay: (${actDelay})" : sBLANK}")
                         }
@@ -4373,22 +4392,21 @@ public void logsDisable() {
     }
 }
 
-@Field volatile static Map<String,Map> tsDtMapFLD=[:]
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Map> tsDtMapFLD = new java.util.concurrent.ConcurrentHashMap<String,Map>()
 
 private void updTsVal(String key, String dt=sNULL) {
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:]
+    Map data=fldMapCopy(tsDtMapFLD[appId])
     if(!data) data = (Map)state.tsDtMap ?: [:]
     if(key) { data[key] = dt ?: getDtNow() }
-    tsDtMapFLD[appId]=data
-    tsDtMapFLD=tsDtMapFLD
+    fldPut(tsDtMapFLD, appId, data)
 
     state.tsDtMap = data
 }
 
 private void remTsVal(key) {
     String appId=app.getId()
-    Map data=tsDtMapFLD[appId] ?: [:]
+    Map data=fldMapCopy(tsDtMapFLD[appId])
     if(!data) data = (Map)state.tsDtMap ?: [:]
 
     if(key) {
@@ -4403,8 +4421,7 @@ private void remTsVal(key) {
         }
     }
 
-    tsDtMapFLD[appId]=data
-    tsDtMapFLD=tsDtMapFLD
+    fldPut(tsDtMapFLD, appId, data)
     state.tsDtMap = data
 }
 
@@ -4555,8 +4572,8 @@ Boolean notifTimeOk() {
     String startType = settings.notif_time_start_type
     String stopType = settings.notif_time_stop_type
     if(startType && stopType) {
-        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == sTIME && settings.notif_time_start ? timeToday((String)settings.notif_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? timeToday((String)settings.notif_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
     } else { return true }
 
     Date now = new Date()
@@ -4564,8 +4581,8 @@ Boolean notifTimeOk() {
         Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
-        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*60000L /* minutes */ : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*60000L /* minutes */ : 0L
         if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
@@ -4661,10 +4678,25 @@ private void webCoRE_poll(Boolean anow=false){
     }
     Integer lastUpd = getLastTsValSecs(sLASTWU)
     if (!webCoREFLD || (lastUpd > (3600*24)) || (anow && lastUpd > 300)) {
-        sendLocationEvent([name: "${webCoRE_handle()}.poll",value:'poll',isStateChange:true,displayed:false])
+        // webCoREFLD (the piston list) is shared by every action, so one poll serves them all. After a code save all
+        // actions initialize at once: only the first sends the poll; the others skip it for 60s (webCoRE's broadcast
+        // updates the shared list for everyone). tryAcquire: never wait here, a concurrent poller means skip.
+        if(webCoREPollLockFLD.tryAcquire()) {
+            try {
+                if(wnow() - webCoREPollDtFLD > 60000L) {
+                    webCoREPollDtFLD = wnow()
+                    sendLocationEvent([name: "${webCoRE_handle()}.poll",value:'poll',isStateChange:true,displayed:false])
+                } else if(isTrc()) { logTrace("webCoRE_poll | another action polled webCoRE ${(Long)((wnow() - webCoREPollDtFLD)/1000L)}s ago... skipping") }
+            } finally {
+                webCoREPollLockFLD.release()
+            }
+        } else if(isTrc()) { logTrace("webCoRE_poll | another action is polling webCoRE right now... skipping") }
         updTsVal(sLASTWU)
     }
 }
+
+@Field static final Semaphore webCoREPollLockFLD = new Semaphore(1)
+@Field static volatile Long webCoREPollDtFLD = 0L
 
 private void webCoRE_execute(String pistonIdOrName,Map data=[:]) {
     String i = pistonIdOrName
@@ -4915,7 +4947,7 @@ static Map getDateMap() {
     m.week =         dateTimeFmt(d, "W")
     m.weekOfYear =   dateTimeFmt(d, "w")
     m.monthName =    dateTimeFmt(d, "MMMMM")
-    m.month =        dateTimeFmt(d, "MM")
+    m.month =        dateTimeFmt(d, "M") // no leading zero: must match monthMap() keys "1".."12"
     m.year =         dateTimeFmt(d, "yyyy")
     m.hour =         dateTimeFmt(d, "hh")
     m.minute =       dateTimeFmt(d, "mm")
@@ -4990,15 +5022,15 @@ String getNotifSchedDesc(Boolean min=false) {
     String str = sBLANK
 
     if(startType && stopType) {
-        startTime = startType == sTIME && settings.notif_time_start ? toDateTime(settings.notif_time_start) : null
-        stopTime = stopType == sTIME && settings.notif_time_stop ? toDateTime(settings.notif_time_stop) : null
+        startTime = startType == sTIME && settings.notif_time_start ? timeToday((String)settings.notif_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == sTIME && settings.notif_time_stop ? timeToday((String)settings.notif_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
     }
     if(startType in lSUNRISESET || stopType in lSUNRISESET) {
         Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*1000L : 0L
-        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*1000L : 0L
+        Long startoffset = settings.notif_time_start_offset ? settings.notif_time_start_offset*60000L /* minutes */ : 0L
+        Long stopoffset = settings.notif_time_stop_offset ? settings.notif_time_stop_offset*60000L /* minutes */ : 0L
         if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
@@ -5275,8 +5307,8 @@ String getTimeCondDesc(Boolean addPre=true) {
     String startType = settings.cond_time_start_type
     String stopType = settings.cond_time_stop_type
     if(startType && stopType) {
-        startTime = startType == sTIME && settings.cond_time_start ? toDateTime(settings.cond_time_start) : null
-        stopTime = stopType == sTIME  && settings.cond_time_stop ? toDateTime(settings.cond_time_stop) : null
+        startTime = startType == sTIME && settings.cond_time_start ? timeToday((String)settings.cond_time_start, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
+        stopTime = stopType == sTIME  && settings.cond_time_stop ? timeToday((String)settings.cond_time_stop, mTZ()) /* today at that time; toDateTime() kept the date it was saved */ : null
     }
 
     String startLbl1 = sBLANK
@@ -5285,8 +5317,8 @@ String getTimeCondDesc(Boolean addPre=true) {
         Map sun = getSunriseAndSunset()
         Long lsunset = sun.sunset.time
         Long lsunrise = sun.sunrise.time
-        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*1000L : 0L
-        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*1000L : 0L
+        Long startoffset = settings.cond_time_start_offset ? settings.cond_time_start_offset*60000L /* minutes */ : 0L
+        Long stopoffset = settings.cond_time_stop_offset ? settings.cond_time_stop_offset*60000L /* minutes */ : 0L
         if(startType in lSUNRISESET) {
             Long startl = (startType == 'sunrise' ? lsunrise : lsunset) + startoffset
             startTime = new Date(startl)
@@ -5503,17 +5535,20 @@ private void clearLogHistory() {
 // FIELD VARIABLE FUNCTIONS
 private void updMemStoreItem(String key, val) {
     String appId = app.getId()
-    Map<String, Object> memStore = historyMapFLD[appId] ?: [:]
+    Map<String, Object> memStore = fldMapCopy(historyMapFLD[appId])
     memStore[key] = val
-    historyMapFLD[appId] = memStore
-    historyMapFLD = historyMapFLD
+    fldPut(historyMapFLD, appId, memStore)
     // log.debug("updMemStoreItem(${key}): ${memStore[key]}")
 }
 
 private getMemStoreItem(String key, defVal=[]){
     String appId = app.getId()
     Map<String, Object> memStore = historyMapFLD[appId] ?: [:]
-    return memStore[key] ?: defVal
+    def v = memStore[key] ?: defVal
+    // copy: callers change the result before updMemStoreItem(); the cached object must not change underneath other readers
+    if(v instanceof Map) return new LinkedHashMap((Map)v)
+    if(v instanceof List) return new ArrayList((List)v)
+    return v
 }
 
 /*
@@ -5526,68 +5561,103 @@ static void mb(String meth=sNULL){
 } */
 
 @Field static final String sHMLF = 'theHistMapLockFLD'
-@Field static Semaphore histMapLockFLD = new Semaphore(1)
+/*
+ * Lock for the static in-memory stores shared by all action instances.
+ * ConcurrentHashMap: these static maps are touched by many action instances/threads at once.
+ */
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Semaphore> appLocksFLD = new java.util.concurrent.ConcurrentHashMap<String,Semaphore>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,Long> lockTimesFLD = new java.util.concurrent.ConcurrentHashMap<String,Long>()
+@Field static final java.util.concurrent.ConcurrentHashMap<String,String> lockHolderFLD = new java.util.concurrent.ConcurrentHashMap<String,String>()
 
-private Integer getSemaNum(String name) {
-    if(name==sHMLF) return 0
-    log.warn "unrecognized lock name..."
-    return 0
-    // Integer stripes=22
-    // if(name.isNumber()) return name.toInteger()%stripes
-    // Integer hash=smear(name.hashCode())
-    // return Math.abs(hash)%stripes
-    // log.info "sema $name # $sema"
+private String lockKey(String qname) {
+    if(qname != sHMLF) log.warn "unrecognized lock name ${qname}..."
+    // one lock for ALL actions: the static webCoREFLD / historyMapFLD / tsDtMapFLD maps are shared by every action instance
+    return "0"
 }
 
-Semaphore getSema(Integer snum){
-    switch(snum) {
-        case 0: return histMapLockFLD
-        default: log.error "bad hash result $snum"
-            return null
+private Semaphore getSema(String key) {
+    Semaphore s = appLocksFLD.get(key)
+    if(s == null) {
+        appLocksFLD.putIfAbsent(key, new Semaphore(1))
+        s = appLocksFLD.get(key)
     }
+    return s
 }
-
-@Field volatile static Map<String,Long> lockTimesFLD = [:]
-@Field volatile static Map<String,String> lockHolderFLD = [:]
 
 void getTheLock(String qname, String meth=sNULL, Boolean longWait=false) {
     Long waitT = longWait ? 1000L : 60L
-//    Boolean wait = false
-    Integer semaNum = getSemaNum(qname)
-    String semaSNum = semaNum.toString()
-    Semaphore sema = getSema(semaNum)
+    String key = lockKey(qname)
+    Semaphore sema = getSema(key)
     while(!((Boolean)sema.tryAcquire())) {
         // did not get the lock
-        Long timeL = lockTimesFLD[semaSNum]
+        Long timeL = lockTimesFLD.get(key)
         if(timeL == null){
             timeL = wnow()
-            lockTimesFLD[semaSNum] = timeL
-            lockTimesFLD = lockTimesFLD
+            lockTimesFLD.put(key, timeL)
         }
-        if(devModeFLD) log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
+        if(devModeFLD) log.warn "waiting for ${qname} ${key} lock access, $meth, long: $longWait, holder: ${lockHolderFLD.get(key)}"
         pauseExecution(waitT)
-//        wait = true
         if((wnow() - timeL) > 30000L) {
-            releaseTheLock(qname)
-            if(devModeFLD) log.warn "overriding lock $meth"
+            // take over a lock held > 30s without releasing it: releasing someone else's permit and then
+            // having the stuck holder release again would leave 2 permits (no mutual exclusion)
+            log.warn "overriding lock ${qname} held by ${lockHolderFLD.get(key)} | $meth"
+            break
         }
     }
-    lockTimesFLD[semaSNum] = wnow()
-    lockTimesFLD = lockTimesFLD
-    lockHolderFLD[semaSNum] = "${app.getId()} ${meth}".toString()
-    lockHolderFLD = lockHolderFLD
-//    return wait
+    lockTimesFLD.put(key, wnow())
+    lockHolderFLD.put(key, "${app.getId()} ${meth}".toString())
 }
 
 void releaseTheLock(String qname){
-    Integer semaNum=getSemaNum(qname)
-    String semaSNum=semaNum.toString()
-    Semaphore sema=getSema(semaNum)
-    lockTimesFLD[semaSNum]=null
-    lockTimesFLD=lockTimesFLD
-    lockHolderFLD[semaSNum]=sNULL
-    lockHolderFLD=lockHolderFLD
-    sema.release()
+    String key = lockKey(qname)
+    Semaphore sema = getSema(key)
+    lockTimesFLD.remove(key)
+    lockHolderFLD.remove(key)
+    sema.drainPermits(); sema.release() // always exactly 1 permit afterwards (also after an override / double release)
+}
+
+/*
+ * Hubitat blocks computed device command calls (dev."${cmd}"(...) -> SecurityException on newer firmware),
+ * so Echo commands chosen in settings are dispatched explicitly.
+ */
+private void echoSimpleCmd(dev, String cmd) {
+    switch(cmd) {
+        case 'play':            dev?.play(); break
+        case 'pause':           dev?.pause(); break
+        case 'stop':            dev?.stop(); break
+        case 'togglePlayback':  dev?.togglePlayback(); break
+        case 'nextTrack':       dev?.nextTrack(); break
+        case 'previousTrack':   dev?.previousTrack(); break
+        case 'mute':            dev?.mute(); break
+        case 'unmute':          dev?.unmute(); break
+        case 'doNotDisturbOn':  dev?.doNotDisturbOn(); break
+        case 'doNotDisturbOff': dev?.doNotDisturbOff(); break
+        default: logWarn("echoSimpleCmd | Unsupported command: ${cmd}")
+    }
+}
+
+private void echoBuiltinCmd(dev, String cmd, changeVol, restoreVol) {
+    switch(cmd) {
+        case 'playWeather':          dev?.playWeather(changeVol, restoreVol); break
+        case 'playTraffic':          dev?.playTraffic(changeVol, restoreVol); break
+        case 'playSingASong':        dev?.playSingASong(changeVol, restoreVol); break
+        case 'playFlashBrief':       dev?.playFlashBrief(changeVol, restoreVol); break
+        case 'playGoodNews':         dev?.playGoodNews(changeVol, restoreVol); break
+        case 'playTellStory':        dev?.playTellStory(changeVol, restoreVol); break
+        case 'playFunFact':          dev?.playFunFact(changeVol, restoreVol); break
+        case 'playJoke':             dev?.playJoke(changeVol, restoreVol); break
+        case 'playCalendarToday':    dev?.playCalendarToday(changeVol, restoreVol); break
+        case 'playCalendarTomorrow': dev?.playCalendarTomorrow(changeVol, restoreVol); break
+        case 'playCalendarNext':     dev?.playCalendarNext(changeVol, restoreVol); break
+        case 'sayWelcomeHome':       dev?.sayWelcomeHome(changeVol, restoreVol); break
+        case 'sayCompliment':        dev?.sayCompliment(changeVol, restoreVol); break
+        case 'sayBirthday':          dev?.sayBirthday(changeVol, restoreVol); break
+        case 'sayGoodNight':         dev?.sayGoodNight(changeVol, restoreVol); break
+        case 'sayGoodMorning':       dev?.sayGoodMorning(changeVol, restoreVol); break
+        case 'sayGoodbye':
+        case 'sayGoodBye':           dev?.sayGoodbye(changeVol, restoreVol); break
+        default: logWarn("echoBuiltinCmd | Unsupported command: ${cmd}")
+    }
 }
 
 static String convMusicProvider(String prov) {
@@ -5662,7 +5732,7 @@ private getColorName(desiredColor, level=null) {
 //  if there is no colorMaps, then flash lights
 private void startFlashLights(String p, Integer cycles, Integer cycleT, Map color1Map=null, Map color2Map=null) {
     logDebug("startFlashLights ${p} | cycles: ${cycles} | cycle time: ${cycleT} | color1Map: ${color1Map} | color2Map: ${color2Map}")
-    Map data = [type: p, first: true, cycles: cycles, cycleT: cycleT, color1Map: color1Map, colorMap2: color2Map ]
+    Map data = [type: p, first: true, cycles: cycles, cycleT: cycleT, color1Map: color1Map, color2Map: color2Map ]
     flashLights(data)
 }
 
@@ -5676,8 +5746,8 @@ private void flashLights(Map data) {
     Integer cT = (Integer)data.cycleT
     Integer cS = (Integer)data.cycles
     if(!devs || !cT || !cS || cT < 1 || cS < 1) return
-    if(cT > 60) data.cycleT=60
-    if(cS > 200) data.cycles = 200
+    if(cT > 60) { cT = 60; data.cycleT = cT }
+    if(cS > 200) { cS = 200; data.cycles = cS }
 
     if((Boolean)data.first) {
         data.first = false
@@ -5784,7 +5854,7 @@ void restoreLightState(List devs, String p) {
                             if(!wOn && doP) pauseExecution(paus)
                         }
                     }
-                    if(dco || (wOn != isOn)) dev?."${sD.switch}"()
+                    if(dco || (wOn != isOn)) { if(sD.switch == "on") { dev?.on() } else { dev?.off() } }
                 } else logWarn(msg+"no saved state for device found")
             }
         } else logWarn(msg+"no saved state found")
@@ -5879,7 +5949,7 @@ public Map getSettingsAndStateMap() {
         "lastNotifMsgDt", "lastNotificationMsg", "setupComplete", "valEvtHistory", "warnHistory", "errorHistory",
         "appData", "actionHistory", "authValidHistory", "deviceRefreshInProgress", "noticeData", "installData", "herokuName", "zoneHistory",
         // actions
-        "tierSchedActive",
+        "tierSchedActive", "oneTimeSchedDone", "schedTrigMap", // a duplicated action must schedule on its own
         // zones
         "zoneConditionsOk", "configStatusMap", "tsDtMap", "dateInstalled", /* "handleGuardEvents", */ "startTime", "stopTime", /* "alexaGuardState", */ "appFlagsMap", // DISABLED: Alexa Guard features disabled
         "dupPendingSetup", "dupOpenedByUser"
